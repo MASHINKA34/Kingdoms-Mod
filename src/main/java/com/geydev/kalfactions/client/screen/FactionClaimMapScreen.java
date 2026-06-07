@@ -63,13 +63,13 @@ public final class FactionClaimMapScreen extends FactionScreen {
                     : claim.label() + " (" + hoveredX + ", " + hoveredZ + ")";
             graphics.drawString(font, label, left + 238, top + 105, 0x3F2A19, false);
         }
-        graphics.drawString(
+        graphics.drawWordWrap(
                 font,
                 text("screen.kingdoms.claim_help", "Click a free chunk to claim it. Click your claim to release it."),
                 left + 238,
                 top + 121,
-                0x5B452E,
-                false
+                74,
+                0x5B452E
         );
     }
 

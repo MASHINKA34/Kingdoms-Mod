@@ -2,6 +2,7 @@ package com.geydev.kalfactions.bonus;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.protection.FactionAccess;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -22,6 +23,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.Tags;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.UseItemOnBlockEvent;
 import net.neoforged.neoforge.event.level.BlockDropsEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
@@ -37,7 +39,7 @@ public final class BonusHandler {
     public static void onOreDrops(BlockDropsEvent event) {
         if (!(event.getBreaker() instanceof ServerPlayer player)
                 || !event.getState().is(Tags.Blocks.ORES)
-                || !FactionAccess.hasAnyRole(player, "MINER")
+                || !FactionAccess.hasAnyBonus(player, FactionBonus.MINERS)
                 || event.getDrops().isEmpty()
                 || player.getRandom().nextDouble() >= ModConfigSpec.ORE_BONUS_CHANCE.get()) {
             return;
@@ -114,6 +116,11 @@ public final class BonusHandler {
         }
     }
 
+    @SubscribeEvent
+    public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        PENDING_DURABILITY.remove(event.getEntity().getUUID());
+    }
+
     public static void installDurabilityPolicy(DurabilityPolicy policy) {
         durabilityPolicy = Objects.requireNonNull(policy, "policy");
     }
@@ -179,7 +186,7 @@ public final class BonusHandler {
     }
 
     private static double defaultDurabilityChance(ServerPlayer player, ItemStack stack) {
-        return FactionAccess.hasAnyRole(player, "CRAFTER", "CRAFTSMAN", "BLACKSMITH", "SMITH")
+        return FactionAccess.hasAnyBonus(player, FactionBonus.CRAFTERS)
                 ? ModConfigSpec.CRAFT_BONUS_CHANCE.get()
                 : 0.0D;
     }

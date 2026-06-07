@@ -15,7 +15,7 @@ public final class FactionServerHooks {
     private static final double MAX_TABLE_DISTANCE_SQR = 64.0D;
     private static final long ACTION_COOLDOWN_TICKS = 2L;
     private static final ConcurrentHashMap<UUID, Long> LAST_ACTION_TICK = new ConcurrentHashMap<>();
-    private static volatile Service service = new UnavailableService();
+    private static volatile Service service = new FactionManagerService();
 
     public static void install(Service newService) {
         service = Objects.requireNonNull(newService, "newService");
@@ -34,7 +34,6 @@ public final class FactionServerHooks {
 
         try {
             FactionSnapshot snapshot = sanitizeSnapshot(tablePos, service.view(player, tablePos));
-            bindTable(player, tablePos, snapshot);
             send(player, snapshot, true, true, "");
         } catch (RuntimeException exception) {
             KalFactions.LOGGER.error("Failed to open faction table at {} for {}", tablePos, player.getGameProfile().getName(), exception);
@@ -122,7 +121,6 @@ public final class FactionServerHooks {
                     tablePos,
                     result.snapshot == null ? service.view(player, tablePos) : result.snapshot
             );
-            bindTable(player, tablePos, snapshot);
             send(player, snapshot, result.successful, true, limitMessage(result.message));
         } catch (RuntimeException exception) {
             KalFactions.LOGGER.error("Faction operation failed at {} for {}", tablePos, player.getGameProfile().getName(), exception);
@@ -143,7 +141,7 @@ public final class FactionServerHooks {
         if (!player.isAlive() || player.isSpectator()) {
             return Validation.deny("You cannot use a faction table right now.");
         }
-        if (!player.level().hasChunkAt(tablePos)) {
+        if (!player.level().isLoaded(tablePos)) {
             return Validation.deny("The faction table is not loaded.");
         }
         if (player.distanceToSqr(tablePos.getX() + 0.5D, tablePos.getY() + 0.5D, tablePos.getZ() + 0.5D)
@@ -197,12 +195,6 @@ public final class FactionServerHooks {
     private static FactionSnapshot fallbackSnapshot(BlockPos tablePos) {
         ChunkPos center = new ChunkPos(tablePos);
         return FactionSnapshot.empty(tablePos, center.x, center.z);
-    }
-
-    private static void bindTable(ServerPlayer player, BlockPos tablePos, FactionSnapshot snapshot) {
-        if (player.level().getBlockEntity(tablePos) instanceof FactionTableBlockEntity table) {
-            table.setFactionId(snapshot.hasFaction() ? snapshot.factionId() : null);
-        }
     }
 
     private static void reject(ServerPlayer player, BlockPos tablePos, String message) {

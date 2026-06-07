@@ -1,11 +1,9 @@
 package com.geydev.kalfactions.economy;
 
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.math.RoundingMode;
 
 public final class PriceMath {
-    private static final MathContext PRICE_CONTEXT = MathContext.DECIMAL128;
     private static final BigDecimal LONG_MAX = BigDecimal.valueOf(Long.MAX_VALUE);
 
     private PriceMath() {
@@ -30,10 +28,10 @@ public final class PriceMath {
 
         int paidClaimIndex = currentClaimCount - freeClaims;
         BigDecimal multiplier = BigDecimal.ONE.add(
-            BigDecimal.valueOf(growth).multiply(BigDecimal.valueOf(paidClaimIndex), PRICE_CONTEXT)
+            BigDecimal.valueOf(growth).multiply(BigDecimal.valueOf(paidClaimIndex))
         );
-        BigDecimal price = BigDecimal.valueOf(baseCost).multiply(multiplier, PRICE_CONTEXT);
-        price = price.multiply(BigDecimal.ONE.subtract(BigDecimal.valueOf(discount)), PRICE_CONTEXT);
+        BigDecimal price = BigDecimal.valueOf(baseCost).multiply(multiplier);
+        price = price.multiply(BigDecimal.ONE.subtract(BigDecimal.valueOf(discount)));
         if (price.compareTo(LONG_MAX) >= 0) {
             return Long.MAX_VALUE;
         }
@@ -44,7 +42,7 @@ public final class PriceMath {
         requireNonNegative(paidPrice, "paidPrice");
         requireFiniteRange(refundPercent, 0.0D, 1.0D, "refundPercent");
         return BigDecimal.valueOf(paidPrice)
-            .multiply(BigDecimal.valueOf(refundPercent), PRICE_CONTEXT)
+            .multiply(BigDecimal.valueOf(refundPercent))
             .setScale(0, RoundingMode.FLOOR)
             .longValueExact();
     }

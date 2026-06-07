@@ -39,6 +39,7 @@ public final class FactionManager extends SavedData {
     public static final String DATA_NAME = "kingdoms_factions";
     public static final int DEFAULT_STARTER_SIZE = 3;
     public static final int MAX_NAME_LENGTH = 32;
+    public static final int MAX_RGB_COLOR = 0xFFFFFF;
     public static final long TICKS_PER_INFLUENCE_DAY = 24_000L;
     public static final int DEFAULT_COLOR = 0xFFFFFF;
     public static final ResourceLocation DEFAULT_ICON = ResourceLocation.fromNamespaceAndPath("kingdoms", "default");
@@ -202,6 +203,9 @@ public final class FactionManager extends SavedData {
         if (!isValidName(cleanedName)) {
             return OperationResult.failure(Status.INVALID_NAME);
         }
+        if (!isValidColor(color)) {
+            return OperationResult.failure(Status.INVALID_COLOR);
+        }
         if (starterSize < 1 || starterSize > 255) {
             return OperationResult.failure(Status.INVALID_STARTER_SIZE);
         }
@@ -270,6 +274,9 @@ public final class FactionManager extends SavedData {
     }
 
     public synchronized OperationResult setFactionColor(UUID factionId, int color) {
+        if (!isValidColor(color)) {
+            return OperationResult.failure(Status.INVALID_COLOR);
+        }
         Faction faction = factions.get(factionId);
         if (faction == null) {
             return OperationResult.failure(Status.FACTION_NOT_FOUND);
@@ -326,6 +333,10 @@ public final class FactionManager extends SavedData {
     }
 
     public synchronized long quoteClaimPrice(UUID factionId, UUID actingMemberId) {
+        return quoteClaimPrice(factionId);
+    }
+
+    public synchronized long quoteClaimPrice(UUID factionId) {
         Faction faction = factions.get(factionId);
         if (faction == null) {
             return -1L;
@@ -656,6 +667,25 @@ public final class FactionManager extends SavedData {
         return access.canAccess(playerId, playerFactionId);
     }
 
+    /**
+     * Claim-aware container access check. Unclaimed land is unprotected; on a claim
+     * with no per-container rule only members of the owning faction may access, and a
+     * {@link ChestAccess} rule, when present, takes precedence.
+     */
+    public synchronized boolean canAccessContainer(UUID playerId, Level level, BlockPos position) {
+        Objects.requireNonNull(playerId, "playerId");
+        UUID claimFactionId = claimIndex.get(ClaimKey.of(level, position));
+        if (claimFactionId == null) {
+            return true;
+        }
+        ChestAccess access = chestAccess.get(ChestAccess.Key.of(level, position));
+        UUID playerFactionId = memberIndex.get(playerId);
+        if (access == null) {
+            return claimFactionId.equals(playerFactionId);
+        }
+        return access.canAccess(playerId, playerFactionId);
+    }
+
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putInt(TAG_VERSION, DATA_VERSION);
@@ -711,6 +741,7 @@ public final class FactionManager extends SavedData {
     private boolean indexLoadedFaction(Faction faction) {
         String normalizedName = normalizeName(faction.name());
         if (!isValidName(faction.name())
+            || !isValidColor(faction.color())
             || factions.containsKey(faction.id())
             || nameIndex.containsKey(normalizedName)
             || faction.members().keySet().stream().anyMatch(memberIndex::containsKey)
@@ -809,10 +840,15 @@ public final class FactionManager extends SavedData {
         return name.codePoints().noneMatch(Character::isISOControl);
     }
 
+    private static boolean isValidColor(int color) {
+        return color >= 0 && color <= MAX_RGB_COLOR;
+    }
+
     public enum Status {
         SUCCESS,
         FACTION_NOT_FOUND,
         INVALID_NAME,
+        INVALID_COLOR,
         NAME_TAKEN,
         INVALID_STARTER_SIZE,
         PLAYER_ALREADY_MEMBER,

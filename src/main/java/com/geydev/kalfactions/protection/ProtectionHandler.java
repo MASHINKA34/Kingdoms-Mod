@@ -2,7 +2,6 @@ package com.geydev.kalfactions.protection;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.chest.AccessTool;
-import com.geydev.kalfactions.chest.ChestAccess;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionManager;
 import net.minecraft.core.BlockPos;
@@ -81,6 +80,11 @@ public final class ProtectionHandler {
                 return;
             }
             if (accessTool) {
+                if (!FactionAccess.canBuild(player, level, pos)) {
+                    cancelInteraction(event);
+                    deny(player, event.getHand(), "You cannot edit access for this container.");
+                    return;
+                }
                 handleAccessTool(event, player, level, pos);
             }
             return;
@@ -163,7 +167,7 @@ public final class ProtectionHandler {
 
     private static boolean canAccessContainer(ServerPlayer player, ServerLevel level, BlockPos pos) {
         return player.hasPermissions(2)
-                || FactionManager.get(level).canAccessChest(player.getUUID(), ChestAccess.Key.of(level, pos));
+                || FactionManager.get(level).canAccessContainer(player.getUUID(), level, pos);
     }
 
     private static void deny(ServerPlayer player, InteractionHand hand, String message) {

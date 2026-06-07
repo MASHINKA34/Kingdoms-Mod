@@ -46,6 +46,14 @@ public final class Treasury {
         return true;
     }
 
+    public boolean pay(long amount) {
+        return withdraw(amount);
+    }
+
+    public boolean refund(long amount) {
+        return deposit(amount);
+    }
+
     public CompoundTag save() {
         CompoundTag tag = new CompoundTag();
         tag.putLong(TAG_BALANCE, balance);

@@ -1,3 +1,20 @@
 {
-  "mod.kingdoms.name": "Королевства"
+  "mod.kingdoms.name": "Королевства",
+
+  "block.kingdoms.faction_table": "Стол фракции",
+  "item.kingdoms.access_tool": "Ключ управления",
+
+  "kingdoms.access.personal": "Личный",
+  "kingdoms.access.faction": "Фракция",
+  "kingdoms.access.public": "Публичный",
+  "kingdoms.access.whitelist": "Белый список",
+
+  "kingdoms.access_tool.set": "Доступ к контейнеру: %s.",
+  "kingdoms.access_tool.not_member": "Сначала вступите во фракцию, чтобы использовать Ключ управления.",
+  "kingdoms.access_tool.not_owned": "Управлять контейнерами можно только на своей территории.",
+
+  "kingdoms.protection.no_break": "Нельзя ломать блоки на этой территории фракции.",
+  "kingdoms.protection.no_place": "Нельзя ставить блоки на этой территории фракции.",
+  "kingdoms.protection.no_interact": "Нельзя взаимодействовать с блоками на этой территории фракции.",
+  "kingdoms.protection.no_container": "Нет доступа к этому контейнеру."
 }

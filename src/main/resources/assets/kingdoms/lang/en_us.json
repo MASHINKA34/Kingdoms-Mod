@@ -1,3 +1,20 @@
 {
-  "mod.kingdoms.name": "Kingdoms"
+  "mod.kingdoms.name": "Kingdoms",
+
+  "block.kingdoms.faction_table": "Faction Table",
+  "item.kingdoms.access_tool": "Management Key",
+
+  "kingdoms.access.personal": "Personal",
+  "kingdoms.access.faction": "Faction",
+  "kingdoms.access.public": "Public",
+  "kingdoms.access.whitelist": "Whitelist",
+
+  "kingdoms.access_tool.set": "Container access set to %s.",
+  "kingdoms.access_tool.not_member": "Join a faction before using the Management Key.",
+  "kingdoms.access_tool.not_owned": "You can only manage containers in your own territory.",
+
+  "kingdoms.protection.no_break": "You cannot break blocks in this faction claim.",
+  "kingdoms.protection.no_place": "You cannot place blocks in this faction claim.",
+  "kingdoms.protection.no_interact": "You cannot interact with blocks in this faction claim.",
+  "kingdoms.protection.no_container": "You cannot access this container."
 }

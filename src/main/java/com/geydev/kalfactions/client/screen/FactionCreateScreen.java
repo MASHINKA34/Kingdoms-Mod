@@ -55,11 +55,11 @@ public final class FactionCreateScreen extends FactionScreen {
                 0x3F2A19,
                 false
         );
-        graphics.fill(left + 58, top + 98, left + 72, top + 112, 0xFF000000 | selectedColor);
+        graphics.fill(left + 58, top + 98, left + 72, top + 112, 0xFF3F2A19);
         graphics.fill(left + 60, top + 100, left + 70, top + 110, 0xFF000000 | selectedColor);
         graphics.drawCenteredString(
                 font,
-                text("screen.kingdoms.create_hint", "Names and colors can be changed later by faction managers."),
+                text("screen.kingdoms.create_hint", "Managers can change these later."),
                 left + PANEL_WIDTH / 2,
                 top + 124,
                 0x5B452E

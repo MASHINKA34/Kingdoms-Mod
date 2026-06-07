@@ -13,11 +13,13 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public final class FactionTableBlockEntity extends BlockEntity {
     private static final String FACTION_ID_TAG = "FactionId";
+    private static final String FACTION_COLOR_TAG = "FactionColor";
     private static final String PLACED_BY_TAG = "PlacedBy";
     @Nullable
     private UUID factionId;
     @Nullable
     private UUID placedBy;
+    private int factionColor = 0x4E7A42;
 
     public FactionTableBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.FACTION_TABLE.get(), pos, state);
@@ -33,6 +35,19 @@ public final class FactionTableBlockEntity extends BlockEntity {
             return;
         }
         this.factionId = factionId;
+        setChangedAndSync();
+    }
+
+    public int getFactionColor() {
+        return factionColor;
+    }
+
+    public void setFactionColor(int factionColor) {
+        factionColor &= 0xFFFFFF;
+        if (this.factionColor == factionColor) {
+            return;
+        }
+        this.factionColor = factionColor;
         setChangedAndSync();
     }
 
@@ -53,6 +68,7 @@ public final class FactionTableBlockEntity extends BlockEntity {
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
         factionId = tag.hasUUID(FACTION_ID_TAG) ? tag.getUUID(FACTION_ID_TAG) : null;
+        factionColor = tag.contains(FACTION_COLOR_TAG) ? tag.getInt(FACTION_COLOR_TAG) & 0xFFFFFF : 0x4E7A42;
         placedBy = tag.hasUUID(PLACED_BY_TAG) ? tag.getUUID(PLACED_BY_TAG) : null;
     }
 
@@ -62,6 +78,7 @@ public final class FactionTableBlockEntity extends BlockEntity {
         if (factionId != null) {
             tag.putUUID(FACTION_ID_TAG, factionId);
         }
+        tag.putInt(FACTION_COLOR_TAG, factionColor);
         if (placedBy != null) {
             tag.putUUID(PLACED_BY_TAG, placedBy);
         }

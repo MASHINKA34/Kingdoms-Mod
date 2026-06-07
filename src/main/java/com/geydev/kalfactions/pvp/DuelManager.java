@@ -16,6 +16,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
@@ -29,7 +30,7 @@ public final class DuelManager {
             return Result.SELF;
         }
         PlayerPair pair = PlayerPair.of(challenger.getUUID(), target.getUUID());
-        if (ACTIVE_DUELS.contains(pair)) {
+        if (isDueling(challenger.getUUID()) || isDueling(target.getUUID())) {
             return Result.ALREADY_ACTIVE;
         }
 
@@ -64,6 +65,9 @@ public final class DuelManager {
     }
 
     public static Result accept(ServerPlayer target, ServerPlayer challenger) {
+        if (isDueling(challenger.getUUID()) || isDueling(target.getUUID())) {
+            return Result.ALREADY_ACTIVE;
+        }
         DirectedPair requestKey = new DirectedPair(challenger.getUUID(), target.getUUID());
         DuelRequest request = REQUESTS.remove(requestKey);
         if (request == null || request.expiresAtNanos() <= System.nanoTime()) {
@@ -162,6 +166,12 @@ public final class DuelManager {
         }
     }
 
+    @SubscribeEvent
+    public static void onServerStopping(ServerStoppingEvent event) {
+        REQUESTS.clear();
+        ACTIVE_DUELS.clear();
+    }
+
     private static void notifyTimeout(MinecraftServer server, DuelRequest request) {
         ServerPlayer challenger = server.getPlayerList().getPlayer(request.challenger());
         ServerPlayer target = server.getPlayerList().getPlayer(request.target());
@@ -175,6 +185,10 @@ public final class DuelManager {
 
     private static void removeRequestsFor(UUID playerId) {
         REQUESTS.keySet().removeIf(pair -> pair.first().equals(playerId) || pair.second().equals(playerId));
+    }
+
+    private static boolean isDueling(UUID playerId) {
+        return ACTIVE_DUELS.stream().anyMatch(pair -> pair.contains(playerId));
     }
 
     public enum Result {

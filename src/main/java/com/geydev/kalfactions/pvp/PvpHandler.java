@@ -2,6 +2,7 @@ package com.geydev.kalfactions.pvp;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.protection.FactionAccess;
 import java.util.HashMap;
 import java.util.Map;
@@ -12,6 +13,7 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class PvpHandler {
@@ -26,16 +28,22 @@ public final class PvpHandler {
         if (event.getEntity() instanceof ServerPlayer victim
                 && attacker != victim
                 && FactionAccess.sameFaction(attacker, victim)
+                && !FactionAccess.internalPvpEnabled(attacker)
                 && !DuelManager.isActive(attacker, victim)) {
             event.setCanceled(true);
             notifyFriendlyFire(attacker);
             return;
         }
 
-        if (FactionAccess.hasAnyRole(attacker, "WARRIOR")) {
+        if (FactionAccess.hasAnyBonus(attacker, FactionBonus.WARRIORS)) {
             float multiplier = ModConfigSpec.WARRIOR_DAMAGE_MULTIPLIER.get().floatValue();
             event.setAmount(event.getAmount() * multiplier);
         }
+    }
+
+    @SubscribeEvent
+    public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        LAST_DENIAL_MESSAGE.remove(event.getEntity().getUUID());
     }
 
     private static void notifyFriendlyFire(ServerPlayer attacker) {
