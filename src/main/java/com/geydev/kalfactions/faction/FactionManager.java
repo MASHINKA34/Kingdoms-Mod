@@ -1,0 +1,850 @@
+package com.geydev.kalfactions.faction;
+
+import com.geydev.kalfactions.chest.ChestAccess;
+import com.geydev.kalfactions.chest.ChestAccessMode;
+import com.geydev.kalfactions.claim.ClaimKey;
+import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.economy.PriceMath;
+import com.mojang.logging.LogUtils;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.saveddata.SavedData;
+import org.slf4j.Logger;
+
+public final class FactionManager extends SavedData {
+    public static final String DATA_NAME = "kingdoms_factions";
+    public static final int DEFAULT_STARTER_SIZE = 3;
+    public static final int MAX_NAME_LENGTH = 32;
+    public static final long TICKS_PER_INFLUENCE_DAY = 24_000L;
+    public static final int DEFAULT_COLOR = 0xFFFFFF;
+    public static final ResourceLocation DEFAULT_ICON = ResourceLocation.fromNamespaceAndPath("kingdoms", "default");
+    public static final FactionBonus DEFAULT_BONUS = FactionBonus.TRADERS;
+    public static final Factory<FactionManager> FACTORY = new Factory<>(FactionManager::new, FactionManager::load);
+
+    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final int DATA_VERSION = 2;
+    private static final String TAG_VERSION = "version";
+    private static final String TAG_FACTIONS = "factions";
+    private static final String TAG_CHESTS = "chests";
+    private static final String TAG_LAST_INFLUENCE_TICK = "lastInfluenceTick";
+
+    private final Map<UUID, Faction> factions = new LinkedHashMap<>();
+    private final Map<String, UUID> nameIndex = new HashMap<>();
+    private final Map<UUID, UUID> memberIndex = new HashMap<>();
+    private final Map<ClaimKey, UUID> claimIndex = new HashMap<>();
+    private final Map<ChestAccess.Key, ChestAccess> chestAccess = new LinkedHashMap<>();
+    private long lastInfluenceTick = -1L;
+
+    public static FactionManager get(MinecraftServer server) {
+        Objects.requireNonNull(server, "server");
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
+    }
+
+    public static FactionManager get(ServerLevel level) {
+        return get(Objects.requireNonNull(level, "level").getServer());
+    }
+
+    public synchronized Collection<Faction> factions() {
+        return List.copyOf(factions.values());
+    }
+
+    public synchronized Optional<Faction> getFaction(UUID factionId) {
+        Faction faction = factions.get(factionId);
+        if (faction != null) {
+            return Optional.of(faction);
+        }
+        return Optional.ofNullable(memberIndex.get(factionId)).map(factions::get);
+    }
+
+    public synchronized Optional<Faction> getFactionById(UUID factionId) {
+        return Optional.ofNullable(factions.get(factionId));
+    }
+
+    public synchronized Optional<Faction> getFactionByName(String name) {
+        String normalized = normalizeName(name);
+        return Optional.ofNullable(nameIndex.get(normalized)).map(factions::get);
+    }
+
+    public synchronized Optional<Faction> getFactionForMember(UUID playerId) {
+        return Optional.ofNullable(memberIndex.get(playerId)).map(factions::get);
+    }
+
+    public synchronized Optional<UUID> getFactionIdForMember(UUID playerId) {
+        return Optional.ofNullable(memberIndex.get(playerId));
+    }
+
+    public synchronized Optional<Faction> getFactionAt(ClaimKey key) {
+        return Optional.ofNullable(claimIndex.get(key)).map(factions::get);
+    }
+
+    public synchronized Optional<Faction> getFactionAt(Level level, BlockPos position) {
+        return getFactionAt(ClaimKey.of(level, position));
+    }
+
+    public synchronized Optional<Faction> getFactionAt(Level level, ChunkPos chunk) {
+        return getFactionAt(ClaimKey.of(level, chunk));
+    }
+
+    public synchronized Optional<Faction> getFactionAt(
+        net.minecraft.resources.ResourceKey<Level> dimension,
+        ChunkPos chunk
+    ) {
+        return getFactionAt(new ClaimKey(dimension, chunk));
+    }
+
+    public synchronized Optional<FactionRole> getRole(UUID playerId) {
+        return getFactionForMember(playerId).flatMap(faction -> faction.roleOf(playerId));
+    }
+
+    public synchronized Optional<UUID> getFactionIdAt(ClaimKey key) {
+        return Optional.ofNullable(claimIndex.get(key));
+    }
+
+    public synchronized OperationResult createFaction(UUID ownerId, String name, ClaimKey center) {
+        return createFaction(
+            ownerId,
+            name,
+            DEFAULT_COLOR,
+            DEFAULT_ICON,
+            DEFAULT_BONUS,
+            false,
+            center,
+            ModConfigSpec.STARTER_CLAIM_SIZE.getAsInt()
+        );
+    }
+
+    public synchronized OperationResult createFaction3x3(UUID ownerId, String name, ClaimKey center) {
+        return createFaction(
+            ownerId,
+            name,
+            DEFAULT_COLOR,
+            DEFAULT_ICON,
+            DEFAULT_BONUS,
+            false,
+            center,
+            DEFAULT_STARTER_SIZE
+        );
+    }
+
+    public synchronized OperationResult createFaction(UUID ownerId, String name, ClaimKey center, int starterSize) {
+        return createFaction(
+            ownerId,
+            name,
+            DEFAULT_COLOR,
+            DEFAULT_ICON,
+            DEFAULT_BONUS,
+            false,
+            center,
+            starterSize
+        );
+    }
+
+    public synchronized OperationResult createFaction(
+        UUID ownerId,
+        String name,
+        int color,
+        ResourceLocation iconId,
+        FactionBonus bonus,
+        boolean internalPvp,
+        ClaimKey center
+    ) {
+        return createFaction(
+            ownerId,
+            name,
+            color,
+            iconId,
+            bonus,
+            internalPvp,
+            center,
+            ModConfigSpec.STARTER_CLAIM_SIZE.getAsInt()
+        );
+    }
+
+    public synchronized OperationResult createFaction(
+        UUID ownerId,
+        String name,
+        int color,
+        ResourceLocation iconId,
+        FactionBonus bonus,
+        boolean internalPvp,
+        ClaimKey center,
+        int starterSize
+    ) {
+        Objects.requireNonNull(ownerId, "ownerId");
+        Objects.requireNonNull(iconId, "iconId");
+        Objects.requireNonNull(bonus, "bonus");
+        Objects.requireNonNull(center, "center");
+        String cleanedName = cleanName(name);
+        if (!isValidName(cleanedName)) {
+            return OperationResult.failure(Status.INVALID_NAME);
+        }
+        if (starterSize < 1 || starterSize > 255) {
+            return OperationResult.failure(Status.INVALID_STARTER_SIZE);
+        }
+        if (memberIndex.containsKey(ownerId)) {
+            return OperationResult.failure(Status.PLAYER_ALREADY_MEMBER);
+        }
+        if (nameIndex.containsKey(normalizeName(cleanedName))) {
+            return OperationResult.failure(Status.NAME_TAKEN);
+        }
+
+        Set<ClaimKey> starterClaims = square(center, starterSize);
+        if (starterClaims.stream().anyMatch(claimIndex::containsKey)) {
+            return OperationResult.failure(Status.CLAIM_ALREADY_OWNED);
+        }
+
+        UUID factionId;
+        do {
+            factionId = UUID.randomUUID();
+        } while (factions.containsKey(factionId));
+
+        Faction faction = new Faction(
+            factionId,
+            cleanedName,
+            ownerId,
+            color,
+            iconId,
+            bonus,
+            internalPvp,
+            System.currentTimeMillis()
+        );
+        for (ClaimKey claim : starterClaims) {
+            faction.addClaim(claim, 0L);
+        }
+
+        factions.put(factionId, faction);
+        nameIndex.put(normalizeName(cleanedName), factionId);
+        memberIndex.put(ownerId, factionId);
+        for (ClaimKey claim : starterClaims) {
+            claimIndex.put(claim, factionId);
+        }
+        setDirty();
+        return OperationResult.success(factionId, 0L);
+    }
+
+    public synchronized OperationResult renameFaction(UUID factionId, String newName) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        String cleanedName = cleanName(newName);
+        if (!isValidName(cleanedName)) {
+            return OperationResult.failure(Status.INVALID_NAME);
+        }
+
+        String normalized = normalizeName(cleanedName);
+        UUID existing = nameIndex.get(normalized);
+        if (existing != null && !existing.equals(factionId)) {
+            return OperationResult.failure(Status.NAME_TAKEN);
+        }
+
+        nameIndex.remove(normalizeName(faction.name()));
+        faction.rename(cleanedName);
+        nameIndex.put(normalized, factionId);
+        setDirty();
+        return OperationResult.success(factionId, 0L);
+    }
+
+    public synchronized OperationResult setFactionColor(UUID factionId, int color) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        faction.setColor(color);
+        setDirty();
+        return OperationResult.success(factionId, 0L);
+    }
+
+    public synchronized OperationResult setFactionIcon(UUID factionId, ResourceLocation iconId) {
+        Objects.requireNonNull(iconId, "iconId");
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        faction.setIconId(iconId);
+        setDirty();
+        return OperationResult.success(factionId, 0L);
+    }
+
+    public synchronized OperationResult setFactionBonus(UUID factionId, FactionBonus bonus) {
+        Objects.requireNonNull(bonus, "bonus");
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        faction.setBonus(bonus);
+        setDirty();
+        return OperationResult.success(factionId, 0L);
+    }
+
+    public synchronized OperationResult setInternalPvp(UUID factionId, boolean enabled) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        faction.setInternalPvp(enabled);
+        setDirty();
+        return OperationResult.success(factionId, 0L);
+    }
+
+    public synchronized OperationResult disbandFaction(UUID factionId) {
+        Faction faction = factions.remove(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+
+        nameIndex.remove(normalizeName(faction.name()));
+        faction.members().keySet().forEach(memberIndex::remove);
+        faction.claims().forEach(claimIndex::remove);
+        chestAccess.entrySet().removeIf(entry -> entry.getValue().factionId().equals(factionId));
+        setDirty();
+        return OperationResult.success(factionId, faction.treasuryBalance());
+    }
+
+    public synchronized long quoteClaimPrice(UUID factionId, UUID actingMemberId) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return -1L;
+        }
+        double discount = faction.bonus().claimDiscount();
+        return PriceMath.claimPrice(
+            faction.claimCount(),
+            ModConfigSpec.FREE_CLAIMS.getAsInt(),
+            ModConfigSpec.EXPANSION_BASE_COST.getAsLong(),
+            ModConfigSpec.EXPANSION_GROWTH.getAsDouble(),
+            discount
+        );
+    }
+
+    public synchronized OperationResult claim(UUID factionId, ClaimKey key) {
+        return claim(factionId, key, null);
+    }
+
+    public synchronized OperationResult claim(UUID factionId, ClaimKey key, UUID actingMemberId) {
+        Objects.requireNonNull(key, "key");
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        if (actingMemberId != null && !faction.isMember(actingMemberId)) {
+            return OperationResult.failure(Status.PLAYER_NOT_MEMBER);
+        }
+        if (claimIndex.containsKey(key)) {
+            return OperationResult.failure(Status.CLAIM_ALREADY_OWNED);
+        }
+
+        Set<ClaimKey> claimsInDimension = claimsInDimension(faction, key.dimension());
+        if (!claimsInDimension.isEmpty() && key.cardinalNeighbors().stream().noneMatch(claimsInDimension::contains)) {
+            return OperationResult.failure(Status.CLAIM_NOT_ADJACENT);
+        }
+        if (claimsInDimension.isEmpty()
+            && faction.claimCount() > 0
+            && ModConfigSpec.REQUIRE_ADJACENT.getAsBoolean()) {
+            return OperationResult.failure(Status.CLAIM_NOT_ADJACENT);
+        }
+
+        double discount = faction.bonus().claimDiscount();
+        long price = PriceMath.claimPrice(
+            faction.claimCount(),
+            ModConfigSpec.FREE_CLAIMS.getAsInt(),
+            ModConfigSpec.EXPANSION_BASE_COST.getAsLong(),
+            ModConfigSpec.EXPANSION_GROWTH.getAsDouble(),
+            discount
+        );
+        if (!faction.withdraw(price)) {
+            return OperationResult.failure(Status.INSUFFICIENT_FUNDS);
+        }
+
+        faction.addClaim(key, price);
+        claimIndex.put(key, factionId);
+        setDirty();
+        return OperationResult.success(factionId, price);
+    }
+
+    public synchronized OperationResult unclaim(UUID factionId, ClaimKey key) {
+        Objects.requireNonNull(key, "key");
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        if (!faction.hasClaim(key)) {
+            return OperationResult.failure(Status.CLAIM_NOT_OWNED);
+        }
+
+        Set<ClaimKey> remaining = claimsInDimension(faction, key.dimension());
+        remaining.remove(key);
+        if (!isConnected(remaining)) {
+            return OperationResult.failure(Status.CLAIM_WOULD_DISCONNECT);
+        }
+
+        long paidPrice = faction.claimPrices().getOrDefault(key, 0L);
+        long refund = PriceMath.refund(paidPrice, ModConfigSpec.UNCLAIM_REFUND_PERCENT.getAsDouble());
+        if (!faction.canDeposit(refund)) {
+            return OperationResult.failure(Status.TREASURY_OVERFLOW);
+        }
+
+        faction.removeClaim(key);
+        faction.deposit(refund);
+        claimIndex.remove(key);
+        chestAccess.entrySet().removeIf(entry -> isInside(entry.getKey(), key));
+        setDirty();
+        return OperationResult.success(factionId, refund);
+    }
+
+    public synchronized OperationResult deposit(UUID factionId, long amount) {
+        if (amount < 0L) {
+            return OperationResult.failure(Status.INVALID_AMOUNT);
+        }
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        if (!faction.deposit(amount)) {
+            return OperationResult.failure(Status.TREASURY_OVERFLOW);
+        }
+        if (amount > 0L) {
+            setDirty();
+        }
+        return OperationResult.success(factionId, amount);
+    }
+
+    public synchronized OperationResult withdraw(UUID factionId, long amount) {
+        if (amount < 0L) {
+            return OperationResult.failure(Status.INVALID_AMOUNT);
+        }
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        if (!faction.withdraw(amount)) {
+            return OperationResult.failure(Status.INSUFFICIENT_FUNDS);
+        }
+        if (amount > 0L) {
+            setDirty();
+        }
+        return OperationResult.success(factionId, amount);
+    }
+
+    public synchronized OperationResult addMember(UUID factionId, UUID playerId) {
+        Objects.requireNonNull(playerId, "playerId");
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        if (memberIndex.containsKey(playerId)) {
+            return OperationResult.failure(Status.PLAYER_ALREADY_MEMBER);
+        }
+        faction.addMember(playerId);
+        memberIndex.put(playerId, factionId);
+        setDirty();
+        return OperationResult.success(factionId, 0L);
+    }
+
+    public synchronized OperationResult removeMember(UUID factionId, UUID playerId) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        if (!faction.isMember(playerId)) {
+            return OperationResult.failure(Status.PLAYER_NOT_MEMBER);
+        }
+        if (faction.ownerId().equals(playerId)) {
+            return OperationResult.failure(Status.OWNER_CANNOT_LEAVE);
+        }
+
+        faction.removeMember(playerId);
+        memberIndex.remove(playerId);
+        List<Map.Entry<ChestAccess.Key, ChestAccess>> entries = new ArrayList<>(chestAccess.entrySet());
+        for (Map.Entry<ChestAccess.Key, ChestAccess> entry : entries) {
+            if (!entry.getValue().factionId().equals(factionId)) {
+                continue;
+            }
+            ChestAccess access = entry.getValue();
+            if (access.ownerId().equals(playerId)) {
+                access = new ChestAccess(
+                    access.key(),
+                    access.factionId(),
+                    faction.ownerId(),
+                    access.mode(),
+                    access.whitelistedPlayers()
+                );
+            }
+            chestAccess.put(entry.getKey(), access);
+        }
+        setDirty();
+        return OperationResult.success(factionId, 0L);
+    }
+
+    public synchronized OperationResult setMemberRole(UUID factionId, UUID playerId, FactionRole role) {
+        Objects.requireNonNull(role, "role");
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        if (!faction.isMember(playerId)) {
+            return OperationResult.failure(Status.PLAYER_NOT_MEMBER);
+        }
+        if (faction.ownerId().equals(playerId) || role == FactionRole.LEADER) {
+            return OperationResult.failure(Status.INVALID_ROLE_CHANGE);
+        }
+        faction.setMemberRole(playerId, role);
+        setDirty();
+        return OperationResult.success(factionId, 0L);
+    }
+
+    public synchronized OperationResult transferLeadership(UUID factionId, UUID newOwnerId) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        if (!faction.isMember(newOwnerId)) {
+            return OperationResult.failure(Status.PLAYER_NOT_MEMBER);
+        }
+        if (faction.ownerId().equals(newOwnerId)) {
+            return OperationResult.success(factionId, 0L);
+        }
+        faction.transferLeadership(newOwnerId);
+        setDirty();
+        return OperationResult.success(factionId, 0L);
+    }
+
+    public synchronized OperationResult addInfluence(UUID factionId, long amount) {
+        if (amount < 0L) {
+            return OperationResult.failure(Status.INVALID_AMOUNT);
+        }
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        faction.addInfluence(amount);
+        if (amount > 0L) {
+            setDirty();
+        }
+        return OperationResult.success(factionId, amount);
+    }
+
+    public synchronized OperationResult spendInfluence(UUID factionId, long amount) {
+        if (amount < 0L) {
+            return OperationResult.failure(Status.INVALID_AMOUNT);
+        }
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        if (!faction.spendInfluence(amount)) {
+            return OperationResult.failure(Status.INSUFFICIENT_INFLUENCE);
+        }
+        if (amount > 0L) {
+            setDirty();
+        }
+        return OperationResult.success(factionId, amount);
+    }
+
+    public synchronized long tickInfluence(long gameTime) {
+        return tickInfluence(gameTime, ModConfigSpec.INFLUENCE_PER_CHUNK_PER_DAY.getAsLong());
+    }
+
+    public synchronized long tickInfluence(long gameTime, long influencePerChunkPerDay) {
+        if (gameTime < 0L || influencePerChunkPerDay < 0L) {
+            throw new IllegalArgumentException("Influence tick inputs cannot be negative");
+        }
+        if (lastInfluenceTick < 0L || gameTime < lastInfluenceTick) {
+            lastInfluenceTick = gameTime;
+            setDirty();
+            return 0L;
+        }
+
+        long elapsedDays = (gameTime - lastInfluenceTick) / TICKS_PER_INFLUENCE_DAY;
+        if (elapsedDays <= 0L) {
+            return 0L;
+        }
+
+        long totalAwarded = 0L;
+        for (Faction faction : factions.values()) {
+            long perDay = PriceMath.saturatedMultiply(faction.claimCount(), influencePerChunkPerDay);
+            long award = PriceMath.saturatedMultiply(perDay, elapsedDays);
+            long previous = faction.influence();
+            faction.addInfluence(award);
+            totalAwarded = PriceMath.saturatedAdd(totalAwarded, faction.influence() - previous);
+        }
+        long processedTicks = elapsedDays * TICKS_PER_INFLUENCE_DAY;
+        lastInfluenceTick = Long.MAX_VALUE - lastInfluenceTick < processedTicks
+            ? gameTime
+            : lastInfluenceTick + processedTicks;
+        setDirty();
+        return totalAwarded;
+    }
+
+    public synchronized Optional<ChestAccess> getChestAccess(ChestAccess.Key key) {
+        return Optional.ofNullable(chestAccess.get(key));
+    }
+
+    public synchronized Optional<ChestAccess> getChestAccess(Level level, BlockPos position) {
+        return getChestAccess(ChestAccess.Key.of(level, position));
+    }
+
+    public synchronized Collection<ChestAccess> chestAccessEntries() {
+        return List.copyOf(chestAccess.values());
+    }
+
+    public synchronized OperationResult setChestAccess(ChestAccess access) {
+        Objects.requireNonNull(access, "access");
+        Faction faction = factions.get(access.factionId());
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        if (!faction.isMember(access.ownerId())) {
+            return OperationResult.failure(Status.PLAYER_NOT_MEMBER);
+        }
+        ClaimKey claim = new ClaimKey(access.key().dimension(), new ChunkPos(access.key().position()));
+        if (!access.factionId().equals(claimIndex.get(claim))) {
+            return OperationResult.failure(Status.CHEST_OUTSIDE_TERRITORY);
+        }
+        chestAccess.put(access.key(), access);
+        setDirty();
+        return OperationResult.success(access.factionId(), 0L);
+    }
+
+    public synchronized OperationResult setChestAccess(
+        UUID factionId,
+        UUID ownerId,
+        Level level,
+        BlockPos position,
+        ChestAccessMode mode
+    ) {
+        return setChestAccess(new ChestAccess(ChestAccess.Key.of(level, position), factionId, ownerId, mode));
+    }
+
+    public synchronized boolean removeChestAccess(ChestAccess.Key key) {
+        if (chestAccess.remove(key) == null) {
+            return false;
+        }
+        setDirty();
+        return true;
+    }
+
+    public synchronized boolean canAccessChest(UUID playerId, ChestAccess.Key key) {
+        ChestAccess access = chestAccess.get(key);
+        if (access == null) {
+            return true;
+        }
+        UUID playerFactionId = memberIndex.get(playerId);
+        return access.canAccess(playerId, playerFactionId);
+    }
+
+    @Override
+    public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        tag.putInt(TAG_VERSION, DATA_VERSION);
+        tag.putLong(TAG_LAST_INFLUENCE_TICK, lastInfluenceTick);
+
+        ListTag factionsTag = new ListTag();
+        factions.values().stream()
+            .sorted(Comparator.comparing(faction -> faction.id().toString()))
+            .map(Faction::save)
+            .forEach(factionsTag::add);
+        tag.put(TAG_FACTIONS, factionsTag);
+
+        ListTag chestsTag = new ListTag();
+        chestAccess.values().stream()
+            .sorted(Comparator.comparing(ChestAccess::key))
+            .map(ChestAccess::save)
+            .forEach(chestsTag::add);
+        tag.put(TAG_CHESTS, chestsTag);
+        return tag;
+    }
+
+    private static FactionManager load(CompoundTag tag, HolderLookup.Provider registries) {
+        FactionManager manager = new FactionManager();
+        manager.lastInfluenceTick = tag.contains(TAG_LAST_INFLUENCE_TICK)
+            ? tag.getLong(TAG_LAST_INFLUENCE_TICK)
+            : -1L;
+        boolean repaired = tag.getInt(TAG_VERSION) != DATA_VERSION;
+
+        ListTag factionsTag = tag.getList(TAG_FACTIONS, Tag.TAG_COMPOUND);
+        for (int index = 0; index < factionsTag.size(); index++) {
+            Optional<Faction> loaded = Faction.load(factionsTag.getCompound(index));
+            if (loaded.isEmpty() || !manager.indexLoadedFaction(loaded.get())) {
+                repaired = true;
+                LOGGER.warn("Skipped invalid or conflicting faction entry at NBT index {}", index);
+            }
+        }
+
+        ListTag chestsTag = tag.getList(TAG_CHESTS, Tag.TAG_COMPOUND);
+        for (int index = 0; index < chestsTag.size(); index++) {
+            Optional<ChestAccess> loaded = ChestAccess.load(chestsTag.getCompound(index));
+            if (loaded.isEmpty() || !manager.indexLoadedChest(loaded.get())) {
+                repaired = true;
+                LOGGER.warn("Skipped invalid or conflicting chest access entry at NBT index {}", index);
+            }
+        }
+
+        if (repaired) {
+            manager.setDirty();
+        }
+        return manager;
+    }
+
+    private boolean indexLoadedFaction(Faction faction) {
+        String normalizedName = normalizeName(faction.name());
+        if (!isValidName(faction.name())
+            || factions.containsKey(faction.id())
+            || nameIndex.containsKey(normalizedName)
+            || faction.members().keySet().stream().anyMatch(memberIndex::containsKey)
+            || faction.claims().stream().anyMatch(claimIndex::containsKey)
+            || !claimsAreConnectedByDimension(faction.claims())) {
+            return false;
+        }
+
+        factions.put(faction.id(), faction);
+        nameIndex.put(normalizedName, faction.id());
+        faction.members().keySet().forEach(playerId -> memberIndex.put(playerId, faction.id()));
+        faction.claims().forEach(claim -> claimIndex.put(claim, faction.id()));
+        return true;
+    }
+
+    private boolean indexLoadedChest(ChestAccess access) {
+        Faction faction = factions.get(access.factionId());
+        ClaimKey claim = new ClaimKey(access.key().dimension(), new ChunkPos(access.key().position()));
+        if (faction == null
+            || !faction.isMember(access.ownerId())
+            || !access.factionId().equals(claimIndex.get(claim))
+            || chestAccess.containsKey(access.key())) {
+            return false;
+        }
+        chestAccess.put(access.key(), access);
+        return true;
+    }
+
+    private static Set<ClaimKey> square(ClaimKey center, int size) {
+        int minimumOffset = -(size / 2);
+        Set<ClaimKey> claims = new LinkedHashSet<>();
+        for (int xOffset = minimumOffset; xOffset < minimumOffset + size; xOffset++) {
+            for (int zOffset = minimumOffset; zOffset < minimumOffset + size; zOffset++) {
+                claims.add(center.offset(xOffset, zOffset));
+            }
+        }
+        return claims;
+    }
+
+    private static Set<ClaimKey> claimsInDimension(Faction faction, net.minecraft.resources.ResourceKey<Level> dimension) {
+        Set<ClaimKey> result = new HashSet<>();
+        for (ClaimKey claim : faction.claims()) {
+            if (claim.dimension().equals(dimension)) {
+                result.add(claim);
+            }
+        }
+        return result;
+    }
+
+    private static boolean claimsAreConnectedByDimension(Collection<ClaimKey> claims) {
+        Map<net.minecraft.resources.ResourceKey<Level>, Set<ClaimKey>> byDimension = new HashMap<>();
+        for (ClaimKey claim : claims) {
+            byDimension.computeIfAbsent(claim.dimension(), ignored -> new HashSet<>()).add(claim);
+        }
+        return byDimension.values().stream().allMatch(FactionManager::isConnected);
+    }
+
+    private static boolean isConnected(Set<ClaimKey> claims) {
+        if (claims.size() < 2) {
+            return true;
+        }
+        Set<ClaimKey> visited = new HashSet<>();
+        Deque<ClaimKey> pending = new ArrayDeque<>();
+        pending.add(claims.iterator().next());
+        while (!pending.isEmpty()) {
+            ClaimKey current = pending.removeFirst();
+            if (!visited.add(current)) {
+                continue;
+            }
+            for (ClaimKey neighbor : current.cardinalNeighbors()) {
+                if (claims.contains(neighbor) && !visited.contains(neighbor)) {
+                    pending.addLast(neighbor);
+                }
+            }
+        }
+        return visited.size() == claims.size();
+    }
+
+    private static boolean isInside(ChestAccess.Key chest, ClaimKey claim) {
+        return chest.dimension().equals(claim.dimension())
+            && new ChunkPos(chest.position()).equals(claim.chunk());
+    }
+
+    private static String cleanName(String name) {
+        return name == null ? "" : name.strip();
+    }
+
+    private static String normalizeName(String name) {
+        return cleanName(name).toLowerCase(Locale.ROOT);
+    }
+
+    private static boolean isValidName(String name) {
+        if (name == null || name.isBlank() || name.length() > MAX_NAME_LENGTH) {
+            return false;
+        }
+        return name.codePoints().noneMatch(Character::isISOControl);
+    }
+
+    public enum Status {
+        SUCCESS,
+        FACTION_NOT_FOUND,
+        INVALID_NAME,
+        NAME_TAKEN,
+        INVALID_STARTER_SIZE,
+        PLAYER_ALREADY_MEMBER,
+        PLAYER_NOT_MEMBER,
+        OWNER_CANNOT_LEAVE,
+        INVALID_ROLE_CHANGE,
+        CLAIM_ALREADY_OWNED,
+        CLAIM_NOT_OWNED,
+        CLAIM_NOT_ADJACENT,
+        CLAIM_WOULD_DISCONNECT,
+        CHEST_OUTSIDE_TERRITORY,
+        INVALID_AMOUNT,
+        INSUFFICIENT_FUNDS,
+        TREASURY_OVERFLOW,
+        INSUFFICIENT_INFLUENCE
+    }
+
+    public record OperationResult(Status status, UUID factionId, long amount) {
+        public OperationResult {
+            Objects.requireNonNull(status, "status");
+        }
+
+        public boolean successful() {
+            return status == Status.SUCCESS;
+        }
+
+        private static OperationResult success(UUID factionId, long amount) {
+            return new OperationResult(Status.SUCCESS, factionId, amount);
+        }
+
+        private static OperationResult failure(Status status) {
+            return new OperationResult(status, null, 0L);
+        }
+    }
+}

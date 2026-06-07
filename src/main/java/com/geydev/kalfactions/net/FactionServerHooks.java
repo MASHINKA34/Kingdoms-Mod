@@ -1,0 +1,289 @@
+package com.geydev.kalfactions.net;
+
+import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.block.FactionTableBlockEntity;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.ChunkPos;
+import net.neoforged.neoforge.network.PacketDistributor;
+
+public final class FactionServerHooks {
+    public static final int MAX_NAME_LENGTH = 32;
+    private static final double MAX_TABLE_DISTANCE_SQR = 64.0D;
+    private static final long ACTION_COOLDOWN_TICKS = 2L;
+    private static final ConcurrentHashMap<UUID, Long> LAST_ACTION_TICK = new ConcurrentHashMap<>();
+    private static volatile Service service = new UnavailableService();
+
+    public static void install(Service newService) {
+        service = Objects.requireNonNull(newService, "newService");
+    }
+
+    public static Service service() {
+        return service;
+    }
+
+    public static void openFor(ServerPlayer player, BlockPos tablePos) {
+        Validation validation = validateTable(player, tablePos, false);
+        if (!validation.allowed) {
+            send(player, fallbackSnapshot(tablePos), false, false, validation.message);
+            return;
+        }
+
+        try {
+            FactionSnapshot snapshot = sanitizeSnapshot(tablePos, service.view(player, tablePos));
+            bindTable(player, tablePos, snapshot);
+            send(player, snapshot, true, true, "");
+        } catch (RuntimeException exception) {
+            KalFactions.LOGGER.error("Failed to open faction table at {} for {}", tablePos, player.getGameProfile().getName(), exception);
+            send(player, fallbackSnapshot(tablePos), false, false, "Faction data is temporarily unavailable.");
+        }
+    }
+
+    public static void create(ServerPlayer player, BlockPos tablePos, String requestedName, int requestedColor) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+
+        String name = normalizeName(requestedName);
+        if (name.length() < 3) {
+            reject(player, tablePos, "Faction name must contain at least 3 visible characters.");
+            return;
+        }
+
+        FactionSnapshot before = safeView(player, tablePos);
+        if (before.hasFaction()) {
+            send(player, before, false, true, "You already belong to a faction.");
+            return;
+        }
+
+        perform(player, tablePos, () -> service.create(player, tablePos, name, requestedColor & 0xFFFFFF));
+    }
+
+    public static void update(ServerPlayer player, BlockPos tablePos, String requestedName, int requestedColor) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+
+        String name = normalizeName(requestedName);
+        if (name.length() < 3) {
+            reject(player, tablePos, "Faction name must contain at least 3 visible characters.");
+            return;
+        }
+
+        FactionSnapshot before = safeView(player, tablePos);
+        if (!before.canManage()) {
+            send(player, before, false, true, "You do not have permission to manage this faction.");
+            return;
+        }
+
+        perform(player, tablePos, () -> service.update(player, tablePos, name, requestedColor & 0xFFFFFF));
+    }
+
+    public static void setClaim(
+            ServerPlayer player,
+            BlockPos tablePos,
+            int chunkX,
+            int chunkZ,
+            boolean claimed
+    ) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+
+        FactionSnapshot before = safeView(player, tablePos);
+        if (!before.canClaim()) {
+            send(player, before, false, true, "You do not have permission to change claims.");
+            return;
+        }
+
+        int maxDelta = before.mapRadius();
+        if (Math.abs(chunkX - before.centerChunkX()) > maxDelta
+                || Math.abs(chunkZ - before.centerChunkZ()) > maxDelta) {
+            send(player, before, false, true, "That chunk is outside the current claim map.");
+            return;
+        }
+
+        perform(player, tablePos, () -> service.setClaim(player, tablePos, new ChunkPos(chunkX, chunkZ), claimed));
+    }
+
+    private static void perform(ServerPlayer player, BlockPos tablePos, Operation operation) {
+        try {
+            Result result = Objects.requireNonNull(operation.run(), "Faction service returned null");
+            FactionSnapshot snapshot = sanitizeSnapshot(
+                    tablePos,
+                    result.snapshot == null ? service.view(player, tablePos) : result.snapshot
+            );
+            bindTable(player, tablePos, snapshot);
+            send(player, snapshot, result.successful, true, limitMessage(result.message));
+        } catch (RuntimeException exception) {
+            KalFactions.LOGGER.error("Faction operation failed at {} for {}", tablePos, player.getGameProfile().getName(), exception);
+            reject(player, tablePos, "The server could not complete that faction action.");
+        }
+    }
+
+    private static FactionSnapshot safeView(ServerPlayer player, BlockPos tablePos) {
+        try {
+            return sanitizeSnapshot(tablePos, service.view(player, tablePos));
+        } catch (RuntimeException exception) {
+            KalFactions.LOGGER.error("Failed to read faction data at {}", tablePos, exception);
+            return fallbackSnapshot(tablePos);
+        }
+    }
+
+    private static Validation validateTable(ServerPlayer player, BlockPos tablePos, boolean rateLimited) {
+        if (!player.isAlive() || player.isSpectator()) {
+            return Validation.deny("You cannot use a faction table right now.");
+        }
+        if (!player.level().hasChunkAt(tablePos)) {
+            return Validation.deny("The faction table is not loaded.");
+        }
+        if (player.distanceToSqr(tablePos.getX() + 0.5D, tablePos.getY() + 0.5D, tablePos.getZ() + 0.5D)
+                > MAX_TABLE_DISTANCE_SQR) {
+            return Validation.deny("You are too far away from the faction table.");
+        }
+        if (!(player.level().getBlockEntity(tablePos) instanceof FactionTableBlockEntity)) {
+            return Validation.deny("That block is not a faction table.");
+        }
+        if (rateLimited) {
+            long now = player.level().getGameTime();
+            Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+            if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
+                return Validation.deny("Please wait before sending another faction action.");
+            }
+        }
+        return Validation.ALLOW;
+    }
+
+    private static String normalizeName(String value) {
+        StringBuilder normalized = new StringBuilder(MAX_NAME_LENGTH);
+        if (value != null) {
+            value.codePoints()
+                    .filter(codePoint -> !Character.isISOControl(codePoint))
+                    .limit(MAX_NAME_LENGTH)
+                    .forEach(normalized::appendCodePoint);
+        }
+        return normalized.toString().trim().replaceAll("\\s+", " ");
+    }
+
+    private static FactionSnapshot sanitizeSnapshot(BlockPos tablePos, FactionSnapshot snapshot) {
+        if (snapshot == null) {
+            return fallbackSnapshot(tablePos);
+        }
+        return new FactionSnapshot(
+                tablePos,
+                snapshot.factionId(),
+                snapshot.name(),
+                snapshot.ownerName(),
+                snapshot.color(),
+                snapshot.canManage(),
+                snapshot.canClaim(),
+                snapshot.centerChunkX(),
+                snapshot.centerChunkZ(),
+                snapshot.mapRadius(),
+                snapshot.members(),
+                snapshot.claims()
+        );
+    }
+
+    private static FactionSnapshot fallbackSnapshot(BlockPos tablePos) {
+        ChunkPos center = new ChunkPos(tablePos);
+        return FactionSnapshot.empty(tablePos, center.x, center.z);
+    }
+
+    private static void bindTable(ServerPlayer player, BlockPos tablePos, FactionSnapshot snapshot) {
+        if (player.level().getBlockEntity(tablePos) instanceof FactionTableBlockEntity table) {
+            table.setFactionId(snapshot.hasFaction() ? snapshot.factionId() : null);
+        }
+    }
+
+    private static void reject(ServerPlayer player, BlockPos tablePos, String message) {
+        send(player, safeView(player, tablePos), false, true, message);
+    }
+
+    private static void send(
+            ServerPlayer player,
+            FactionSnapshot snapshot,
+            boolean successful,
+            boolean openScreen,
+            String message
+    ) {
+        PacketDistributor.sendToPlayer(
+                player,
+                new FactionPayloads.S2CFactionState(snapshot, successful, openScreen, limitMessage(message))
+        );
+    }
+
+    private static String limitMessage(String message) {
+        if (message == null) {
+            return "";
+        }
+        return message.length() <= 256 ? message : message.substring(0, 256);
+    }
+
+    public interface Service {
+        FactionSnapshot view(ServerPlayer player, BlockPos tablePos);
+
+        Result create(ServerPlayer player, BlockPos tablePos, String name, int color);
+
+        Result update(ServerPlayer player, BlockPos tablePos, String name, int color);
+
+        Result setClaim(ServerPlayer player, BlockPos tablePos, ChunkPos chunkPos, boolean claimed);
+    }
+
+    public record Result(boolean successful, String message, FactionSnapshot snapshot) {
+        public static Result success(FactionSnapshot snapshot) {
+            return new Result(true, "", snapshot);
+        }
+
+        public static Result denied(String message, FactionSnapshot snapshot) {
+            return new Result(false, message, snapshot);
+        }
+    }
+
+    private record Validation(boolean allowed, String message) {
+        private static final Validation ALLOW = new Validation(true, "");
+
+        private static Validation deny(String message) {
+            return new Validation(false, message);
+        }
+    }
+
+    @FunctionalInterface
+    private interface Operation {
+        Result run();
+    }
+
+    private static final class UnavailableService implements Service {
+        @Override
+        public FactionSnapshot view(ServerPlayer player, BlockPos tablePos) {
+            return fallbackSnapshot(tablePos);
+        }
+
+        @Override
+        public Result create(ServerPlayer player, BlockPos tablePos, String name, int color) {
+            return Result.denied("Faction management is not available on this server.", view(player, tablePos));
+        }
+
+        @Override
+        public Result update(ServerPlayer player, BlockPos tablePos, String name, int color) {
+            return Result.denied("Faction management is not available on this server.", view(player, tablePos));
+        }
+
+        @Override
+        public Result setClaim(ServerPlayer player, BlockPos tablePos, ChunkPos chunkPos, boolean claimed) {
+            return Result.denied("Faction claims are not available on this server.", view(player, tablePos));
+        }
+    }
+
+    private FactionServerHooks() {
+    }
+}

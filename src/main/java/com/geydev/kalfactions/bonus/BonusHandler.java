@@ -1,0 +1,197 @@
+package com.geydev.kalfactions.bonus;
+
+import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.protection.FactionAccess;
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.common.Tags;
+import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.entity.player.UseItemOnBlockEvent;
+import net.neoforged.neoforge.event.level.BlockDropsEvent;
+import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+
+@EventBusSubscriber(modid = KalFactions.MOD_ID)
+public final class BonusHandler {
+    private static final Map<UUID, EnumMap<InteractionHand, PendingDurability>> PENDING_DURABILITY =
+            new HashMap<>();
+    private static volatile DurabilityPolicy durabilityPolicy = BonusHandler::defaultDurabilityChance;
+
+    @SubscribeEvent
+    public static void onOreDrops(BlockDropsEvent event) {
+        if (!(event.getBreaker() instanceof ServerPlayer player)
+                || !event.getState().is(Tags.Blocks.ORES)
+                || !FactionAccess.hasAnyRole(player, "MINER")
+                || event.getDrops().isEmpty()
+                || player.getRandom().nextDouble() >= ModConfigSpec.ORE_BONUS_CHANCE.get()) {
+            return;
+        }
+
+        List<ItemEntity> bonusDrops = new ArrayList<>(event.getDrops().size());
+        for (ItemEntity drop : event.getDrops()) {
+            ItemStack bonusStack = drop.getItem().copy();
+            if (bonusStack.isEmpty()) {
+                continue;
+            }
+            ItemEntity bonus = new ItemEntity(
+                    event.getLevel(),
+                    drop.getX(),
+                    drop.getY(),
+                    drop.getZ(),
+                    bonusStack,
+                    drop.getDeltaMovement().x,
+                    drop.getDeltaMovement().y,
+                    drop.getDeltaMovement().z
+            );
+            bonus.setDefaultPickUpDelay();
+            bonusDrops.add(bonus);
+        }
+        event.getDrops().addAll(bonusDrops);
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void beforeBlockBreak(BlockEvent.BreakEvent event) {
+        if (!event.isCanceled() && event.getPlayer() instanceof ServerPlayer player) {
+            remember(player, InteractionHand.MAIN_HAND);
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void beforeAttack(AttackEntityEvent event) {
+        if (!event.isCanceled() && event.getEntity() instanceof ServerPlayer player) {
+            remember(player, InteractionHand.MAIN_HAND);
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void beforeItemUseOnBlock(UseItemOnBlockEvent event) {
+        if (!event.isCanceled()
+                && event.getUsePhase() == UseItemOnBlockEvent.UsePhase.ITEM_BEFORE_BLOCK
+                && event.getPlayer() instanceof ServerPlayer player) {
+            remember(player, event.getHand());
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void beforeEntityInteract(PlayerInteractEvent.EntityInteract event) {
+        if (!event.isCanceled() && event.getEntity() instanceof ServerPlayer player) {
+            remember(player, event.getHand());
+        }
+    }
+
+    @SubscribeEvent
+    public static void afterPlayerTick(PlayerTickEvent.Post event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        EnumMap<InteractionHand, PendingDurability> pendingByHand =
+                PENDING_DURABILITY.get(player.getUUID());
+        if (pendingByHand == null) {
+            return;
+        }
+
+        long gameTime = player.serverLevel().getGameTime();
+        pendingByHand.entrySet().removeIf(entry ->
+                restoreIfDamaged(player, entry.getKey(), entry.getValue(), gameTime));
+        if (pendingByHand.isEmpty()) {
+            PENDING_DURABILITY.remove(player.getUUID());
+        }
+    }
+
+    public static void installDurabilityPolicy(DurabilityPolicy policy) {
+        durabilityPolicy = Objects.requireNonNull(policy, "policy");
+    }
+
+    private static void remember(ServerPlayer player, InteractionHand hand) {
+        ItemStack held = player.getItemInHand(hand);
+        if (!held.isDamageableItem() || held.isEmpty()) {
+            return;
+        }
+
+        long gameTime = player.serverLevel().getGameTime();
+        EnumMap<InteractionHand, PendingDurability> pendingByHand =
+                PENDING_DURABILITY.computeIfAbsent(
+                        player.getUUID(),
+                        ignored -> new EnumMap<>(InteractionHand.class)
+                );
+        PendingDurability existing = pendingByHand.get(hand);
+        if (existing != null
+                && existing.createdGameTime() == gameTime
+                && sameIgnoringDamage(existing.before(), held)) {
+            return;
+        }
+
+        double chance = Math.clamp(durabilityPolicy.preservationChance(player, held), 0.0D, 1.0D);
+        if (chance <= 0.0D || player.getRandom().nextDouble() >= chance) {
+            return;
+        }
+        pendingByHand.put(hand, new PendingDurability(held.copy(), held.getDamageValue(), gameTime));
+    }
+
+    private static boolean restoreIfDamaged(
+            ServerPlayer player,
+            InteractionHand hand,
+            PendingDurability pending,
+            long gameTime
+    ) {
+        ItemStack current = player.getItemInHand(hand);
+        if (current.isEmpty()) {
+            player.setItemInHand(hand, pending.before().copy());
+            player.inventoryMenu.broadcastChanges();
+            return true;
+        }
+        if (!sameIgnoringDamage(pending.before(), current)) {
+            return gameTime > pending.createdGameTime() + 2L;
+        }
+        if (current.getDamageValue() > pending.damageBefore()) {
+            current.setDamageValue(pending.damageBefore());
+            player.inventoryMenu.broadcastChanges();
+            return true;
+        }
+        return gameTime > pending.createdGameTime() + 2L;
+    }
+
+    private static boolean sameIgnoringDamage(ItemStack first, ItemStack second) {
+        if (!first.is(second.getItem())) {
+            return false;
+        }
+        ItemStack firstCopy = first.copy();
+        ItemStack secondCopy = second.copy();
+        firstCopy.remove(DataComponents.DAMAGE);
+        secondCopy.remove(DataComponents.DAMAGE);
+        return ItemStack.isSameItemSameComponents(firstCopy, secondCopy);
+    }
+
+    private static double defaultDurabilityChance(ServerPlayer player, ItemStack stack) {
+        return FactionAccess.hasAnyRole(player, "CRAFTER", "CRAFTSMAN", "BLACKSMITH", "SMITH")
+                ? ModConfigSpec.CRAFT_BONUS_CHANCE.get()
+                : 0.0D;
+    }
+
+    private record PendingDurability(ItemStack before, int damageBefore, long createdGameTime) {
+    }
+
+    @FunctionalInterface
+    public interface DurabilityPolicy {
+        double preservationChance(ServerPlayer player, ItemStack stack);
+    }
+
+    private BonusHandler() {
+    }
+}
