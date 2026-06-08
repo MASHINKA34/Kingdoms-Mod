@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.command;
 
+import com.geydev.kalfactions.chest.AccessTool;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
@@ -21,10 +22,13 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 
 public final class FactionCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -97,6 +101,17 @@ public final class FactionCommands {
                 .requires(source -> CommandPermissions.has(source, CommandPermissions.WITHDRAW))
                 .then(Commands.argument("amount", LongArgumentType.longArg(1L))
                     .executes(FactionCommands::withdraw)))
+            .then(Commands.literal("chest")
+                .requires(source -> CommandPermissions.has(source, CommandPermissions.CLAIMS))
+                .executes(FactionCommands::chestInfo)
+                .then(Commands.literal("add")
+                    .then(Commands.argument("player", EntityArgument.player())
+                        .executes(FactionCommands::chestAdd)))
+                .then(Commands.literal("remove")
+                    .then(Commands.argument("player", EntityArgument.player())
+                        .executes(FactionCommands::chestRemove)))
+                .then(Commands.literal("clear")
+                    .executes(FactionCommands::chestClear)))
             .then(Commands.literal("info")
                 .requires(source -> CommandPermissions.has(source, CommandPermissions.INFO))
                 .executes(context -> info(context, null))
@@ -405,6 +420,74 @@ public final class FactionCommands {
         success(context, "Chunk unclaimed; " + NumismaticsEconomy.format(result.amount())
             + " returned to the treasury.");
         return Command.SINGLE_SUCCESS;
+    }
+
+    private static int chestInfo(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        BlockPos pos = lookedAtBlock(context, player);
+        if (pos == null) {
+            return 0;
+        }
+        return report(context, AccessTool.describe(player, player.serverLevel(), pos));
+    }
+
+    private static int chestAdd(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        ServerPlayer target = EntityArgument.getPlayer(context, "player");
+        BlockPos pos = lookedAtBlock(context, player);
+        if (pos == null) {
+            return 0;
+        }
+        return report(context, AccessTool.addWhitelistPlayer(
+            player,
+            player.serverLevel(),
+            pos,
+            target.getUUID(),
+            target.getGameProfile().getName()
+        ));
+    }
+
+    private static int chestRemove(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        ServerPlayer target = EntityArgument.getPlayer(context, "player");
+        BlockPos pos = lookedAtBlock(context, player);
+        if (pos == null) {
+            return 0;
+        }
+        return report(context, AccessTool.removeWhitelistPlayer(
+            player,
+            player.serverLevel(),
+            pos,
+            target.getUUID(),
+            target.getGameProfile().getName()
+        ));
+    }
+
+    private static int chestClear(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        BlockPos pos = lookedAtBlock(context, player);
+        if (pos == null) {
+            return 0;
+        }
+        return report(context, AccessTool.clearWhitelist(player, player.serverLevel(), pos));
+    }
+
+    private static BlockPos lookedAtBlock(CommandContext<CommandSourceStack> context, ServerPlayer player) {
+        HitResult hit = player.pick(player.blockInteractionRange() + 1.0D, 1.0F, false);
+        if (hit.getType() != HitResult.Type.BLOCK) {
+            failure(context, "Look at a container in your territory.");
+            return null;
+        }
+        return ((BlockHitResult) hit).getBlockPos();
+    }
+
+    private static int report(CommandContext<CommandSourceStack> context, AccessTool.WhitelistResult result) {
+        if (result.success()) {
+            context.getSource().sendSuccess(result::message, false);
+            return Command.SINGLE_SUCCESS;
+        }
+        context.getSource().sendFailure(result.message());
+        return 0;
     }
 
     private static int pvpStatus(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {

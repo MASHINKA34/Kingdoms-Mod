@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.net;
 
 import com.geydev.kalfactions.KalFactions;
+import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -83,6 +84,91 @@ public final class FactionPayloads {
                         buffer.readInt(),
                         buffer.readBoolean()
                 )
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SDepositTreasury(BlockPos tablePos, long amount) implements CustomPacketPayload {
+        public static final Type<C2SDepositTreasury> TYPE = FactionPayloads.payloadType("deposit_treasury");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SDepositTreasury> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBlockPos(payload.tablePos);
+                    buffer.writeLong(payload.amount);
+                },
+                buffer -> new C2SDepositTreasury(buffer.readBlockPos(), buffer.readLong())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SWithdrawTreasury(BlockPos tablePos, long amount) implements CustomPacketPayload {
+        public static final Type<C2SWithdrawTreasury> TYPE = FactionPayloads.payloadType("withdraw_treasury");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SWithdrawTreasury> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBlockPos(payload.tablePos);
+                    buffer.writeLong(payload.amount);
+                },
+                buffer -> new C2SWithdrawTreasury(buffer.readBlockPos(), buffer.readLong())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SKickMember(BlockPos tablePos, UUID playerId) implements CustomPacketPayload {
+        public static final Type<C2SKickMember> TYPE = FactionPayloads.payloadType("kick_member");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SKickMember> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBlockPos(payload.tablePos);
+                    buffer.writeUUID(payload.playerId);
+                },
+                buffer -> new C2SKickMember(buffer.readBlockPos(), buffer.readUUID())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SSetMemberRole(BlockPos tablePos, UUID playerId, String role) implements CustomPacketPayload {
+        public static final Type<C2SSetMemberRole> TYPE = FactionPayloads.payloadType("set_member_role");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SSetMemberRole> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBlockPos(payload.tablePos);
+                    buffer.writeUUID(payload.playerId);
+                    buffer.writeUtf(payload.role, 24);
+                },
+                buffer -> new C2SSetMemberRole(
+                        buffer.readBlockPos(),
+                        buffer.readUUID(),
+                        buffer.readUtf(24)
+                )
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SSetPvp(BlockPos tablePos, boolean enabled) implements CustomPacketPayload {
+        public static final Type<C2SSetPvp> TYPE = FactionPayloads.payloadType("set_pvp");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SSetPvp> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBlockPos(payload.tablePos);
+                    buffer.writeBoolean(payload.enabled);
+                },
+                buffer -> new C2SSetPvp(buffer.readBlockPos(), buffer.readBoolean())
         );
 
         @Override

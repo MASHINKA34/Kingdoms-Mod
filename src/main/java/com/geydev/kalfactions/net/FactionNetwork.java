@@ -38,6 +38,31 @@ public final class FactionNetwork {
                 FactionPayloads.C2SSetClaim.STREAM_CODEC,
                 FactionNetwork::handleClaim
         );
+        registrar.playToServer(
+                FactionPayloads.C2SDepositTreasury.TYPE,
+                FactionPayloads.C2SDepositTreasury.STREAM_CODEC,
+                FactionNetwork::handleDeposit
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SWithdrawTreasury.TYPE,
+                FactionPayloads.C2SWithdrawTreasury.STREAM_CODEC,
+                FactionNetwork::handleWithdraw
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SKickMember.TYPE,
+                FactionPayloads.C2SKickMember.STREAM_CODEC,
+                FactionNetwork::handleKick
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SSetMemberRole.TYPE,
+                FactionPayloads.C2SSetMemberRole.STREAM_CODEC,
+                FactionNetwork::handleSetRole
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SSetPvp.TYPE,
+                FactionPayloads.C2SSetPvp.STREAM_CODEC,
+                FactionNetwork::handleSetPvp
+        );
         registrar.playToClient(
                 FactionPayloads.S2CFactionState.TYPE,
                 FactionPayloads.S2CFactionState.STREAM_CODEC,
@@ -65,6 +90,26 @@ public final class FactionNetwork {
                 payload.chunkZ(),
                 payload.claimed()
         );
+    }
+
+    private static void handleDeposit(FactionPayloads.C2SDepositTreasury payload, IPayloadContext context) {
+        FactionServerHooks.deposit(serverPlayer(context), payload.tablePos(), payload.amount());
+    }
+
+    private static void handleWithdraw(FactionPayloads.C2SWithdrawTreasury payload, IPayloadContext context) {
+        FactionServerHooks.withdraw(serverPlayer(context), payload.tablePos(), payload.amount());
+    }
+
+    private static void handleKick(FactionPayloads.C2SKickMember payload, IPayloadContext context) {
+        FactionServerHooks.kickMember(serverPlayer(context), payload.tablePos(), payload.playerId());
+    }
+
+    private static void handleSetRole(FactionPayloads.C2SSetMemberRole payload, IPayloadContext context) {
+        FactionServerHooks.setMemberRole(serverPlayer(context), payload.tablePos(), payload.playerId(), payload.role());
+    }
+
+    private static void handleSetPvp(FactionPayloads.C2SSetPvp payload, IPayloadContext context) {
+        FactionServerHooks.setPvp(serverPlayer(context), payload.tablePos(), payload.enabled());
     }
 
     private static void handleState(FactionPayloads.S2CFactionState payload, IPayloadContext context) {

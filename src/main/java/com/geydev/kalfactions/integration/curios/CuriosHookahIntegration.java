@@ -7,14 +7,15 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -26,6 +27,21 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class CuriosHookahIntegration {
     private static final String CURIOS_API = "top.theillusivec4.curios.api.CuriosApi";
+    private static final String HOOKAH_MOD_ID = "hookahmod";
+    /**
+     * The hookahmod block-item ids, one per tier. We match these exact paths rather than
+     * any {@code hookah*} prefix so accessory items (tobacco, charcoal, mouthpiece, hoses…)
+     * never count as a worn hookah. Resolved through the item registry, so there is no
+     * compile-time dependency on hookahmod.
+     */
+    private static final Set<String> HOOKAH_ITEM_PATHS = Set.of(
+            "hookah",
+            "hookah_leather",
+            "hookah_gold",
+            "hookah_iron",
+            "hookah_diamond",
+            "hookah_netherite"
+    );
     public static final ResourceLocation HOOKAH_ARMOR_MODIFIER_ID =
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "hookah_armor_bonus");
     private static volatile Predicate<ServerPlayer> bonusChecker =
@@ -39,9 +55,30 @@ public final class CuriosHookahIntegration {
         return ModList.get().isLoaded("curios");
     }
 
+    public static boolean isHookahModLoaded() {
+        return ModList.get().isLoaded(HOOKAH_MOD_ID);
+    }
+
+    /**
+     * True when {@code stack} is one of the hookahmod hookah tiers. Detection is by registry
+     * id so the bonus works whether the hookah sits in a Curios slot or the main inventory.
+     */
+    public static boolean isHookahStack(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return id != null
+                && id.getNamespace().equals(HOOKAH_MOD_ID)
+                && HOOKAH_ITEM_PATHS.contains(id.getPath());
+    }
+
     public static boolean isHookahEquipped(ServerPlayer player) {
-        return player.getInventory().contains(stack -> stack.is(Items.BREWING_STAND))
-                || isEquipped(player, stack -> stack.is(Items.BREWING_STAND));
+        if (!isHookahModLoaded()) {
+            return false;
+        }
+        return player.getInventory().contains(CuriosHookahIntegration::isHookahStack)
+                || isEquipped(player, CuriosHookahIntegration::isHookahStack);
     }
 
     public static boolean hasActiveHookahBonus(ServerPlayer player) {

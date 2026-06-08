@@ -16,6 +16,14 @@ public final class FactionScreens {
         Minecraft.getInstance().setScreen(new FactionClaimMapScreen(snapshot, successful, message));
     }
 
+    public static void openMembers(FactionSnapshot snapshot, boolean successful, String message) {
+        Minecraft.getInstance().setScreen(new FactionMembersScreen(snapshot, successful, message));
+    }
+
+    public static void openTreasury(FactionSnapshot snapshot, boolean successful, String message) {
+        Minecraft.getInstance().setScreen(new FactionTreasuryScreen(snapshot, successful, message));
+    }
+
     private FactionScreens() {
     }
 }

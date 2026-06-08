@@ -19,7 +19,12 @@ public record FactionSnapshot(
         int centerChunkZ,
         int mapRadius,
         List<Member> members,
-        List<Claim> claims
+        List<Claim> claims,
+        long treasury,
+        long influence,
+        boolean internalPvp,
+        UUID viewerId,
+        boolean isOfficer
 ) {
     public static final UUID NO_FACTION = new UUID(0L, 0L);
     public static final int MAX_MEMBERS = 256;
@@ -38,17 +43,25 @@ public record FactionSnapshot(
         mapRadius = Math.clamp(mapRadius, 2, 8);
         members = List.copyOf(members);
         claims = List.copyOf(claims);
+        treasury = Math.max(0L, treasury);
+        influence = Math.max(0L, influence);
+        viewerId = viewerId == null ? NO_FACTION : viewerId;
     }
 
     public static FactionSnapshot empty(BlockPos tablePos, int centerChunkX, int centerChunkZ) {
         return new FactionSnapshot(
                 tablePos, NO_FACTION, "", "", 0x4E7A42, false, false,
-                centerChunkX, centerChunkZ, 6, List.of(), List.of()
+                centerChunkX, centerChunkZ, 6, List.of(), List.of(),
+                0L, 0L, false, NO_FACTION, false
         );
     }
 
     public boolean hasFaction() {
         return !NO_FACTION.equals(factionId);
+    }
+
+    public boolean isSelf(UUID playerId) {
+        return viewerId != null && viewerId.equals(playerId);
     }
 
     public boolean isClaimedByCurrentFaction(int chunkX, int chunkZ) {
@@ -75,6 +88,11 @@ public record FactionSnapshot(
         buffer.writeByte(snapshot.mapRadius);
         writeBoundedList(buffer, snapshot.members, MAX_MEMBERS, Member::encode);
         writeBoundedList(buffer, snapshot.claims, MAX_CLAIMS, Claim::encode);
+        buffer.writeLong(snapshot.treasury);
+        buffer.writeLong(snapshot.influence);
+        buffer.writeBoolean(snapshot.internalPvp);
+        buffer.writeUUID(snapshot.viewerId);
+        buffer.writeBoolean(snapshot.isOfficer);
     }
 
     private static FactionSnapshot decode(RegistryFriendlyByteBuf buffer) {
@@ -90,9 +108,15 @@ public record FactionSnapshot(
         int mapRadius = buffer.readUnsignedByte();
         List<Member> members = readBoundedList(buffer, MAX_MEMBERS, Member::decode);
         List<Claim> claims = readBoundedList(buffer, MAX_CLAIMS, Claim::decode);
+        long treasury = buffer.readLong();
+        long influence = buffer.readLong();
+        boolean internalPvp = buffer.readBoolean();
+        UUID viewerId = buffer.readUUID();
+        boolean isOfficer = buffer.readBoolean();
         return new FactionSnapshot(
                 tablePos, factionId, name, ownerName, color, canManage, canClaim,
-                centerChunkX, centerChunkZ, mapRadius, members, claims
+                centerChunkX, centerChunkZ, mapRadius, members, claims,
+                treasury, influence, internalPvp, viewerId, isOfficer
         );
     }
 

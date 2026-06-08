@@ -114,6 +114,51 @@ public final class FactionServerHooks {
         perform(player, tablePos, () -> service.setClaim(player, tablePos, new ChunkPos(chunkX, chunkZ), claimed));
     }
 
+    public static void deposit(ServerPlayer player, BlockPos tablePos, long amount) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.deposit(player, tablePos, amount));
+    }
+
+    public static void withdraw(ServerPlayer player, BlockPos tablePos, long amount) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.withdraw(player, tablePos, amount));
+    }
+
+    public static void kickMember(ServerPlayer player, BlockPos tablePos, UUID targetId) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.kickMember(player, tablePos, targetId));
+    }
+
+    public static void setMemberRole(ServerPlayer player, BlockPos tablePos, UUID targetId, String role) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.setMemberRole(player, tablePos, targetId, role));
+    }
+
+    public static void setPvp(ServerPlayer player, BlockPos tablePos, boolean enabled) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.setPvp(player, tablePos, enabled));
+    }
+
     private static void perform(ServerPlayer player, BlockPos tablePos, Operation operation) {
         try {
             Result result = Objects.requireNonNull(operation.run(), "Faction service returned null");
@@ -188,7 +233,12 @@ public final class FactionServerHooks {
                 snapshot.centerChunkZ(),
                 snapshot.mapRadius(),
                 snapshot.members(),
-                snapshot.claims()
+                snapshot.claims(),
+                snapshot.treasury(),
+                snapshot.influence(),
+                snapshot.internalPvp(),
+                snapshot.viewerId(),
+                snapshot.isOfficer()
         );
     }
 
@@ -229,6 +279,16 @@ public final class FactionServerHooks {
         Result update(ServerPlayer player, BlockPos tablePos, String name, int color);
 
         Result setClaim(ServerPlayer player, BlockPos tablePos, ChunkPos chunkPos, boolean claimed);
+
+        Result deposit(ServerPlayer player, BlockPos tablePos, long amount);
+
+        Result withdraw(ServerPlayer player, BlockPos tablePos, long amount);
+
+        Result kickMember(ServerPlayer player, BlockPos tablePos, UUID targetId);
+
+        Result setMemberRole(ServerPlayer player, BlockPos tablePos, UUID targetId, String role);
+
+        Result setPvp(ServerPlayer player, BlockPos tablePos, boolean enabled);
     }
 
     public record Result(boolean successful, String message, FactionSnapshot snapshot) {
@@ -273,6 +333,31 @@ public final class FactionServerHooks {
         @Override
         public Result setClaim(ServerPlayer player, BlockPos tablePos, ChunkPos chunkPos, boolean claimed) {
             return Result.denied("Faction claims are not available on this server.", view(player, tablePos));
+        }
+
+        @Override
+        public Result deposit(ServerPlayer player, BlockPos tablePos, long amount) {
+            return Result.denied("Faction management is not available on this server.", view(player, tablePos));
+        }
+
+        @Override
+        public Result withdraw(ServerPlayer player, BlockPos tablePos, long amount) {
+            return Result.denied("Faction management is not available on this server.", view(player, tablePos));
+        }
+
+        @Override
+        public Result kickMember(ServerPlayer player, BlockPos tablePos, UUID targetId) {
+            return Result.denied("Faction management is not available on this server.", view(player, tablePos));
+        }
+
+        @Override
+        public Result setMemberRole(ServerPlayer player, BlockPos tablePos, UUID targetId, String role) {
+            return Result.denied("Faction management is not available on this server.", view(player, tablePos));
+        }
+
+        @Override
+        public Result setPvp(ServerPlayer player, BlockPos tablePos, boolean enabled) {
+            return Result.denied("Faction management is not available on this server.", view(player, tablePos));
         }
     }
 

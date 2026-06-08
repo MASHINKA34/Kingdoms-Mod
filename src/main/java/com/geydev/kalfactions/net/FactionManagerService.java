@@ -2,6 +2,7 @@ package com.geydev.kalfactions.net;
 
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
 import com.geydev.kalfactions.claim.ClaimKey;
+import com.geydev.kalfactions.command.NumismaticsEconomy;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.FactionMember;
@@ -12,6 +13,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 
@@ -41,7 +43,12 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 center.z,
                 MAP_RADIUS,
                 members(player, faction),
-                claims(player, manager, faction.id(), ownColor, center)
+                claims(player, manager, faction.id(), ownColor, center),
+                faction.treasuryBalance(),
+                faction.influence(),
+                faction.internalPvp(),
+                player.getUUID(),
+                role.isAtLeast(FactionRole.OFFICER)
         );
     }
 
@@ -132,6 +139,237 @@ final class FactionManagerService implements FactionServerHooks.Service {
             updateTableMetadata(player, tablePos, faction.id(), tableColor(player, tablePos, faction.id()));
         }
         return result(result, player, tablePos);
+    }
+
+    @Override
+    public FactionServerHooks.Result deposit(ServerPlayer player, BlockPos tablePos, long amount) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return FactionServerHooks.Result.denied("You are not in a faction.", view(player, tablePos));
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return FactionServerHooks.Result.denied(
+                    "This faction table belongs to another faction.",
+                    view(player, tablePos)
+            );
+        }
+        if (amount <= 0L) {
+            return FactionServerHooks.Result.denied("Enter an amount to deposit.", view(player, tablePos));
+        }
+        if (Long.MAX_VALUE - faction.treasuryBalance() < amount) {
+            return FactionServerHooks.Result.denied(
+                    "The faction treasury cannot hold that amount.",
+                    view(player, tablePos)
+            );
+        }
+
+        NumismaticsEconomy.Payment payment = NumismaticsEconomy.preparePayment(player, amount);
+        if (!payment.ready()) {
+            return FactionServerHooks.Result.denied(
+                    "You only have " + NumismaticsEconomy.format(payment.available()) + ".",
+                    view(player, tablePos)
+            );
+        }
+        if (!NumismaticsEconomy.commitPayment(player, payment)) {
+            return FactionServerHooks.Result.denied(
+                    "Your coin inventory changed; try the deposit again.",
+                    view(player, tablePos)
+            );
+        }
+
+        FactionManager.OperationResult result = manager.deposit(faction.id(), amount);
+        if (!result.successful()) {
+            NumismaticsEconomy.give(player, amount);
+            return FactionServerHooks.Result.denied(message(result.status()), view(player, tablePos));
+        }
+        String message = "Deposited " + NumismaticsEconomy.format(amount)
+                + (payment.change() > 0L
+                        ? "; returned " + NumismaticsEconomy.format(payment.change()) + " in change."
+                        : ".");
+        return new FactionServerHooks.Result(true, message, view(player, tablePos));
+    }
+
+    @Override
+    public FactionServerHooks.Result withdraw(ServerPlayer player, BlockPos tablePos, long amount) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        FactionRole role = manager.getRole(player.getUUID()).orElse(FactionRole.MEMBER);
+        if (faction == null) {
+            return FactionServerHooks.Result.denied("You are not in a faction.", view(player, tablePos));
+        }
+        if (!role.isAtLeast(FactionRole.OFFICER)) {
+            return FactionServerHooks.Result.denied(
+                    "Only officers and the leader can withdraw from the treasury.",
+                    view(player, tablePos)
+            );
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return FactionServerHooks.Result.denied(
+                    "This faction table belongs to another faction.",
+                    view(player, tablePos)
+            );
+        }
+        if (amount <= 0L) {
+            return FactionServerHooks.Result.denied("Enter an amount to withdraw.", view(player, tablePos));
+        }
+        if (!NumismaticsEconomy.canGive(amount)) {
+            return FactionServerHooks.Result.denied(
+                    "Withdraw at most " + NumismaticsEconomy.format(NumismaticsEconomy.MAX_SINGLE_PAYOUT)
+                            + " at a time.",
+                    view(player, tablePos)
+            );
+        }
+
+        FactionManager.OperationResult result = manager.withdraw(faction.id(), amount);
+        if (!result.successful()) {
+            return FactionServerHooks.Result.denied(message(result.status()), view(player, tablePos));
+        }
+        NumismaticsEconomy.give(player, amount);
+        return new FactionServerHooks.Result(
+                true,
+                "Withdrew " + NumismaticsEconomy.format(amount) + ".",
+                view(player, tablePos)
+        );
+    }
+
+    @Override
+    public FactionServerHooks.Result kickMember(ServerPlayer player, BlockPos tablePos, UUID targetId) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return FactionServerHooks.Result.denied("You are not in a faction.", view(player, tablePos));
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return FactionServerHooks.Result.denied(
+                    "This faction table belongs to another faction.",
+                    view(player, tablePos)
+            );
+        }
+        String rejection = validateMemberAction(faction, player.getUUID(), targetId, FactionRole.OFFICER);
+        if (rejection != null) {
+            return FactionServerHooks.Result.denied(rejection, view(player, tablePos));
+        }
+
+        FactionManager.OperationResult result = manager.removeMember(faction.id(), targetId);
+        if (!result.successful()) {
+            return FactionServerHooks.Result.denied(message(result.status()), view(player, tablePos));
+        }
+        ServerPlayer target = player.getServer().getPlayerList().getPlayer(targetId);
+        if (target != null) {
+            target.sendSystemMessage(Component.literal("You were removed from " + faction.name() + "."));
+        }
+        return new FactionServerHooks.Result(
+                true,
+                "Removed " + playerName(player, targetId) + " from the faction.",
+                view(player, tablePos)
+        );
+    }
+
+    @Override
+    public FactionServerHooks.Result setMemberRole(
+            ServerPlayer player,
+            BlockPos tablePos,
+            UUID targetId,
+            String roleName
+    ) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return FactionServerHooks.Result.denied("You are not in a faction.", view(player, tablePos));
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return FactionServerHooks.Result.denied(
+                    "This faction table belongs to another faction.",
+                    view(player, tablePos)
+            );
+        }
+        FactionRole role;
+        try {
+            role = FactionRole.valueOf(roleName.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return FactionServerHooks.Result.denied("That role is not valid.", view(player, tablePos));
+        }
+        if (role == FactionRole.LEADER) {
+            return FactionServerHooks.Result.denied(
+                    "Transfer leadership with /f transfer instead.",
+                    view(player, tablePos)
+            );
+        }
+        String rejection = validateMemberAction(faction, player.getUUID(), targetId, FactionRole.LEADER);
+        if (rejection != null) {
+            return FactionServerHooks.Result.denied(rejection, view(player, tablePos));
+        }
+
+        FactionManager.OperationResult result = manager.setMemberRole(faction.id(), targetId, role);
+        if (!result.successful()) {
+            return FactionServerHooks.Result.denied(message(result.status()), view(player, tablePos));
+        }
+        return new FactionServerHooks.Result(
+                true,
+                playerName(player, targetId) + " is now " + roleName(role) + ".",
+                view(player, tablePos)
+        );
+    }
+
+    @Override
+    public FactionServerHooks.Result setPvp(ServerPlayer player, BlockPos tablePos, boolean enabled) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        FactionRole role = manager.getRole(player.getUUID()).orElse(FactionRole.MEMBER);
+        if (faction == null) {
+            return FactionServerHooks.Result.denied("You are not in a faction.", view(player, tablePos));
+        }
+        if (!role.isAtLeast(FactionRole.OFFICER)) {
+            return FactionServerHooks.Result.denied(
+                    "Only officers and the leader can change friendly PvP.",
+                    view(player, tablePos)
+            );
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return FactionServerHooks.Result.denied(
+                    "This faction table belongs to another faction.",
+                    view(player, tablePos)
+            );
+        }
+
+        FactionManager.OperationResult result = manager.setInternalPvp(faction.id(), enabled);
+        if (!result.successful()) {
+            return FactionServerHooks.Result.denied(message(result.status()), view(player, tablePos));
+        }
+        return new FactionServerHooks.Result(
+                true,
+                "Friendly PvP " + (enabled ? "enabled." : "disabled."),
+                view(player, tablePos)
+        );
+    }
+
+    /**
+     * Mirrors the {@code /f} role gating: the actor must hold at least {@code minimumActorRole},
+     * cannot target themselves, the target must be a faction member, and only the leader may
+     * manage officers. Returns {@code null} when the action is allowed, otherwise a reason.
+     */
+    private static String validateMemberAction(
+            Faction faction,
+            UUID actorId,
+            UUID targetId,
+            FactionRole minimumActorRole
+    ) {
+        FactionRole actorRole = faction.roleOf(actorId).orElse(null);
+        if (actorRole == null || !actorRole.isAtLeast(minimumActorRole)) {
+            return "Your faction role cannot do that.";
+        }
+        if (actorId.equals(targetId)) {
+            return "You cannot use this action on yourself.";
+        }
+        FactionRole targetRole = faction.roleOf(targetId).orElse(null);
+        if (targetRole == null) {
+            return "That player is not in your faction.";
+        }
+        if (actorRole != FactionRole.LEADER && targetRole.isAtLeast(FactionRole.OFFICER)) {
+            return "Only the faction leader can manage officers.";
+        }
+        return null;
     }
 
     private FactionServerHooks.Result result(
