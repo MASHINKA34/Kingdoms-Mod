@@ -80,6 +80,11 @@ public final class FactionManageScreen extends FactionScreen {
                 text("screen.kingdoms.refresh"),
                 button -> requestRefresh()
         ).bounds(rightColumn, row0 + rowStep * 3, columnWidth, 20).build());
+
+        addRenderableWidget(Button.builder(
+                text("screen.kingdoms.actions_open"),
+                button -> FactionScreens.openActions(snapshot, true, "")
+        ).bounds(leftColumn, row0 + rowStep * 4, columnWidth + 4 + columnWidth, 20).build());
     }
 
     private Component pvpLabel() {

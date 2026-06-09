@@ -24,6 +24,10 @@ public final class FactionScreens {
         Minecraft.getInstance().setScreen(new FactionTreasuryScreen(snapshot, successful, message));
     }
 
+    public static void openActions(FactionSnapshot snapshot, boolean successful, String message) {
+        Minecraft.getInstance().setScreen(new FactionActionsScreen(snapshot, successful, message));
+    }
+
     private FactionScreens() {
     }
 }

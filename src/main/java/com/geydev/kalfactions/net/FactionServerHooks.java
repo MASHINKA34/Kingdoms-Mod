@@ -190,6 +190,60 @@ public final class FactionServerHooks {
         perform(player, tablePos, () -> service.setPvp(player, tablePos, enabled));
     }
 
+    public static void leave(ServerPlayer player, BlockPos tablePos) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.leave(player, tablePos));
+    }
+
+    public static void disband(ServerPlayer player, BlockPos tablePos) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.disband(player, tablePos));
+    }
+
+    public static void invite(ServerPlayer player, BlockPos tablePos, String targetName) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.invite(player, tablePos, targetName));
+    }
+
+    public static void transfer(ServerPlayer player, BlockPos tablePos, String targetName) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.transfer(player, tablePos, targetName));
+    }
+
+    public static void declareWar(ServerPlayer player, BlockPos tablePos, String targetFactionName) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.declareWar(player, tablePos, targetFactionName));
+    }
+
+    public static void endWar(ServerPlayer player, BlockPos tablePos) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.endWar(player, tablePos));
+    }
+
     private static void perform(ServerPlayer player, BlockPos tablePos, Operation operation) {
         try {
             Result result = Objects.requireNonNull(operation.run(), "Faction service returned null");
@@ -320,6 +374,18 @@ public final class FactionServerHooks {
         Result setMemberRole(ServerPlayer player, BlockPos tablePos, UUID targetId, String role);
 
         Result setPvp(ServerPlayer player, BlockPos tablePos, boolean enabled);
+
+        Result leave(ServerPlayer player, BlockPos tablePos);
+
+        Result disband(ServerPlayer player, BlockPos tablePos);
+
+        Result invite(ServerPlayer player, BlockPos tablePos, String targetName);
+
+        Result transfer(ServerPlayer player, BlockPos tablePos, String targetName);
+
+        Result declareWar(ServerPlayer player, BlockPos tablePos, String targetFactionName);
+
+        Result endWar(ServerPlayer player, BlockPos tablePos);
     }
 
     public record Result(boolean successful, Component message, FactionSnapshot snapshot) {
@@ -391,6 +457,36 @@ public final class FactionServerHooks {
 
         @Override
         public Result setPvp(ServerPlayer player, BlockPos tablePos, boolean enabled) {
+            return managementUnavailable(player, tablePos);
+        }
+
+        @Override
+        public Result leave(ServerPlayer player, BlockPos tablePos) {
+            return managementUnavailable(player, tablePos);
+        }
+
+        @Override
+        public Result disband(ServerPlayer player, BlockPos tablePos) {
+            return managementUnavailable(player, tablePos);
+        }
+
+        @Override
+        public Result invite(ServerPlayer player, BlockPos tablePos, String targetName) {
+            return managementUnavailable(player, tablePos);
+        }
+
+        @Override
+        public Result transfer(ServerPlayer player, BlockPos tablePos, String targetName) {
+            return managementUnavailable(player, tablePos);
+        }
+
+        @Override
+        public Result declareWar(ServerPlayer player, BlockPos tablePos, String targetFactionName) {
+            return managementUnavailable(player, tablePos);
+        }
+
+        @Override
+        public Result endWar(ServerPlayer player, BlockPos tablePos) {
             return managementUnavailable(player, tablePos);
         }
 

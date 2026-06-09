@@ -3,10 +3,12 @@ package com.geydev.kalfactions.net;
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.command.NumismaticsEconomy;
+import com.geydev.kalfactions.command.PendingFactionInvites;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.FactionMember;
 import com.geydev.kalfactions.faction.FactionRole;
+import com.geydev.kalfactions.war.WarManager;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -395,6 +397,257 @@ final class FactionManagerService implements FactionServerHooks.Service {
         );
     }
 
+    @Override
+    public FactionServerHooks.Result leave(ServerPlayer player, BlockPos tablePos) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return notInFaction(player, tablePos);
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return otherFactionTable(player, tablePos);
+        }
+        FactionManager.OperationResult result = manager.removeMember(faction.id(), player.getUUID());
+        if (!result.successful()) {
+            return FactionServerHooks.Result.denied(message(result.status()), view(player, tablePos));
+        }
+        PendingFactionInvites.removeForPlayer(player.getServer(), player.getUUID());
+        return new FactionServerHooks.Result(
+                true,
+                Component.translatable("kingdoms.command.faction.leave.success", faction.name()),
+                view(player, tablePos)
+        );
+    }
+
+    @Override
+    public FactionServerHooks.Result disband(ServerPlayer player, BlockPos tablePos) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return notInFaction(player, tablePos);
+        }
+        if (!faction.ownerId().equals(player.getUUID())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.leader_settings_only"),
+                    view(player, tablePos)
+            );
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return otherFactionTable(player, tablePos);
+        }
+        if (!NumismaticsEconomy.canGive(faction.treasuryBalance())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.command.faction.disband.withdraw_first"),
+                    view(player, tablePos)
+            );
+        }
+
+        FactionManager.OperationResult result = manager.disbandFaction(faction.id());
+        if (!result.successful()) {
+            return FactionServerHooks.Result.denied(message(result.status()), view(player, tablePos));
+        }
+        PendingFactionInvites.removeForFaction(player.getServer(), faction.id());
+        Component message;
+        if (result.amount() > 0L) {
+            NumismaticsEconomy.give(player, result.amount());
+            message = Component.translatable(
+                    "kingdoms.command.faction.disband.success_refund",
+                    NumismaticsEconomy.format(result.amount())
+            );
+        } else {
+            message = Component.translatable("kingdoms.command.faction.disband.success");
+        }
+        return new FactionServerHooks.Result(true, message, view(player, tablePos));
+    }
+
+    @Override
+    public FactionServerHooks.Result invite(ServerPlayer player, BlockPos tablePos, String targetName) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return notInFaction(player, tablePos);
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return otherFactionTable(player, tablePos);
+        }
+        FactionRole role = faction.roleOf(player.getUUID()).orElse(FactionRole.MEMBER);
+        if (!role.isAtLeast(FactionRole.OFFICER)) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.role_cannot_manage_members"),
+                    view(player, tablePos)
+            );
+        }
+        ServerPlayer target = player.getServer().getPlayerList().getPlayerByName(targetName.trim());
+        if (target == null) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.duel.error.player_offline"),
+                    view(player, tablePos)
+            );
+        }
+        if (target.getUUID().equals(player.getUUID())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.command.faction.invite.self"),
+                    view(player, tablePos)
+            );
+        }
+        if (manager.getFactionForMember(target.getUUID()).isPresent()) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.player_already_member"),
+                    view(player, tablePos)
+            );
+        }
+
+        PendingFactionInvites.put(player.getServer(), faction.id(), player.getUUID(), target.getUUID());
+        target.sendSystemMessage(Component.translatable(
+                "kingdoms.command.faction.invite.received",
+                player.getGameProfile().getName(),
+                faction.name()
+        ));
+        return new FactionServerHooks.Result(
+                true,
+                Component.translatable(
+                        "kingdoms.command.faction.invite.sent",
+                        target.getGameProfile().getName(),
+                        faction.name()
+                ),
+                view(player, tablePos)
+        );
+    }
+
+    @Override
+    public FactionServerHooks.Result transfer(ServerPlayer player, BlockPos tablePos, String targetName) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return notInFaction(player, tablePos);
+        }
+        if (!faction.ownerId().equals(player.getUUID())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.leader_settings_only"),
+                    view(player, tablePos)
+            );
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return otherFactionTable(player, tablePos);
+        }
+        ServerPlayer target = player.getServer().getPlayerList().getPlayerByName(targetName.trim());
+        if (target == null) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.duel.error.player_offline"),
+                    view(player, tablePos)
+            );
+        }
+        if (target.getUUID().equals(player.getUUID())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.self_action"),
+                    view(player, tablePos)
+            );
+        }
+
+        FactionManager.OperationResult result = manager.transferLeadership(faction.id(), target.getUUID());
+        if (!result.successful()) {
+            return FactionServerHooks.Result.denied(message(result.status()), view(player, tablePos));
+        }
+        target.sendSystemMessage(Component.translatable(
+                "kingdoms.command.faction.leadership.received",
+                faction.name()
+        ));
+        return new FactionServerHooks.Result(
+                true,
+                Component.translatable(
+                        "kingdoms.command.faction.leadership.transferred",
+                        target.getGameProfile().getName()
+                ),
+                view(player, tablePos)
+        );
+    }
+
+    @Override
+    public FactionServerHooks.Result declareWar(ServerPlayer player, BlockPos tablePos, String targetFactionName) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return notInFaction(player, tablePos);
+        }
+        if (!faction.ownerId().equals(player.getUUID())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.leader_settings_only"),
+                    view(player, tablePos)
+            );
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return otherFactionTable(player, tablePos);
+        }
+        Faction target = manager.getFactionByName(targetFactionName.trim()).orElse(null);
+        if (target == null) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.faction_not_found"),
+                    view(player, tablePos)
+            );
+        }
+
+        WarManager.DeclareResult result = WarManager.get(player.getServer()).declareWar(
+                player.getServer(),
+                faction.id(),
+                target.id(),
+                player.getServer().overworld().getGameTime()
+        );
+        Component message = switch (result) {
+            case SUCCESS -> Component.translatable("kingdoms.command.faction.war.declared", target.name());
+            case SAME_FACTION -> Component.translatable("kingdoms.command.faction.war.same_faction");
+            case ATTACKER_BUSY -> Component.translatable("kingdoms.command.faction.war.attacker_busy");
+            case DEFENDER_BUSY -> Component.translatable("kingdoms.command.faction.war.defender_busy", target.name());
+        };
+        return new FactionServerHooks.Result(
+                result == WarManager.DeclareResult.SUCCESS,
+                message,
+                view(player, tablePos)
+        );
+    }
+
+    @Override
+    public FactionServerHooks.Result endWar(ServerPlayer player, BlockPos tablePos) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return notInFaction(player, tablePos);
+        }
+        if (!faction.ownerId().equals(player.getUUID())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.leader_settings_only"),
+                    view(player, tablePos)
+            );
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return otherFactionTable(player, tablePos);
+        }
+        if (WarManager.get(player.getServer()).endWarForFaction(player.getServer(), faction.id()).isEmpty()) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.command.faction.war.not_active"),
+                    view(player, tablePos)
+            );
+        }
+        return new FactionServerHooks.Result(
+                true,
+                Component.translatable("kingdoms.command.faction.war.ended"),
+                view(player, tablePos)
+        );
+    }
+
+    private FactionServerHooks.Result notInFaction(ServerPlayer player, BlockPos tablePos) {
+        return FactionServerHooks.Result.denied(
+                Component.translatable("kingdoms.error.not_in_faction"),
+                view(player, tablePos)
+        );
+    }
+
+    private FactionServerHooks.Result otherFactionTable(ServerPlayer player, BlockPos tablePos) {
+        return FactionServerHooks.Result.denied(
+                Component.translatable("kingdoms.error.table_other_faction"),
+                view(player, tablePos)
+        );
+    }
+
     /**
      * Mirrors the {@code /f} role gating: the actor must hold at least {@code minimumActorRole},
      * cannot target themselves, the target must be a faction member, and only the leader may
@@ -557,6 +810,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
             case TREASURY_OVERFLOW -> "kingdoms.error.treasury_overflow";
             case PLAYER_NOT_MEMBER -> "kingdoms.error.not_member_of_faction";
             case FACTION_NOT_FOUND -> "kingdoms.error.faction_data_not_found";
+            case OWNER_CANNOT_LEAVE -> "kingdoms.error.owner_cannot_leave";
             default -> "kingdoms.error.faction_action_rejected";
         };
         if (key == null) {

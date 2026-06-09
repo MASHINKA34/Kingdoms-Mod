@@ -137,6 +137,11 @@ dependencies {
     compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}:api"
     compileOnly "de.bluecolored:bluemap-api:${bluemap_api_version}"
 
+    compileOnly files("libs/xaerominimap-neoforge-${minecraft_version}-${xaero_minimap_version}.jar")
+    compileOnly files("libs/xaeroworldmap-neoforge-${minecraft_version}-${xaero_worldmap_version}.jar")
+    localRuntime files("libs/xaerominimap-neoforge-${minecraft_version}-${xaero_minimap_version}.jar")
+    localRuntime files("libs/xaeroworldmap-neoforge-${minecraft_version}-${xaero_worldmap_version}.jar")
+
     localRuntime("dev.ithundxr.createnumismatics:CreateNumismatics-neoforge-${minecraft_version}:${numismatics_version}") {
         transitive = false
     }

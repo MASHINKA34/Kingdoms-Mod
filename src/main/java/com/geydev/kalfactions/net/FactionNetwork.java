@@ -63,10 +63,45 @@ public final class FactionNetwork {
                 FactionPayloads.C2SSetPvp.STREAM_CODEC,
                 FactionNetwork::handleSetPvp
         );
+        registrar.playToServer(
+                FactionPayloads.C2SLeaveFaction.TYPE,
+                FactionPayloads.C2SLeaveFaction.STREAM_CODEC,
+                FactionNetwork::handleLeave
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SDisbandFaction.TYPE,
+                FactionPayloads.C2SDisbandFaction.STREAM_CODEC,
+                FactionNetwork::handleDisband
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SInvitePlayer.TYPE,
+                FactionPayloads.C2SInvitePlayer.STREAM_CODEC,
+                FactionNetwork::handleInvite
+        );
+        registrar.playToServer(
+                FactionPayloads.C2STransferLeadership.TYPE,
+                FactionPayloads.C2STransferLeadership.STREAM_CODEC,
+                FactionNetwork::handleTransfer
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SDeclareWar.TYPE,
+                FactionPayloads.C2SDeclareWar.STREAM_CODEC,
+                FactionNetwork::handleDeclareWar
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SEndWar.TYPE,
+                FactionPayloads.C2SEndWar.STREAM_CODEC,
+                FactionNetwork::handleEndWar
+        );
         registrar.playToClient(
                 FactionPayloads.S2CFactionState.TYPE,
                 FactionPayloads.S2CFactionState.STREAM_CODEC,
                 FactionNetwork::handleState
+        );
+        registrar.playToClient(
+                FactionPayloads.S2CSyncClaims.TYPE,
+                FactionPayloads.S2CSyncClaims.STREAM_CODEC,
+                FactionNetwork::handleSyncClaims
         );
     }
 
@@ -112,9 +147,39 @@ public final class FactionNetwork {
         FactionServerHooks.setPvp(serverPlayer(context), payload.tablePos(), payload.enabled());
     }
 
+    private static void handleLeave(FactionPayloads.C2SLeaveFaction payload, IPayloadContext context) {
+        FactionServerHooks.leave(serverPlayer(context), payload.tablePos());
+    }
+
+    private static void handleDisband(FactionPayloads.C2SDisbandFaction payload, IPayloadContext context) {
+        FactionServerHooks.disband(serverPlayer(context), payload.tablePos());
+    }
+
+    private static void handleInvite(FactionPayloads.C2SInvitePlayer payload, IPayloadContext context) {
+        FactionServerHooks.invite(serverPlayer(context), payload.tablePos(), payload.targetName());
+    }
+
+    private static void handleTransfer(FactionPayloads.C2STransferLeadership payload, IPayloadContext context) {
+        FactionServerHooks.transfer(serverPlayer(context), payload.tablePos(), payload.targetName());
+    }
+
+    private static void handleDeclareWar(FactionPayloads.C2SDeclareWar payload, IPayloadContext context) {
+        FactionServerHooks.declareWar(serverPlayer(context), payload.tablePos(), payload.targetFactionName());
+    }
+
+    private static void handleEndWar(FactionPayloads.C2SEndWar payload, IPayloadContext context) {
+        FactionServerHooks.endWar(serverPlayer(context), payload.tablePos());
+    }
+
     private static void handleState(FactionPayloads.S2CFactionState payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientFactionPayloadHandler.handle(payload);
+        }
+    }
+
+    private static void handleSyncClaims(FactionPayloads.S2CSyncClaims payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientFactionPayloadHandler.handleSyncClaims(payload);
         }
     }
 

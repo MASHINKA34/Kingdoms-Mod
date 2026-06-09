@@ -1,6 +1,9 @@
 package com.geydev.kalfactions.net;
 
 import com.geydev.kalfactions.KalFactions;
+import io.netty.handler.codec.DecoderException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -177,6 +180,96 @@ public final class FactionPayloads {
         }
     }
 
+    public record C2SLeaveFaction(BlockPos tablePos) implements CustomPacketPayload {
+        public static final Type<C2SLeaveFaction> TYPE = FactionPayloads.payloadType("leave_faction");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SLeaveFaction> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> buffer.writeBlockPos(payload.tablePos),
+                buffer -> new C2SLeaveFaction(buffer.readBlockPos())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SDisbandFaction(BlockPos tablePos) implements CustomPacketPayload {
+        public static final Type<C2SDisbandFaction> TYPE = FactionPayloads.payloadType("disband_faction");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SDisbandFaction> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> buffer.writeBlockPos(payload.tablePos),
+                buffer -> new C2SDisbandFaction(buffer.readBlockPos())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SInvitePlayer(BlockPos tablePos, String targetName) implements CustomPacketPayload {
+        public static final Type<C2SInvitePlayer> TYPE = FactionPayloads.payloadType("invite_player");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SInvitePlayer> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBlockPos(payload.tablePos);
+                    buffer.writeUtf(payload.targetName, 16);
+                },
+                buffer -> new C2SInvitePlayer(buffer.readBlockPos(), buffer.readUtf(16))
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2STransferLeadership(BlockPos tablePos, String targetName) implements CustomPacketPayload {
+        public static final Type<C2STransferLeadership> TYPE = FactionPayloads.payloadType("transfer_leadership");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2STransferLeadership> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBlockPos(payload.tablePos);
+                    buffer.writeUtf(payload.targetName, 16);
+                },
+                buffer -> new C2STransferLeadership(buffer.readBlockPos(), buffer.readUtf(16))
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SDeclareWar(BlockPos tablePos, String targetFactionName) implements CustomPacketPayload {
+        public static final Type<C2SDeclareWar> TYPE = FactionPayloads.payloadType("declare_war");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SDeclareWar> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBlockPos(payload.tablePos);
+                    buffer.writeUtf(payload.targetFactionName, FactionServerHooks.MAX_NAME_LENGTH);
+                },
+                buffer -> new C2SDeclareWar(
+                        buffer.readBlockPos(),
+                        buffer.readUtf(FactionServerHooks.MAX_NAME_LENGTH)
+                )
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SEndWar(BlockPos tablePos) implements CustomPacketPayload {
+        public static final Type<C2SEndWar> TYPE = FactionPayloads.payloadType("end_war");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SEndWar> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> buffer.writeBlockPos(payload.tablePos),
+                buffer -> new C2SEndWar(buffer.readBlockPos())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record S2CFactionState(
             FactionSnapshot snapshot,
             boolean successful,
@@ -202,6 +295,61 @@ public final class FactionPayloads {
         @Override
         public Type<? extends CustomPacketPayload> type() {
             return TYPE;
+        }
+    }
+
+    public record S2CSyncClaims(
+            ResourceLocation dimension,
+            List<ClaimEntry> claims
+    ) implements CustomPacketPayload {
+        public static final int MAX_ENTRIES = 16384;
+        public static final Type<S2CSyncClaims> TYPE = FactionPayloads.payloadType("sync_claims");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CSyncClaims> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeResourceLocation(payload.dimension);
+                    int size = Math.min(payload.claims.size(), MAX_ENTRIES);
+                    buffer.writeVarInt(size);
+                    for (int i = 0; i < size; i++) {
+                        ClaimEntry.encode(buffer, payload.claims.get(i));
+                    }
+                },
+                buffer -> {
+                    ResourceLocation dimension = buffer.readResourceLocation();
+                    int size = buffer.readVarInt();
+                    if (size < 0 || size > MAX_ENTRIES) {
+                        throw new DecoderException("Claim sync size " + size + " exceeds " + MAX_ENTRIES);
+                    }
+                    List<ClaimEntry> claims = new ArrayList<>(size);
+                    for (int i = 0; i < size; i++) {
+                        claims.add(ClaimEntry.decode(buffer));
+                    }
+                    return new S2CSyncClaims(dimension, List.copyOf(claims));
+                }
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record ClaimEntry(int chunkX, int chunkZ, int color, String name, UUID factionId) {
+        private static void encode(RegistryFriendlyByteBuf buffer, ClaimEntry entry) {
+            buffer.writeVarInt(entry.chunkX);
+            buffer.writeVarInt(entry.chunkZ);
+            buffer.writeInt(entry.color);
+            buffer.writeUtf(entry.name, 32);
+            buffer.writeUUID(entry.factionId);
+        }
+
+        private static ClaimEntry decode(RegistryFriendlyByteBuf buffer) {
+            return new ClaimEntry(
+                    buffer.readVarInt(),
+                    buffer.readVarInt(),
+                    buffer.readInt(),
+                    buffer.readUtf(32),
+                    buffer.readUUID()
+            );
         }
     }
 

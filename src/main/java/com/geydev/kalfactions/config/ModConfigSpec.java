@@ -23,6 +23,7 @@ public final class ModConfigSpec {
     public static final LongValue INFLUENCE_PER_CHUNK_PER_DAY;
     public static final IntValue WAR_ROLLBACK_CHUNKS_PER_TICK;
     public static final LongValue WAR_AUTO_END_TICKS;
+    public static final IntValue CLAIM_SYNC_RADIUS_CHUNKS;
 
     static {
         Builder builder = new Builder();
@@ -48,6 +49,12 @@ public final class ModConfigSpec {
         WAR_AUTO_END_TICKS = builder
             .comment("Game-time ticks after which an active war ends automatically (0 disables auto-end).")
             .defineInRange("autoEndTicks", 0L, 0L, Long.MAX_VALUE);
+        builder.pop();
+
+        builder.push("integration");
+        CLAIM_SYNC_RADIUS_CHUNKS = builder
+            .comment("Radius in chunks around each player for which faction claims are streamed to client minimap mods (Xaero).")
+            .defineInRange("claimSyncRadiusChunks", 64, 8, 512);
         builder.pop();
         SPEC = builder.build();
     }
