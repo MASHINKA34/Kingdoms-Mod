@@ -69,7 +69,7 @@ public final class FactionClaimMapScreen extends FactionScreen {
                 text("screen.kingdoms.claim_map.help"),
                 left + 238,
                 top + 121,
-                74,
+                80,
                 0x5B452E
         );
     }
@@ -80,12 +80,12 @@ public final class FactionClaimMapScreen extends FactionScreen {
             int chunkX = hoveredChunkX(mouseX);
             int chunkZ = hoveredChunkZ(mouseY);
             FactionSnapshot.Claim claim = snapshot.claimAt(chunkX, chunkZ);
-            if (claim == null || claim.own()) {
+            if (claim == null) {
                 PacketDistributor.sendToServer(new FactionPayloads.C2SSetClaim(
                         snapshot.tablePos(),
                         chunkX,
                         chunkZ,
-                        claim == null
+                        true
                 ));
                 return true;
             }

@@ -43,8 +43,10 @@ final class XaeroIntegration {
                 return;
             }
             if (registry != hookedRegistry) {
-                ensureRegistered(registry);
                 hookedRegistry = registry;
+                appliedRevision = Long.MIN_VALUE;
+            }
+            if (ensureRegistered(registry)) {
                 appliedRevision = Long.MIN_VALUE;
             }
 
@@ -72,10 +74,10 @@ final class XaeroIntegration {
         return (HighlighterRegistry) registryField.get(writer);
     }
 
-    private static void ensureRegistered(HighlighterRegistry registry) throws ReflectiveOperationException {
+    private static boolean ensureRegistered(HighlighterRegistry registry) throws ReflectiveOperationException {
         List<AbstractHighlighter> current = registry.getHighlighters();
         if (current.contains(HIGHLIGHTER)) {
-            return;
+            return false;
         }
         if (highlightersField == null) {
             highlightersField = HighlighterRegistry.class.getDeclaredField("highlighters");
@@ -84,6 +86,8 @@ final class XaeroIntegration {
         List<AbstractHighlighter> updated = new ArrayList<>(current);
         updated.add(HIGHLIGHTER);
         highlightersField.set(registry, Collections.unmodifiableList(updated));
+        KalFactions.LOGGER.info("Registered Kingdoms claim highlighter with Xaero ({} highlighters total)", updated.size());
+        return true;
     }
 
     private XaeroIntegration() {

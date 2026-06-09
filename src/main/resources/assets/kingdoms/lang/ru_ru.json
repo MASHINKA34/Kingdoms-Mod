@@ -208,7 +208,7 @@
   "screen.kingdoms.withdraw_hint": "Снимать средства могут только офицеры и лидер.",
   "screen.kingdoms.claim_map.title": "Карта территорий",
   "screen.kingdoms.claim_map.open": "Карта территорий",
-  "screen.kingdoms.claim_map.help": "Щёлкните по чанку левой кнопкой, чтобы захватить или освободить его.",
+  "screen.kingdoms.claim_map.help": "Щёлкните по свободному чанку, чтобы захватить его.",
   "screen.kingdoms.claim_map.chunk": "Чанк %s, %s",
   "screen.kingdoms.claim_map.claimed_chunk": "%s — чанк %s, %s",
 
@@ -223,5 +223,7 @@
   "screen.kingdoms.leave": "Выйти",
   "screen.kingdoms.disband": "Распустить",
   "screen.kingdoms.war_declare": "Объявить войну",
-  "screen.kingdoms.war_end": "Завершить войну"
+  "screen.kingdoms.war_end": "Завершить войну",
+  "screen.kingdoms.disband_confirm": "Подтвердить?",
+  "screen.kingdoms.no_factions": "Нет фракций"
 }

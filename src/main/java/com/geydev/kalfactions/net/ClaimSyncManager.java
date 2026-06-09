@@ -27,19 +27,16 @@ public final class ClaimSyncManager {
 
     private static final Map<UUID, SyncState> STATES = new HashMap<>();
     private static int ticksUntilCheck;
+    private static boolean loggedFirstSend;
 
     @SubscribeEvent
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
-            sendTo(player);
-        }
+        STATES.remove(event.getEntity().getUUID());
     }
 
     @SubscribeEvent
     public static void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
-            sendTo(player);
-        }
+        STATES.remove(event.getEntity().getUUID());
     }
 
     @SubscribeEvent
@@ -102,6 +99,11 @@ public final class ClaimSyncManager {
 
         PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CSyncClaims(dimension.location(), entries));
         STATES.put(player.getUUID(), new SyncState(dimension, center.toLong(), IntegrationManager.revision()));
+        if (!loggedFirstSend && !entries.isEmpty()) {
+            loggedFirstSend = true;
+            KalFactions.LOGGER.info("Sent {} faction claims to {} for minimap sync", entries.size(),
+                    player.getGameProfile().getName());
+        }
     }
 
     private static boolean within(long previousChunk, long currentChunk) {

@@ -38,10 +38,14 @@ public final class FactionManageScreen extends FactionScreen {
         nameBox.setEditable(snapshot.canManage());
         addRenderableWidget(nameBox);
 
-        Button color = addRenderableWidget(Button.builder(
-                text("screen.kingdoms.color"),
-                button -> selectedColor = nextColor(selectedColor)
-        ).bounds(leftColumn, row0 + rowStep, columnWidth, 20).build());
+        ColorSliderButton color = addRenderableWidget(new ColorSliderButton(
+                leftColumn,
+                row0 + rowStep,
+                columnWidth,
+                20,
+                selectedColor,
+                value -> selectedColor = value
+        ));
         color.active = snapshot.canManage();
 
         Button save = addRenderableWidget(Button.builder(

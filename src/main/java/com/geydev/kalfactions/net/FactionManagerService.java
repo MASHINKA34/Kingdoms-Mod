@@ -50,8 +50,17 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 faction.influence(),
                 faction.internalPvp(),
                 player.getUUID(),
-                role.isAtLeast(FactionRole.OFFICER)
+                role.isAtLeast(FactionRole.OFFICER),
+                otherFactionNames(manager, faction.id())
         );
+    }
+
+    private static List<String> otherFactionNames(FactionManager manager, UUID ownFactionId) {
+        return manager.factions().stream()
+                .filter(faction -> !faction.id().equals(ownFactionId))
+                .map(Faction::name)
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
     }
 
     @Override
@@ -62,7 +71,8 @@ final class FactionManagerService implements FactionServerHooks.Service {
             int color
     ) {
         FactionManager manager = FactionManager.get(player.serverLevel());
-        if (boundFactionId(player, tablePos) != null) {
+        UUID boundFactionId = boundFactionId(player, tablePos);
+        if (boundFactionId != null && manager.getFaction(boundFactionId).isPresent()) {
             return FactionServerHooks.Result.denied(
                     Component.translatable("kingdoms.error.table_already_bound"),
                     view(player, tablePos)

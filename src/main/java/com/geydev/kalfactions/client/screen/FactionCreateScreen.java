@@ -29,10 +29,14 @@ public final class FactionCreateScreen extends FactionScreen {
         nameBox.setMaxLength(32);
         addRenderableWidget(nameBox);
 
-        addRenderableWidget(Button.builder(
-                text("screen.kingdoms.color"),
-                button -> selectedColor = nextColor(selectedColor)
-        ).bounds(left + 78, top + 96, 180, 20).build());
+        addRenderableWidget(new ColorSliderButton(
+                left + 78,
+                top + 96,
+                180,
+                20,
+                selectedColor,
+                value -> selectedColor = value
+        ));
 
         Button create = addRenderableWidget(Button.builder(
                 text("screen.kingdoms.create"),

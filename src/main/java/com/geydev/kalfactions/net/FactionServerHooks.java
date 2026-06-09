@@ -327,7 +327,8 @@ public final class FactionServerHooks {
                 snapshot.influence(),
                 snapshot.internalPvp(),
                 snapshot.viewerId(),
-                snapshot.isOfficer()
+                snapshot.isOfficer(),
+                snapshot.knownFactions()
         );
     }
 

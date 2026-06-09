@@ -24,11 +24,13 @@ public record FactionSnapshot(
         long influence,
         boolean internalPvp,
         UUID viewerId,
-        boolean isOfficer
+        boolean isOfficer,
+        List<String> knownFactions
 ) {
     public static final UUID NO_FACTION = new UUID(0L, 0L);
     public static final int MAX_MEMBERS = 256;
     public static final int MAX_CLAIMS = 1024;
+    public static final int MAX_KNOWN_FACTIONS = 512;
     public static final StreamCodec<RegistryFriendlyByteBuf, FactionSnapshot> STREAM_CODEC = StreamCodec.of(
             FactionSnapshot::encode,
             FactionSnapshot::decode
@@ -46,13 +48,14 @@ public record FactionSnapshot(
         treasury = Math.max(0L, treasury);
         influence = Math.max(0L, influence);
         viewerId = viewerId == null ? NO_FACTION : viewerId;
+        knownFactions = knownFactions == null ? List.of() : List.copyOf(knownFactions);
     }
 
     public static FactionSnapshot empty(BlockPos tablePos, int centerChunkX, int centerChunkZ) {
         return new FactionSnapshot(
                 tablePos, NO_FACTION, "", "", 0x4E7A42, false, false,
                 centerChunkX, centerChunkZ, 6, List.of(), List.of(),
-                0L, 0L, false, NO_FACTION, false
+                0L, 0L, false, NO_FACTION, false, List.of()
         );
     }
 
@@ -93,6 +96,12 @@ public record FactionSnapshot(
         buffer.writeBoolean(snapshot.internalPvp);
         buffer.writeUUID(snapshot.viewerId);
         buffer.writeBoolean(snapshot.isOfficer);
+        writeBoundedList(
+                buffer,
+                snapshot.knownFactions,
+                MAX_KNOWN_FACTIONS,
+                (target, value) -> target.writeUtf(value, 32)
+        );
     }
 
     private static FactionSnapshot decode(RegistryFriendlyByteBuf buffer) {
@@ -113,10 +122,15 @@ public record FactionSnapshot(
         boolean internalPvp = buffer.readBoolean();
         UUID viewerId = buffer.readUUID();
         boolean isOfficer = buffer.readBoolean();
+        List<String> knownFactions = readBoundedList(
+                buffer,
+                MAX_KNOWN_FACTIONS,
+                target -> target.readUtf(32)
+        );
         return new FactionSnapshot(
                 tablePos, factionId, name, ownerName, color, canManage, canClaim,
                 centerChunkX, centerChunkZ, mapRadius, members, claims,
-                treasury, influence, internalPvp, viewerId, isOfficer
+                treasury, influence, internalPvp, viewerId, isOfficer, knownFactions
         );
     }
 

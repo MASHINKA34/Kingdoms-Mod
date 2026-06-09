@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.integration.xaero;
 
+import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.ClientClaimStore;
 import com.geydev.kalfactions.client.ClientClaimStore.ClaimInfo;
 import net.minecraft.network.chat.Component;
@@ -10,6 +11,7 @@ import xaero.hud.minimap.info.render.compile.InfoDisplayCompiler;
 
 final class KingdomsHighlighter extends ChunkHighlighter {
     private static final int FILL_ALPHA = 0x90 << 24;
+    private static boolean loggedFirstHighlight;
 
     KingdomsHighlighter() {
         super(true);
@@ -30,6 +32,11 @@ final class KingdomsHighlighter extends ChunkHighlighter {
         ClaimInfo self = ClientClaimStore.get(dimension, chunkX, chunkZ);
         if (self == null) {
             return null;
+        }
+        if (!loggedFirstHighlight) {
+            loggedFirstHighlight = true;
+            KalFactions.LOGGER.info("Kingdoms highlighter rendering claim at chunk {},{} (faction {})",
+                    chunkX, chunkZ, self.name());
         }
         return new int[] {
             fill(self),

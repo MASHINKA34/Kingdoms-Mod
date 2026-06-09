@@ -208,7 +208,7 @@
   "screen.kingdoms.withdraw_hint": "Only officers and the leader can withdraw.",
   "screen.kingdoms.claim_map.title": "Claim Map",
   "screen.kingdoms.claim_map.open": "Claim map",
-  "screen.kingdoms.claim_map.help": "Left-click a chunk to claim or release it.",
+  "screen.kingdoms.claim_map.help": "Left-click an empty chunk to claim it.",
   "screen.kingdoms.claim_map.chunk": "Chunk %s, %s",
   "screen.kingdoms.claim_map.claimed_chunk": "%s - chunk %s, %s",
 
@@ -223,5 +223,7 @@
   "screen.kingdoms.leave": "Leave",
   "screen.kingdoms.disband": "Disband",
   "screen.kingdoms.war_declare": "Declare war",
-  "screen.kingdoms.war_end": "End war"
+  "screen.kingdoms.war_end": "End war",
+  "screen.kingdoms.disband_confirm": "Confirm?",
+  "screen.kingdoms.no_factions": "No factions"
 }
