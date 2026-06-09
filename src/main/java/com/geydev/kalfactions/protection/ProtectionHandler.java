@@ -2,8 +2,13 @@ package com.geydev.kalfactions.protection;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.chest.AccessTool;
+import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.war.WarManager;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -13,12 +18,15 @@ import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.common.util.BlockSnapshot;
 import net.neoforged.neoforge.common.util.TriState;
 import net.neoforged.neoforge.event.entity.player.PlayerContainerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
@@ -30,12 +38,19 @@ public final class ProtectionHandler {
     @SubscribeEvent
     public static void onBlockBreak(BlockEvent.BreakEvent event) {
         if (!(event.getPlayer() instanceof ServerPlayer player)
-                || !(event.getLevel() instanceof ServerLevel level)
-                || FactionAccess.canBuild(player, level, event.getPos())) {
+                || !(event.getLevel() instanceof ServerLevel level)) {
             return;
         }
-        event.setCanceled(true);
-        deny(player, "You cannot break blocks in this faction claim.");
+        WarManager wars = WarManager.get(level);
+        // War override: a belligerent may break in the enemy faction's claims while the war is active.
+        if (!FactionAccess.canBuild(player, level, event.getPos())
+                && !wars.canBuildInWar(player, level, event.getPos())) {
+            event.setCanceled(true);
+            deny(player, "You cannot break blocks in this faction claim.");
+            return;
+        }
+        // Copy-on-write the chunk before the break is applied (no-op outside a war).
+        wars.onChunkModified(level, new ChunkPos(event.getPos()));
     }
 
     @SubscribeEvent
@@ -45,18 +60,32 @@ public final class ProtectionHandler {
             return;
         }
 
-        boolean denied;
+        // Placement is not part of the war destruction override: only members building in their own
+        // claims (canBuild) get here. We still snapshot, so a warring faction's own peaceful builds revert.
+        Map<BlockPos, BlockState> placed = new HashMap<>();
+        boolean denied = false;
         if (event instanceof BlockEvent.EntityMultiPlaceEvent multiPlaceEvent) {
-            denied = multiPlaceEvent.getReplacedBlockSnapshots().stream()
-                    .anyMatch(snapshot -> !FactionAccess.canBuild(player, level, snapshot.getPos()));
+            for (BlockSnapshot snapshot : multiPlaceEvent.getReplacedBlockSnapshots()) {
+                if (!FactionAccess.canBuild(player, level, snapshot.getPos())) {
+                    denied = true;
+                    break;
+                }
+                placed.put(snapshot.getPos().immutable(), snapshot.getState());
+            }
+        } else if (!FactionAccess.canBuild(player, level, event.getPos())) {
+            denied = true;
         } else {
-            denied = !FactionAccess.canBuild(player, level, event.getPos());
+            placed.put(event.getPos().immutable(), event.getBlockSnapshot().getState());
         }
 
         if (denied) {
             event.setCanceled(true);
             deny(player, "You cannot place blocks in this faction claim.");
+            return;
         }
+        // The place event fires after the block is in the world, so onBlocksPlaced patches the
+        // captured chunk back to each position's pre-placement state (no-op outside a war).
+        WarManager.get(level).onBlocksPlaced(level, placed);
     }
 
     @SubscribeEvent
@@ -124,7 +153,27 @@ public final class ProtectionHandler {
                 || !(event.getLevel() instanceof ServerLevel level)) {
             return;
         }
-        event.getAffectedBlocks().removeIf(pos -> FactionAccess.isClaimed(level, pos));
+        FactionManager factions = FactionManager.get(level);
+        WarManager wars = WarManager.get(level);
+        UUID exploderFaction = resolveExploderFaction(factions, event.getExplosion());
+        event.getAffectedBlocks().removeIf(pos -> {
+            UUID owner = factions.getFactionIdAt(ClaimKey.of(level, pos)).orElse(null);
+            if (owner == null) {
+                return false; // unclaimed land: vanilla explosion
+            }
+            if (exploderFaction != null && wars.areAtWar(owner, exploderFaction)) {
+                wars.onChunkModified(level, new ChunkPos(pos)); // snapshot before the blast
+                return false; // a belligerent's explosion may damage the enemy claim
+            }
+            return true; // protected claim
+        });
+    }
+
+    private static UUID resolveExploderFaction(FactionManager factions, Explosion explosion) {
+        if (explosion.getIndirectSourceEntity() instanceof ServerPlayer player) {
+            return factions.getFactionIdForMember(player.getUUID()).orElse(null);
+        }
+        return null;
     }
 
     private static void cancelInteraction(PlayerInteractEvent.RightClickBlock event) {

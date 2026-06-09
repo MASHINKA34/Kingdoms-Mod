@@ -6,6 +6,8 @@ import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.FactionManager.OperationResult;
 import com.geydev.kalfactions.faction.FactionRole;
+import com.geydev.kalfactions.war.War;
+import com.geydev.kalfactions.war.WarManager;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
@@ -121,12 +123,28 @@ public final class FactionCommands {
                 .requires(source -> CommandPermissions.has(source, CommandPermissions.INFO))
                 .executes(context -> map(context, 4))
                 .then(Commands.argument("radius", IntegerArgumentType.integer(1, 8))
-                    .executes(context -> map(context, IntegerArgumentType.getInteger(context, "radius"))))));
+                    .executes(context -> map(context, IntegerArgumentType.getInteger(context, "radius")))))
+            .then(Commands.literal("war")
+                .requires(source -> CommandPermissions.has(source, CommandPermissions.FACTION))
+                .executes(FactionCommands::warStatus)
+                .then(Commands.literal("declare")
+                    .requires(source -> CommandPermissions.has(source, CommandPermissions.SETTINGS))
+                    .then(Commands.argument("faction", StringArgumentType.greedyString())
+                        .executes(FactionCommands::warDeclare)))
+                .then(Commands.literal("end")
+                    .requires(source -> CommandPermissions.has(source, CommandPermissions.SETTINGS))
+                    .executes(FactionCommands::warEnd))
+                .then(Commands.literal("surrender")
+                    .requires(source -> CommandPermissions.has(source, CommandPermissions.SETTINGS))
+                    .executes(FactionCommands::warEnd))
+                .then(Commands.literal("status")
+                    .requires(source -> CommandPermissions.has(source, CommandPermissions.INFO))
+                    .executes(FactionCommands::warStatus))));
     }
 
     private static int help(CommandContext<CommandSourceStack> context) {
         context.getSource().sendSuccess(() -> Component.literal(
-            "/f create, invite, join, leave, claim, unclaim, deposit, withdraw, info, map"
+            "/f create, invite, join, leave, claim, unclaim, deposit, withdraw, info, map, war"
         ), false);
         return Command.SINGLE_SUCCESS;
     }
@@ -624,6 +642,97 @@ public final class FactionCommands {
         }
         output.append(Component.literal("\n@ you  # your faction  . wilderness").withStyle(ChatFormatting.GRAY));
         context.getSource().sendSuccess(() -> output, false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int warDeclare(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        FactionManager manager = manager(context);
+        Faction faction = ownFaction(context, player).orElse(null);
+        if (faction == null || !requireLeader(context, faction, player)) {
+            return 0;
+        }
+        Faction target = manager.getFactionByName(StringArgumentType.getString(context, "faction")).orElse(null);
+        if (target == null) {
+            return failure(context, "Faction not found.");
+        }
+
+        MinecraftServer server = context.getSource().getServer();
+        WarManager.DeclareResult result = WarManager.get(server).declareWar(
+            server,
+            faction.id(),
+            target.id(),
+            server.overworld().getGameTime()
+        );
+        switch (result) {
+            case SUCCESS -> {
+                success(context, "War declared on " + target.name() + ".");
+                return Command.SINGLE_SUCCESS;
+            }
+            case SAME_FACTION -> {
+                return failure(context, "You cannot declare war on your own faction.");
+            }
+            case ATTACKER_BUSY -> {
+                return failure(context, "Your faction is already in a war.");
+            }
+            case DEFENDER_BUSY -> {
+                return failure(context, target.name() + " is already in a war.");
+            }
+            default -> {
+                return 0;
+            }
+        }
+    }
+
+    private static int warEnd(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        Faction faction = ownFaction(context, player).orElse(null);
+        if (faction == null || !requireLeader(context, faction, player)) {
+            return 0;
+        }
+        MinecraftServer server = context.getSource().getServer();
+        Optional<UUID> opponent = WarManager.get(server).endWarForFaction(server, faction.id());
+        if (opponent.isEmpty()) {
+            return failure(context, "Your faction is not in an active war.");
+        }
+        success(context, "War ended. Captured territory is being restored.");
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int warStatus(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        Faction faction = ownFaction(context, player).orElse(null);
+        if (faction == null) {
+            return 0;
+        }
+        MinecraftServer server = context.getSource().getServer();
+        War war = WarManager.get(server).warForFaction(faction.id()).orElse(null);
+        if (war == null) {
+            success(context, "Your faction is not at war.");
+            return Command.SINGLE_SUCCESS;
+        }
+
+        UUID opponentId = war.opponentOf(faction.id());
+        String opponentName = opponentId == null
+            ? "unknown"
+            : manager(context).getFactionById(opponentId).map(Faction::name).orElse("a disbanded faction");
+        long elapsedTicks = Math.max(0L, server.overworld().getGameTime() - war.startGameTime());
+        String role = war.attackerFactionId().equals(faction.id()) ? "attacker" : "defender";
+        String stateLabel = switch (war.state()) {
+            case ACTIVE -> "active";
+            case ENDING -> "ending (rolling back)";
+            case ENDED -> "ended";
+            case DECLARED -> "declared";
+        };
+        MutableComponent message = Component.literal("War status").withStyle(ChatFormatting.GOLD)
+            .append(Component.literal(
+                "\nOpponent: " + opponentName
+                    + "\nYou are the " + role
+                    + "\nState: " + stateLabel
+                    + "\nElapsed: " + (elapsedTicks / 20L) + "s"
+                    + "\nChunks captured: " + war.snapshotCount()
+            ).withStyle(ChatFormatting.GRAY));
+        context.getSource().sendSuccess(() -> message, false);
         return Command.SINGLE_SUCCESS;
     }
 

@@ -1,0 +1,363 @@
+package com.geydev.kalfactions.war;
+
+import com.geydev.kalfactions.claim.ClaimKey;
+import com.geydev.kalfactions.faction.Faction;
+import com.geydev.kalfactions.faction.FactionManager;
+import com.mojang.logging.LogUtils;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.saveddata.SavedData;
+import org.slf4j.Logger;
+
+/**
+ * Server-authoritative store of active and ending wars, living next to {@link FactionManager} as
+ * {@link SavedData} on the overworld. Holds the lazily captured chunk snapshots, hands out the
+ * war-time build override the protection layer consults, and drains the rollback queue a few
+ * chunks per tick when a war ends. Persisted so a war (and an unfinished rollback) survives a
+ * server restart.
+ */
+public final class WarManager extends SavedData {
+    public static final String DATA_NAME = "kingdoms_wars";
+    public static final Factory<WarManager> FACTORY = new Factory<>(WarManager::new, WarManager::load);
+
+    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final String TAG_WARS = "wars";
+
+    private final Map<UUID, War> wars = new LinkedHashMap<>();
+    private final Map<UUID, UUID> factionToWar = new HashMap<>();
+    private final Deque<RollbackTask> rollbackQueue = new ArrayDeque<>();
+
+    public static WarManager get(MinecraftServer server) {
+        Objects.requireNonNull(server, "server");
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
+    }
+
+    public static WarManager get(ServerLevel level) {
+        return get(Objects.requireNonNull(level, "level").getServer());
+    }
+
+    // ------------------------------------------------------------------ queries
+
+    public synchronized Optional<War> warForFaction(UUID factionId) {
+        UUID warId = factionToWar.get(factionId);
+        return warId == null ? Optional.empty() : Optional.ofNullable(wars.get(warId));
+    }
+
+    /** True when both factions are in the same {@link War.State#ACTIVE} war (combat live). */
+    public synchronized boolean areAtWar(UUID factionA, UUID factionB) {
+        if (wars.isEmpty() || factionA == null || factionB == null || factionA.equals(factionB)) {
+            return false;
+        }
+        War war = warFor(factionA);
+        return war != null && war.isActive() && war.involves(factionB);
+    }
+
+    /**
+     * War-time build override: a belligerent may break and place in the enemy faction's claims while
+     * the war is active. The protection layer ORs this with its normal {@code canBuild} check.
+     */
+    public synchronized boolean canBuildInWar(ServerPlayer player, ServerLevel level, BlockPos pos) {
+        if (wars.isEmpty()) {
+            return false;
+        }
+        FactionManager factions = FactionManager.get(level);
+        UUID owner = factions.getFactionIdAt(ClaimKey.of(level, pos)).orElse(null);
+        if (owner == null) {
+            return false;
+        }
+        UUID playerFaction = factions.getFactionIdForMember(player.getUUID()).orElse(null);
+        return areAtWar(owner, playerFaction);
+    }
+
+    // ------------------------------------------------------------------ snapshot capture (copy-on-write)
+
+    /**
+     * Copy-on-write hook: if the chunk belongs to a faction in an active war and has not been captured
+     * yet, snapshot it now (before the modification is applied). Cheap no-op once captured, or when no
+     * war touches this chunk. Must be called before the block change for break/interact/explosion paths.
+     */
+    public synchronized void onChunkModified(ServerLevel level, ChunkPos chunkPos) {
+        if (wars.isEmpty()) {
+            return;
+        }
+        ClaimKey key = ClaimKey.of(level, chunkPos);
+        War war = activeWarForClaim(level, key);
+        if (war == null || war.hasSnapshot(key)) {
+            return;
+        }
+        war.putSnapshot(key, WarChunkSnapshot.capture(level, chunkPos, level.registryAccess()));
+        setDirty();
+    }
+
+    /**
+     * Copy-on-write hook for placements. The place event fires after the new block is already in the
+     * world, so for a chunk captured for the first time here we patch each placed position back to its
+     * pre-placement state. Chunks already snapshotted (an earlier break/explosion captured the true
+     * pre-war state) are left alone.
+     */
+    public synchronized void onBlocksPlaced(ServerLevel level, Map<BlockPos, BlockState> placedWithOldStates) {
+        if (wars.isEmpty() || placedWithOldStates.isEmpty()) {
+            return;
+        }
+        Map<ClaimKey, List<Map.Entry<BlockPos, BlockState>>> byChunk = new LinkedHashMap<>();
+        for (Map.Entry<BlockPos, BlockState> placed : placedWithOldStates.entrySet()) {
+            byChunk.computeIfAbsent(ClaimKey.of(level, placed.getKey()), ignored -> new ArrayList<>()).add(placed);
+        }
+
+        boolean dirty = false;
+        for (Map.Entry<ClaimKey, List<Map.Entry<BlockPos, BlockState>>> chunkEntry : byChunk.entrySet()) {
+            ClaimKey key = chunkEntry.getKey();
+            War war = activeWarForClaim(level, key);
+            if (war == null || war.hasSnapshot(key)) {
+                continue;
+            }
+            WarChunkSnapshot snapshot = WarChunkSnapshot.capture(level, key.chunk(), level.registryAccess());
+            for (Map.Entry<BlockPos, BlockState> placed : chunkEntry.getValue()) {
+                snapshot.setBlockState(placed.getKey(), placed.getValue());
+                snapshot.removeBlockEntity(placed.getKey());
+            }
+            war.putSnapshot(key, snapshot);
+            dirty = true;
+        }
+        if (dirty) {
+            setDirty();
+        }
+    }
+
+    // ------------------------------------------------------------------ lifecycle
+
+    public synchronized DeclareResult declareWar(
+        MinecraftServer server,
+        UUID attackerFactionId,
+        UUID defenderFactionId,
+        long startGameTime
+    ) {
+        Objects.requireNonNull(attackerFactionId, "attackerFactionId");
+        Objects.requireNonNull(defenderFactionId, "defenderFactionId");
+        if (attackerFactionId.equals(defenderFactionId)) {
+            return DeclareResult.SAME_FACTION;
+        }
+        if (factionToWar.containsKey(attackerFactionId)) {
+            return DeclareResult.ATTACKER_BUSY;
+        }
+        if (factionToWar.containsKey(defenderFactionId)) {
+            return DeclareResult.DEFENDER_BUSY;
+        }
+
+        UUID warId;
+        do {
+            warId = UUID.randomUUID();
+        } while (wars.containsKey(warId));
+
+        War war = new War(warId, attackerFactionId, defenderFactionId, War.State.ACTIVE, startGameTime);
+        wars.put(warId, war);
+        factionToWar.put(attackerFactionId, warId);
+        factionToWar.put(defenderFactionId, warId);
+        setDirty();
+
+        String attacker = factionName(server, attackerFactionId);
+        String defender = factionName(server, defenderFactionId);
+        broadcast(server, attackerFactionId, Component.literal(
+            "War declared on " + defender + ". Their claims are now breakable; so are yours."));
+        broadcast(server, defenderFactionId, Component.literal(
+            attacker + " has declared war on you! Your claims are now breakable until the war ends."));
+        return DeclareResult.SUCCESS;
+    }
+
+    /**
+     * Ends the active war the faction is part of, moving it to {@link War.State#ENDING} and queuing its
+     * snapshots for rollback. Returns the opponent's faction id on success (for caller feedback), or
+     * empty if the faction was not in an active war.
+     */
+    public synchronized Optional<UUID> endWarForFaction(MinecraftServer server, UUID factionId) {
+        War war = warFor(factionId);
+        if (war == null || !war.isActive()) {
+            return Optional.empty();
+        }
+        UUID opponent = war.opponentOf(factionId);
+        beginRollback(server, war);
+        return Optional.ofNullable(opponent);
+    }
+
+    private void beginRollback(MinecraftServer server, War war) {
+        war.setState(War.State.ENDING);
+        for (ClaimKey key : war.snapshotKeys()) {
+            rollbackQueue.add(new RollbackTask(war.id(), key));
+        }
+        setDirty();
+
+        Component message = Component.literal("The war has ended. Captured territory is being restored.");
+        broadcast(server, war.attackerFactionId(), message);
+        broadcast(server, war.defenderFactionId(), message);
+
+        if (war.snapshotsEmpty()) {
+            finalizeWar(server, war); // nothing was touched: complete immediately
+        }
+    }
+
+    // ------------------------------------------------------------------ per-tick rollback
+
+    public synchronized void tick(MinecraftServer server, int chunksPerTick, long autoEndTicks) {
+        if (!wars.isEmpty()) {
+            FactionManager factions = FactionManager.get(server);
+            long now = server.overworld().getGameTime();
+            for (War war : List.copyOf(wars.values())) {
+                if (!war.isActive()) {
+                    continue;
+                }
+                boolean factionsGone = factions.getFactionById(war.attackerFactionId()).isEmpty()
+                    || factions.getFactionById(war.defenderFactionId()).isEmpty();
+                boolean timedOut = autoEndTicks > 0L && now - war.startGameTime() >= autoEndTicks;
+                if (factionsGone || timedOut) {
+                    beginRollback(server, war);
+                }
+            }
+        }
+
+        if (rollbackQueue.isEmpty()) {
+            return;
+        }
+        int budget = chunksPerTick;
+        while (budget-- > 0 && !rollbackQueue.isEmpty()) {
+            RollbackTask task = rollbackQueue.poll();
+            War war = wars.get(task.warId());
+            if (war == null) {
+                continue;
+            }
+            WarChunkSnapshot snapshot = war.removeSnapshot(task.key());
+            if (snapshot != null) {
+                ServerLevel level = server.getLevel(task.key().dimension());
+                if (level != null) {
+                    snapshot.restore(level, task.key().chunk(), level.registryAccess());
+                } else {
+                    LOGGER.warn("Skipping war rollback for missing dimension {}", task.key().dimension().location());
+                }
+            }
+            setDirty();
+            if (war.snapshotsEmpty()) {
+                finalizeWar(server, war);
+            }
+        }
+    }
+
+    private void finalizeWar(MinecraftServer server, War war) {
+        war.setState(War.State.ENDED);
+        wars.remove(war.id());
+        factionToWar.remove(war.attackerFactionId(), war.id());
+        factionToWar.remove(war.defenderFactionId(), war.id());
+        setDirty();
+
+        Component message = Component.literal("Territory restored. The war between "
+            + factionName(server, war.attackerFactionId()) + " and "
+            + factionName(server, war.defenderFactionId()) + " is over.");
+        broadcast(server, war.attackerFactionId(), message);
+        broadcast(server, war.defenderFactionId(), message);
+    }
+
+    // ------------------------------------------------------------------ helpers
+
+    private War warFor(UUID factionId) {
+        UUID warId = factionToWar.get(factionId);
+        return warId == null ? null : wars.get(warId);
+    }
+
+    private War activeWarForClaim(ServerLevel level, ClaimKey key) {
+        UUID owner = FactionManager.get(level).getFactionIdAt(key).orElse(null);
+        if (owner == null) {
+            return null;
+        }
+        War war = warFor(owner);
+        return war != null && war.isActive() ? war : null;
+    }
+
+    private static String factionName(MinecraftServer server, UUID factionId) {
+        return FactionManager.get(server).getFactionById(factionId)
+            .map(Faction::name)
+            .orElse("a disbanded faction");
+    }
+
+    private static void broadcast(MinecraftServer server, UUID factionId, Component message) {
+        FactionManager.get(server).getFactionById(factionId).ifPresent(faction -> {
+            for (UUID memberId : faction.members().keySet()) {
+                ServerPlayer player = server.getPlayerList().getPlayer(memberId);
+                if (player != null) {
+                    player.sendSystemMessage(message);
+                }
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------ persistence
+
+    @Override
+    public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        ListTag warsTag = new ListTag();
+        for (War war : wars.values()) {
+            warsTag.add(war.save());
+        }
+        tag.put(TAG_WARS, warsTag);
+        return tag;
+    }
+
+    private static WarManager load(CompoundTag tag, HolderLookup.Provider registries) {
+        WarManager manager = new WarManager();
+        boolean repaired = false;
+        ListTag warsTag = tag.getList(TAG_WARS, Tag.TAG_COMPOUND);
+        for (int index = 0; index < warsTag.size(); index++) {
+            Optional<War> loaded = War.load(warsTag.getCompound(index));
+            if (loaded.isEmpty()) {
+                repaired = true;
+                LOGGER.warn("Skipped invalid war entry at NBT index {}", index);
+                continue;
+            }
+            War war = loaded.get();
+            if (war.state() == War.State.ENDED
+                || manager.factionToWar.containsKey(war.attackerFactionId())
+                || manager.factionToWar.containsKey(war.defenderFactionId())) {
+                repaired = true;
+                continue;
+            }
+            manager.wars.put(war.id(), war);
+            manager.factionToWar.put(war.attackerFactionId(), war.id());
+            manager.factionToWar.put(war.defenderFactionId(), war.id());
+            if (war.state() == War.State.ENDING) {
+                for (ClaimKey key : war.snapshotKeys()) {
+                    manager.rollbackQueue.add(new RollbackTask(war.id(), key));
+                }
+            }
+        }
+        if (repaired) {
+            manager.setDirty();
+        }
+        return manager;
+    }
+
+    public enum DeclareResult {
+        SUCCESS,
+        SAME_FACTION,
+        ATTACKER_BUSY,
+        DEFENDER_BUSY
+    }
+
+    private record RollbackTask(UUID warId, ClaimKey key) {
+    }
+}

@@ -21,6 +21,8 @@ public final class ModConfigSpec {
     public static final DoubleValue CRAFT_BONUS_CHANCE;
     public static final DoubleValue BUILDER_DISCOUNT;
     public static final LongValue INFLUENCE_PER_CHUNK_PER_DAY;
+    public static final IntValue WAR_ROLLBACK_CHUNKS_PER_TICK;
+    public static final LongValue WAR_AUTO_END_TICKS;
 
     static {
         Builder builder = new Builder();
@@ -37,6 +39,15 @@ public final class ModConfigSpec {
         CRAFT_BONUS_CHANCE = builder.defineInRange("craftBonusChance", 0.2D, 0D, 1D);
         BUILDER_DISCOUNT = builder.defineInRange("builderDiscount", 0.2D, 0D, 1D);
         INFLUENCE_PER_CHUNK_PER_DAY = builder.defineInRange("influencePerChunkPerDay", 1L, 0L, Long.MAX_VALUE);
+        builder.pop();
+
+        builder.push("war");
+        WAR_ROLLBACK_CHUNKS_PER_TICK = builder
+            .comment("How many snapshotted chunks to roll back per server tick when a war ends.")
+            .defineInRange("rollbackChunksPerTick", 8, 1, 4096);
+        WAR_AUTO_END_TICKS = builder
+            .comment("Game-time ticks after which an active war ends automatically (0 disables auto-end).")
+            .defineInRange("autoEndTicks", 0L, 0L, Long.MAX_VALUE);
         builder.pop();
         SPEC = builder.build();
     }
