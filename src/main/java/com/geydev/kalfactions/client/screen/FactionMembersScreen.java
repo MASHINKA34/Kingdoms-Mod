@@ -19,7 +19,7 @@ public final class FactionMembersScreen extends FactionScreen {
     private int scrollOffset;
 
     public FactionMembersScreen(FactionSnapshot snapshot, boolean successful, String message) {
-        super(text("screen.kingdoms.members", "Members"), snapshot, successful, message);
+        super(text("screen.kingdoms.members"), snapshot, successful, message);
     }
 
     @Override
@@ -36,7 +36,7 @@ public final class FactionMembersScreen extends FactionScreen {
             boolean self = snapshot.isSelf(member.playerId());
 
             Button kick = addRenderableWidget(Button.builder(
-                    text("screen.kingdoms.kick", "Kick"),
+                    text("screen.kingdoms.kick"),
                     button -> PacketDistributor.sendToServer(
                             new FactionPayloads.C2SKickMember(snapshot.tablePos(), member.playerId())
                     )
@@ -49,8 +49,8 @@ public final class FactionMembersScreen extends FactionScreen {
             }
             String targetRole = tier == MEMBER_TIER ? "OFFICER" : "MEMBER";
             Component label = tier == MEMBER_TIER
-                    ? text("screen.kingdoms.promote", "Promote")
-                    : text("screen.kingdoms.demote", "Demote");
+                    ? text("screen.kingdoms.promote")
+                    : text("screen.kingdoms.demote");
             Button role = addRenderableWidget(Button.builder(
                     label,
                     button -> PacketDistributor.sendToServer(
@@ -61,11 +61,11 @@ public final class FactionMembersScreen extends FactionScreen {
         }
 
         addRenderableWidget(Button.builder(
-                text("screen.kingdoms.back", "Back"),
+                text("screen.kingdoms.back"),
                 button -> FactionScreens.openRoot(snapshot, true, "")
         ).bounds(left + 16, top + PANEL_HEIGHT - 25, 70, 20).build());
         addRenderableWidget(Button.builder(
-                text("screen.kingdoms.refresh", "Refresh"),
+                text("screen.kingdoms.refresh"),
                 button -> requestRefresh()
         ).bounds(left + 90, top + PANEL_HEIGHT - 25, 70, 20).build());
     }
@@ -80,12 +80,17 @@ public final class FactionMembersScreen extends FactionScreen {
             FactionSnapshot.Member member = members.get(scrollOffset + index);
             int rowY = listTop + index * ROW_HEIGHT + 6;
             graphics.drawString(font, member.name(), left + 16, rowY, 0x3F2A19, false);
-            graphics.drawString(font, member.role(), left + 116, rowY, 0x715D43, false);
+            graphics.drawString(font, roleText(member.role()), left + 116, rowY, 0x715D43, false);
         }
         if (members.size() > VISIBLE_ROWS) {
             graphics.drawString(
                     font,
-                    Component.literal((scrollOffset + 1) + "-" + (scrollOffset + shown) + " / " + members.size()),
+                    text(
+                            "screen.kingdoms.members_page",
+                            scrollOffset + 1,
+                            scrollOffset + shown,
+                            members.size()
+                    ),
                     left + 176,
                     top + PANEL_HEIGHT - 19,
                     0x715D43,
@@ -117,5 +122,13 @@ public final class FactionMembersScreen extends FactionScreen {
             return OFFICER_TIER;
         }
         return MEMBER_TIER;
+    }
+
+    private static Component roleText(String role) {
+        return switch (tierOf(role)) {
+            case LEADER_TIER -> text("kingdoms.role.leader");
+            case OFFICER_TIER -> text("kingdoms.role.officer");
+            default -> text("kingdoms.role.member");
+        };
     }
 }

@@ -12,23 +12,23 @@ import net.neoforged.neoforge.server.permission.nodes.PermissionTypes;
 
 public final class CommandPermissions {
     public static final PermissionNode<Boolean> FACTION =
-        node("command.faction", "Use /f");
+        node("command.faction", "kingdoms.permission.command.faction");
     public static final PermissionNode<Boolean> CREATE =
-        node("command.faction.create", "Create a faction");
+        node("command.faction.create", "kingdoms.permission.command.faction.create");
     public static final PermissionNode<Boolean> MEMBERS =
-        node("command.faction.members", "Manage faction members");
+        node("command.faction.members", "kingdoms.permission.command.faction.members");
     public static final PermissionNode<Boolean> CLAIMS =
-        node("command.faction.claims", "Manage faction claims");
+        node("command.faction.claims", "kingdoms.permission.command.faction.claims");
     public static final PermissionNode<Boolean> TREASURY =
-        node("command.faction.treasury", "Use the faction treasury");
+        node("command.faction.treasury", "kingdoms.permission.command.faction.treasury");
     public static final PermissionNode<Boolean> WITHDRAW =
-        node("command.faction.withdraw", "Withdraw from the faction treasury");
+        node("command.faction.withdraw", "kingdoms.permission.command.faction.withdraw");
     public static final PermissionNode<Boolean> SETTINGS =
-        node("command.faction.settings", "Manage faction settings");
+        node("command.faction.settings", "kingdoms.permission.command.faction.settings");
     public static final PermissionNode<Boolean> INFO =
-        node("command.faction.info", "View faction information and maps");
+        node("command.faction.info", "kingdoms.permission.command.faction.info");
     public static final PermissionNode<Boolean> DUEL =
-        node("command.duel", "Use /duel");
+        node("command.duel", "kingdoms.permission.command.duel");
 
     private static final List<PermissionNode<?>> ALL = List.of(
         FACTION,
@@ -51,7 +51,7 @@ public final class CommandPermissions {
         return player != null && PermissionAPI.getPermission(player, node);
     }
 
-    private static PermissionNode<Boolean> node(String path, String description) {
+    private static PermissionNode<Boolean> node(String path, String descriptionKey) {
         PermissionNode<Boolean> node = new PermissionNode<>(
             KalFactions.MOD_ID,
             path,
@@ -59,8 +59,8 @@ public final class CommandPermissions {
             (player, playerId, contexts) -> true
         );
         node.setInformation(
-            Component.literal("Kingdoms: " + path),
-            Component.literal(description)
+            Component.translatable("kingdoms.permission.title", path),
+            Component.translatable(descriptionKey)
         );
         return node;
     }

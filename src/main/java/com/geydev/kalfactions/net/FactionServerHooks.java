@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -34,10 +35,16 @@ public final class FactionServerHooks {
 
         try {
             FactionSnapshot snapshot = sanitizeSnapshot(tablePos, service.view(player, tablePos));
-            send(player, snapshot, true, true, "");
+            send(player, snapshot, true, true, Component.empty());
         } catch (RuntimeException exception) {
             KalFactions.LOGGER.error("Failed to open faction table at {} for {}", tablePos, player.getGameProfile().getName(), exception);
-            send(player, fallbackSnapshot(tablePos), false, false, "Faction data is temporarily unavailable.");
+            send(
+                    player,
+                    fallbackSnapshot(tablePos),
+                    false,
+                    false,
+                    Component.translatable("kingdoms.error.faction_data_unavailable")
+            );
         }
     }
 
@@ -50,13 +57,19 @@ public final class FactionServerHooks {
 
         String name = normalizeName(requestedName);
         if (name.length() < 3) {
-            reject(player, tablePos, "Faction name must contain at least 3 visible characters.");
+            reject(player, tablePos, Component.translatable("kingdoms.error.name_too_short"));
             return;
         }
 
         FactionSnapshot before = safeView(player, tablePos);
         if (before.hasFaction()) {
-            send(player, before, false, true, "You already belong to a faction.");
+            send(
+                    player,
+                    before,
+                    false,
+                    true,
+                    Component.translatable("kingdoms.error.already_in_faction")
+            );
             return;
         }
 
@@ -72,13 +85,19 @@ public final class FactionServerHooks {
 
         String name = normalizeName(requestedName);
         if (name.length() < 3) {
-            reject(player, tablePos, "Faction name must contain at least 3 visible characters.");
+            reject(player, tablePos, Component.translatable("kingdoms.error.name_too_short"));
             return;
         }
 
         FactionSnapshot before = safeView(player, tablePos);
         if (!before.canManage()) {
-            send(player, before, false, true, "You do not have permission to manage this faction.");
+            send(
+                    player,
+                    before,
+                    false,
+                    true,
+                    Component.translatable("kingdoms.error.no_manage_permission")
+            );
             return;
         }
 
@@ -100,14 +119,26 @@ public final class FactionServerHooks {
 
         FactionSnapshot before = safeView(player, tablePos);
         if (!before.canClaim()) {
-            send(player, before, false, true, "You do not have permission to change claims.");
+            send(
+                    player,
+                    before,
+                    false,
+                    true,
+                    Component.translatable("kingdoms.error.no_claim_permission")
+            );
             return;
         }
 
         int maxDelta = before.mapRadius();
         if (Math.abs(chunkX - before.centerChunkX()) > maxDelta
                 || Math.abs(chunkZ - before.centerChunkZ()) > maxDelta) {
-            send(player, before, false, true, "That chunk is outside the current claim map.");
+            send(
+                    player,
+                    before,
+                    false,
+                    true,
+                    Component.translatable("kingdoms.error.claim_outside_map")
+            );
             return;
         }
 
@@ -166,10 +197,14 @@ public final class FactionServerHooks {
                     tablePos,
                     result.snapshot == null ? service.view(player, tablePos) : result.snapshot
             );
-            send(player, snapshot, result.successful, true, limitMessage(result.message));
+            send(player, snapshot, result.successful, true, result.message);
         } catch (RuntimeException exception) {
             KalFactions.LOGGER.error("Faction operation failed at {} for {}", tablePos, player.getGameProfile().getName(), exception);
-            reject(player, tablePos, "The server could not complete that faction action.");
+            reject(
+                    player,
+                    tablePos,
+                    Component.translatable("kingdoms.error.faction_action_failed")
+            );
         }
     }
 
@@ -184,23 +219,23 @@ public final class FactionServerHooks {
 
     private static Validation validateTable(ServerPlayer player, BlockPos tablePos, boolean rateLimited) {
         if (!player.isAlive() || player.isSpectator()) {
-            return Validation.deny("You cannot use a faction table right now.");
+            return Validation.deny(Component.translatable("kingdoms.error.table_unavailable_now"));
         }
         if (!player.level().isLoaded(tablePos)) {
-            return Validation.deny("The faction table is not loaded.");
+            return Validation.deny(Component.translatable("kingdoms.error.table_not_loaded"));
         }
         if (player.distanceToSqr(tablePos.getX() + 0.5D, tablePos.getY() + 0.5D, tablePos.getZ() + 0.5D)
                 > MAX_TABLE_DISTANCE_SQR) {
-            return Validation.deny("You are too far away from the faction table.");
+            return Validation.deny(Component.translatable("kingdoms.error.table_too_far"));
         }
         if (!(player.level().getBlockEntity(tablePos) instanceof FactionTableBlockEntity)) {
-            return Validation.deny("That block is not a faction table.");
+            return Validation.deny(Component.translatable("kingdoms.error.not_faction_table"));
         }
         if (rateLimited) {
             long now = player.level().getGameTime();
             Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
             if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
-                return Validation.deny("Please wait before sending another faction action.");
+                return Validation.deny(Component.translatable("kingdoms.error.action_rate_limited"));
             }
         }
         return Validation.ALLOW;
@@ -247,7 +282,7 @@ public final class FactionServerHooks {
         return FactionSnapshot.empty(tablePos, center.x, center.z);
     }
 
-    private static void reject(ServerPlayer player, BlockPos tablePos, String message) {
+    private static void reject(ServerPlayer player, BlockPos tablePos, Component message) {
         send(player, safeView(player, tablePos), false, true, message);
     }
 
@@ -256,19 +291,15 @@ public final class FactionServerHooks {
             FactionSnapshot snapshot,
             boolean successful,
             boolean openScreen,
-            String message
+            Component message
     ) {
+        if (!message.getString().isBlank()) {
+            player.sendSystemMessage(message);
+        }
         PacketDistributor.sendToPlayer(
                 player,
-                new FactionPayloads.S2CFactionState(snapshot, successful, openScreen, limitMessage(message))
+                new FactionPayloads.S2CFactionState(snapshot, successful, openScreen, "")
         );
-    }
-
-    private static String limitMessage(String message) {
-        if (message == null) {
-            return "";
-        }
-        return message.length() <= 256 ? message : message.substring(0, 256);
     }
 
     public interface Service {
@@ -291,20 +322,20 @@ public final class FactionServerHooks {
         Result setPvp(ServerPlayer player, BlockPos tablePos, boolean enabled);
     }
 
-    public record Result(boolean successful, String message, FactionSnapshot snapshot) {
+    public record Result(boolean successful, Component message, FactionSnapshot snapshot) {
         public static Result success(FactionSnapshot snapshot) {
-            return new Result(true, "", snapshot);
+            return new Result(true, Component.empty(), snapshot);
         }
 
-        public static Result denied(String message, FactionSnapshot snapshot) {
+        public static Result denied(Component message, FactionSnapshot snapshot) {
             return new Result(false, message, snapshot);
         }
     }
 
-    private record Validation(boolean allowed, String message) {
-        private static final Validation ALLOW = new Validation(true, "");
+    private record Validation(boolean allowed, Component message) {
+        private static final Validation ALLOW = new Validation(true, Component.empty());
 
-        private static Validation deny(String message) {
+        private static Validation deny(Component message) {
             return new Validation(false, message);
         }
     }
@@ -322,42 +353,52 @@ public final class FactionServerHooks {
 
         @Override
         public Result create(ServerPlayer player, BlockPos tablePos, String name, int color) {
-            return Result.denied("Faction management is not available on this server.", view(player, tablePos));
+            return managementUnavailable(player, tablePos);
         }
 
         @Override
         public Result update(ServerPlayer player, BlockPos tablePos, String name, int color) {
-            return Result.denied("Faction management is not available on this server.", view(player, tablePos));
+            return managementUnavailable(player, tablePos);
         }
 
         @Override
         public Result setClaim(ServerPlayer player, BlockPos tablePos, ChunkPos chunkPos, boolean claimed) {
-            return Result.denied("Faction claims are not available on this server.", view(player, tablePos));
+            return Result.denied(
+                    Component.translatable("kingdoms.error.claims_unavailable"),
+                    view(player, tablePos)
+            );
         }
 
         @Override
         public Result deposit(ServerPlayer player, BlockPos tablePos, long amount) {
-            return Result.denied("Faction management is not available on this server.", view(player, tablePos));
+            return managementUnavailable(player, tablePos);
         }
 
         @Override
         public Result withdraw(ServerPlayer player, BlockPos tablePos, long amount) {
-            return Result.denied("Faction management is not available on this server.", view(player, tablePos));
+            return managementUnavailable(player, tablePos);
         }
 
         @Override
         public Result kickMember(ServerPlayer player, BlockPos tablePos, UUID targetId) {
-            return Result.denied("Faction management is not available on this server.", view(player, tablePos));
+            return managementUnavailable(player, tablePos);
         }
 
         @Override
         public Result setMemberRole(ServerPlayer player, BlockPos tablePos, UUID targetId, String role) {
-            return Result.denied("Faction management is not available on this server.", view(player, tablePos));
+            return managementUnavailable(player, tablePos);
         }
 
         @Override
         public Result setPvp(ServerPlayer player, BlockPos tablePos, boolean enabled) {
-            return Result.denied("Faction management is not available on this server.", view(player, tablePos));
+            return managementUnavailable(player, tablePos);
+        }
+
+        private Result managementUnavailable(ServerPlayer player, BlockPos tablePos) {
+            return Result.denied(
+                    Component.translatable("kingdoms.error.management_unavailable"),
+                    view(player, tablePos)
+            );
         }
     }
 

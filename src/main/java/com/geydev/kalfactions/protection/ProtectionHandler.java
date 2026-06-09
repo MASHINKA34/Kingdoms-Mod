@@ -46,7 +46,7 @@ public final class ProtectionHandler {
         if (!FactionAccess.canBuild(player, level, event.getPos())
                 && !wars.canBuildInWar(player, level, event.getPos())) {
             event.setCanceled(true);
-            deny(player, "You cannot break blocks in this faction claim.");
+            deny(player, "kingdoms.protection.no_break");
             return;
         }
         // Copy-on-write the chunk before the break is applied (no-op outside a war).
@@ -80,7 +80,7 @@ public final class ProtectionHandler {
 
         if (denied) {
             event.setCanceled(true);
-            deny(player, "You cannot place blocks in this faction claim.");
+            deny(player, "kingdoms.protection.no_place");
             return;
         }
         // The place event fires after the block is in the world, so onBlocksPlaced patches the
@@ -105,13 +105,13 @@ public final class ProtectionHandler {
         if (isContainer(level, pos)) {
             if (!canAccessContainer(player, level, pos)) {
                 cancelInteraction(event);
-                deny(player, event.getHand(), "You cannot access this container.");
+                deny(player, event.getHand(), "kingdoms.protection.no_container");
                 return;
             }
             if (accessTool) {
                 if (!FactionAccess.canBuild(player, level, pos)) {
                     cancelInteraction(event);
-                    deny(player, event.getHand(), "You cannot edit access for this container.");
+                    deny(player, event.getHand(), "kingdoms.protection.no_edit_container");
                     return;
                 }
                 handleAccessTool(event, player, level, pos);
@@ -121,7 +121,7 @@ public final class ProtectionHandler {
 
         if (!FactionAccess.canBuild(player, level, pos)) {
             cancelInteraction(event);
-            deny(player, event.getHand(), "You cannot interact with blocks in this faction claim.");
+            deny(player, event.getHand(), "kingdoms.protection.no_interact");
             return;
         }
 
@@ -141,7 +141,7 @@ public final class ProtectionHandler {
             if (slot.container instanceof BlockEntity blockEntity
                     && !canAccessContainer(player, level, blockEntity.getBlockPos())) {
                 player.closeContainer();
-                deny(player, "You cannot access this container.");
+                deny(player, "kingdoms.protection.no_container");
                 return;
             }
         }
@@ -219,14 +219,14 @@ public final class ProtectionHandler {
                 || FactionManager.get(level).canAccessContainer(player.getUUID(), level, pos);
     }
 
-    private static void deny(ServerPlayer player, InteractionHand hand, String message) {
+    private static void deny(ServerPlayer player, InteractionHand hand, String translationKey) {
         if (hand == InteractionHand.MAIN_HAND) {
-            deny(player, message);
+            deny(player, translationKey);
         }
     }
 
-    private static void deny(ServerPlayer player, String message) {
-        player.displayClientMessage(Component.literal(message), true);
+    private static void deny(ServerPlayer player, String translationKey) {
+        player.displayClientMessage(Component.translatable(translationKey), true);
     }
 
     private ProtectionHandler() {

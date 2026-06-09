@@ -62,7 +62,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
         FactionManager manager = FactionManager.get(player.serverLevel());
         if (boundFactionId(player, tablePos) != null) {
             return FactionServerHooks.Result.denied(
-                    "This faction table is already bound to a faction.",
+                    Component.translatable("kingdoms.error.table_already_bound"),
                     view(player, tablePos)
             );
         }
@@ -88,13 +88,13 @@ final class FactionManagerService implements FactionServerHooks.Service {
         Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
         if (faction == null || !faction.ownerId().equals(player.getUUID())) {
             return FactionServerHooks.Result.denied(
-                    "Only the faction leader can change faction settings.",
+                    Component.translatable("kingdoms.error.leader_settings_only"),
                     view(player, tablePos)
             );
         }
         if (!canUseBoundTable(player, tablePos, faction.id())) {
             return FactionServerHooks.Result.denied(
-                    "This faction table belongs to another faction.",
+                    Component.translatable("kingdoms.error.table_other_faction"),
                     view(player, tablePos)
             );
         }
@@ -120,13 +120,13 @@ final class FactionManagerService implements FactionServerHooks.Service {
         FactionRole role = manager.getRole(player.getUUID()).orElse(FactionRole.MEMBER);
         if (faction == null || !role.canManageClaims()) {
             return FactionServerHooks.Result.denied(
-                    "Your faction role cannot change claims.",
+                    Component.translatable("kingdoms.error.role_cannot_change_claims"),
                     view(player, tablePos)
             );
         }
         if (!canUseBoundTable(player, tablePos, faction.id())) {
             return FactionServerHooks.Result.denied(
-                    "This faction table belongs to another faction.",
+                    Component.translatable("kingdoms.error.table_other_faction"),
                     view(player, tablePos)
             );
         }
@@ -146,20 +146,26 @@ final class FactionManagerService implements FactionServerHooks.Service {
         FactionManager manager = FactionManager.get(player.serverLevel());
         Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
         if (faction == null) {
-            return FactionServerHooks.Result.denied("You are not in a faction.", view(player, tablePos));
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.not_in_faction"),
+                    view(player, tablePos)
+            );
         }
         if (!canUseBoundTable(player, tablePos, faction.id())) {
             return FactionServerHooks.Result.denied(
-                    "This faction table belongs to another faction.",
+                    Component.translatable("kingdoms.error.table_other_faction"),
                     view(player, tablePos)
             );
         }
         if (amount <= 0L) {
-            return FactionServerHooks.Result.denied("Enter an amount to deposit.", view(player, tablePos));
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.deposit_amount"),
+                    view(player, tablePos)
+            );
         }
         if (Long.MAX_VALUE - faction.treasuryBalance() < amount) {
             return FactionServerHooks.Result.denied(
-                    "The faction treasury cannot hold that amount.",
+                    Component.translatable("kingdoms.error.treasury_overflow"),
                     view(player, tablePos)
             );
         }
@@ -167,13 +173,16 @@ final class FactionManagerService implements FactionServerHooks.Service {
         NumismaticsEconomy.Payment payment = NumismaticsEconomy.preparePayment(player, amount);
         if (!payment.ready()) {
             return FactionServerHooks.Result.denied(
-                    "You only have " + NumismaticsEconomy.format(payment.available()) + ".",
+                    Component.translatable(
+                            "kingdoms.error.available_funds",
+                            NumismaticsEconomy.format(payment.available())
+                    ),
                     view(player, tablePos)
             );
         }
         if (!NumismaticsEconomy.commitPayment(player, payment)) {
             return FactionServerHooks.Result.denied(
-                    "Your coin inventory changed; try the deposit again.",
+                    Component.translatable("kingdoms.error.coin_inventory_changed"),
                     view(player, tablePos)
             );
         }
@@ -183,10 +192,16 @@ final class FactionManagerService implements FactionServerHooks.Service {
             NumismaticsEconomy.give(player, amount);
             return FactionServerHooks.Result.denied(message(result.status()), view(player, tablePos));
         }
-        String message = "Deposited " + NumismaticsEconomy.format(amount)
-                + (payment.change() > 0L
-                        ? "; returned " + NumismaticsEconomy.format(payment.change()) + " in change."
-                        : ".");
+        Component message = payment.change() > 0L
+                ? Component.translatable(
+                        "kingdoms.command.faction.deposit.success_change",
+                        NumismaticsEconomy.format(amount),
+                        NumismaticsEconomy.format(payment.change())
+                )
+                : Component.translatable(
+                        "kingdoms.command.faction.deposit.success",
+                        NumismaticsEconomy.format(amount)
+                );
         return new FactionServerHooks.Result(true, message, view(player, tablePos));
     }
 
@@ -196,27 +211,35 @@ final class FactionManagerService implements FactionServerHooks.Service {
         Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
         FactionRole role = manager.getRole(player.getUUID()).orElse(FactionRole.MEMBER);
         if (faction == null) {
-            return FactionServerHooks.Result.denied("You are not in a faction.", view(player, tablePos));
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.not_in_faction"),
+                    view(player, tablePos)
+            );
         }
         if (!role.isAtLeast(FactionRole.OFFICER)) {
             return FactionServerHooks.Result.denied(
-                    "Only officers and the leader can withdraw from the treasury.",
+                    Component.translatable("kingdoms.error.withdraw_officer_only"),
                     view(player, tablePos)
             );
         }
         if (!canUseBoundTable(player, tablePos, faction.id())) {
             return FactionServerHooks.Result.denied(
-                    "This faction table belongs to another faction.",
+                    Component.translatable("kingdoms.error.table_other_faction"),
                     view(player, tablePos)
             );
         }
         if (amount <= 0L) {
-            return FactionServerHooks.Result.denied("Enter an amount to withdraw.", view(player, tablePos));
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.withdraw_amount"),
+                    view(player, tablePos)
+            );
         }
         if (!NumismaticsEconomy.canGive(amount)) {
             return FactionServerHooks.Result.denied(
-                    "Withdraw at most " + NumismaticsEconomy.format(NumismaticsEconomy.MAX_SINGLE_PAYOUT)
-                            + " at a time.",
+                    Component.translatable(
+                            "kingdoms.command.faction.withdraw.max",
+                            NumismaticsEconomy.format(NumismaticsEconomy.MAX_SINGLE_PAYOUT)
+                    ),
                     view(player, tablePos)
             );
         }
@@ -228,7 +251,10 @@ final class FactionManagerService implements FactionServerHooks.Service {
         NumismaticsEconomy.give(player, amount);
         return new FactionServerHooks.Result(
                 true,
-                "Withdrew " + NumismaticsEconomy.format(amount) + ".",
+                Component.translatable(
+                        "kingdoms.command.faction.withdraw.success",
+                        NumismaticsEconomy.format(amount)
+                ),
                 view(player, tablePos)
         );
     }
@@ -238,15 +264,18 @@ final class FactionManagerService implements FactionServerHooks.Service {
         FactionManager manager = FactionManager.get(player.serverLevel());
         Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
         if (faction == null) {
-            return FactionServerHooks.Result.denied("You are not in a faction.", view(player, tablePos));
-        }
-        if (!canUseBoundTable(player, tablePos, faction.id())) {
             return FactionServerHooks.Result.denied(
-                    "This faction table belongs to another faction.",
+                    Component.translatable("kingdoms.error.not_in_faction"),
                     view(player, tablePos)
             );
         }
-        String rejection = validateMemberAction(faction, player.getUUID(), targetId, FactionRole.OFFICER);
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.table_other_faction"),
+                    view(player, tablePos)
+            );
+        }
+        Component rejection = validateMemberAction(faction, player.getUUID(), targetId, FactionRole.OFFICER);
         if (rejection != null) {
             return FactionServerHooks.Result.denied(rejection, view(player, tablePos));
         }
@@ -257,11 +286,17 @@ final class FactionManagerService implements FactionServerHooks.Service {
         }
         ServerPlayer target = player.getServer().getPlayerList().getPlayer(targetId);
         if (target != null) {
-            target.sendSystemMessage(Component.literal("You were removed from " + faction.name() + "."));
+            target.sendSystemMessage(Component.translatable(
+                    "kingdoms.command.faction.member.removed_notice",
+                    faction.name()
+            ));
         }
         return new FactionServerHooks.Result(
                 true,
-                "Removed " + playerName(player, targetId) + " from the faction.",
+                Component.translatable(
+                        "kingdoms.command.faction.member.removed",
+                        playerName(player, targetId)
+                ),
                 view(player, tablePos)
         );
     }
@@ -276,11 +311,14 @@ final class FactionManagerService implements FactionServerHooks.Service {
         FactionManager manager = FactionManager.get(player.serverLevel());
         Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
         if (faction == null) {
-            return FactionServerHooks.Result.denied("You are not in a faction.", view(player, tablePos));
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.not_in_faction"),
+                    view(player, tablePos)
+            );
         }
         if (!canUseBoundTable(player, tablePos, faction.id())) {
             return FactionServerHooks.Result.denied(
-                    "This faction table belongs to another faction.",
+                    Component.translatable("kingdoms.error.table_other_faction"),
                     view(player, tablePos)
             );
         }
@@ -288,15 +326,18 @@ final class FactionManagerService implements FactionServerHooks.Service {
         try {
             role = FactionRole.valueOf(roleName.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
-            return FactionServerHooks.Result.denied("That role is not valid.", view(player, tablePos));
-        }
-        if (role == FactionRole.LEADER) {
             return FactionServerHooks.Result.denied(
-                    "Transfer leadership with /f transfer instead.",
+                    Component.translatable("kingdoms.error.invalid_role"),
                     view(player, tablePos)
             );
         }
-        String rejection = validateMemberAction(faction, player.getUUID(), targetId, FactionRole.LEADER);
+        if (role == FactionRole.LEADER) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.command.faction.leadership.use_transfer"),
+                    view(player, tablePos)
+            );
+        }
+        Component rejection = validateMemberAction(faction, player.getUUID(), targetId, FactionRole.LEADER);
         if (rejection != null) {
             return FactionServerHooks.Result.denied(rejection, view(player, tablePos));
         }
@@ -307,7 +348,11 @@ final class FactionManagerService implements FactionServerHooks.Service {
         }
         return new FactionServerHooks.Result(
                 true,
-                playerName(player, targetId) + " is now " + roleName(role) + ".",
+                Component.translatable(
+                        "kingdoms.command.faction.role.rank_changed",
+                        playerName(player, targetId),
+                        roleComponent(role)
+                ),
                 view(player, tablePos)
         );
     }
@@ -318,17 +363,20 @@ final class FactionManagerService implements FactionServerHooks.Service {
         Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
         FactionRole role = manager.getRole(player.getUUID()).orElse(FactionRole.MEMBER);
         if (faction == null) {
-            return FactionServerHooks.Result.denied("You are not in a faction.", view(player, tablePos));
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.not_in_faction"),
+                    view(player, tablePos)
+            );
         }
         if (!role.isAtLeast(FactionRole.OFFICER)) {
             return FactionServerHooks.Result.denied(
-                    "Only officers and the leader can change friendly PvP.",
+                    Component.translatable("kingdoms.error.pvp_officer_only"),
                     view(player, tablePos)
             );
         }
         if (!canUseBoundTable(player, tablePos, faction.id())) {
             return FactionServerHooks.Result.denied(
-                    "This faction table belongs to another faction.",
+                    Component.translatable("kingdoms.error.table_other_faction"),
                     view(player, tablePos)
             );
         }
@@ -339,7 +387,10 @@ final class FactionManagerService implements FactionServerHooks.Service {
         }
         return new FactionServerHooks.Result(
                 true,
-                "Friendly PvP " + (enabled ? "enabled." : "disabled."),
+                Component.translatable(
+                        "kingdoms.command.faction.pvp.status",
+                        enabledState(enabled)
+                ),
                 view(player, tablePos)
         );
     }
@@ -349,7 +400,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
      * cannot target themselves, the target must be a faction member, and only the leader may
      * manage officers. Returns {@code null} when the action is allowed, otherwise a reason.
      */
-    private static String validateMemberAction(
+    private static Component validateMemberAction(
             Faction faction,
             UUID actorId,
             UUID targetId,
@@ -357,17 +408,17 @@ final class FactionManagerService implements FactionServerHooks.Service {
     ) {
         FactionRole actorRole = faction.roleOf(actorId).orElse(null);
         if (actorRole == null || !actorRole.isAtLeast(minimumActorRole)) {
-            return "Your faction role cannot do that.";
+            return Component.translatable("kingdoms.error.role_cannot_manage_members");
         }
         if (actorId.equals(targetId)) {
-            return "You cannot use this action on yourself.";
+            return Component.translatable("kingdoms.error.self_action");
         }
         FactionRole targetRole = faction.roleOf(targetId).orElse(null);
         if (targetRole == null) {
-            return "That player is not in your faction.";
+            return Component.translatable("kingdoms.error.target_not_in_faction");
         }
         if (actorRole != FactionRole.LEADER && targetRole.isAtLeast(FactionRole.OFFICER)) {
-            return "Only the faction leader can manage officers.";
+            return Component.translatable("kingdoms.error.manage_officers");
         }
         return null;
     }
@@ -474,6 +525,16 @@ final class FactionManagerService implements FactionServerHooks.Service {
         return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
     }
 
+    private static Component roleComponent(FactionRole role) {
+        return Component.translatable("kingdoms.role." + role.name().toLowerCase(Locale.ROOT));
+    }
+
+    private static Component enabledState(boolean enabled) {
+        return Component.translatable(enabled
+                ? "kingdoms.state.enabled"
+                : "kingdoms.state.disabled");
+    }
+
     private static int colorFor(UUID factionId) {
         int hash = factionId.hashCode();
         int red = 72 + Math.floorMod(hash, 144);
@@ -482,21 +543,25 @@ final class FactionManagerService implements FactionServerHooks.Service {
         return red << 16 | green << 8 | blue;
     }
 
-    private static String message(FactionManager.Status status) {
-        return switch (status) {
-            case SUCCESS -> "";
-            case INVALID_NAME -> "That faction name is invalid.";
-            case NAME_TAKEN -> "That faction name is already in use.";
-            case PLAYER_ALREADY_MEMBER -> "You already belong to a faction.";
-            case CLAIM_ALREADY_OWNED -> "That chunk is already claimed.";
-            case CLAIM_NOT_OWNED -> "Your faction does not own that chunk.";
-            case CLAIM_NOT_ADJACENT -> "New claims must touch your existing territory.";
-            case CLAIM_WOULD_DISCONNECT -> "Releasing that chunk would split your territory.";
-            case INSUFFICIENT_FUNDS -> "Your faction treasury cannot afford that claim.";
-            case TREASURY_OVERFLOW -> "The refund would overflow the faction treasury.";
-            case PLAYER_NOT_MEMBER -> "You are not a member of that faction.";
-            case FACTION_NOT_FOUND -> "Faction data could not be found.";
-            default -> "The faction action was rejected: " + status.name().toLowerCase(Locale.ROOT) + ".";
+    private static Component message(FactionManager.Status status) {
+        String key = switch (status) {
+            case SUCCESS -> null;
+            case INVALID_NAME -> "kingdoms.error.invalid_name";
+            case NAME_TAKEN -> "kingdoms.error.name_taken";
+            case PLAYER_ALREADY_MEMBER -> "kingdoms.error.already_in_faction";
+            case CLAIM_ALREADY_OWNED -> "kingdoms.error.claim_already_owned";
+            case CLAIM_NOT_OWNED -> "kingdoms.error.claim_not_owned";
+            case CLAIM_NOT_ADJACENT -> "kingdoms.error.claim_not_adjacent";
+            case CLAIM_WOULD_DISCONNECT -> "kingdoms.error.claim_would_disconnect";
+            case INSUFFICIENT_FUNDS -> "kingdoms.error.insufficient_funds";
+            case TREASURY_OVERFLOW -> "kingdoms.error.treasury_overflow";
+            case PLAYER_NOT_MEMBER -> "kingdoms.error.not_member_of_faction";
+            case FACTION_NOT_FOUND -> "kingdoms.error.faction_data_not_found";
+            default -> "kingdoms.error.faction_action_rejected";
         };
+        if (key == null) {
+            return Component.empty();
+        }
+        return Component.translatable(key);
     }
 }

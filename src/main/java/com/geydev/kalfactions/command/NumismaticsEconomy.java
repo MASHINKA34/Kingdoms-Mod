@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.Map;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
@@ -89,8 +90,18 @@ public final class NumismaticsEconomy {
         return amount >= 0L && amount <= MAX_SINGLE_PAYOUT;
     }
 
-    public static String format(long spurs) {
-        return spurs + (spurs == 1L ? " spur" : " spurs");
+    public static Component format(long spurs) {
+        long lastTwo = Math.floorMod(spurs, 100L);
+        long last = Math.floorMod(spurs, 10L);
+        String key;
+        if (last == 1L && lastTwo != 11L) {
+            key = "kingdoms.currency.spurs.one";
+        } else if (last >= 2L && last <= 4L && (lastTwo < 12L || lastTwo > 14L)) {
+            key = "kingdoms.currency.spurs.few";
+        } else {
+            key = "kingdoms.currency.spurs.many";
+        }
+        return Component.translatable(key, spurs);
     }
 
     private static EnumMap<Coin, Integer> coinCounts(ServerPlayer player) {

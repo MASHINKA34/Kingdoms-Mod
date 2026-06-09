@@ -13,7 +13,7 @@ public final class FactionManageScreen extends FactionScreen {
     private int selectedColor;
 
     public FactionManageScreen(FactionSnapshot snapshot, boolean successful, String message) {
-        super(text("screen.kingdoms.faction_manage", "Faction Management"), snapshot, successful, message);
+        super(text("screen.kingdoms.faction_manage"), snapshot, successful, message);
         selectedColor = snapshot.color();
     }
 
@@ -31,7 +31,7 @@ public final class FactionManageScreen extends FactionScreen {
                 row0,
                 columnWidth,
                 20,
-                text("screen.kingdoms.faction_name", "Faction name")
+                text("screen.kingdoms.faction_name")
         );
         nameBox.setMaxLength(32);
         nameBox.setValue(snapshot.name());
@@ -39,13 +39,13 @@ public final class FactionManageScreen extends FactionScreen {
         addRenderableWidget(nameBox);
 
         Button color = addRenderableWidget(Button.builder(
-                text("screen.kingdoms.color", "Change color"),
+                text("screen.kingdoms.color"),
                 button -> selectedColor = nextColor(selectedColor)
         ).bounds(leftColumn, row0 + rowStep, columnWidth, 20).build());
         color.active = snapshot.canManage();
 
         Button save = addRenderableWidget(Button.builder(
-                text("screen.kingdoms.save", "Save changes"),
+                text("screen.kingdoms.save"),
                 button -> PacketDistributor.sendToServer(
                         new FactionPayloads.C2SUpdateFaction(snapshot.tablePos(), nameBox.getValue(), selectedColor)
                 )
@@ -61,33 +61,32 @@ public final class FactionManageScreen extends FactionScreen {
         pvp.active = snapshot.isOfficer();
 
         addRenderableWidget(Button.builder(
-                text("screen.kingdoms.members", "Members").copy()
-                        .append(" (" + snapshot.members().size() + ")"),
+                text("screen.kingdoms.members_count", snapshot.members().size()),
                 button -> FactionScreens.openMembers(snapshot, true, "")
         ).bounds(rightColumn, row0, columnWidth, 20).build());
 
         addRenderableWidget(Button.builder(
-                text("screen.kingdoms.treasury", "Treasury"),
+                text("screen.kingdoms.treasury"),
                 button -> FactionScreens.openTreasury(snapshot, true, "")
         ).bounds(rightColumn, row0 + rowStep, columnWidth, 20).build());
 
         Button claims = addRenderableWidget(Button.builder(
-                text("screen.kingdoms.claim_map", "Open claim map"),
+                text("screen.kingdoms.claim_map.open"),
                 button -> FactionScreens.openClaims(snapshot, true, "")
         ).bounds(rightColumn, row0 + rowStep * 2, columnWidth, 20).build());
         claims.active = snapshot.canClaim();
 
         addRenderableWidget(Button.builder(
-                text("screen.kingdoms.refresh", "Refresh"),
+                text("screen.kingdoms.refresh"),
                 button -> requestRefresh()
         ).bounds(rightColumn, row0 + rowStep * 3, columnWidth, 20).build());
     }
 
     private Component pvpLabel() {
-        String state = snapshot.internalPvp()
-                ? text("screen.kingdoms.on", "ON").getString()
-                : text("screen.kingdoms.off", "OFF").getString();
-        return text("screen.kingdoms.pvp", "Friendly PvP").copy().append(": " + state);
+        Component state = snapshot.internalPvp()
+                ? text("screen.kingdoms.on")
+                : text("screen.kingdoms.off");
+        return text("screen.kingdoms.pvp", state);
     }
 
     @Override
@@ -98,7 +97,7 @@ public final class FactionManageScreen extends FactionScreen {
 
         graphics.drawString(
                 font,
-                text("screen.kingdoms.owner", "Owner: ").copy().append(snapshot.ownerName()),
+                text("screen.kingdoms.owner", snapshot.ownerName()),
                 left + 16,
                 top + 51,
                 0x4C3824,
@@ -106,9 +105,7 @@ public final class FactionManageScreen extends FactionScreen {
         );
         graphics.drawString(
                 font,
-                Component.literal("PvP: " + (snapshot.internalPvp()
-                        ? text("screen.kingdoms.on", "ON").getString()
-                        : text("screen.kingdoms.off", "OFF").getString())),
+                pvpLabel(),
                 left + 200,
                 top + 51,
                 0x4C3824,
@@ -116,7 +113,7 @@ public final class FactionManageScreen extends FactionScreen {
         );
         graphics.drawString(
                 font,
-                text("screen.kingdoms.treasury", "Treasury").copy().append(": " + spurs(snapshot.treasury())),
+                text("screen.kingdoms.treasury_balance", currency(snapshot.treasury())),
                 left + 16,
                 top + 63,
                 0x4C3824,
@@ -124,7 +121,7 @@ public final class FactionManageScreen extends FactionScreen {
         );
         graphics.drawString(
                 font,
-                text("screen.kingdoms.influence", "Influence").copy().append(": " + snapshot.influence()),
+                text("screen.kingdoms.influence_value", snapshot.influence()),
                 left + 200,
                 top + 63,
                 0x4C3824,
@@ -132,7 +129,17 @@ public final class FactionManageScreen extends FactionScreen {
         );
     }
 
-    static String spurs(long amount) {
-        return amount + (amount == 1L ? " spur" : " spurs");
+    static Component currency(long amount) {
+        long lastTwo = Math.floorMod(amount, 100L);
+        long last = Math.floorMod(amount, 10L);
+        String key;
+        if (last == 1L && lastTwo != 11L) {
+            key = "kingdoms.currency.spurs.one";
+        } else if (last >= 2L && last <= 4L && (lastTwo < 12L || lastTwo > 14L)) {
+            key = "kingdoms.currency.spurs.few";
+        } else {
+            key = "kingdoms.currency.spurs.many";
+        }
+        return text(key, amount);
     }
 }

@@ -12,7 +12,7 @@ public final class FactionCreateScreen extends FactionScreen {
     private int selectedColor;
 
     public FactionCreateScreen(FactionSnapshot snapshot, boolean successful, String message) {
-        super(text("screen.kingdoms.faction_create", "Create a Faction"), snapshot, successful, message);
+        super(text("screen.kingdoms.faction_create"), snapshot, successful, message);
         selectedColor = snapshot.color();
     }
 
@@ -24,18 +24,18 @@ public final class FactionCreateScreen extends FactionScreen {
                 top + 62,
                 180,
                 20,
-                text("screen.kingdoms.faction_name", "Faction name")
+                text("screen.kingdoms.faction_name")
         );
         nameBox.setMaxLength(32);
         addRenderableWidget(nameBox);
 
         addRenderableWidget(Button.builder(
-                text("screen.kingdoms.color", "Change color"),
+                text("screen.kingdoms.color"),
                 button -> selectedColor = nextColor(selectedColor)
         ).bounds(left + 78, top + 96, 180, 20).build());
 
         Button create = addRenderableWidget(Button.builder(
-                text("screen.kingdoms.create", "Create"),
+                text("screen.kingdoms.create"),
                 button -> PacketDistributor.sendToServer(
                         new FactionPayloads.C2SCreateFaction(snapshot.tablePos(), nameBox.getValue(), selectedColor)
                 )
@@ -49,7 +49,7 @@ public final class FactionCreateScreen extends FactionScreen {
         super.render(graphics, mouseX, mouseY, partialTick);
         graphics.drawString(
                 font,
-                text("screen.kingdoms.faction_name", "Faction name"),
+                text("screen.kingdoms.faction_name"),
                 left + 78,
                 top + 50,
                 0x3F2A19,
@@ -59,7 +59,7 @@ public final class FactionCreateScreen extends FactionScreen {
         graphics.fill(left + 60, top + 100, left + 70, top + 110, 0xFF000000 | selectedColor);
         graphics.drawCenteredString(
                 font,
-                text("screen.kingdoms.create_hint", "Managers can change these later."),
+                text("screen.kingdoms.create_hint"),
                 left + PANEL_WIDTH / 2,
                 top + 124,
                 0x5B452E

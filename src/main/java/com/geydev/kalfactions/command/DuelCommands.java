@@ -56,11 +56,11 @@ public final class DuelCommands {
         if (result == DuelManager.Result.SUCCESS) {
             return Command.SINGLE_SUCCESS;
         }
-        player.sendSystemMessage(Component.literal(switch (result) {
-            case SELF -> "You cannot duel yourself.";
-            case ALREADY_ACTIVE -> "That duel is already active.";
-            case NOT_FOUND -> "No matching duel request was found.";
-            case PLAYER_OFFLINE -> "The challenger is offline.";
+        player.sendSystemMessage(Component.translatable(switch (result) {
+            case SELF -> "kingdoms.duel.error.self";
+            case ALREADY_ACTIVE -> "kingdoms.duel.error.already_active";
+            case NOT_FOUND -> "kingdoms.duel.error.not_found";
+            case PLAYER_OFFLINE -> "kingdoms.duel.error.player_offline";
             case SUCCESS -> throw new IllegalStateException("Handled above");
         }));
         return 0;

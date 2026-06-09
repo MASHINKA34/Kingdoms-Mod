@@ -11,7 +11,7 @@ public final class FactionTreasuryScreen extends FactionScreen {
     private EditBox amountBox;
 
     public FactionTreasuryScreen(FactionSnapshot snapshot, boolean successful, String message) {
-        super(text("screen.kingdoms.treasury", "Treasury"), snapshot, successful, message);
+        super(text("screen.kingdoms.treasury"), snapshot, successful, message);
     }
 
     @Override
@@ -22,20 +22,20 @@ public final class FactionTreasuryScreen extends FactionScreen {
                 top + 76,
                 150,
                 20,
-                text("screen.kingdoms.amount", "Amount")
+                text("screen.kingdoms.amount")
         );
         amountBox.setMaxLength(12);
-        amountBox.setHint(text("screen.kingdoms.amount", "Amount"));
+        amountBox.setHint(text("screen.kingdoms.amount"));
         amountBox.setFilter(value -> value.matches("\\d{0,12}"));
         addRenderableWidget(amountBox);
 
         Button deposit = addRenderableWidget(Button.builder(
-                text("screen.kingdoms.deposit", "Deposit"),
+                text("screen.kingdoms.deposit"),
                 button -> send(true)
         ).bounds(left + 172, top + 76, 66, 20).build());
 
         Button withdraw = addRenderableWidget(Button.builder(
-                text("screen.kingdoms.withdraw", "Withdraw"),
+                text("screen.kingdoms.withdraw"),
                 button -> send(false)
         ).bounds(left + 242, top + 76, 74, 20).build());
 
@@ -48,11 +48,11 @@ public final class FactionTreasuryScreen extends FactionScreen {
         withdraw.active = false;
 
         addRenderableWidget(Button.builder(
-                text("screen.kingdoms.back", "Back"),
+                text("screen.kingdoms.back"),
                 button -> FactionScreens.openRoot(snapshot, true, "")
         ).bounds(left + 16, top + PANEL_HEIGHT - 25, 70, 20).build());
         addRenderableWidget(Button.builder(
-                text("screen.kingdoms.refresh", "Refresh"),
+                text("screen.kingdoms.refresh"),
                 button -> requestRefresh()
         ).bounds(left + 90, top + PANEL_HEIGHT - 25, 70, 20).build());
     }
@@ -85,8 +85,7 @@ public final class FactionTreasuryScreen extends FactionScreen {
         super.render(graphics, mouseX, mouseY, partialTick);
         graphics.drawString(
                 font,
-                text("screen.kingdoms.treasury", "Treasury").copy()
-                        .append(": " + FactionManageScreen.spurs(snapshot.treasury())),
+                text("screen.kingdoms.treasury_balance", FactionManageScreen.currency(snapshot.treasury())),
                 left + 16,
                 top + 44,
                 0x3F2A19,
@@ -94,7 +93,7 @@ public final class FactionTreasuryScreen extends FactionScreen {
         );
         graphics.drawString(
                 font,
-                text("screen.kingdoms.amount", "Amount"),
+                text("screen.kingdoms.amount"),
                 left + 16,
                 top + 64,
                 0x4C3824,
@@ -103,7 +102,7 @@ public final class FactionTreasuryScreen extends FactionScreen {
         if (!snapshot.isOfficer()) {
             graphics.drawString(
                     font,
-                    text("screen.kingdoms.withdraw_hint", "Only officers and the leader may withdraw."),
+                    text("screen.kingdoms.withdraw_hint"),
                     left + 16,
                     top + 104,
                     0x5B452E,

@@ -54,7 +54,7 @@ public final class PvpHandler {
         }
         LAST_DENIAL_MESSAGE.put(attacker.getUUID(), gameTime);
         attacker.displayClientMessage(
-                Component.literal("Friendly fire is disabled. Start a duel to fight a faction member."),
+                Component.translatable("kingdoms.pvp.friendly_fire_disabled"),
                 true
         );
     }

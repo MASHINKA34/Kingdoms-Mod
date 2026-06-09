@@ -4,6 +4,7 @@ import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class FactionClaimMapScreen extends FactionScreen {
@@ -13,7 +14,7 @@ public final class FactionClaimMapScreen extends FactionScreen {
     private int gridTop;
 
     public FactionClaimMapScreen(FactionSnapshot snapshot, boolean successful, String message) {
-        super(text("screen.kingdoms.claim_map", "Claim Map"), snapshot, successful, message);
+        super(text("screen.kingdoms.claim_map.title"), snapshot, successful, message);
     }
 
     @Override
@@ -23,11 +24,11 @@ public final class FactionClaimMapScreen extends FactionScreen {
         gridTop = top + 39;
 
         addRenderableWidget(Button.builder(
-                text("screen.kingdoms.back", "Back"),
+                text("screen.kingdoms.back"),
                 button -> FactionScreens.openRoot(snapshot, true, "")
         ).bounds(left + 238, top + 43, 74, 20).build());
         addRenderableWidget(Button.builder(
-                text("screen.kingdoms.refresh", "Refresh"),
+                text("screen.kingdoms.refresh"),
                 button -> requestRefresh()
         ).bounds(left + 238, top + 69, 74, 20).build());
     }
@@ -58,14 +59,14 @@ public final class FactionClaimMapScreen extends FactionScreen {
         int hoveredZ = hoveredChunkZ(mouseY);
         if (insideGrid(mouseX, mouseY)) {
             FactionSnapshot.Claim claim = snapshot.claimAt(hoveredX, hoveredZ);
-            String label = claim == null
-                    ? "Chunk " + hoveredX + ", " + hoveredZ
-                    : claim.label() + " (" + hoveredX + ", " + hoveredZ + ")";
+            Component label = claim == null
+                    ? text("screen.kingdoms.claim_map.chunk", hoveredX, hoveredZ)
+                    : text("screen.kingdoms.claim_map.claimed_chunk", claim.label(), hoveredX, hoveredZ);
             graphics.drawString(font, label, left + 238, top + 105, 0x3F2A19, false);
         }
         graphics.drawWordWrap(
                 font,
-                text("screen.kingdoms.claim_help", "Click a free chunk to claim it. Click your claim to release it."),
+                text("screen.kingdoms.claim_map.help"),
                 left + 238,
                 top + 121,
                 74,

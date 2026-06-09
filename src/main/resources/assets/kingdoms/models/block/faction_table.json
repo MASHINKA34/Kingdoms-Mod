@@ -1,11 +1,11 @@
 {
   "ambientocclusion": true,
   "textures": {
-    "particle": "minecraft:block/dark_oak_planks",
+    "particle": "kingdoms:block/faction_table_side",
     "top": "kingdoms:block/faction_table_top",
-    "side": "minecraft:block/dark_oak_planks",
-    "bottom": "minecraft:block/spruce_planks",
-    "leg": "minecraft:block/stripped_dark_oak_log"
+    "side": "kingdoms:block/faction_table_side",
+    "bottom": "kingdoms:block/faction_table_side",
+    "leg": "kingdoms:block/faction_table_leg"
   },
   "elements": [
     {

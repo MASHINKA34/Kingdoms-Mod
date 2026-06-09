@@ -39,14 +39,13 @@ public final class DuelManager {
                 new DirectedPair(challenger.getUUID(), target.getUUID()),
                 new DuelRequest(challenger.getUUID(), target.getUUID(), expiresAt)
         );
-        challenger.sendSystemMessage(Component.literal(
-                "Duel request sent to " + target.getGameProfile().getName() + "."
+        challenger.sendSystemMessage(Component.translatable(
+                "kingdoms.duel.request_sent",
+                target.getGameProfile().getName()
         ));
-        target.sendSystemMessage(Component.literal(
+        target.sendSystemMessage(Component.translatable(
+                "kingdoms.duel.request_received",
                 challenger.getGameProfile().getName()
-                        + " challenged you to a duel. Use /duel accept "
-                        + challenger.getGameProfile().getName()
-                        + "."
         ));
         return Result.SUCCESS;
     }
@@ -78,11 +77,13 @@ public final class DuelManager {
         ACTIVE_DUELS.add(pair);
         removeRequestsFor(challenger.getUUID());
         removeRequestsFor(target.getUUID());
-        challenger.sendSystemMessage(Component.literal(
-                target.getGameProfile().getName() + " accepted your duel request."
+        challenger.sendSystemMessage(Component.translatable(
+                "kingdoms.duel.request_accepted",
+                target.getGameProfile().getName()
         ));
-        target.sendSystemMessage(Component.literal(
-                "Duel with " + challenger.getGameProfile().getName() + " started."
+        target.sendSystemMessage(Component.translatable(
+                "kingdoms.duel.started",
+                challenger.getGameProfile().getName()
         ));
         return Result.SUCCESS;
     }
@@ -92,10 +93,11 @@ public final class DuelManager {
         if (removed == null) {
             return Result.NOT_FOUND;
         }
-        challenger.sendSystemMessage(Component.literal(
-                target.getGameProfile().getName() + " declined your duel request."
+        challenger.sendSystemMessage(Component.translatable(
+                "kingdoms.duel.request_declined_by",
+                target.getGameProfile().getName()
         ));
-        target.sendSystemMessage(Component.literal("Duel request declined."));
+        target.sendSystemMessage(Component.translatable("kingdoms.duel.request_declined"));
         return Result.SUCCESS;
     }
 
@@ -139,10 +141,11 @@ public final class DuelManager {
         ACTIVE_DUELS.remove(duel.get());
         UUID winnerId = duel.get().other(loserId);
         ServerPlayer winner = loser.server.getPlayerList().getPlayer(winnerId);
-        loser.sendSystemMessage(Component.literal("You lost the duel."));
+        loser.sendSystemMessage(Component.translatable("kingdoms.duel.lost"));
         if (winner != null) {
-            winner.sendSystemMessage(Component.literal(
-                    "You won the duel against " + loser.getGameProfile().getName() + "."
+            winner.sendSystemMessage(Component.translatable(
+                    "kingdoms.duel.won",
+                    loser.getGameProfile().getName()
             ));
         }
     }
@@ -161,7 +164,7 @@ public final class DuelManager {
         if (event.getEntity() instanceof ServerPlayer player) {
             ServerPlayer opponent = player.server.getPlayerList().getPlayer(duel.get().other(playerId));
             if (opponent != null) {
-                opponent.sendSystemMessage(Component.literal("The duel ended because your opponent disconnected."));
+                opponent.sendSystemMessage(Component.translatable("kingdoms.duel.opponent_disconnected"));
             }
         }
     }
@@ -176,10 +179,10 @@ public final class DuelManager {
         ServerPlayer challenger = server.getPlayerList().getPlayer(request.challenger());
         ServerPlayer target = server.getPlayerList().getPlayer(request.target());
         if (challenger != null) {
-            challenger.sendSystemMessage(Component.literal("Your duel request expired."));
+            challenger.sendSystemMessage(Component.translatable("kingdoms.duel.request_expired"));
         }
         if (target != null) {
-            target.sendSystemMessage(Component.literal("The duel request expired."));
+            target.sendSystemMessage(Component.translatable("kingdoms.duel.incoming_request_expired"));
         }
     }
 

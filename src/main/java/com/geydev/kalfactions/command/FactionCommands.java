@@ -143,9 +143,10 @@ public final class FactionCommands {
     }
 
     private static int help(CommandContext<CommandSourceStack> context) {
-        context.getSource().sendSuccess(() -> Component.literal(
-            "/f create, invite, join, leave, claim, unclaim, deposit, withdraw, info, map, war"
-        ), false);
+        context.getSource().sendSuccess(
+            () -> Component.translatable("kingdoms.command.faction.help"),
+            false
+        );
         return Command.SINGLE_SUCCESS;
     }
 
@@ -159,7 +160,7 @@ public final class FactionCommands {
         if (!result.successful()) {
             return failure(context, result);
         }
-        success(context, "Faction created with its starter claims.");
+        success(context, "kingdoms.command.faction.created");
         return Command.SINGLE_SUCCESS;
     }
 
@@ -171,10 +172,10 @@ public final class FactionCommands {
             return 0;
         }
         if (actor.getUUID().equals(target.getUUID())) {
-            return failure(context, "You cannot invite yourself.");
+            return failure(context, "kingdoms.command.faction.invite.self");
         }
         if (manager(context).getFactionForMember(target.getUUID()).isPresent()) {
-            return failure(context, "That player already belongs to a faction.");
+            return failure(context, "kingdoms.error.player_already_member");
         }
 
         PendingFactionInvites.put(
@@ -183,10 +184,16 @@ public final class FactionCommands {
             actor.getUUID(),
             target.getUUID()
         );
-        success(context, "Invited " + target.getGameProfile().getName() + " to " + faction.name() + ".");
-        target.sendSystemMessage(Component.literal(
-            actor.getGameProfile().getName() + " invited you to " + faction.name()
-                + ". Use /f join " + faction.name() + " within 5 minutes."
+        success(
+            context,
+            "kingdoms.command.faction.invite.sent",
+            target.getGameProfile().getName(),
+            faction.name()
+        );
+        target.sendSystemMessage(Component.translatable(
+            "kingdoms.command.faction.invite.received",
+            actor.getGameProfile().getName(),
+            faction.name()
         ));
         return Command.SINGLE_SUCCESS;
     }
@@ -196,7 +203,7 @@ public final class FactionCommands {
         ServerPlayer player = context.getSource().getPlayerOrException();
         FactionManager manager = manager(context);
         if (manager.getFactionForMember(player.getUUID()).isPresent()) {
-            return failure(context, "Leave your current faction first.");
+            return failure(context, "kingdoms.command.faction.join.leave_current_first");
         }
 
         PendingFactionInvites.Invite invite;
@@ -213,7 +220,7 @@ public final class FactionCommands {
                 ).orElse(null);
         }
         if (invite == null) {
-            return failure(context, "No matching, unexpired faction invite was found.");
+            return failure(context, "kingdoms.command.faction.invite.not_found");
         }
 
         OperationResult result = manager.addMember(invite.factionId(), player.getUUID());
@@ -222,9 +229,14 @@ public final class FactionCommands {
         }
         PendingFactionInvites.remove(context.getSource().getServer(), invite.factionId(), player.getUUID());
         Faction faction = manager.getFaction(invite.factionId()).orElseThrow();
-        success(context, "Joined " + faction.name() + ".");
-        notifyOnline(context.getSource().getServer(), invite.inviterId(),
-            player.getGameProfile().getName() + " joined " + faction.name() + ".");
+        success(context, "kingdoms.command.faction.join.success", faction.name());
+        notifyOnline(
+            context.getSource().getServer(),
+            invite.inviterId(),
+            "kingdoms.command.faction.join.notice",
+            player.getGameProfile().getName(),
+            faction.name()
+        );
         return Command.SINGLE_SUCCESS;
     }
 
@@ -251,11 +263,15 @@ public final class FactionCommands {
                 invite.factionId(),
                 player.getUUID()
             )) {
-            return failure(context, "No matching, unexpired faction invite was found.");
+            return failure(context, "kingdoms.command.faction.invite.not_found");
         }
-        success(context, "Faction invite declined.");
-        notifyOnline(context.getSource().getServer(), invite.inviterId(),
-            player.getGameProfile().getName() + " declined the faction invite.");
+        success(context, "kingdoms.command.faction.invite.declined");
+        notifyOnline(
+            context.getSource().getServer(),
+            invite.inviterId(),
+            "kingdoms.command.faction.invite.declined_notice",
+            player.getGameProfile().getName()
+        );
         return Command.SINGLE_SUCCESS;
     }
 
@@ -270,7 +286,7 @@ public final class FactionCommands {
             return failure(context, result);
         }
         PendingFactionInvites.removeForPlayer(context.getSource().getServer(), player.getUUID());
-        success(context, "You left " + faction.name() + ".");
+        success(context, "kingdoms.command.faction.leave.success", faction.name());
         return Command.SINGLE_SUCCESS;
     }
 
@@ -281,7 +297,7 @@ public final class FactionCommands {
             return 0;
         }
         if (!NumismaticsEconomy.canGive(faction.treasuryBalance())) {
-            return failure(context, "Withdraw the treasury in smaller chunks before disbanding.");
+            return failure(context, "kingdoms.command.faction.disband.withdraw_first");
         }
         OperationResult result = manager(context).disbandFaction(faction.id());
         if (!result.successful()) {
@@ -291,10 +307,15 @@ public final class FactionCommands {
         if (result.amount() > 0L) {
             NumismaticsEconomy.give(player, result.amount());
         }
-        success(context, "Faction disbanded"
-            + (result.amount() > 0L
-                ? "; returned " + NumismaticsEconomy.format(result.amount()) + " to the leader."
-                : "."));
+        if (result.amount() > 0L) {
+            success(
+                context,
+                "kingdoms.command.faction.disband.success_refund",
+                NumismaticsEconomy.format(result.amount())
+            );
+        } else {
+            success(context, "kingdoms.command.faction.disband.success");
+        }
         return Command.SINGLE_SUCCESS;
     }
 
@@ -311,7 +332,7 @@ public final class FactionCommands {
         if (!result.successful()) {
             return failure(context, result);
         }
-        success(context, "Faction renamed.");
+        success(context, "kingdoms.command.faction.rename.success");
         return Command.SINGLE_SUCCESS;
     }
 
@@ -329,8 +350,15 @@ public final class FactionCommands {
         if (!result.successful()) {
             return failure(context, result);
         }
-        success(context, "Removed " + target.getGameProfile().getName() + " from the faction.");
-        target.sendSystemMessage(Component.literal("You were removed from " + faction.name() + "."));
+        success(
+            context,
+            "kingdoms.command.faction.member.removed",
+            target.getGameProfile().getName()
+        );
+        target.sendSystemMessage(Component.translatable(
+            "kingdoms.command.faction.member.removed_notice",
+            faction.name()
+        ));
         return Command.SINGLE_SUCCESS;
     }
 
@@ -345,16 +373,21 @@ public final class FactionCommands {
         try {
             rank = FactionRole.valueOf(StringArgumentType.getString(context, "rank").toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
-            return failure(context, "Rank must be member or officer.");
+            return failure(context, "kingdoms.command.faction.role.invalid");
         }
         if (rank == FactionRole.LEADER) {
-            return failure(context, "Use /f transfer to change the leader.");
+            return failure(context, "kingdoms.command.faction.leadership.use_transfer");
         }
         OperationResult result = manager(context).setMemberRole(faction.id(), target.getUUID(), rank);
         if (!result.successful()) {
             return failure(context, result);
         }
-        success(context, target.getGameProfile().getName() + " is now " + rank.name().toLowerCase(Locale.ROOT) + ".");
+        success(
+            context,
+            "kingdoms.command.faction.role.rank_changed",
+            target.getGameProfile().getName(),
+            roleName(rank)
+        );
         return Command.SINGLE_SUCCESS;
     }
 
@@ -372,17 +405,21 @@ public final class FactionCommands {
         try {
             role = FactionRole.valueOf(StringArgumentType.getString(context, "role").toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
-            return failure(context, "Role must be member or officer.");
+            return failure(context, "kingdoms.command.faction.role.invalid");
         }
         if (role == FactionRole.LEADER) {
-            return failure(context, "Use /f transfer to change the leader.");
+            return failure(context, "kingdoms.command.faction.leadership.use_transfer");
         }
         OperationResult result = manager(context).setMemberRole(faction.id(), target.getUUID(), role);
         if (!result.successful()) {
             return failure(context, result);
         }
-        success(context, target.getGameProfile().getName() + " now has role "
-            + role.name().toLowerCase(Locale.ROOT) + ".");
+        success(
+            context,
+            "kingdoms.command.faction.role.changed",
+            target.getGameProfile().getName(),
+            roleName(role)
+        );
         return Command.SINGLE_SUCCESS;
     }
 
@@ -397,8 +434,15 @@ public final class FactionCommands {
         if (!result.successful()) {
             return failure(context, result);
         }
-        success(context, "Leadership transferred to " + target.getGameProfile().getName() + ".");
-        target.sendSystemMessage(Component.literal("You are now the leader of " + faction.name() + "."));
+        success(
+            context,
+            "kingdoms.command.faction.leadership.transferred",
+            target.getGameProfile().getName()
+        );
+        target.sendSystemMessage(Component.translatable(
+            "kingdoms.command.faction.leadership.received",
+            faction.name()
+        ));
         return Command.SINGLE_SUCCESS;
     }
 
@@ -417,8 +461,13 @@ public final class FactionCommands {
         if (!result.successful()) {
             return failure(context, result);
         }
-        success(context, "Chunk claimed for " + NumismaticsEconomy.format(result.amount())
-            + (quoted == result.amount() ? "." : " (price changed during execution)."));
+        success(
+            context,
+            quoted == result.amount()
+                ? "kingdoms.command.faction.claim.success"
+                : "kingdoms.command.faction.claim.success_price_changed",
+            NumismaticsEconomy.format(result.amount())
+        );
         return Command.SINGLE_SUCCESS;
     }
 
@@ -435,8 +484,11 @@ public final class FactionCommands {
         if (!result.successful()) {
             return failure(context, result);
         }
-        success(context, "Chunk unclaimed; " + NumismaticsEconomy.format(result.amount())
-            + " returned to the treasury.");
+        success(
+            context,
+            "kingdoms.command.faction.unclaim.success",
+            NumismaticsEconomy.format(result.amount())
+        );
         return Command.SINGLE_SUCCESS;
     }
 
@@ -493,7 +545,7 @@ public final class FactionCommands {
     private static BlockPos lookedAtBlock(CommandContext<CommandSourceStack> context, ServerPlayer player) {
         HitResult hit = player.pick(player.blockInteractionRange() + 1.0D, 1.0F, false);
         if (hit.getType() != HitResult.Type.BLOCK) {
-            failure(context, "Look at a container in your territory.");
+            failure(context, "kingdoms.chest.not_container");
             return null;
         }
         return ((BlockHitResult) hit).getBlockPos();
@@ -515,7 +567,7 @@ public final class FactionCommands {
             return 0;
         }
         boolean enabled = faction.internalPvp();
-        success(context, "Friendly PvP is " + (enabled ? "enabled" : "disabled") + ".");
+        success(context, "kingdoms.command.faction.pvp.status", enabledState(enabled));
         return Command.SINGLE_SUCCESS;
     }
 
@@ -530,7 +582,7 @@ public final class FactionCommands {
         if (!result.successful()) {
             return failure(context, result);
         }
-        success(context, "Friendly PvP " + (enabled ? "enabled" : "disabled") + ".");
+        success(context, "kingdoms.command.faction.pvp.status", enabledState(enabled));
         return Command.SINGLE_SUCCESS;
     }
 
@@ -542,15 +594,19 @@ public final class FactionCommands {
         }
         long amount = LongArgumentType.getLong(context, "amount");
         if (Long.MAX_VALUE - faction.treasuryBalance() < amount) {
-            return failure(context, "The faction treasury cannot hold that amount.");
+            return failure(context, "kingdoms.error.treasury_overflow");
         }
 
         NumismaticsEconomy.Payment payment = NumismaticsEconomy.preparePayment(player, amount);
         if (!payment.ready()) {
-            return failure(context, "You only have " + NumismaticsEconomy.format(payment.available()) + ".");
+            return failure(
+                context,
+                "kingdoms.error.available_funds",
+                NumismaticsEconomy.format(payment.available())
+            );
         }
         if (!NumismaticsEconomy.commitPayment(player, payment)) {
-            return failure(context, "Your coin inventory changed; try the deposit again.");
+            return failure(context, "kingdoms.error.coin_inventory_changed");
         }
 
         OperationResult result = manager(context).deposit(faction.id(), amount);
@@ -558,10 +614,20 @@ public final class FactionCommands {
             NumismaticsEconomy.give(player, amount);
             return failure(context, result);
         }
-        success(context, "Deposited " + NumismaticsEconomy.format(amount)
-            + (payment.change() > 0L
-                ? "; returned " + NumismaticsEconomy.format(payment.change()) + " in change."
-                : "."));
+        if (payment.change() > 0L) {
+            success(
+                context,
+                "kingdoms.command.faction.deposit.success_change",
+                NumismaticsEconomy.format(amount),
+                NumismaticsEconomy.format(payment.change())
+            );
+        } else {
+            success(
+                context,
+                "kingdoms.command.faction.deposit.success",
+                NumismaticsEconomy.format(amount)
+            );
+        }
         return Command.SINGLE_SUCCESS;
     }
 
@@ -573,16 +639,22 @@ public final class FactionCommands {
         }
         long amount = LongArgumentType.getLong(context, "amount");
         if (!NumismaticsEconomy.canGive(amount)) {
-            return failure(context, "Withdraw at most "
-                + NumismaticsEconomy.format(NumismaticsEconomy.MAX_SINGLE_PAYOUT)
-                + " per command.");
+            return failure(
+                context,
+                "kingdoms.command.faction.withdraw.max",
+                NumismaticsEconomy.format(NumismaticsEconomy.MAX_SINGLE_PAYOUT)
+            );
         }
         OperationResult result = manager(context).withdraw(faction.id(), amount);
         if (!result.successful()) {
             return failure(context, result);
         }
         NumismaticsEconomy.give(player, amount);
-        success(context, "Withdrew " + NumismaticsEconomy.format(amount) + ".");
+        success(
+            context,
+            "kingdoms.command.faction.withdraw.success",
+            NumismaticsEconomy.format(amount)
+        );
         return Command.SINGLE_SUCCESS;
     }
 
@@ -594,18 +666,19 @@ public final class FactionCommands {
             : manager(context).getFactionByName(factionName).orElse(null);
         if (faction == null) {
             return failure(context, factionName == null
-                ? "You are not in a faction."
-                : "Faction not found.");
+                ? "kingdoms.error.not_in_faction"
+                : "kingdoms.error.faction_not_found");
         }
 
         String ownerName = profileName(context.getSource().getServer(), faction.ownerId());
         MutableComponent message = Component.literal(faction.name()).withStyle(ChatFormatting.GOLD)
-            .append(Component.literal(
-                "\nLeader: " + ownerName
-                    + "\nMembers: " + faction.memberCount()
-                    + "\nClaims: " + faction.claimCount()
-                    + "\nTreasury: " + NumismaticsEconomy.format(faction.treasuryBalance())
-                    + "\nInfluence: " + faction.influence()
+            .append(Component.translatable(
+                "kingdoms.command.faction.info.details",
+                ownerName,
+                faction.memberCount(),
+                faction.claimCount(),
+                NumismaticsEconomy.format(faction.treasuryBalance()),
+                faction.influence()
             ).withStyle(ChatFormatting.GRAY));
         context.getSource().sendSuccess(() -> message, false);
         return Command.SINGLE_SUCCESS;
@@ -617,8 +690,11 @@ public final class FactionCommands {
         FactionManager manager = manager(context);
         Faction own = manager.getFactionForMember(player.getUUID()).orElse(null);
         ClaimKey center = ClaimKey.of(player.level(), player.blockPosition());
-        MutableComponent output = Component.literal("Faction map (" + center.x() + ", " + center.z() + ")\n")
-            .withStyle(ChatFormatting.GOLD);
+        MutableComponent output = Component.translatable(
+            "kingdoms.command.faction.map.title",
+            center.x(),
+            center.z()
+        ).withStyle(ChatFormatting.GOLD).append("\n");
 
         for (int z = -radius; z <= radius; z++) {
             for (int x = -radius; x <= radius; x++) {
@@ -640,7 +716,9 @@ public final class FactionCommands {
                 output.append(Component.literal("\n"));
             }
         }
-        output.append(Component.literal("\n@ you  # your faction  . wilderness").withStyle(ChatFormatting.GRAY));
+        output.append(Component.translatable(
+            "kingdoms.command.faction.map.legend"
+        ).withStyle(ChatFormatting.GRAY));
         context.getSource().sendSuccess(() -> output, false);
         return Command.SINGLE_SUCCESS;
     }
@@ -654,7 +732,7 @@ public final class FactionCommands {
         }
         Faction target = manager.getFactionByName(StringArgumentType.getString(context, "faction")).orElse(null);
         if (target == null) {
-            return failure(context, "Faction not found.");
+            return failure(context, "kingdoms.error.faction_not_found");
         }
 
         MinecraftServer server = context.getSource().getServer();
@@ -666,17 +744,17 @@ public final class FactionCommands {
         );
         switch (result) {
             case SUCCESS -> {
-                success(context, "War declared on " + target.name() + ".");
+                success(context, "kingdoms.command.faction.war.declared", target.name());
                 return Command.SINGLE_SUCCESS;
             }
             case SAME_FACTION -> {
-                return failure(context, "You cannot declare war on your own faction.");
+                return failure(context, "kingdoms.command.faction.war.same_faction");
             }
             case ATTACKER_BUSY -> {
-                return failure(context, "Your faction is already in a war.");
+                return failure(context, "kingdoms.command.faction.war.attacker_busy");
             }
             case DEFENDER_BUSY -> {
-                return failure(context, target.name() + " is already in a war.");
+                return failure(context, "kingdoms.command.faction.war.defender_busy", target.name());
             }
             default -> {
                 return 0;
@@ -693,9 +771,9 @@ public final class FactionCommands {
         MinecraftServer server = context.getSource().getServer();
         Optional<UUID> opponent = WarManager.get(server).endWarForFaction(server, faction.id());
         if (opponent.isEmpty()) {
-            return failure(context, "Your faction is not in an active war.");
+            return failure(context, "kingdoms.command.faction.war.not_active");
         }
-        success(context, "War ended. Captured territory is being restored.");
+        success(context, "kingdoms.command.faction.war.ended");
         return Command.SINGLE_SUCCESS;
     }
 
@@ -708,30 +786,38 @@ public final class FactionCommands {
         MinecraftServer server = context.getSource().getServer();
         War war = WarManager.get(server).warForFaction(faction.id()).orElse(null);
         if (war == null) {
-            success(context, "Your faction is not at war.");
+            success(context, "kingdoms.command.faction.war.not_at_war");
             return Command.SINGLE_SUCCESS;
         }
 
         UUID opponentId = war.opponentOf(faction.id());
-        String opponentName = opponentId == null
-            ? "unknown"
-            : manager(context).getFactionById(opponentId).map(Faction::name).orElse("a disbanded faction");
+        Component opponentName = opponentId == null
+            ? Component.translatable("kingdoms.command.faction.war.opponent.unknown")
+            : manager(context).getFactionById(opponentId)
+                .<Component>map(opponent -> Component.literal(opponent.name()))
+                .orElseGet(() -> Component.translatable(
+                    "kingdoms.command.faction.war.opponent.disbanded"
+                ));
         long elapsedTicks = Math.max(0L, server.overworld().getGameTime() - war.startGameTime());
-        String role = war.attackerFactionId().equals(faction.id()) ? "attacker" : "defender";
-        String stateLabel = switch (war.state()) {
-            case ACTIVE -> "active";
-            case ENDING -> "ending (rolling back)";
-            case ENDED -> "ended";
-            case DECLARED -> "declared";
-        };
-        MutableComponent message = Component.literal("War status").withStyle(ChatFormatting.GOLD)
-            .append(Component.literal(
-                "\nOpponent: " + opponentName
-                    + "\nYou are the " + role
-                    + "\nState: " + stateLabel
-                    + "\nElapsed: " + (elapsedTicks / 20L) + "s"
-                    + "\nChunks captured: " + war.snapshotCount()
-            ).withStyle(ChatFormatting.GRAY));
+        Component role = Component.translatable(war.attackerFactionId().equals(faction.id())
+            ? "kingdoms.command.faction.war.role.attacker"
+            : "kingdoms.command.faction.war.role.defender");
+        Component stateLabel = Component.translatable(switch (war.state()) {
+            case ACTIVE -> "kingdoms.command.faction.war.state.active";
+            case ENDING -> "kingdoms.command.faction.war.state.ending";
+            case ENDED -> "kingdoms.command.faction.war.state.ended";
+            case DECLARED -> "kingdoms.command.faction.war.state.declared";
+        });
+        MutableComponent message = Component.translatable(
+            "kingdoms.command.faction.war.status.title"
+        ).withStyle(ChatFormatting.GOLD).append(Component.translatable(
+            "kingdoms.command.faction.war.status.details",
+            opponentName,
+            role,
+            stateLabel,
+            elapsedTicks / 20L,
+            war.snapshotCount()
+        ).withStyle(ChatFormatting.GRAY));
         context.getSource().sendSuccess(() -> message, false);
         return Command.SINGLE_SUCCESS;
     }
@@ -742,7 +828,7 @@ public final class FactionCommands {
     ) {
         Optional<Faction> faction = manager(context).getFactionForMember(player.getUUID());
         if (faction.isEmpty()) {
-            failure(context, "You are not in a faction.");
+            failure(context, "kingdoms.error.not_in_faction");
         }
         return faction;
     }
@@ -757,8 +843,11 @@ public final class FactionCommands {
             .map(role -> role.isAtLeast(required))
             .orElse(false);
         if (!allowed) {
-            failure(context, "This action requires faction role "
-                + required.name().toLowerCase(Locale.ROOT) + " or higher.");
+            failure(
+                context,
+                "kingdoms.error.required_role",
+                roleName(required)
+            );
         }
         return allowed;
     }
@@ -780,15 +869,15 @@ public final class FactionCommands {
         FactionRole actorRank = faction.roleOf(actor.getUUID()).orElse(null);
         FactionRole targetRank = faction.roleOf(target.getUUID()).orElse(null);
         if (targetRank == null) {
-            failure(context, "That player is not in your faction.");
+            failure(context, "kingdoms.error.target_not_in_faction");
             return false;
         }
         if (actor.getUUID().equals(target.getUUID())) {
-            failure(context, "You cannot use this action on yourself.");
+            failure(context, "kingdoms.error.self_action");
             return false;
         }
         if (actorRank != FactionRole.LEADER && targetRank.isAtLeast(FactionRole.OFFICER)) {
-            failure(context, "Only the faction leader can manage officers.");
+            failure(context, "kingdoms.error.manage_officers");
             return false;
         }
         return true;
@@ -800,42 +889,68 @@ public final class FactionCommands {
 
     private static int failure(CommandContext<CommandSourceStack> context, OperationResult result) {
         return failure(context, switch (result.status()) {
-            case SUCCESS -> "The operation succeeded.";
-            case FACTION_NOT_FOUND -> "Faction not found.";
-            case INVALID_NAME -> "Faction names must contain 1-32 printable characters.";
-            case INVALID_COLOR -> "The faction color is invalid.";
-            case NAME_TAKEN -> "That faction name is already taken.";
-            case INVALID_STARTER_SIZE -> "The configured starter claim size is invalid.";
-            case PLAYER_ALREADY_MEMBER -> "That player already belongs to a faction.";
-            case PLAYER_NOT_MEMBER -> "That player is not a faction member.";
-            case OWNER_CANNOT_LEAVE -> "The leader must transfer leadership or disband the faction.";
-            case INVALID_ROLE_CHANGE -> "That role change is not allowed.";
-            case CLAIM_ALREADY_OWNED -> "That chunk is already claimed.";
-            case CLAIM_NOT_OWNED -> "Your faction does not own that chunk.";
-            case CLAIM_NOT_ADJACENT -> "The claim must be adjacent to your faction territory.";
-            case CLAIM_WOULD_DISCONNECT -> "Unclaiming that chunk would split faction territory.";
-            case CHEST_OUTSIDE_TERRITORY -> "That chest is outside faction territory.";
-            case INVALID_AMOUNT -> "The amount must be positive.";
-            case INSUFFICIENT_FUNDS -> "The faction treasury has insufficient funds.";
-            case TREASURY_OVERFLOW -> "The faction treasury cannot hold that amount.";
-            case INSUFFICIENT_INFLUENCE -> "The faction has insufficient influence.";
+            case SUCCESS -> "kingdoms.operation.success";
+            case FACTION_NOT_FOUND -> "kingdoms.error.faction_not_found";
+            case INVALID_NAME -> "kingdoms.error.invalid_name";
+            case INVALID_COLOR -> "kingdoms.error.invalid_color";
+            case NAME_TAKEN -> "kingdoms.error.name_taken";
+            case INVALID_STARTER_SIZE -> "kingdoms.error.invalid_starter_size";
+            case PLAYER_ALREADY_MEMBER -> "kingdoms.error.player_already_member";
+            case PLAYER_NOT_MEMBER -> "kingdoms.error.player_not_member";
+            case OWNER_CANNOT_LEAVE -> "kingdoms.error.owner_cannot_leave";
+            case INVALID_ROLE_CHANGE -> "kingdoms.error.invalid_role_change";
+            case CLAIM_ALREADY_OWNED -> "kingdoms.error.claim_already_owned";
+            case CLAIM_NOT_OWNED -> "kingdoms.error.claim_not_owned";
+            case CLAIM_NOT_ADJACENT -> "kingdoms.error.claim_not_adjacent";
+            case CLAIM_WOULD_DISCONNECT -> "kingdoms.error.claim_would_disconnect";
+            case CHEST_OUTSIDE_TERRITORY -> "kingdoms.error.chest_outside_territory";
+            case INVALID_AMOUNT -> "kingdoms.error.invalid_amount";
+            case INSUFFICIENT_FUNDS -> "kingdoms.error.insufficient_funds";
+            case TREASURY_OVERFLOW -> "kingdoms.error.treasury_overflow";
+            case INSUFFICIENT_INFLUENCE -> "kingdoms.error.insufficient_influence";
         });
     }
 
-    private static int failure(CommandContext<CommandSourceStack> context, String message) {
-        context.getSource().sendFailure(Component.literal(message));
+    private static int failure(
+        CommandContext<CommandSourceStack> context,
+        String translationKey,
+        Object... args
+    ) {
+        context.getSource().sendFailure(Component.translatable(translationKey, args));
         return 0;
     }
 
-    private static void success(CommandContext<CommandSourceStack> context, String message) {
-        context.getSource().sendSuccess(() -> Component.literal(message), false);
+    private static void success(
+        CommandContext<CommandSourceStack> context,
+        String translationKey,
+        Object... args
+    ) {
+        context.getSource().sendSuccess(
+            () -> Component.translatable(translationKey, args),
+            false
+        );
     }
 
-    private static void notifyOnline(MinecraftServer server, UUID playerId, String message) {
+    private static void notifyOnline(
+        MinecraftServer server,
+        UUID playerId,
+        String translationKey,
+        Object... args
+    ) {
         ServerPlayer player = server.getPlayerList().getPlayer(playerId);
         if (player != null) {
-            player.sendSystemMessage(Component.literal(message));
+            player.sendSystemMessage(Component.translatable(translationKey, args));
         }
+    }
+
+    private static Component enabledState(boolean enabled) {
+        return Component.translatable(enabled
+            ? "kingdoms.state.enabled"
+            : "kingdoms.state.disabled");
+    }
+
+    private static Component roleName(FactionRole role) {
+        return Component.translatable("kingdoms.role." + role.name().toLowerCase(Locale.ROOT));
     }
 
     private static String profileName(MinecraftServer server, UUID playerId) {

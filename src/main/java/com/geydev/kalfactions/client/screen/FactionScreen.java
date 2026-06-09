@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.client.screen;
 
+import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
 import net.minecraft.client.gui.GuiGraphics;
@@ -7,11 +8,14 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public abstract class FactionScreen extends Screen {
     protected static final int PANEL_WIDTH = 330;
     protected static final int PANEL_HEIGHT = 220;
+    private static final ResourceLocation PANEL_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/gui/faction/panel.png");
     protected static final int[] COLORS = {
             0xB3312C, 0xD88198, 0x3B511A, 0x41CD34,
             0x253193, 0x7B2FBE, 0x287697, 0xABABAB
@@ -50,7 +54,7 @@ public abstract class FactionScreen extends Screen {
         left = (width - PANEL_WIDTH) / 2;
         top = (height - PANEL_HEIGHT) / 2;
         addRenderableWidget(Button.builder(
-                Component.translatableWithFallback("gui.done", "Done"),
+                Component.translatable("gui.done"),
                 button -> onClose()
         ).bounds(left + PANEL_WIDTH - 58, top + PANEL_HEIGHT - 25, 50, 20).build());
         initFactionWidgets();
@@ -61,17 +65,13 @@ public abstract class FactionScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.renderBackground(graphics, mouseX, mouseY, partialTick);
-        graphics.fillGradient(left, top, left + PANEL_WIDTH, top + PANEL_HEIGHT, 0xFF3C2F24, 0xFF211A15);
-        graphics.fill(left + 3, top + 3, left + PANEL_WIDTH - 3, top + PANEL_HEIGHT - 3, 0xFFE0C99B);
-        graphics.fill(left + 7, top + 27, left + PANEL_WIDTH - 7, top + PANEL_HEIGHT - 31, 0xFFC8AE7A);
-        graphics.fill(left + 8, top + 28, left + PANEL_WIDTH - 8, top + PANEL_HEIGHT - 32, 0xFF66513A);
-        graphics.fill(left + 9, top + 29, left + PANEL_WIDTH - 9, top + PANEL_HEIGHT - 33, 0xFFD8C28F);
+        graphics.blit(PANEL_TEXTURE, left, top, 0.0F, 0.0F, PANEL_WIDTH, PANEL_HEIGHT, PANEL_WIDTH, PANEL_HEIGHT);
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawCenteredString(font, title, left + PANEL_WIDTH / 2, top + 10, 0x3F2A19);
+        graphics.drawCenteredString(font, title, left + PANEL_WIDTH / 2, top + 12, 0xFFF3D58B);
         if (!statusMessage.isBlank()) {
             int color = successful ? 0x2E5D2E : 0x8B2525;
             graphics.drawString(font, statusMessage, left + 12, top + PANEL_HEIGHT - 22, color, false);
@@ -87,8 +87,8 @@ public abstract class FactionScreen extends Screen {
         PacketDistributor.sendToServer(new FactionPayloads.C2SOpenTable(snapshot.tablePos()));
     }
 
-    protected static Component text(String key, String fallback) {
-        return Component.translatableWithFallback(key, fallback);
+    protected static Component text(String key, Object... args) {
+        return Component.translatable(key, args);
     }
 
     protected static int nextColor(int current) {
