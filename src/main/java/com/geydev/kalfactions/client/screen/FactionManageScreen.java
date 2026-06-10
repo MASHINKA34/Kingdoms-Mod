@@ -1,29 +1,38 @@
 package com.geydev.kalfactions.client.screen;
 
+import com.geydev.kalfactions.integration.xaero.XaeroMaps;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class FactionManageScreen extends FactionScreen {
     private EditBox nameBox;
+    private String nameValue;
     private int selectedColor;
 
     public FactionManageScreen(FactionSnapshot snapshot, boolean successful, String message) {
         super(text("screen.kingdoms.faction_manage"), snapshot, successful, message);
         selectedColor = snapshot.color();
+        nameValue = snapshot.name();
+    }
+
+    @Override
+    public void acceptServerState(FactionSnapshot newSnapshot, boolean actionSuccessful, String message) {
+        selectedColor = newSnapshot.color();
+        nameValue = newSnapshot.name();
+        super.acceptServerState(newSnapshot, actionSuccessful, message);
     }
 
     @Override
     protected void initFactionWidgets() {
-        int leftColumn = left + 16;
-        int rightColumn = left + 170;
-        int columnWidth = 150;
-        int row0 = top + 76;
-        int rowStep = 24;
+        int leftColumn = left + CONTENT_LEFT;
+        int rightColumn = left + 172;
+        int columnWidth = 126;
+        int row0 = top + 84;
+        int rowStep = 22;
 
         nameBox = new EditBox(
                 font,
@@ -34,61 +43,69 @@ public final class FactionManageScreen extends FactionScreen {
                 text("screen.kingdoms.faction_name")
         );
         nameBox.setMaxLength(32);
-        nameBox.setValue(snapshot.name());
+        nameBox.setValue(nameValue);
+        nameBox.setResponder(value -> nameValue = value);
         nameBox.setEditable(snapshot.canManage());
         addRenderableWidget(nameBox);
 
-        ColorSliderButton color = addRenderableWidget(new ColorSliderButton(
-                leftColumn,
-                row0 + rowStep,
-                columnWidth,
-                20,
-                selectedColor,
-                value -> selectedColor = value
+        KingdomsButton color = addRenderableWidget(KingdomsButton.create(
+                text("screen.kingdoms.color"),
+                button -> minecraft.setScreen(new ColorPickerScreen(this, selectedColor, picked -> selectedColor = picked)),
+                leftColumn, row0 + rowStep, columnWidth, 20
         ));
         color.active = snapshot.canManage();
 
-        Button save = addRenderableWidget(Button.builder(
+        KingdomsButton save = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.save"),
                 button -> PacketDistributor.sendToServer(
                         new FactionPayloads.C2SUpdateFaction(snapshot.tablePos(), nameBox.getValue(), selectedColor)
-                )
-        ).bounds(leftColumn, row0 + rowStep * 2, columnWidth, 20).build());
+                ),
+                leftColumn, row0 + rowStep * 2, columnWidth, 20
+        ));
         save.active = snapshot.canManage();
 
-        Button pvp = addRenderableWidget(Button.builder(
+        KingdomsButton pvp = addRenderableWidget(KingdomsButton.create(
                 pvpLabel(),
                 button -> PacketDistributor.sendToServer(
                         new FactionPayloads.C2SSetPvp(snapshot.tablePos(), !snapshot.internalPvp())
-                )
-        ).bounds(leftColumn, row0 + rowStep * 3, columnWidth, 20).build());
+                ),
+                leftColumn, row0 + rowStep * 3, columnWidth, 20
+        ));
         pvp.active = snapshot.isOfficer();
 
-        addRenderableWidget(Button.builder(
+        addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.members_count", snapshot.members().size()),
-                button -> FactionScreens.openMembers(snapshot, true, "")
-        ).bounds(rightColumn, row0, columnWidth, 20).build());
+                button -> FactionScreens.openMembers(snapshot, true, ""),
+                rightColumn, row0, columnWidth, 20
+        ));
 
-        addRenderableWidget(Button.builder(
+        addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.treasury"),
-                button -> FactionScreens.openTreasury(snapshot, true, "")
-        ).bounds(rightColumn, row0 + rowStep, columnWidth, 20).build());
+                button -> FactionScreens.openTreasury(snapshot, true, ""),
+                rightColumn, row0 + rowStep, columnWidth, 20
+        ));
 
-        Button claims = addRenderableWidget(Button.builder(
+        addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.claim_map.open"),
-                button -> FactionScreens.openClaims(snapshot, true, "")
-        ).bounds(rightColumn, row0 + rowStep * 2, columnWidth, 20).build());
-        claims.active = snapshot.canClaim();
+                button -> {
+                    if (!XaeroMaps.openWorldMap()) {
+                        FactionScreens.openClaims(snapshot, true, "");
+                    }
+                },
+                rightColumn, row0 + rowStep * 2, columnWidth, 20
+        ));
 
-        addRenderableWidget(Button.builder(
+        addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.refresh"),
-                button -> requestRefresh()
-        ).bounds(rightColumn, row0 + rowStep * 3, columnWidth, 20).build());
+                button -> requestRefresh(),
+                rightColumn, row0 + rowStep * 3, columnWidth, 20
+        ));
 
-        addRenderableWidget(Button.builder(
+        addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.actions_open"),
-                button -> FactionScreens.openActions(snapshot, true, "")
-        ).bounds(leftColumn, row0 + rowStep * 4, columnWidth + 4 + columnWidth, 20).build());
+                button -> FactionScreens.openActions(snapshot, true, ""),
+                leftColumn, row0 + rowStep * 4, CONTENT_RIGHT - CONTENT_LEFT, 20
+        ));
     }
 
     private Component pvpLabel() {
@@ -101,39 +118,34 @@ public final class FactionManageScreen extends FactionScreen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.fill(left + 16, top + 33, left + 28, top + 45, 0xFF000000 | selectedColor);
-        graphics.drawString(font, snapshot.name(), left + 33, top + 35, 0x3F2A19, false);
+        int leftColumn = left + CONTENT_LEFT;
+        int rightColumn = left + 172;
 
+        graphics.fill(leftColumn - 1, top + 57, leftColumn + 11, top + 69, 0xFF1A140C);
+        graphics.fill(leftColumn, top + 58, leftColumn + 10, top + 68, 0xFF000000 | selectedColor);
+        graphics.drawString(font, snapshot.name(), leftColumn + 15, top + 59, TEXT_DARK, false);
         graphics.drawString(
                 font,
                 text("screen.kingdoms.owner", snapshot.ownerName()),
-                left + 16,
-                top + 51,
-                0x4C3824,
-                false
-        );
-        graphics.drawString(
-                font,
-                pvpLabel(),
-                left + 200,
-                top + 51,
-                0x4C3824,
+                rightColumn,
+                top + 59,
+                TEXT_MUTED,
                 false
         );
         graphics.drawString(
                 font,
                 text("screen.kingdoms.treasury_balance", currency(snapshot.treasury())),
-                left + 16,
-                top + 63,
-                0x4C3824,
+                leftColumn,
+                top + 71,
+                TEXT_MUTED,
                 false
         );
         graphics.drawString(
                 font,
                 text("screen.kingdoms.influence_value", snapshot.influence()),
-                left + 200,
-                top + 63,
-                0x4C3824,
+                rightColumn,
+                top + 71,
+                TEXT_MUTED,
                 false
         );
     }

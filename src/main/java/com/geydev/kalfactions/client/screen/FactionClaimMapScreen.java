@@ -3,12 +3,11 @@ package com.geydev.kalfactions.client.screen;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class FactionClaimMapScreen extends FactionScreen {
-    private static final int CELL_SIZE = 12;
+    private static final int CELL_SIZE = 9;
     private int gridSize;
     private int gridLeft;
     private int gridTop;
@@ -20,17 +19,19 @@ public final class FactionClaimMapScreen extends FactionScreen {
     @Override
     protected void initFactionWidgets() {
         gridSize = snapshot.mapRadius() * 2 + 1;
-        gridLeft = left + 18;
-        gridTop = top + 39;
+        gridLeft = left + CONTENT_LEFT;
+        gridTop = top + 58;
 
-        addRenderableWidget(Button.builder(
+        addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.back"),
-                button -> FactionScreens.openRoot(snapshot, true, "")
-        ).bounds(left + 238, top + 43, 74, 20).build());
-        addRenderableWidget(Button.builder(
+                button -> FactionScreens.openRoot(snapshot, true, ""),
+                left + 216, top + 58, 80, 20
+        ));
+        addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.refresh"),
-                button -> requestRefresh()
-        ).bounds(left + 238, top + 69, 74, 20).build());
+                button -> requestRefresh(),
+                left + 216, top + 82, 80, 20
+        ));
     }
 
     @Override
@@ -50,7 +51,7 @@ public final class FactionClaimMapScreen extends FactionScreen {
                     graphics.fill(x + 1, y + 1, x + CELL_SIZE - 2, y + CELL_SIZE - 2, 0xD0000000 | claim.color());
                 }
                 if (chunkX == snapshot.centerChunkX() && chunkZ == snapshot.centerChunkZ()) {
-                    graphics.fill(x + 4, y + 4, x + CELL_SIZE - 5, y + CELL_SIZE - 5, 0xFFFFFFFF);
+                    graphics.fill(x + 3, y + 3, x + CELL_SIZE - 4, y + CELL_SIZE - 4, 0xFFFFFFFF);
                 }
             }
         }
@@ -62,15 +63,15 @@ public final class FactionClaimMapScreen extends FactionScreen {
             Component label = claim == null
                     ? text("screen.kingdoms.claim_map.chunk", hoveredX, hoveredZ)
                     : text("screen.kingdoms.claim_map.claimed_chunk", claim.label(), hoveredX, hoveredZ);
-            graphics.drawString(font, label, left + 238, top + 105, 0x3F2A19, false);
+            graphics.drawString(font, label, left + 156, top + 112, TEXT_DARK, false);
         }
         graphics.drawWordWrap(
                 font,
                 text("screen.kingdoms.claim_map.help"),
-                left + 238,
-                top + 121,
-                80,
-                0x5B452E
+                left + 156,
+                top + 128,
+                140,
+                TEXT_HINT
         );
     }
 

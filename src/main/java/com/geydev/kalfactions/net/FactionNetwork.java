@@ -93,6 +93,11 @@ public final class FactionNetwork {
                 FactionPayloads.C2SEndWar.STREAM_CODEC,
                 FactionNetwork::handleEndWar
         );
+        registrar.playToServer(
+                FactionPayloads.C2SMapSetClaims.TYPE,
+                FactionPayloads.C2SMapSetClaims.STREAM_CODEC,
+                FactionNetwork::handleMapSetClaims
+        );
         registrar.playToClient(
                 FactionPayloads.S2CFactionState.TYPE,
                 FactionPayloads.S2CFactionState.STREAM_CODEC,
@@ -169,6 +174,10 @@ public final class FactionNetwork {
 
     private static void handleEndWar(FactionPayloads.C2SEndWar payload, IPayloadContext context) {
         FactionServerHooks.endWar(serverPlayer(context), payload.tablePos());
+    }
+
+    private static void handleMapSetClaims(FactionPayloads.C2SMapSetClaims payload, IPayloadContext context) {
+        FactionServerHooks.mapSetClaims(serverPlayer(context), payload.claimed(), payload.chunks());
     }
 
     private static void handleState(FactionPayloads.S2CFactionState payload, IPayloadContext context) {

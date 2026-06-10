@@ -1,6 +1,5 @@
 package com.geydev.kalfactions.integration.xaero;
 
-import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.ClientClaimStore;
 import com.geydev.kalfactions.client.ClientClaimStore.ClaimInfo;
 import net.minecraft.network.chat.Component;
@@ -10,9 +9,6 @@ import xaero.common.minimap.highlight.ChunkHighlighter;
 import xaero.hud.minimap.info.render.compile.InfoDisplayCompiler;
 
 final class KingdomsHighlighter extends ChunkHighlighter {
-    private static final int FILL_ALPHA = 0x90 << 24;
-    private static boolean loggedFirstHighlight;
-
     KingdomsHighlighter() {
         super(true);
     }
@@ -33,18 +29,8 @@ final class KingdomsHighlighter extends ChunkHighlighter {
         if (self == null) {
             return null;
         }
-        if (!loggedFirstHighlight) {
-            loggedFirstHighlight = true;
-            KalFactions.LOGGER.info("Kingdoms highlighter rendering claim at chunk {},{} (faction {})",
-                    chunkX, chunkZ, self.name());
-        }
-        return new int[] {
-            fill(self),
-            side(dimension, chunkX, chunkZ - 1, self),
-            side(dimension, chunkX + 1, chunkZ, self),
-            side(dimension, chunkX, chunkZ + 1, self),
-            side(dimension, chunkX - 1, chunkZ, self)
-        };
+        ClaimHighlightColors.fill(dimension, chunkX, chunkZ, self, resultStore);
+        return resultStore;
     }
 
     @Override
@@ -59,17 +45,5 @@ final class KingdomsHighlighter extends ChunkHighlighter {
         if (claim != null && !claim.name().isBlank()) {
             compiler.addLine(Component.literal(claim.name()));
         }
-    }
-
-    private static int fill(ClaimInfo claim) {
-        return FILL_ALPHA | (claim.color() & 0xFFFFFF);
-    }
-
-    private static int side(ResourceKey<Level> dimension, int chunkX, int chunkZ, ClaimInfo self) {
-        ClaimInfo neighbor = ClientClaimStore.get(dimension, chunkX, chunkZ);
-        if (neighbor == null) {
-            return 0;
-        }
-        return neighbor.factionId().equals(self.factionId()) ? fill(self) : fill(neighbor);
     }
 }

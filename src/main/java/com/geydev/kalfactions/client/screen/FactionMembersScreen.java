@@ -5,7 +5,6 @@ import com.geydev.kalfactions.net.FactionSnapshot;
 import java.util.List;
 import java.util.Locale;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -14,7 +13,7 @@ public final class FactionMembersScreen extends FactionScreen {
     private static final int OFFICER_TIER = 1;
     private static final int LEADER_TIER = 2;
     private static final int ROW_HEIGHT = 22;
-    private static final int VISIBLE_ROWS = 6;
+    private static final int VISIBLE_ROWS = 5;
 
     private int scrollOffset;
 
@@ -27,7 +26,7 @@ public final class FactionMembersScreen extends FactionScreen {
         List<FactionSnapshot.Member> members = snapshot.members();
         scrollOffset = Math.clamp(scrollOffset, 0, Math.max(0, members.size() - VISIBLE_ROWS));
 
-        int listTop = top + 40;
+        int listTop = top + 62;
         int shown = Math.min(VISIBLE_ROWS, members.size() - scrollOffset);
         for (int index = 0; index < shown; index++) {
             FactionSnapshot.Member member = members.get(scrollOffset + index);
@@ -35,12 +34,13 @@ public final class FactionMembersScreen extends FactionScreen {
             int tier = tierOf(member.role());
             boolean self = snapshot.isSelf(member.playerId());
 
-            Button kick = addRenderableWidget(Button.builder(
+            KingdomsButton kick = addRenderableWidget(KingdomsButton.create(
                     text("screen.kingdoms.kick"),
                     button -> PacketDistributor.sendToServer(
                             new FactionPayloads.C2SKickMember(snapshot.tablePos(), member.playerId())
-                    )
-            ).bounds(left + 176, rowY, 58, 20).build());
+                    ),
+                    left + 170, rowY, 54, 20
+            ));
             kick.active = !self && tier != LEADER_TIER
                     && (snapshot.canManage() || (snapshot.isOfficer() && tier == MEMBER_TIER));
 
@@ -51,36 +51,39 @@ public final class FactionMembersScreen extends FactionScreen {
             Component label = tier == MEMBER_TIER
                     ? text("screen.kingdoms.promote")
                     : text("screen.kingdoms.demote");
-            Button role = addRenderableWidget(Button.builder(
+            KingdomsButton role = addRenderableWidget(KingdomsButton.create(
                     label,
                     button -> PacketDistributor.sendToServer(
                             new FactionPayloads.C2SSetMemberRole(snapshot.tablePos(), member.playerId(), targetRole)
-                    )
-            ).bounds(left + 238, rowY, 78, 20).build());
+                    ),
+                    left + 228, rowY, 70, 20
+            ));
             role.active = snapshot.canManage() && !self;
         }
 
-        addRenderableWidget(Button.builder(
+        addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.back"),
-                button -> FactionScreens.openRoot(snapshot, true, "")
-        ).bounds(left + 16, top + PANEL_HEIGHT - 25, 70, 20).build());
-        addRenderableWidget(Button.builder(
+                button -> FactionScreens.openRoot(snapshot, true, ""),
+                left + 16, top + PANEL_HEIGHT - 25, 70, 20
+        ));
+        addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.refresh"),
-                button -> requestRefresh()
-        ).bounds(left + 90, top + PANEL_HEIGHT - 25, 70, 20).build());
+                button -> requestRefresh(),
+                left + 90, top + PANEL_HEIGHT - 25, 70, 20
+        ));
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
         List<FactionSnapshot.Member> members = snapshot.members();
-        int listTop = top + 40;
+        int listTop = top + 62;
         int shown = Math.min(VISIBLE_ROWS, members.size() - scrollOffset);
         for (int index = 0; index < shown; index++) {
             FactionSnapshot.Member member = members.get(scrollOffset + index);
             int rowY = listTop + index * ROW_HEIGHT + 6;
-            graphics.drawString(font, member.name(), left + 16, rowY, 0x3F2A19, false);
-            graphics.drawString(font, roleText(member.role()), left + 116, rowY, 0x715D43, false);
+            graphics.drawString(font, member.name(), left + CONTENT_LEFT, rowY, TEXT_DARK, false);
+            graphics.drawString(font, roleText(member.role()), left + 116, rowY, TEXT_HINT, false);
         }
         if (members.size() > VISIBLE_ROWS) {
             graphics.drawString(
@@ -91,10 +94,10 @@ public final class FactionMembersScreen extends FactionScreen {
                             scrollOffset + shown,
                             members.size()
                     ),
-                    left + 176,
-                    top + PANEL_HEIGHT - 19,
-                    0x715D43,
-                    false
+                    left + 200,
+                    top + 181,
+                    0xFFD9C49A,
+                    true
             );
         }
     }

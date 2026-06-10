@@ -3,12 +3,12 @@ package com.geydev.kalfactions.client.screen;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class FactionCreateScreen extends FactionScreen {
     private EditBox nameBox;
+    private String nameValue = "";
     private int selectedColor;
 
     public FactionCreateScreen(FactionSnapshot snapshot, boolean successful, String message) {
@@ -21,31 +21,33 @@ public final class FactionCreateScreen extends FactionScreen {
         nameBox = new EditBox(
                 font,
                 left + 78,
-                top + 62,
+                top + 74,
                 180,
                 20,
                 text("screen.kingdoms.faction_name")
         );
         nameBox.setMaxLength(32);
+        nameBox.setValue(nameValue);
         addRenderableWidget(nameBox);
 
-        addRenderableWidget(new ColorSliderButton(
-                left + 78,
-                top + 96,
-                180,
-                20,
-                selectedColor,
-                value -> selectedColor = value
+        addRenderableWidget(KingdomsButton.create(
+                text("screen.kingdoms.color"),
+                button -> minecraft.setScreen(new ColorPickerScreen(this, selectedColor, picked -> selectedColor = picked)),
+                left + 78, top + 102, 180, 20
         ));
 
-        Button create = addRenderableWidget(Button.builder(
+        KingdomsButton create = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.create"),
                 button -> PacketDistributor.sendToServer(
                         new FactionPayloads.C2SCreateFaction(snapshot.tablePos(), nameBox.getValue(), selectedColor)
-                )
-        ).bounds(left + 78, top + 142, 180, 20).build());
-        nameBox.setResponder(value -> create.active = value.trim().length() >= 3);
-        create.active = false;
+                ),
+                left + 78, top + 146, 180, 20
+        ));
+        nameBox.setResponder(value -> {
+            nameValue = value;
+            create.active = value.trim().length() >= 3;
+        });
+        create.active = nameValue.trim().length() >= 3;
     }
 
     @Override
@@ -55,18 +57,20 @@ public final class FactionCreateScreen extends FactionScreen {
                 font,
                 text("screen.kingdoms.faction_name"),
                 left + 78,
-                top + 50,
-                0x3F2A19,
+                top + 63,
+                TEXT_DARK,
                 false
         );
-        graphics.fill(left + 58, top + 98, left + 72, top + 112, 0xFF3F2A19);
-        graphics.fill(left + 60, top + 100, left + 70, top + 110, 0xFF000000 | selectedColor);
-        graphics.drawCenteredString(
+        graphics.fill(left + 56, top + 104, left + 74, top + 122, 0xFF1A140C);
+        graphics.fill(left + 58, top + 106, left + 72, top + 120, 0xFF000000 | selectedColor);
+        int hintWidth = font.width(text("screen.kingdoms.create_hint"));
+        graphics.drawString(
                 font,
                 text("screen.kingdoms.create_hint"),
-                left + PANEL_WIDTH / 2,
-                top + 124,
-                0x5B452E
+                left + (PANEL_WIDTH - hintWidth) / 2,
+                top + 130,
+                TEXT_HINT,
+                false
         );
     }
 }

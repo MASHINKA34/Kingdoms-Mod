@@ -27,7 +27,6 @@ public final class ClaimSyncManager {
 
     private static final Map<UUID, SyncState> STATES = new HashMap<>();
     private static int ticksUntilCheck;
-    private static boolean loggedFirstSend;
 
     @SubscribeEvent
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
@@ -42,6 +41,7 @@ public final class ClaimSyncManager {
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         STATES.remove(event.getEntity().getUUID());
+        FactionServerHooks.clearRateLimit(event.getEntity().getUUID());
     }
 
     @SubscribeEvent
@@ -69,9 +69,14 @@ public final class ClaimSyncManager {
         sendTo(player);
     }
 
+    public static void resync(ServerPlayer player) {
+        sendTo(player);
+    }
+
     private static void sendTo(ServerPlayer player) {
         ResourceKey<Level> dimension = player.level().dimension();
         ChunkPos center = player.chunkPosition();
+        long revision = IntegrationManager.revision();
         int radius = ModConfigSpec.CLAIM_SYNC_RADIUS_CHUNKS.get();
         List<FactionPayloads.ClaimEntry> entries = new ArrayList<>();
 
@@ -98,12 +103,7 @@ public final class ClaimSyncManager {
         }
 
         PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CSyncClaims(dimension.location(), entries));
-        STATES.put(player.getUUID(), new SyncState(dimension, center.toLong(), IntegrationManager.revision()));
-        if (!loggedFirstSend && !entries.isEmpty()) {
-            loggedFirstSend = true;
-            KalFactions.LOGGER.info("Sent {} faction claims to {} for minimap sync", entries.size(),
-                    player.getGameProfile().getName());
-        }
+        STATES.put(player.getUUID(), new SyncState(dimension, center.toLong(), revision));
     }
 
     private static boolean within(long previousChunk, long currentChunk) {

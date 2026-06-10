@@ -2,6 +2,7 @@ package com.geydev.kalfactions.net;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -244,6 +245,31 @@ public final class FactionServerHooks {
         perform(player, tablePos, () -> service.endWar(player, tablePos));
     }
 
+    public static void mapSetClaims(ServerPlayer player, boolean claimed, List<Long> packedChunks) {
+        if (!player.isAlive() || player.isSpectator() || packedChunks.isEmpty()) {
+            return;
+        }
+        long now = player.level().getGameTime();
+        Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+        if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
+            player.sendSystemMessage(Component.translatable("kingdoms.error.action_rate_limited"));
+            return;
+        }
+        try {
+            Component message = service.mapSetClaims(player, claimed, packedChunks);
+            if (!message.getString().isBlank()) {
+                player.sendSystemMessage(message);
+            }
+        } catch (RuntimeException exception) {
+            KalFactions.LOGGER.error("Map claim operation failed for {}", player.getGameProfile().getName(), exception);
+            player.sendSystemMessage(Component.translatable("kingdoms.error.faction_action_failed"));
+        }
+    }
+
+    public static void clearRateLimit(UUID playerId) {
+        LAST_ACTION_TICK.remove(playerId);
+    }
+
     private static void perform(ServerPlayer player, BlockPos tablePos, Operation operation) {
         try {
             Result result = Objects.requireNonNull(operation.run(), "Faction service returned null");
@@ -387,6 +413,8 @@ public final class FactionServerHooks {
         Result declareWar(ServerPlayer player, BlockPos tablePos, String targetFactionName);
 
         Result endWar(ServerPlayer player, BlockPos tablePos);
+
+        Component mapSetClaims(ServerPlayer player, boolean claimed, List<Long> packedChunks);
     }
 
     public record Result(boolean successful, Component message, FactionSnapshot snapshot) {
@@ -489,6 +517,11 @@ public final class FactionServerHooks {
         @Override
         public Result endWar(ServerPlayer player, BlockPos tablePos) {
             return managementUnavailable(player, tablePos);
+        }
+
+        @Override
+        public Component mapSetClaims(ServerPlayer player, boolean claimed, List<Long> packedChunks) {
+            return Component.translatable("kingdoms.error.claims_unavailable");
         }
 
         private Result managementUnavailable(ServerPlayer player, BlockPos tablePos) {

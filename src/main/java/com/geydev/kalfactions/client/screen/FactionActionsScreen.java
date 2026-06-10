@@ -3,7 +3,6 @@ package com.geydev.kalfactions.client.screen;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
@@ -20,32 +19,35 @@ public final class FactionActionsScreen extends FactionScreen {
 
     @Override
     protected void initFactionWidgets() {
-        int leftColumn = left + 16;
-        int rightColumn = left + 170;
-        int columnWidth = 150;
+        int leftColumn = left + CONTENT_LEFT;
+        int rightColumn = left + 172;
+        int columnWidth = 126;
 
-        playerBox = new EditBox(font, leftColumn, top + 56, columnWidth, 20, text("screen.kingdoms.player_name"));
+        playerBox = new EditBox(font, leftColumn, top + 70, columnWidth, 20, text("screen.kingdoms.player_name"));
         playerBox.setMaxLength(16);
         playerBox.setHint(text("screen.kingdoms.player_name"));
         addRenderableWidget(playerBox);
 
-        Button invite = addRenderableWidget(Button.builder(
+        KingdomsButton invite = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.invite"),
-                button -> sendPlayerAction(true)
-        ).bounds(leftColumn, top + 80, 72, 20).build());
-        Button transfer = addRenderableWidget(Button.builder(
+                button -> sendPlayerAction(true),
+                leftColumn, top + 94, 60, 20
+        ));
+        KingdomsButton transfer = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.transfer"),
-                button -> sendPlayerAction(false)
-        ).bounds(leftColumn + 78, top + 80, 72, 20).build());
+                button -> sendPlayerAction(false),
+                leftColumn + 66, top + 94, 60, 20
+        ));
 
-        Button leave = addRenderableWidget(Button.builder(
+        KingdomsButton leave = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.leave"),
-                button -> PacketDistributor.sendToServer(new FactionPayloads.C2SLeaveFaction(snapshot.tablePos()))
-        ).bounds(leftColumn, top + 104, 72, 20).build());
+                button -> PacketDistributor.sendToServer(new FactionPayloads.C2SLeaveFaction(snapshot.tablePos())),
+                leftColumn, top + 118, 60, 20
+        ));
         leave.active = snapshot.hasFaction();
 
         confirmingDisband = false;
-        Button disband = addRenderableWidget(Button.builder(
+        KingdomsButton disband = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.disband"),
                 button -> {
                     if (!confirmingDisband) {
@@ -55,46 +57,51 @@ public final class FactionActionsScreen extends FactionScreen {
                         PacketDistributor.sendToServer(
                                 new FactionPayloads.C2SDisbandFaction(snapshot.tablePos()));
                     }
-                }
-        ).bounds(leftColumn + 78, top + 104, 72, 20).build());
+                },
+                leftColumn + 66, top + 118, 60, 20
+        ));
         disband.active = snapshot.canManage();
 
         boolean hasTargets = !snapshot.knownFactions().isEmpty();
-        Button declareWar;
+        KingdomsButton declareWar;
         if (hasTargets) {
             warTarget = CycleButton.<String>builder(Component::literal)
                     .withValues(snapshot.knownFactions())
                     .withInitialValue(snapshot.knownFactions().get(0))
                     .displayOnlyValue()
-                    .create(rightColumn, top + 56, columnWidth, 20, text("screen.kingdoms.target_faction"));
+                    .create(rightColumn, top + 70, columnWidth, 20, text("screen.kingdoms.target_faction"));
             addRenderableWidget(warTarget);
 
-            declareWar = addRenderableWidget(Button.builder(
+            declareWar = addRenderableWidget(KingdomsButton.create(
                     text("screen.kingdoms.war_declare"),
                     button -> PacketDistributor.sendToServer(
-                            new FactionPayloads.C2SDeclareWar(snapshot.tablePos(), warTarget.getValue()))
-            ).bounds(rightColumn, top + 80, columnWidth, 20).build());
+                            new FactionPayloads.C2SDeclareWar(snapshot.tablePos(), warTarget.getValue())),
+                    rightColumn, top + 94, columnWidth, 20
+            ));
             declareWar.active = snapshot.canManage();
         } else {
             warTarget = null;
-            Button none = addRenderableWidget(Button.builder(
+            KingdomsButton none = addRenderableWidget(KingdomsButton.create(
                     text("screen.kingdoms.no_factions"),
                     button -> {
-                    }
-            ).bounds(rightColumn, top + 56, columnWidth, 20).build());
+                    },
+                    rightColumn, top + 70, columnWidth, 20
+            ));
             none.active = false;
-            declareWar = addRenderableWidget(Button.builder(
+            declareWar = addRenderableWidget(KingdomsButton.create(
                     text("screen.kingdoms.war_declare"),
                     button -> {
-                    }
-            ).bounds(rightColumn, top + 80, columnWidth, 20).build());
+                    },
+                    rightColumn, top + 94, columnWidth, 20
+            ));
             declareWar.active = false;
         }
 
-        Button endWar = addRenderableWidget(Button.builder(
+        KingdomsButton endWar = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.war_end"),
-                button -> PacketDistributor.sendToServer(new FactionPayloads.C2SEndWar(snapshot.tablePos()))
-        ).bounds(rightColumn, top + 104, columnWidth, 20).build());
+                button -> PacketDistributor.sendToServer(new FactionPayloads.C2SEndWar(snapshot.tablePos())),
+                rightColumn, top + 118, columnWidth, 20
+        ));
         endWar.active = snapshot.canManage();
 
         playerBox.setResponder(value -> {
@@ -105,14 +112,16 @@ public final class FactionActionsScreen extends FactionScreen {
         invite.active = false;
         transfer.active = false;
 
-        addRenderableWidget(Button.builder(
+        addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.back"),
-                button -> FactionScreens.openRoot(snapshot, true, "")
-        ).bounds(left + 16, top + PANEL_HEIGHT - 25, 70, 20).build());
-        addRenderableWidget(Button.builder(
+                button -> FactionScreens.openRoot(snapshot, true, ""),
+                left + 16, top + PANEL_HEIGHT - 25, 70, 20
+        ));
+        addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.refresh"),
-                button -> requestRefresh()
-        ).bounds(left + 90, top + PANEL_HEIGHT - 25, 70, 20).build());
+                button -> requestRefresh(),
+                left + 90, top + PANEL_HEIGHT - 25, 70, 20
+        ));
     }
 
     private void sendPlayerAction(boolean invite) {
@@ -130,7 +139,7 @@ public final class FactionActionsScreen extends FactionScreen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawString(font, text("screen.kingdoms.members_section"), left + 16, top + 44, 0x3F2A19, false);
-        graphics.drawString(font, text("screen.kingdoms.war_section"), left + 170, top + 44, 0x3F2A19, false);
+        graphics.drawString(font, text("screen.kingdoms.members_section"), left + CONTENT_LEFT, top + 59, TEXT_DARK, false);
+        graphics.drawString(font, text("screen.kingdoms.war_section"), left + 172, top + 59, TEXT_DARK, false);
     }
 }

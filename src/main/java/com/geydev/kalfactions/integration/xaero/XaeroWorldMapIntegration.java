@@ -6,17 +6,16 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import xaero.common.XaeroMinimapSession;
-import xaero.common.minimap.MinimapProcessor;
-import xaero.common.minimap.highlight.AbstractHighlighter;
-import xaero.common.minimap.highlight.DimensionHighlighterHandler;
-import xaero.common.minimap.highlight.HighlighterRegistry;
-import xaero.common.minimap.write.MinimapWriter;
+import xaero.map.MapProcessor;
+import xaero.map.WorldMapSession;
+import xaero.map.highlight.AbstractHighlighter;
+import xaero.map.highlight.HighlighterRegistry;
+import xaero.map.world.MapDimension;
+import xaero.map.world.MapWorld;
 
-final class XaeroIntegration {
-    private static final KingdomsHighlighter HIGHLIGHTER = new KingdomsHighlighter();
+final class XaeroWorldMapIntegration {
+    private static final KingdomsWorldMapHighlighter HIGHLIGHTER = new KingdomsWorldMapHighlighter();
 
-    private static Field registryField;
     private static Field highlightersField;
     private static HighlighterRegistry hookedRegistry;
     private static long appliedRevision = Long.MIN_VALUE;
@@ -24,21 +23,16 @@ final class XaeroIntegration {
 
     static void tick() {
         try {
-            XaeroMinimapSession session = XaeroMinimapSession.getCurrentSession();
+            WorldMapSession session = WorldMapSession.getCurrentSession();
             if (session == null) {
                 hookedRegistry = null;
                 return;
             }
-            MinimapProcessor processor = session.getMinimapProcessor();
+            MapProcessor processor = session.getMapProcessor();
             if (processor == null) {
                 return;
             }
-            MinimapWriter writer = processor.getMinimapWriter();
-            if (writer == null) {
-                return;
-            }
-
-            HighlighterRegistry registry = registry(writer);
+            HighlighterRegistry registry = processor.getHighlighterRegistry();
             if (registry == null) {
                 return;
             }
@@ -53,25 +47,27 @@ final class XaeroIntegration {
             long revision = ClientClaimStore.revision();
             if (revision != appliedRevision) {
                 appliedRevision = revision;
-                DimensionHighlighterHandler handler = writer.getDimensionHighlightHandler();
-                if (handler != null) {
-                    handler.requestRefresh();
-                }
+                refreshHighlights(processor);
             }
         } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
             if (!failureLogged) {
                 failureLogged = true;
-                KalFactions.LOGGER.warn("Could not hook Xaero claim highlighting", exception);
+                KalFactions.LOGGER.warn("Could not hook Xaero world map claim highlighting", exception);
             }
         }
     }
 
-    private static HighlighterRegistry registry(MinimapWriter writer) throws ReflectiveOperationException {
-        if (registryField == null) {
-            registryField = MinimapWriter.class.getDeclaredField("highlighterRegistry");
-            registryField.setAccessible(true);
+    private static void refreshHighlights(MapProcessor processor) {
+        MapWorld mapWorld = processor.getMapWorld();
+        if (mapWorld == null) {
+            return;
         }
-        return (HighlighterRegistry) registryField.get(writer);
+        mapWorld.clearAllCachedHighlightHashes();
+        List<MapDimension> dimensions = new ArrayList<>();
+        mapWorld.getDimensions(dimensions);
+        for (MapDimension dimension : dimensions) {
+            dimension.onClearCachedHighlightHashes();
+        }
     }
 
     private static boolean ensureRegistered(HighlighterRegistry registry) throws ReflectiveOperationException {
@@ -89,6 +85,6 @@ final class XaeroIntegration {
         return true;
     }
 
-    private XaeroIntegration() {
+    private XaeroWorldMapIntegration() {
     }
 }

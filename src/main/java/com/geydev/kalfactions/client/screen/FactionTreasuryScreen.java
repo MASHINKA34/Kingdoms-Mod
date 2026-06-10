@@ -3,7 +3,6 @@ package com.geydev.kalfactions.client.screen;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -18,9 +17,9 @@ public final class FactionTreasuryScreen extends FactionScreen {
     protected void initFactionWidgets() {
         amountBox = new EditBox(
                 font,
-                left + 16,
-                top + 76,
-                150,
+                left + CONTENT_LEFT,
+                top + 82,
+                140,
                 20,
                 text("screen.kingdoms.amount")
         );
@@ -29,15 +28,17 @@ public final class FactionTreasuryScreen extends FactionScreen {
         amountBox.setFilter(value -> value.matches("\\d{0,12}"));
         addRenderableWidget(amountBox);
 
-        Button deposit = addRenderableWidget(Button.builder(
+        KingdomsButton deposit = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.deposit"),
-                button -> send(true)
-        ).bounds(left + 172, top + 76, 66, 20).build());
+                button -> send(true),
+                left + 174, top + 82, 60, 20
+        ));
 
-        Button withdraw = addRenderableWidget(Button.builder(
+        KingdomsButton withdraw = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.withdraw"),
-                button -> send(false)
-        ).bounds(left + 242, top + 76, 74, 20).build());
+                button -> send(false),
+                left + 238, top + 82, 60, 20
+        ));
 
         amountBox.setResponder(value -> {
             boolean valid = parseAmount() > 0L;
@@ -47,14 +48,16 @@ public final class FactionTreasuryScreen extends FactionScreen {
         deposit.active = false;
         withdraw.active = false;
 
-        addRenderableWidget(Button.builder(
+        addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.back"),
-                button -> FactionScreens.openRoot(snapshot, true, "")
-        ).bounds(left + 16, top + PANEL_HEIGHT - 25, 70, 20).build());
-        addRenderableWidget(Button.builder(
+                button -> FactionScreens.openRoot(snapshot, true, ""),
+                left + 16, top + PANEL_HEIGHT - 25, 70, 20
+        ));
+        addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.refresh"),
-                button -> requestRefresh()
-        ).bounds(left + 90, top + PANEL_HEIGHT - 25, 70, 20).build());
+                button -> requestRefresh(),
+                left + 90, top + PANEL_HEIGHT - 25, 70, 20
+        ));
     }
 
     private void send(boolean deposit) {
@@ -86,26 +89,26 @@ public final class FactionTreasuryScreen extends FactionScreen {
         graphics.drawString(
                 font,
                 text("screen.kingdoms.treasury_balance", FactionManageScreen.currency(snapshot.treasury())),
-                left + 16,
-                top + 44,
-                0x3F2A19,
+                left + CONTENT_LEFT,
+                top + 60,
+                TEXT_DARK,
                 false
         );
         graphics.drawString(
                 font,
                 text("screen.kingdoms.amount"),
-                left + 16,
-                top + 64,
-                0x4C3824,
+                left + CONTENT_LEFT,
+                top + 72,
+                TEXT_MUTED,
                 false
         );
         if (!snapshot.isOfficer()) {
             graphics.drawString(
                     font,
                     text("screen.kingdoms.withdraw_hint"),
-                    left + 16,
-                    top + 104,
-                    0x5B452E,
+                    left + CONTENT_LEFT,
+                    top + 110,
+                    TEXT_HINT,
                     false
             );
         }

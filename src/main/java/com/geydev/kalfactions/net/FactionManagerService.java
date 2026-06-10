@@ -4,15 +4,20 @@ import com.geydev.kalfactions.block.FactionTableBlockEntity;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.command.NumismaticsEconomy;
 import com.geydev.kalfactions.command.PendingFactionInvites;
+import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.FactionMember;
 import com.geydev.kalfactions.faction.FactionRole;
+import com.geydev.kalfactions.integration.IntegrationManager;
 import com.geydev.kalfactions.war.WarManager;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -642,6 +647,75 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 Component.translatable("kingdoms.command.faction.war.ended"),
                 view(player, tablePos)
         );
+    }
+
+    @Override
+    public Component mapSetClaims(ServerPlayer player, boolean claimed, List<Long> packedChunks) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return Component.translatable("kingdoms.error.not_in_faction");
+        }
+        FactionRole role = faction.roleOf(player.getUUID()).orElse(FactionRole.MEMBER);
+        if (!role.canManageClaims()) {
+            return Component.translatable("kingdoms.error.role_cannot_change_claims");
+        }
+
+        int radius = ModConfigSpec.CLAIM_SYNC_RADIUS_CHUNKS.get();
+        ChunkPos center = player.chunkPosition();
+        Set<ChunkPos> pending = new LinkedHashSet<>();
+        for (Long packed : packedChunks) {
+            ChunkPos pos = new ChunkPos(packed);
+            if (Math.abs(pos.x - center.x) <= radius && Math.abs(pos.z - center.z) <= radius) {
+                pending.add(pos);
+            }
+            if (pending.size() >= FactionPayloads.C2SMapSetClaims.MAX_CHUNKS) {
+                break;
+            }
+        }
+        if (pending.isEmpty()) {
+            return Component.translatable("kingdoms.error.claim_outside_map");
+        }
+
+        int applied = 0;
+        long moved = 0L;
+        FactionManager.Status lastFailure = null;
+        boolean progress = true;
+        while (progress && !pending.isEmpty()) {
+            progress = false;
+            for (Iterator<ChunkPos> iterator = pending.iterator(); iterator.hasNext(); ) {
+                ChunkPos pos = iterator.next();
+                ClaimKey key = ClaimKey.of(player.serverLevel(), pos);
+                FactionManager.OperationResult result = claimed
+                        ? manager.claim(faction.id(), key, player.getUUID())
+                        : manager.unclaim(faction.id(), key);
+                if (result.successful()) {
+                    applied++;
+                    moved += result.amount();
+                    iterator.remove();
+                    progress = true;
+                } else {
+                    lastFailure = result.status();
+                }
+            }
+        }
+
+        if (applied == 0) {
+            return message(lastFailure == null ? FactionManager.Status.FACTION_NOT_FOUND : lastFailure);
+        }
+
+        IntegrationManager.refreshFromServer(player.getServer());
+        ClaimSyncManager.resync(player);
+
+        Component summary = Component.translatable(
+                claimed ? "kingdoms.map_claim.claimed" : "kingdoms.map_claim.unclaimed",
+                applied,
+                NumismaticsEconomy.format(moved)
+        );
+        if (pending.isEmpty() || lastFailure == null) {
+            return summary;
+        }
+        return Component.empty().append(summary).append(" ").append(message(lastFailure));
     }
 
     private FactionServerHooks.Result notInFaction(ServerPlayer player, BlockPos tablePos) {

@@ -12,6 +12,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 @EventBusSubscriber(modid = KalFactions.MOD_ID, value = Dist.CLIENT)
 public final class XaeroClientEvents {
     private static final String MINIMAP_MOD_ID = "xaerominimap";
+    private static final String WORLD_MAP_MOD_ID = "xaeroworldmap";
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
@@ -22,6 +23,9 @@ public final class XaeroClientEvents {
         }
         if (ModList.get().isLoaded(MINIMAP_MOD_ID)) {
             XaeroIntegration.tick();
+        }
+        if (ModList.get().isLoaded(WORLD_MAP_MOD_ID)) {
+            XaeroWorldMapIntegration.tick();
         }
     }
 

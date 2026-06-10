@@ -270,6 +270,38 @@ public final class FactionPayloads {
         }
     }
 
+    public record C2SMapSetClaims(boolean claimed, List<Long> chunks) implements CustomPacketPayload {
+        public static final int MAX_CHUNKS = 512;
+        public static final Type<C2SMapSetClaims> TYPE = FactionPayloads.payloadType("map_set_claims");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SMapSetClaims> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBoolean(payload.claimed);
+                    int size = Math.min(payload.chunks.size(), MAX_CHUNKS);
+                    buffer.writeVarInt(size);
+                    for (int i = 0; i < size; i++) {
+                        buffer.writeLong(payload.chunks.get(i));
+                    }
+                },
+                buffer -> {
+                    boolean claimed = buffer.readBoolean();
+                    int size = buffer.readVarInt();
+                    if (size < 0 || size > MAX_CHUNKS) {
+                        throw new DecoderException("Map claim batch size " + size + " exceeds " + MAX_CHUNKS);
+                    }
+                    List<Long> chunks = new ArrayList<>(size);
+                    for (int i = 0; i < size; i++) {
+                        chunks.add(buffer.readLong());
+                    }
+                    return new C2SMapSetClaims(claimed, List.copyOf(chunks));
+                }
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record S2CFactionState(
             FactionSnapshot snapshot,
             boolean successful,
