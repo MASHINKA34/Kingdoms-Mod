@@ -227,14 +227,22 @@
   "screen.kingdoms.disband_confirm": "Confirm?",
   "screen.kingdoms.no_factions": "No factions",
   "screen.kingdoms.no_players": "No players online",
+  "screen.kingdoms.select_invite": "Who to invite?",
+  "screen.kingdoms.select_transfer": "Transfer leadership to whom?",
+  "screen.kingdoms.select_war_target": "Declare war on whom?",
 
   "screen.kingdoms.color_picker": "Pick a color",
   "screen.kingdoms.apply": "Apply",
   "screen.kingdoms.cancel": "Cancel",
 
-  "kingdoms.xaero_map.claim": "Claim chunks (%s) for %s",
-  "kingdoms.xaero_map.claim_noprice": "Claim chunks (%s)",
-  "kingdoms.xaero_map.unclaim": "Unclaim chunks (%s)",
+  "kingdoms.xaero_map.claim": "Claim (%s): %s",
+  "kingdoms.xaero_map.claim_noprice": "Claim (%s)",
+  "kingdoms.xaero_map.unclaim": "Unclaim (%s)",
   "kingdoms.map_claim.claimed": "Claimed %s chunk(s) for %s.",
-  "kingdoms.map_claim.unclaimed": "Unclaimed %s chunk(s). Refunded: %s."
+  "kingdoms.map_claim.unclaimed": "Unclaimed %s chunk(s). Refunded: %s.",
+
+  "kingdoms.notice.pvp_changed": "Faction-wide internal PvP is now %s.",
+  "kingdoms.war.declared_broadcast": "Faction %s has declared war on %s!",
+  "kingdoms.war.ended_restoring": "The war is over. Captured territory is being restored.",
+  "kingdoms.war.over_broadcast": "The war between %s and %s is over. Territory restored."
 }

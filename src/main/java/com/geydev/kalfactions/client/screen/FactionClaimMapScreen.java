@@ -27,11 +27,6 @@ public final class FactionClaimMapScreen extends FactionScreen {
                 button -> FactionScreens.openRoot(snapshot, true, ""),
                 left + 216, top + 58, 80, 20
         ));
-        addRenderableWidget(KingdomsButton.create(
-                text("screen.kingdoms.refresh"),
-                button -> requestRefresh(),
-                left + 216, top + 82, 80, 20
-        ));
     }
 
     @Override

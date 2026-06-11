@@ -28,7 +28,11 @@ import xaero.map.gui.MapTileSelection;
 import xaero.map.gui.dropdown.rightclick.RightClickOption;
 
 final class KingdomsGuiMap extends GuiMap {
-    private static final long NOTICE_DURATION_MILLIS = 4000L;
+    private static final long NOTICE_FADE_IN_MILLIS = 200L;
+    private static final long NOTICE_HOLD_MILLIS = 3400L;
+    private static final long NOTICE_FADE_OUT_MILLIS = 500L;
+    private static final long NOTICE_DURATION_MILLIS =
+            NOTICE_FADE_IN_MILLIS + NOTICE_HOLD_MILLIS + NOTICE_FADE_OUT_MILLIS;
 
     private static Field selectionField;
     private static Field rightClickXField;
@@ -38,7 +42,7 @@ final class KingdomsGuiMap extends GuiMap {
 
     private Component noticeMessage;
     private boolean noticeSuccessful;
-    private long noticeUntilMillis;
+    private long noticeShownAt;
 
     KingdomsGuiMap(Screen parent, Screen escape, MapProcessor processor, Entity player) {
         super(parent, escape, processor, player);
@@ -47,15 +51,32 @@ final class KingdomsGuiMap extends GuiMap {
     void showNotice(Component message, boolean successful) {
         noticeMessage = message;
         noticeSuccessful = successful;
-        noticeUntilMillis = System.currentTimeMillis() + NOTICE_DURATION_MILLIS;
+        noticeShownAt = System.currentTimeMillis();
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        if (noticeMessage == null || System.currentTimeMillis() >= noticeUntilMillis) {
+        if (noticeMessage == null) {
             return;
         }
+        long elapsed = System.currentTimeMillis() - noticeShownAt;
+        if (elapsed >= NOTICE_DURATION_MILLIS) {
+            return;
+        }
+        float alpha;
+        if (elapsed < NOTICE_FADE_IN_MILLIS) {
+            alpha = elapsed / (float) NOTICE_FADE_IN_MILLIS;
+        } else if (elapsed < NOTICE_FADE_IN_MILLIS + NOTICE_HOLD_MILLIS) {
+            alpha = 1.0F;
+        } else {
+            alpha = 1.0F - (elapsed - NOTICE_FADE_IN_MILLIS - NOTICE_HOLD_MILLIS) / (float) NOTICE_FADE_OUT_MILLIS;
+        }
+        int alphaByte = (int) (alpha * 255.0F);
+        if (alphaByte < 10) {
+            return;
+        }
+
         Font font = Minecraft.getInstance().font;
         List<net.minecraft.util.FormattedCharSequence> lines = font.split(noticeMessage, Math.min(360, width - 40));
         int textWidth = 0;
@@ -66,10 +87,12 @@ final class KingdomsGuiMap extends GuiMap {
         int boxHeight = lines.size() * 10 + 10;
         int boxLeft = (width - boxWidth) / 2;
         int boxTop = height - 58 - boxHeight;
-        graphics.fill(boxLeft, boxTop, boxLeft + boxWidth, boxTop + boxHeight, 0xC0101018);
-        int accent = noticeSuccessful ? 0xFF7FBF6F : 0xFFC05050;
+        int slide = (int) ((1.0F - alpha) * 6.0F);
+        boxTop += slide;
+        graphics.fill(boxLeft, boxTop, boxLeft + boxWidth, boxTop + boxHeight, (int) (alpha * 0xC0) << 24 | 0x101018);
+        int accent = alphaByte << 24 | (noticeSuccessful ? 0x7FBF6F : 0xC05050);
         graphics.fill(boxLeft, boxTop, boxLeft + boxWidth, boxTop + 1, accent);
-        int color = noticeSuccessful ? 0xFFC9F0B8 : 0xFFF3B8B8;
+        int color = alphaByte << 24 | (noticeSuccessful ? 0xC9F0B8 : 0xF3B8B8);
         for (int index = 0; index < lines.size(); index++) {
             net.minecraft.util.FormattedCharSequence line = lines.get(index);
             graphics.drawString(font, line, boxLeft + (boxWidth - font.width(line)) / 2,

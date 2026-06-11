@@ -116,7 +116,7 @@ public final class FactionNetwork {
     }
 
     private static void handleOpen(FactionPayloads.C2SOpenTable payload, IPayloadContext context) {
-        FactionServerHooks.openFor(serverPlayer(context), payload.tablePos());
+        FactionServerHooks.openFor(serverPlayer(context), payload.tablePos(), payload.silent());
     }
 
     private static void handleCreate(FactionPayloads.C2SCreateFaction payload, IPayloadContext context) {

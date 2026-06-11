@@ -174,13 +174,17 @@ public final class WarManager extends SavedData {
         factionToWar.put(defenderFactionId, warId);
         setDirty();
 
-        String attacker = factionName(server, attackerFactionId);
-        String defender = factionName(server, defenderFactionId);
-        broadcast(server, attackerFactionId, Component.literal(
-            "War declared on " + defender + ". Their claims are now breakable; so are yours."));
-        broadcast(server, defenderFactionId, Component.literal(
-            attacker + " has declared war on you! Your claims are now breakable until the war ends."));
+        Component attacker = factionName(server, attackerFactionId);
+        Component defender = factionName(server, defenderFactionId);
+        LOGGER.info("War declared: {} -> {} (war {})", attacker.getString(), defender.getString(), warId);
+        broadcastToServer(server, Component.translatable("kingdoms.war.declared_broadcast", attacker, defender));
         return DeclareResult.SUCCESS;
+    }
+
+    private static void broadcastToServer(MinecraftServer server, Component message) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            player.sendSystemMessage(message);
+        }
     }
 
     /**
@@ -204,8 +208,9 @@ public final class WarManager extends SavedData {
             rollbackQueue.add(new RollbackTask(war.id(), key));
         }
         setDirty();
+        LOGGER.info("War {} ending; {} chunk snapshot(s) queued for rollback", war.id(), war.snapshotCount());
 
-        Component message = Component.literal("The war has ended. Captured territory is being restored.");
+        Component message = Component.translatable("kingdoms.war.ended_restoring");
         broadcast(server, war.attackerFactionId(), message);
         broadcast(server, war.defenderFactionId(), message);
 
@@ -265,12 +270,13 @@ public final class WarManager extends SavedData {
         factionToWar.remove(war.attackerFactionId(), war.id());
         factionToWar.remove(war.defenderFactionId(), war.id());
         setDirty();
+        LOGGER.info("War {} finished and removed", war.id());
 
-        Component message = Component.literal("Territory restored. The war between "
-            + factionName(server, war.attackerFactionId()) + " and "
-            + factionName(server, war.defenderFactionId()) + " is over.");
-        broadcast(server, war.attackerFactionId(), message);
-        broadcast(server, war.defenderFactionId(), message);
+        broadcastToServer(server, Component.translatable(
+            "kingdoms.war.over_broadcast",
+            factionName(server, war.attackerFactionId()),
+            factionName(server, war.defenderFactionId())
+        ));
     }
 
     // ------------------------------------------------------------------ helpers
@@ -289,10 +295,10 @@ public final class WarManager extends SavedData {
         return war != null && war.isActive() ? war : null;
     }
 
-    private static String factionName(MinecraftServer server, UUID factionId) {
+    private static Component factionName(MinecraftServer server, UUID factionId) {
         return FactionManager.get(server).getFactionById(factionId)
-            .map(Faction::name)
-            .orElse("a disbanded faction");
+            .map(faction -> (Component) Component.literal(faction.name()))
+            .orElseGet(() -> Component.translatable("kingdoms.command.faction.war.opponent.disbanded"));
     }
 
     private static void broadcast(MinecraftServer server, UUID factionId, Component message) {

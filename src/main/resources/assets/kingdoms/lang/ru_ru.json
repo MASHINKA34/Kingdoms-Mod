@@ -227,14 +227,22 @@
   "screen.kingdoms.disband_confirm": "Подтвердить?",
   "screen.kingdoms.no_factions": "Нет фракций",
   "screen.kingdoms.no_players": "Нет игроков онлайн",
+  "screen.kingdoms.select_invite": "Кого пригласить?",
+  "screen.kingdoms.select_transfer": "Кому передать лидерство?",
+  "screen.kingdoms.select_war_target": "Кому объявить войну?",
 
   "screen.kingdoms.color_picker": "Выбор цвета",
   "screen.kingdoms.apply": "Применить",
   "screen.kingdoms.cancel": "Отмена",
 
-  "kingdoms.xaero_map.claim": "Захватить чанки (%s) за %s",
-  "kingdoms.xaero_map.claim_noprice": "Захватить чанки (%s)",
-  "kingdoms.xaero_map.unclaim": "Освободить чанки (%s)",
+  "kingdoms.xaero_map.claim": "Захват (%s): %s",
+  "kingdoms.xaero_map.claim_noprice": "Захват (%s)",
+  "kingdoms.xaero_map.unclaim": "Освободить (%s)",
   "kingdoms.map_claim.claimed": "Захвачено чанков: %s за %s.",
-  "kingdoms.map_claim.unclaimed": "Освобождено чанков: %s. Возвращено: %s."
+  "kingdoms.map_claim.unclaimed": "Освобождено чанков: %s. Возвращено: %s.",
+
+  "kingdoms.notice.pvp_changed": "Во всей фракции %s внутреннее ПВП.",
+  "kingdoms.war.declared_broadcast": "Фракция %s объявила войну фракции %s!",
+  "kingdoms.war.ended_restoring": "Война окончена. Захваченная территория восстанавливается.",
+  "kingdoms.war.over_broadcast": "Война между %s и %s окончена. Территория восстановлена."
 }

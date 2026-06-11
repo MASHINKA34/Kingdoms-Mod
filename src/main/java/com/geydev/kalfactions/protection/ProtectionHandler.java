@@ -10,10 +10,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -199,8 +203,12 @@ public final class ProtectionHandler {
                 : InteractionResult.FAIL);
     }
 
+    private static final TagKey<Block> INTERACTABLE =
+            TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "interactable"));
+
     private static boolean isAlwaysAllowed(BlockState state) {
-        return state.is(BlockTags.DOORS)
+        return state.is(INTERACTABLE)
+                || state.is(BlockTags.DOORS)
                 || state.is(BlockTags.TRAPDOORS)
                 || state.is(BlockTags.BUTTONS)
                 || state.is(BlockTags.PRESSURE_PLATES)

@@ -96,15 +96,9 @@ public final class FactionManageScreen extends FactionScreen {
         ));
 
         addRenderableWidget(KingdomsButton.create(
-                text("screen.kingdoms.refresh"),
-                button -> requestRefresh(),
-                rightColumn, row0 + rowStep * 3, columnWidth, 20
-        ));
-
-        addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.actions_open"),
                 button -> FactionScreens.openActions(snapshot, true, ""),
-                leftColumn, row0 + rowStep * 4, CONTENT_RIGHT - CONTENT_LEFT, 20
+                rightColumn, row0 + rowStep * 3, columnWidth, 20
         ));
     }
 

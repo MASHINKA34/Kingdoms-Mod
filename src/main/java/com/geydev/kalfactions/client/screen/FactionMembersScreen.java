@@ -66,11 +66,6 @@ public final class FactionMembersScreen extends FactionScreen {
                 button -> FactionScreens.openRoot(snapshot, true, ""),
                 left + 16, top + PANEL_HEIGHT - 25, 70, 20
         ));
-        addRenderableWidget(KingdomsButton.create(
-                text("screen.kingdoms.refresh"),
-                button -> requestRefresh(),
-                left + 90, top + PANEL_HEIGHT - 25, 70, 20
-        ));
     }
 
     @Override

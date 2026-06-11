@@ -14,11 +14,14 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
 public final class FactionPayloads {
-    public record C2SOpenTable(BlockPos tablePos) implements CustomPacketPayload {
+    public record C2SOpenTable(BlockPos tablePos, boolean silent) implements CustomPacketPayload {
         public static final Type<C2SOpenTable> TYPE = FactionPayloads.payloadType("open_table");
         public static final StreamCodec<RegistryFriendlyByteBuf, C2SOpenTable> STREAM_CODEC = StreamCodec.of(
-                (buffer, payload) -> buffer.writeBlockPos(payload.tablePos),
-                buffer -> new C2SOpenTable(buffer.readBlockPos())
+                (buffer, payload) -> {
+                    buffer.writeBlockPos(payload.tablePos);
+                    buffer.writeBoolean(payload.silent);
+                },
+                buffer -> new C2SOpenTable(buffer.readBlockPos(), buffer.readBoolean())
         );
 
         @Override

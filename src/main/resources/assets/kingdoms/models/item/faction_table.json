@@ -1,3 +1,6 @@
 {
-  "parent": "kingdoms:block/faction_table"
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "kingdoms:item/faction_table"
+  }
 }

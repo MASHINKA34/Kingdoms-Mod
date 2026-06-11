@@ -37,7 +37,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
         }
 
         FactionRole role = faction.roleOf(player.getUUID()).orElse(FactionRole.MEMBER);
-        int ownColor = tableColor(player, tablePos, faction.id());
+        int ownColor = faction.color();
         return new FactionSnapshot(
                 tablePos,
                 faction.id(),
@@ -103,7 +103,9 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 ClaimKey.of(player.serverLevel(), new ChunkPos(tablePos))
         );
         if (result.successful()) {
+            manager.setFactionColor(result.factionId(), color);
             updateTableMetadata(player, tablePos, result.factionId(), color);
+            IntegrationManager.refreshFromServer(player.getServer());
         }
         return result(result, player, tablePos);
     }
@@ -134,7 +136,9 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 ? new FactionManager.OperationResult(FactionManager.Status.SUCCESS, faction.id(), 0L)
                 : manager.renameFaction(faction.id(), name);
         if (result.successful()) {
+            manager.setFactionColor(faction.id(), color);
             updateTableMetadata(player, tablePos, faction.id(), color);
+            IntegrationManager.refreshFromServer(player.getServer());
         }
         return result(result, player, tablePos);
     }
@@ -167,7 +171,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 ? manager.claim(faction.id(), key, player.getUUID())
                 : manager.unclaim(faction.id(), key);
         if (result.successful()) {
-            updateTableMetadata(player, tablePos, faction.id(), tableColor(player, tablePos, faction.id()));
+            updateTableMetadata(player, tablePos, faction.id(), faction.color());
         }
         return result(result, player, tablePos);
     }
@@ -415,6 +419,16 @@ final class FactionManagerService implements FactionServerHooks.Service {
         FactionManager.OperationResult result = manager.setInternalPvp(faction.id(), enabled);
         if (!result.successful()) {
             return FactionServerHooks.Result.denied(message(result.status()), view(player, tablePos));
+        }
+        Component memberNotice = Component.translatable("kingdoms.notice.pvp_changed", enabledState(enabled));
+        for (UUID memberId : faction.members().keySet()) {
+            if (memberId.equals(player.getUUID())) {
+                continue;
+            }
+            ServerPlayer member = player.getServer().getPlayerList().getPlayer(memberId);
+            if (member != null) {
+                FactionServerHooks.sendNotice(member, memberNotice, true);
+            }
         }
         return new FactionServerHooks.Result(
                 true,
@@ -823,21 +837,13 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 claims.add(new FactionSnapshot.Claim(
                         x,
                         z,
-                        own ? ownColor : colorFor(faction.id()),
+                        own ? ownColor : faction.color(),
                         faction.name(),
                         own
                 ));
             }
         }
         return List.copyOf(claims);
-    }
-
-    private static int tableColor(ServerPlayer player, BlockPos tablePos, UUID factionId) {
-        if (player.level().getBlockEntity(tablePos) instanceof FactionTableBlockEntity table
-                && factionId.equals(table.getFactionId())) {
-            return table.getFactionColor();
-        }
-        return colorFor(factionId);
     }
 
     private static boolean canUseBoundTable(ServerPlayer player, BlockPos tablePos, UUID factionId) {
@@ -888,14 +894,6 @@ final class FactionManagerService implements FactionServerHooks.Service {
         return Component.translatable(enabled
                 ? "kingdoms.state.enabled"
                 : "kingdoms.state.disabled");
-    }
-
-    private static int colorFor(UUID factionId) {
-        int hash = factionId.hashCode();
-        int red = 72 + Math.floorMod(hash, 144);
-        int green = 72 + Math.floorMod(hash >> 8, 144);
-        int blue = 72 + Math.floorMod(hash >> 16, 144);
-        return red << 16 | green << 8 | blue;
     }
 
     private static Component message(FactionManager.Status status) {

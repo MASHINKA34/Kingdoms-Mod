@@ -4,13 +4,10 @@ import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class FactionActionsScreen extends FactionScreen {
-    private CycleButton<FactionSnapshot.OnlinePlayer> playerTarget;
-    private CycleButton<String> warTarget;
     private boolean confirmingDisband;
 
     public FactionActionsScreen(FactionSnapshot snapshot, boolean successful, String message) {
@@ -23,38 +20,19 @@ public final class FactionActionsScreen extends FactionScreen {
         int rightColumn = left + 172;
         int columnWidth = 126;
 
-        List<FactionSnapshot.OnlinePlayer> players = snapshot.onlinePlayers();
-        boolean hasPlayers = !players.isEmpty();
-        if (hasPlayers) {
-            playerTarget = CycleButton.<FactionSnapshot.OnlinePlayer>builder(FactionActionsScreen::playerLabel)
-                    .withValues(players)
-                    .withInitialValue(players.get(0))
-                    .displayOnlyValue()
-                    .create(leftColumn, top + 70, columnWidth, 20, text("screen.kingdoms.player_name"));
-            addRenderableWidget(playerTarget);
-        } else {
-            playerTarget = null;
-            KingdomsButton none = addRenderableWidget(KingdomsButton.create(
-                    text("screen.kingdoms.no_players"),
-                    button -> {
-                    },
-                    leftColumn, top + 70, columnWidth, 20
-            ));
-            none.active = false;
-        }
-
         KingdomsButton invite = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.invite"),
-                button -> sendPlayerAction(true),
-                leftColumn, top + 94, 60, 20
+                button -> openInvitePicker(),
+                leftColumn, top + 70, columnWidth, 20
         ));
+        invite.active = snapshot.isOfficer();
+
         KingdomsButton transfer = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.transfer"),
-                button -> sendPlayerAction(false),
-                leftColumn + 66, top + 94, 60, 20
+                button -> openTransferPicker(),
+                leftColumn, top + 94, columnWidth, 20
         ));
-        invite.active = hasPlayers && snapshot.isOfficer();
-        transfer.active = hasPlayers && snapshot.canManage();
+        transfer.active = snapshot.canManage() && snapshot.members().size() > 1;
 
         KingdomsButton leave = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.leave"),
@@ -79,88 +57,77 @@ public final class FactionActionsScreen extends FactionScreen {
         ));
         disband.active = snapshot.canManage();
 
-        boolean hasTargets = !snapshot.knownFactions().isEmpty();
-        KingdomsButton declareWar;
-        if (hasTargets) {
-            warTarget = CycleButton.<String>builder(Component::literal)
-                    .withValues(snapshot.knownFactions())
-                    .withInitialValue(snapshot.knownFactions().get(0))
-                    .displayOnlyValue()
-                    .create(rightColumn, top + 70, columnWidth, 20, text("screen.kingdoms.target_faction"));
-            addRenderableWidget(warTarget);
-
-            declareWar = addRenderableWidget(KingdomsButton.create(
-                    text("screen.kingdoms.war_declare"),
-                    button -> PacketDistributor.sendToServer(
-                            new FactionPayloads.C2SDeclareWar(snapshot.tablePos(), warTarget.getValue())),
-                    rightColumn, top + 94, columnWidth, 20
-            ));
-            declareWar.active = snapshot.canManage();
-        } else {
-            warTarget = null;
-            KingdomsButton none = addRenderableWidget(KingdomsButton.create(
-                    text("screen.kingdoms.no_factions"),
-                    button -> {
-                    },
-                    rightColumn, top + 70, columnWidth, 20
-            ));
-            none.active = false;
-            declareWar = addRenderableWidget(KingdomsButton.create(
-                    text("screen.kingdoms.war_declare"),
-                    button -> {
-                    },
-                    rightColumn, top + 94, columnWidth, 20
-            ));
-            declareWar.active = false;
-        }
+        KingdomsButton declareWar = addRenderableWidget(KingdomsButton.create(
+                text("screen.kingdoms.war_declare"),
+                button -> openWarPicker(),
+                rightColumn, top + 70, columnWidth, 20
+        ));
+        declareWar.active = snapshot.canManage() && !snapshot.knownFactions().isEmpty();
 
         KingdomsButton endWar = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.war_end"),
                 button -> PacketDistributor.sendToServer(new FactionPayloads.C2SEndWar(snapshot.tablePos())),
-                rightColumn, top + 118, columnWidth, 20
+                rightColumn, top + 94, columnWidth, 20
         ));
         endWar.active = snapshot.canManage();
+    }
 
-        addRenderableWidget(KingdomsButton.create(
-                text("screen.kingdoms.back"),
-                button -> FactionScreens.openRoot(snapshot, true, ""),
-                left + 16, top + PANEL_HEIGHT - 25, 70, 20
-        ));
-        addRenderableWidget(KingdomsButton.create(
-                text("screen.kingdoms.refresh"),
-                button -> requestRefresh(),
-                left + 90, top + PANEL_HEIGHT - 25, 70, 20
+    private void openInvitePicker() {
+        List<SelectEntryScreen.Entry> entries = snapshot.onlinePlayers().stream()
+                .map(player -> SelectEntryScreen.Entry.player(
+                        player.name(),
+                        player.inFaction() ? Component.literal(player.factionName()) : null,
+                        !player.inFaction()
+                ))
+                .toList();
+        minecraft.setScreen(new SelectEntryScreen(
+                this,
+                text("screen.kingdoms.select_invite"),
+                entries,
+                text("kingdoms.error.player_already_member"),
+                entry -> PacketDistributor.sendToServer(
+                        new FactionPayloads.C2SInvitePlayer(snapshot.tablePos(), entry.value()))
         ));
     }
 
-    private void sendPlayerAction(boolean invite) {
-        if (playerTarget == null) {
-            return;
-        }
-        FactionSnapshot.OnlinePlayer target = playerTarget.getValue();
-        if (target == null || target.name().isEmpty()) {
-            return;
-        }
-        if (invite) {
-            if (target.inFaction()) {
-                acceptStatus(text("kingdoms.error.player_already_member").getString(), false);
-                return;
-            }
-            PacketDistributor.sendToServer(new FactionPayloads.C2SInvitePlayer(snapshot.tablePos(), target.name()));
-        } else {
-            if (!target.factionName().equals(snapshot.name())) {
-                acceptStatus(text("kingdoms.error.target_not_in_faction").getString(), false);
-                return;
-            }
-            PacketDistributor.sendToServer(new FactionPayloads.C2STransferLeadership(snapshot.tablePos(), target.name()));
-        }
+    private void openTransferPicker() {
+        List<SelectEntryScreen.Entry> entries = snapshot.members().stream()
+                .filter(member -> !snapshot.isSelf(member.playerId()))
+                .map(member -> SelectEntryScreen.Entry.player(member.name(), roleText(member.role()), true))
+                .toList();
+        minecraft.setScreen(new SelectEntryScreen(
+                this,
+                text("screen.kingdoms.select_transfer"),
+                entries,
+                null,
+                entry -> PacketDistributor.sendToServer(
+                        new FactionPayloads.C2STransferLeadership(snapshot.tablePos(), entry.value()))
+        ));
     }
 
-    private static Component playerLabel(FactionSnapshot.OnlinePlayer player) {
-        if (!player.inFaction()) {
-            return Component.literal(player.name());
+    private void openWarPicker() {
+        List<SelectEntryScreen.Entry> entries = snapshot.knownFactions().stream()
+                .map(name -> SelectEntryScreen.Entry.swatch(name, 0xB3312C))
+                .toList();
+        minecraft.setScreen(new SelectEntryScreen(
+                this,
+                text("screen.kingdoms.select_war_target"),
+                entries,
+                null,
+                entry -> PacketDistributor.sendToServer(
+                        new FactionPayloads.C2SDeclareWar(snapshot.tablePos(), entry.value()))
+        ));
+    }
+
+    private static Component roleText(String role) {
+        String normalized = role == null ? "" : role.toLowerCase(java.util.Locale.ROOT);
+        if (normalized.startsWith("lead")) {
+            return text("kingdoms.role.leader");
         }
-        return Component.literal(player.name() + " — " + player.factionName()).withStyle(style -> style.withColor(0x9A8F7A));
+        if (normalized.startsWith("off")) {
+            return text("kingdoms.role.officer");
+        }
+        return text("kingdoms.role.member");
     }
 
     @Override

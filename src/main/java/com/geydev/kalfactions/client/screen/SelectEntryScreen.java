@@ -1,0 +1,192 @@
+package com.geydev.kalfactions.client.screen;
+
+import java.util.List;
+import java.util.function.Consumer;
+import net.minecraft.Util;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.PlayerFaceRenderer;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.client.resources.DefaultPlayerSkin;
+import net.minecraft.client.resources.PlayerSkin;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
+
+public final class SelectEntryScreen extends Screen {
+    public record Entry(String value, String skinName, Component subtitle, int swatchColor, boolean enabled) {
+        public static Entry player(String name, Component subtitle, boolean enabled) {
+            return new Entry(name, name, subtitle, 0, enabled);
+        }
+
+        public static Entry swatch(String name, int color) {
+            return new Entry(name, null, null, color, true);
+        }
+    }
+
+    private static final int PANEL_WIDTH = 240;
+    private static final int ROW_HEIGHT = 26;
+    private static final int VISIBLE_ROWS = 5;
+    private static final int LIST_TOP_OFFSET = 26;
+
+    private final Screen parent;
+    private final List<Entry> entries;
+    private final Consumer<Entry> onPick;
+    private final Component disabledNotice;
+
+    private int panelLeft;
+    private int panelTop;
+    private int panelHeight;
+    private int scrollOffset;
+    private String noticeText = "";
+    private long noticeShownAt;
+
+    public SelectEntryScreen(
+            Screen parent,
+            Component title,
+            List<Entry> entries,
+            Component disabledNotice,
+            Consumer<Entry> onPick
+    ) {
+        super(title);
+        this.parent = parent;
+        this.entries = entries;
+        this.disabledNotice = disabledNotice;
+        this.onPick = onPick;
+    }
+
+    @Override
+    protected void init() {
+        int rows = Math.min(VISIBLE_ROWS, Math.max(1, entries.size()));
+        panelHeight = LIST_TOP_OFFSET + rows * ROW_HEIGHT + 36;
+        panelLeft = (width - PANEL_WIDTH) / 2;
+        panelTop = (height - panelHeight) / 2;
+        scrollOffset = Math.clamp(scrollOffset, 0, maxScroll());
+
+        addRenderableWidget(KingdomsButton.create(
+                Component.translatable("screen.kingdoms.cancel"),
+                button -> onClose(),
+                panelLeft + (PANEL_WIDTH - 90) / 2, panelTop + panelHeight - 28, 90, 20
+        ));
+    }
+
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        super.render(graphics, mouseX, mouseY, partialTick);
+
+        int titleWidth = font.width(title);
+        graphics.drawString(font, title, panelLeft + (PANEL_WIDTH - titleWidth) / 2, panelTop + 9, 0xFFF3D58B, true);
+
+        int shown = Math.min(VISIBLE_ROWS, entries.size() - scrollOffset);
+        for (int index = 0; index < shown; index++) {
+            renderRow(graphics, entries.get(scrollOffset + index), rowTop(index), mouseX, mouseY);
+        }
+        if (entries.isEmpty()) {
+            Component empty = Component.translatable("screen.kingdoms.no_players");
+            graphics.drawString(font, empty, panelLeft + (PANEL_WIDTH - font.width(empty)) / 2,
+                    panelTop + LIST_TOP_OFFSET + 8, 0xFF8E8B83, true);
+        }
+        if (entries.size() > VISIBLE_ROWS) {
+            String pager = (scrollOffset + 1) + "–" + (scrollOffset + shown) + " / " + entries.size();
+            graphics.drawString(font, pager, panelLeft + PANEL_WIDTH - 12 - font.width(pager),
+                    panelTop + 10, 0xFF9A8F7A, true);
+        }
+
+        if (!noticeText.isEmpty() && System.currentTimeMillis() - noticeShownAt < 2200L) {
+            int textWidth = font.width(noticeText);
+            graphics.drawString(font, noticeText, panelLeft + (PANEL_WIDTH - textWidth) / 2,
+                    panelTop + panelHeight - 40, 0xFFE89090, true);
+        }
+    }
+
+    private void renderRow(GuiGraphics graphics, Entry entry, int rowTop, int mouseX, int mouseY) {
+        int rowLeft = panelLeft + 8;
+        int rowRight = panelLeft + PANEL_WIDTH - 8;
+        boolean hovered = entry.enabled()
+                && mouseX >= rowLeft && mouseX < rowRight
+                && mouseY >= rowTop && mouseY < rowTop + ROW_HEIGHT - 2;
+        int background = hovered ? 0x50FFFFFF : 0x28000000;
+        graphics.fill(rowLeft, rowTop, rowRight, rowTop + ROW_HEIGHT - 2, background);
+
+        if (entry.skinName() != null) {
+            PlayerSkin skin = resolveSkin(entry.skinName());
+            PlayerFaceRenderer.draw(graphics, skin, rowLeft + 4, rowTop + 4, 16);
+        } else {
+            graphics.fill(rowLeft + 4, rowTop + 4, rowLeft + 20, rowTop + 20, 0xFF1A140C);
+            graphics.fill(rowLeft + 5, rowTop + 5, rowLeft + 19, rowTop + 19, 0xFF000000 | entry.swatchColor());
+        }
+
+        int nameColor = entry.enabled() ? 0xFFFFFFFF : 0xFF8E8B83;
+        graphics.drawString(font, entry.value(), rowLeft + 26, rowTop + 4, nameColor, true);
+        if (entry.subtitle() != null) {
+            graphics.drawString(font, entry.subtitle(), rowLeft + 26, rowTop + 14, 0xFF9A8F7A, true);
+        }
+    }
+
+    private PlayerSkin resolveSkin(String playerName) {
+        if (minecraft != null && minecraft.getConnection() != null) {
+            PlayerInfo info = minecraft.getConnection().getPlayerInfo(playerName);
+            if (info != null) {
+                return info.getSkin();
+            }
+        }
+        return DefaultPlayerSkin.get(Util.NIL_UUID);
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0) {
+            int shown = Math.min(VISIBLE_ROWS, entries.size() - scrollOffset);
+            for (int index = 0; index < shown; index++) {
+                int rowTop = rowTop(index);
+                if (mouseX >= panelLeft + 8 && mouseX < panelLeft + PANEL_WIDTH - 8
+                        && mouseY >= rowTop && mouseY < rowTop + ROW_HEIGHT - 2) {
+                    Entry entry = entries.get(scrollOffset + index);
+                    if (!entry.enabled()) {
+                        noticeText = disabledNotice == null ? "" : disabledNotice.getString();
+                        noticeShownAt = System.currentTimeMillis();
+                        return true;
+                    }
+                    onClose();
+                    onPick.accept(entry);
+                    return true;
+                }
+            }
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        int updated = Math.clamp(scrollOffset - (int) Math.signum(scrollY), 0, maxScroll());
+        if (updated != scrollOffset) {
+            scrollOffset = updated;
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        super.renderBackground(graphics, mouseX, mouseY, partialTick);
+        graphics.fill(panelLeft - 1, panelTop - 1, panelLeft + PANEL_WIDTH + 1, panelTop + panelHeight + 1, 0xFFC9A24C);
+        graphics.fill(panelLeft, panelTop, panelLeft + PANEL_WIDTH, panelTop + panelHeight, 0xFF2B2E38);
+    }
+
+    @Override
+    public void onClose() {
+        minecraft.setScreen(parent);
+    }
+
+    @Override
+    public boolean isPauseScreen() {
+        return false;
+    }
+
+    private int rowTop(int visibleIndex) {
+        return panelTop + LIST_TOP_OFFSET + visibleIndex * ROW_HEIGHT;
+    }
+
+    private int maxScroll() {
+        return Math.max(0, entries.size() - VISIBLE_ROWS);
+    }
+}

@@ -28,9 +28,15 @@ public final class FactionServerHooks {
     }
 
     public static void openFor(ServerPlayer player, BlockPos tablePos) {
+        openFor(player, tablePos, false);
+    }
+
+    public static void openFor(ServerPlayer player, BlockPos tablePos, boolean silent) {
         Validation validation = validateTable(player, tablePos, false);
         if (!validation.allowed) {
-            send(player, fallbackSnapshot(tablePos), false, false, validation.message);
+            if (!silent) {
+                send(player, fallbackSnapshot(tablePos), false, false, validation.message);
+            }
             return;
         }
 
@@ -266,7 +272,7 @@ public final class FactionServerHooks {
         }
     }
 
-    private static void sendNotice(ServerPlayer player, Component message, boolean successful) {
+    public static void sendNotice(ServerPlayer player, Component message, boolean successful) {
         PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CFactionNotice(message, successful));
     }
 
