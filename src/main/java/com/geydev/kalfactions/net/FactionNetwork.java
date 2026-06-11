@@ -108,6 +108,11 @@ public final class FactionNetwork {
                 FactionPayloads.S2CSyncClaims.STREAM_CODEC,
                 FactionNetwork::handleSyncClaims
         );
+        registrar.playToClient(
+                FactionPayloads.S2CFactionNotice.TYPE,
+                FactionPayloads.S2CFactionNotice.STREAM_CODEC,
+                FactionNetwork::handleNotice
+        );
     }
 
     private static void handleOpen(FactionPayloads.C2SOpenTable payload, IPayloadContext context) {
@@ -189,6 +194,12 @@ public final class FactionNetwork {
     private static void handleSyncClaims(FactionPayloads.S2CSyncClaims payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientFactionPayloadHandler.handleSyncClaims(payload);
+        }
+    }
+
+    private static void handleNotice(FactionPayloads.S2CFactionNotice payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientFactionPayloadHandler.handleNotice(payload);
         }
     }
 

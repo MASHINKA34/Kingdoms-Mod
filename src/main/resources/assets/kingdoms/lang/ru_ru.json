@@ -226,12 +226,14 @@
   "screen.kingdoms.war_end": "Завершить войну",
   "screen.kingdoms.disband_confirm": "Подтвердить?",
   "screen.kingdoms.no_factions": "Нет фракций",
+  "screen.kingdoms.no_players": "Нет игроков онлайн",
 
   "screen.kingdoms.color_picker": "Выбор цвета",
   "screen.kingdoms.apply": "Применить",
   "screen.kingdoms.cancel": "Отмена",
 
-  "kingdoms.xaero_map.claim": "Захватить чанки (%s)",
+  "kingdoms.xaero_map.claim": "Захватить чанки (%s) за %s",
+  "kingdoms.xaero_map.claim_noprice": "Захватить чанки (%s)",
   "kingdoms.xaero_map.unclaim": "Освободить чанки (%s)",
   "kingdoms.map_claim.claimed": "Захвачено чанков: %s за %s.",
   "kingdoms.map_claim.unclaimed": "Освобождено чанков: %s. Возвращено: %s."

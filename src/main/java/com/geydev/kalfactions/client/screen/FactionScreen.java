@@ -39,6 +39,11 @@ public abstract class FactionScreen extends Screen {
         return snapshot.tablePos();
     }
 
+    public final void acceptStatus(String message, boolean actionSuccessful) {
+        statusMessage = message == null ? "" : message;
+        successful = actionSuccessful;
+    }
+
     public void acceptServerState(FactionSnapshot newSnapshot, boolean actionSuccessful, String message) {
         boolean factionPresenceChanged = snapshot.hasFaction() != newSnapshot.hasFaction();
         snapshot = newSnapshot;

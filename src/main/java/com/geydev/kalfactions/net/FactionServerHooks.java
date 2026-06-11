@@ -252,18 +252,22 @@ public final class FactionServerHooks {
         long now = player.level().getGameTime();
         Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
         if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
-            player.sendSystemMessage(Component.translatable("kingdoms.error.action_rate_limited"));
+            sendNotice(player, Component.translatable("kingdoms.error.action_rate_limited"), false);
             return;
         }
         try {
-            Component message = service.mapSetClaims(player, claimed, packedChunks);
-            if (!message.getString().isBlank()) {
-                player.sendSystemMessage(message);
+            Result result = service.mapSetClaims(player, claimed, packedChunks);
+            if (!result.message().getString().isBlank()) {
+                sendNotice(player, result.message(), result.successful());
             }
         } catch (RuntimeException exception) {
             KalFactions.LOGGER.error("Map claim operation failed for {}", player.getGameProfile().getName(), exception);
-            player.sendSystemMessage(Component.translatable("kingdoms.error.faction_action_failed"));
+            sendNotice(player, Component.translatable("kingdoms.error.faction_action_failed"), false);
         }
+    }
+
+    private static void sendNotice(ServerPlayer player, Component message, boolean successful) {
+        PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CFactionNotice(message, successful));
     }
 
     public static void clearRateLimit(UUID playerId) {
@@ -354,7 +358,8 @@ public final class FactionServerHooks {
                 snapshot.internalPvp(),
                 snapshot.viewerId(),
                 snapshot.isOfficer(),
-                snapshot.knownFactions()
+                snapshot.knownFactions(),
+                snapshot.onlinePlayers()
         );
     }
 
@@ -374,12 +379,9 @@ public final class FactionServerHooks {
             boolean openScreen,
             Component message
     ) {
-        if (!message.getString().isBlank()) {
-            player.sendSystemMessage(message);
-        }
         PacketDistributor.sendToPlayer(
                 player,
-                new FactionPayloads.S2CFactionState(snapshot, successful, openScreen, "")
+                new FactionPayloads.S2CFactionState(snapshot, successful, openScreen, message)
         );
     }
 
@@ -414,7 +416,7 @@ public final class FactionServerHooks {
 
         Result endWar(ServerPlayer player, BlockPos tablePos);
 
-        Component mapSetClaims(ServerPlayer player, boolean claimed, List<Long> packedChunks);
+        Result mapSetClaims(ServerPlayer player, boolean claimed, List<Long> packedChunks);
     }
 
     public record Result(boolean successful, Component message, FactionSnapshot snapshot) {
@@ -520,8 +522,8 @@ public final class FactionServerHooks {
         }
 
         @Override
-        public Component mapSetClaims(ServerPlayer player, boolean claimed, List<Long> packedChunks) {
-            return Component.translatable("kingdoms.error.claims_unavailable");
+        public Result mapSetClaims(ServerPlayer player, boolean claimed, List<Long> packedChunks) {
+            return Result.denied(Component.translatable("kingdoms.error.claims_unavailable"), null);
         }
 
         private Result managementUnavailable(ServerPlayer player, BlockPos tablePos) {

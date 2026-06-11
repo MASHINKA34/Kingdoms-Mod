@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.integration.xaero;
 
 import com.geydev.kalfactions.KalFactions;
+import net.minecraft.network.chat.Component;
 import net.neoforged.fml.ModList;
 
 public final class XaeroMaps {
@@ -18,6 +19,17 @@ public final class XaeroMaps {
                 failureLogged = true;
                 KalFactions.LOGGER.warn("Could not open the Xaero world map", exception);
             }
+            return false;
+        }
+    }
+
+    public static boolean showMapNotice(Component message, boolean successful) {
+        if (!ModList.get().isLoaded(WORLD_MAP_MOD_ID)) {
+            return false;
+        }
+        try {
+            return XaeroWorldMapScreens.showNotice(message, successful);
+        } catch (RuntimeException | LinkageError exception) {
             return false;
         }
     }

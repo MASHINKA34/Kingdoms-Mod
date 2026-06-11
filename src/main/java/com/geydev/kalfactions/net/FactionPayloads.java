@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -306,7 +308,7 @@ public final class FactionPayloads {
             FactionSnapshot snapshot,
             boolean successful,
             boolean openScreen,
-            String message
+            Component message
     ) implements CustomPacketPayload {
         public static final Type<S2CFactionState> TYPE = FactionPayloads.payloadType("faction_state");
         public static final StreamCodec<RegistryFriendlyByteBuf, S2CFactionState> STREAM_CODEC = StreamCodec.of(
@@ -314,13 +316,32 @@ public final class FactionPayloads {
                     FactionSnapshot.STREAM_CODEC.encode(buffer, payload.snapshot);
                     buffer.writeBoolean(payload.successful);
                     buffer.writeBoolean(payload.openScreen);
-                    buffer.writeUtf(payload.message, 256);
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buffer, payload.message);
                 },
                 buffer -> new S2CFactionState(
                         FactionSnapshot.STREAM_CODEC.decode(buffer),
                         buffer.readBoolean(),
                         buffer.readBoolean(),
-                        buffer.readUtf(256)
+                        ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer)
+                )
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record S2CFactionNotice(Component message, boolean successful) implements CustomPacketPayload {
+        public static final Type<S2CFactionNotice> TYPE = FactionPayloads.payloadType("faction_notice");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CFactionNotice> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buffer, payload.message);
+                    buffer.writeBoolean(payload.successful);
+                },
+                buffer -> new S2CFactionNotice(
+                        ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer),
+                        buffer.readBoolean()
                 )
         );
 
@@ -332,7 +353,10 @@ public final class FactionPayloads {
 
     public record S2CSyncClaims(
             ResourceLocation dimension,
-            List<ClaimEntry> claims
+            List<ClaimEntry> claims,
+            UUID viewerFactionId,
+            int viewerClaimCount,
+            double viewerClaimDiscount
     ) implements CustomPacketPayload {
         public static final int MAX_ENTRIES = 16384;
         public static final Type<S2CSyncClaims> TYPE = FactionPayloads.payloadType("sync_claims");
@@ -344,6 +368,9 @@ public final class FactionPayloads {
                     for (int i = 0; i < size; i++) {
                         ClaimEntry.encode(buffer, payload.claims.get(i));
                     }
+                    buffer.writeUUID(payload.viewerFactionId);
+                    buffer.writeVarInt(payload.viewerClaimCount);
+                    buffer.writeDouble(payload.viewerClaimDiscount);
                 },
                 buffer -> {
                     ResourceLocation dimension = buffer.readResourceLocation();
@@ -355,7 +382,13 @@ public final class FactionPayloads {
                     for (int i = 0; i < size; i++) {
                         claims.add(ClaimEntry.decode(buffer));
                     }
-                    return new S2CSyncClaims(dimension, List.copyOf(claims));
+                    return new S2CSyncClaims(
+                            dimension,
+                            List.copyOf(claims),
+                            buffer.readUUID(),
+                            buffer.readVarInt(),
+                            buffer.readDouble()
+                    );
                 }
         );
 

@@ -25,12 +25,14 @@ public record FactionSnapshot(
         boolean internalPvp,
         UUID viewerId,
         boolean isOfficer,
-        List<String> knownFactions
+        List<String> knownFactions,
+        List<OnlinePlayer> onlinePlayers
 ) {
     public static final UUID NO_FACTION = new UUID(0L, 0L);
     public static final int MAX_MEMBERS = 256;
     public static final int MAX_CLAIMS = 1024;
     public static final int MAX_KNOWN_FACTIONS = 512;
+    public static final int MAX_ONLINE_PLAYERS = 128;
     public static final StreamCodec<RegistryFriendlyByteBuf, FactionSnapshot> STREAM_CODEC = StreamCodec.of(
             FactionSnapshot::encode,
             FactionSnapshot::decode
@@ -49,13 +51,14 @@ public record FactionSnapshot(
         influence = Math.max(0L, influence);
         viewerId = viewerId == null ? NO_FACTION : viewerId;
         knownFactions = knownFactions == null ? List.of() : List.copyOf(knownFactions);
+        onlinePlayers = onlinePlayers == null ? List.of() : List.copyOf(onlinePlayers);
     }
 
     public static FactionSnapshot empty(BlockPos tablePos, int centerChunkX, int centerChunkZ) {
         return new FactionSnapshot(
                 tablePos, NO_FACTION, "", "", 0x4E7A42, false, false,
                 centerChunkX, centerChunkZ, 6, List.of(), List.of(),
-                0L, 0L, false, NO_FACTION, false, List.of()
+                0L, 0L, false, NO_FACTION, false, List.of(), List.of()
         );
     }
 
@@ -102,6 +105,7 @@ public record FactionSnapshot(
                 MAX_KNOWN_FACTIONS,
                 (target, value) -> target.writeUtf(value, 32)
         );
+        writeBoundedList(buffer, snapshot.onlinePlayers, MAX_ONLINE_PLAYERS, OnlinePlayer::encode);
     }
 
     private static FactionSnapshot decode(RegistryFriendlyByteBuf buffer) {
@@ -127,10 +131,11 @@ public record FactionSnapshot(
                 MAX_KNOWN_FACTIONS,
                 target -> target.readUtf(32)
         );
+        List<OnlinePlayer> onlinePlayers = readBoundedList(buffer, MAX_ONLINE_PLAYERS, OnlinePlayer::decode);
         return new FactionSnapshot(
                 tablePos, factionId, name, ownerName, color, canManage, canClaim,
                 centerChunkX, centerChunkZ, mapRadius, members, claims,
-                treasury, influence, internalPvp, viewerId, isOfficer, knownFactions
+                treasury, influence, internalPvp, viewerId, isOfficer, knownFactions, onlinePlayers
         );
     }
 
@@ -184,6 +189,26 @@ public record FactionSnapshot(
 
         private static Member decode(RegistryFriendlyByteBuf buffer) {
             return new Member(buffer.readUUID(), buffer.readUtf(32), buffer.readUtf(24));
+        }
+    }
+
+    public record OnlinePlayer(String name, String factionName) {
+        public OnlinePlayer {
+            name = limit(name, 16);
+            factionName = limit(factionName, 32);
+        }
+
+        public boolean inFaction() {
+            return !factionName.isEmpty();
+        }
+
+        private static void encode(RegistryFriendlyByteBuf buffer, OnlinePlayer player) {
+            buffer.writeUtf(player.name, 16);
+            buffer.writeUtf(player.factionName, 32);
+        }
+
+        private static OnlinePlayer decode(RegistryFriendlyByteBuf buffer) {
+            return new OnlinePlayer(buffer.readUtf(16), buffer.readUtf(32));
         }
     }
 

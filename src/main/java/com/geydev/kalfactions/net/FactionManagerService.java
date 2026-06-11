@@ -56,8 +56,22 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 faction.internalPvp(),
                 player.getUUID(),
                 role.isAtLeast(FactionRole.OFFICER),
-                otherFactionNames(manager, faction.id())
+                otherFactionNames(manager, faction.id()),
+                onlinePlayers(player, manager)
         );
+    }
+
+    private static List<FactionSnapshot.OnlinePlayer> onlinePlayers(ServerPlayer viewer, FactionManager manager) {
+        return viewer.getServer().getPlayerList().getPlayers().stream()
+                .filter(online -> !online.getUUID().equals(viewer.getUUID()))
+                .map(online -> new FactionSnapshot.OnlinePlayer(
+                        online.getGameProfile().getName(),
+                        manager.getFactionForMember(online.getUUID()).map(Faction::name).orElse("")
+                ))
+                .sorted(Comparator.comparing(FactionSnapshot.OnlinePlayer::inFaction)
+                        .thenComparing(FactionSnapshot.OnlinePlayer::name, String.CASE_INSENSITIVE_ORDER))
+                .limit(FactionSnapshot.MAX_ONLINE_PLAYERS)
+                .toList();
     }
 
     private static List<String> otherFactionNames(FactionManager manager, UUID ownFactionId) {
@@ -650,15 +664,15 @@ final class FactionManagerService implements FactionServerHooks.Service {
     }
 
     @Override
-    public Component mapSetClaims(ServerPlayer player, boolean claimed, List<Long> packedChunks) {
+    public FactionServerHooks.Result mapSetClaims(ServerPlayer player, boolean claimed, List<Long> packedChunks) {
         FactionManager manager = FactionManager.get(player.serverLevel());
         Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
         if (faction == null) {
-            return Component.translatable("kingdoms.error.not_in_faction");
+            return notice(false, Component.translatable("kingdoms.error.not_in_faction"));
         }
         FactionRole role = faction.roleOf(player.getUUID()).orElse(FactionRole.MEMBER);
         if (!role.canManageClaims()) {
-            return Component.translatable("kingdoms.error.role_cannot_change_claims");
+            return notice(false, Component.translatable("kingdoms.error.role_cannot_change_claims"));
         }
 
         int radius = ModConfigSpec.CLAIM_SYNC_RADIUS_CHUNKS.get();
@@ -674,7 +688,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
             }
         }
         if (pending.isEmpty()) {
-            return Component.translatable("kingdoms.error.claim_outside_map");
+            return notice(false, Component.translatable("kingdoms.error.claim_outside_map"));
         }
 
         int applied = 0;
@@ -701,7 +715,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
         }
 
         if (applied == 0) {
-            return message(lastFailure == null ? FactionManager.Status.FACTION_NOT_FOUND : lastFailure);
+            return notice(false, message(lastFailure == null ? FactionManager.Status.FACTION_NOT_FOUND : lastFailure));
         }
 
         IntegrationManager.refreshFromServer(player.getServer());
@@ -713,9 +727,13 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 NumismaticsEconomy.format(moved)
         );
         if (pending.isEmpty() || lastFailure == null) {
-            return summary;
+            return notice(true, summary);
         }
-        return Component.empty().append(summary).append(" ").append(message(lastFailure));
+        return notice(true, Component.empty().append(summary).append(" ").append(message(lastFailure)));
+    }
+
+    private static FactionServerHooks.Result notice(boolean successful, Component message) {
+        return new FactionServerHooks.Result(successful, message, null);
     }
 
     private FactionServerHooks.Result notInFaction(ServerPlayer player, BlockPos tablePos) {

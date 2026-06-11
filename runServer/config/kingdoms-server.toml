@@ -1,0 +1,49 @@
+[factions]
+	# Default: 3
+	# Range: 1 ~ 15
+	starterClaimSize = 3
+	# Default: 9
+	# Range: 1 ~ 225
+	freeClaims = 9
+	requireAdjacent = true
+	protectExplosions = true
+	# Default: 100
+	# Range: 0 ~ 9223372036854775807
+	expansionBaseCost = 100
+	# Default: 0.15
+	# Range: 0.0 ~ 100.0
+	expansionGrowth = 0.15
+	# Default: 0.5
+	# Range: 0.0 ~ 1.0
+	unclaimRefundPercent = 0.5
+	# Default: 1.1
+	# Range: 1.0 ~ 100.0
+	warriorDamageMultiplier = 1.1
+	# Default: 0.1
+	# Range: 0.0 ~ 1.0
+	oreBonusChance = 0.1
+	# Default: 0.2
+	# Range: 0.0 ~ 1.0
+	craftBonusChance = 0.2
+	# Default: 0.2
+	# Range: 0.0 ~ 1.0
+	builderDiscount = 0.2
+	# Default: 1
+	# Range: 0 ~ 9223372036854775807
+	influencePerChunkPerDay = 1
+
+[war]
+	#How many snapshotted chunks to roll back per server tick when a war ends.
+	# Default: 8
+	# Range: 1 ~ 4096
+	rollbackChunksPerTick = 8
+	#Game-time ticks after which an active war ends automatically (0 disables auto-end).
+	# Default: 0
+	# Range: 0 ~ 9223372036854775807
+	autoEndTicks = 0
+
+[integration]
+	#Radius in chunks around each player for which faction claims are streamed to client minimap mods (Xaero).
+	# Default: 64
+	# Range: 8 ~ 512
+	claimSyncRadiusChunks = 64

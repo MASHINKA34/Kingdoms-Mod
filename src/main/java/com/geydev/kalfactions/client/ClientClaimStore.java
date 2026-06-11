@@ -15,13 +15,22 @@ public final class ClientClaimStore {
     public record ClaimInfo(int color, String name, UUID factionId) {
     }
 
+    public record ViewerInfo(UUID factionId, int claimCount, double claimDiscount) {
+        public boolean hasFaction() {
+            return factionId != null && (factionId.getMostSignificantBits() != 0L
+                    || factionId.getLeastSignificantBits() != 0L);
+        }
+    }
+
+    private static final ViewerInfo NO_VIEWER = new ViewerInfo(new UUID(0L, 0L), 0, 0.0D);
     private static final int REGION_SHIFT = 5;
 
     private static final Map<ResourceKey<Level>, Map<Long, ClaimInfo>> BY_DIMENSION = new ConcurrentHashMap<>();
     private static final Map<ResourceKey<Level>, Map<Long, Integer>> REGION_HASHES = new ConcurrentHashMap<>();
     private static final AtomicLong REVISION = new AtomicLong();
+    private static volatile ViewerInfo viewer = NO_VIEWER;
 
-    public static void replace(ResourceLocation dimensionId, Map<Long, ClaimInfo> claims) {
+    public static void replace(ResourceLocation dimensionId, Map<Long, ClaimInfo> claims, ViewerInfo viewerInfo) {
         ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, dimensionId);
         if (claims.isEmpty()) {
             BY_DIMENSION.remove(dimension);
@@ -30,7 +39,12 @@ public final class ClientClaimStore {
             BY_DIMENSION.put(dimension, Map.copyOf(claims));
             REGION_HASHES.put(dimension, regionHashes(claims));
         }
+        viewer = viewerInfo == null ? NO_VIEWER : viewerInfo;
         REVISION.incrementAndGet();
+    }
+
+    public static ViewerInfo viewer() {
+        return viewer;
     }
 
     public static ClaimInfo get(ResourceKey<Level> dimension, int chunkX, int chunkZ) {
@@ -69,6 +83,7 @@ public final class ClientClaimStore {
         if (!BY_DIMENSION.isEmpty() || !REGION_HASHES.isEmpty()) {
             BY_DIMENSION.clear();
             REGION_HASHES.clear();
+            viewer = NO_VIEWER;
             REVISION.incrementAndGet();
         }
     }

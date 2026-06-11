@@ -3,6 +3,8 @@ package com.geydev.kalfactions.net;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.faction.Faction;
+import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.integration.IntegrationManager;
 import com.geydev.kalfactions.integration.IntegrationManager.FactionMapData;
 import java.util.ArrayList;
@@ -59,10 +61,14 @@ public final class ClaimSyncManager {
         ResourceKey<Level> dimension = player.level().dimension();
         long chunkPos = player.chunkPosition().toLong();
         long revision = IntegrationManager.revision();
+        UUID viewerFactionId = FactionManager.get(player.serverLevel())
+                .getFactionIdForMember(player.getUUID())
+                .orElse(FactionSnapshot.NO_FACTION);
         SyncState previous = STATES.get(player.getUUID());
         if (previous != null
                 && previous.dimension.equals(dimension)
                 && previous.revision == revision
+                && previous.viewerFactionId.equals(viewerFactionId)
                 && within(previous.chunkPos, chunkPos)) {
             return;
         }
@@ -102,8 +108,18 @@ public final class ClaimSyncManager {
             }
         }
 
-        PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CSyncClaims(dimension.location(), entries));
-        STATES.put(player.getUUID(), new SyncState(dimension, center.toLong(), revision));
+        Faction viewerFaction = FactionManager.get(player.serverLevel())
+                .getFactionForMember(player.getUUID())
+                .orElse(null);
+        UUID viewerFactionId = viewerFaction == null ? FactionSnapshot.NO_FACTION : viewerFaction.id();
+        PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CSyncClaims(
+                dimension.location(),
+                entries,
+                viewerFactionId,
+                viewerFaction == null ? 0 : viewerFaction.claimCount(),
+                viewerFaction == null ? 0.0D : viewerFaction.bonus().claimDiscount()
+        ));
+        STATES.put(player.getUUID(), new SyncState(dimension, center.toLong(), revision, viewerFactionId));
     }
 
     private static boolean within(long previousChunk, long currentChunk) {
@@ -113,7 +129,7 @@ public final class ClaimSyncManager {
                 && Math.abs(previous.z - current.z) < RESEND_MOVE_CHUNKS;
     }
 
-    private record SyncState(ResourceKey<Level> dimension, long chunkPos, long revision) {
+    private record SyncState(ResourceKey<Level> dimension, long chunkPos, long revision, UUID viewerFactionId) {
     }
 
     private ClaimSyncManager() {

@@ -64,10 +64,17 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
+        client2 {
+            client()
+            programArguments.addAll '--username', 'Dev2'
+            gameDirectory = file('run2')
+        }
+
         server {
             server()
             programArgument '--nogui'
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            gameDirectory = file('runServer')
         }
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.
