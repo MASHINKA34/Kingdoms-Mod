@@ -1,7 +1,9 @@
 package com.geydev.kalfactions.client;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -90,14 +92,22 @@ public final class ClientClaimStore {
 
     private static Map<Long, Integer> regionHashes(Map<Long, ClaimInfo> claims) {
         Map<Long, Integer> hashes = new HashMap<>();
+        Set<Long> touchedRegions = new HashSet<>(4);
         for (Map.Entry<Long, ClaimInfo> entry : claims.entrySet()) {
             long chunkKey = entry.getKey();
             ChunkPos pos = new ChunkPos(chunkKey);
-            long regionKey = ChunkPos.asLong(pos.x >> REGION_SHIFT, pos.z >> REGION_SHIFT);
             ClaimInfo claim = entry.getValue();
             int claimHash = Long.hashCode(chunkKey) * 31 + claim.color();
             claimHash = claimHash * 31 + claim.factionId().hashCode();
-            hashes.merge(regionKey, claimHash, Integer::sum);
+            touchedRegions.clear();
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    touchedRegions.add(ChunkPos.asLong((pos.x + dx) >> REGION_SHIFT, (pos.z + dz) >> REGION_SHIFT));
+                }
+            }
+            for (Long regionKey : touchedRegions) {
+                hashes.merge(regionKey, claimHash, Integer::sum);
+            }
         }
         return Map.copyOf(hashes);
     }

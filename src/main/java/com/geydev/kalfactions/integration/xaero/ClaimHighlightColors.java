@@ -26,7 +26,10 @@ final class ClaimHighlightColors {
     }
 
     private static int pack(int rgb, int alpha) {
-        return (rgb & 0xFFFFFF) << 8 | alpha;
+        int red = (rgb >> 16) & 0xFF;
+        int green = (rgb >> 8) & 0xFF;
+        int blue = rgb & 0xFF;
+        return blue << 24 | green << 16 | red << 8 | alpha;
     }
 
     private ClaimHighlightColors() {
