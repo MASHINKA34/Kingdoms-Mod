@@ -74,7 +74,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
 
     static List<Integer> emblemPixels(Faction faction) {
         int[] pixels = faction.emblem();
-        if (pixels.length != Faction.EMBLEM_PIXELS) {
+        if (!Faction.isValidEmblemLength(pixels.length)) {
             return List.of();
         }
         List<Integer> boxed = new ArrayList<>(pixels.length);
@@ -198,7 +198,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
     }
 
     private static int[] unboxEmblem(List<Integer> emblem) {
-        if (emblem == null || emblem.size() != Faction.EMBLEM_PIXELS) {
+        if (emblem == null || !Faction.isValidEmblemLength(emblem.size())) {
             return null;
         }
         int[] pixels = new int[emblem.size()];
@@ -219,7 +219,11 @@ final class FactionManagerService implements FactionServerHooks.Service {
         }
         String lower = cleaned.toLowerCase(Locale.ROOT);
         if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
-            return "";
+            if (!cleaned.contains("://") && cleaned.contains(".")) {
+                cleaned = "https://" + cleaned;
+            } else {
+                return "";
+            }
         }
         return cleaned.length() > Faction.MAX_EMBLEM_URL_LENGTH
                 ? cleaned.substring(0, Faction.MAX_EMBLEM_URL_LENGTH)

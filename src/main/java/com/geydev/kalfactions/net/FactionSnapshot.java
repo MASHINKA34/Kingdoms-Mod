@@ -38,7 +38,12 @@ public record FactionSnapshot(
     public static final int MAX_ONLINE_PLAYERS = 128;
     public static final int MAX_BONUSES = 8;
     public static final int EMBLEM_PIXELS = 256;
+    public static final int MAX_EMBLEM_PIXELS = 1024;
     public static final int MAX_EMBLEM_URL = 256;
+
+    public static boolean isValidEmblemSize(int size) {
+        return size == EMBLEM_PIXELS || size == MAX_EMBLEM_PIXELS;
+    }
     public static final StreamCodec<RegistryFriendlyByteBuf, FactionSnapshot> STREAM_CODEC = StreamCodec.of(
             FactionSnapshot::encode,
             FactionSnapshot::decode
@@ -59,7 +64,7 @@ public record FactionSnapshot(
         knownFactions = knownFactions == null ? List.of() : List.copyOf(knownFactions);
         onlinePlayers = onlinePlayers == null ? List.of() : List.copyOf(onlinePlayers);
         bonuses = bonuses == null ? List.of() : List.copyOf(bonuses);
-        emblem = emblem == null || emblem.size() != EMBLEM_PIXELS ? List.of() : List.copyOf(emblem);
+        emblem = emblem == null || !isValidEmblemSize(emblem.size()) ? List.of() : List.copyOf(emblem);
         emblemUrl = limit(emblemUrl, MAX_EMBLEM_URL);
     }
 
@@ -122,7 +127,7 @@ public record FactionSnapshot(
                 MAX_BONUSES,
                 (target, value) -> target.writeUtf(value, 24)
         );
-        writeBoundedList(buffer, snapshot.emblem, EMBLEM_PIXELS, (target, value) -> target.writeInt(value));
+        writeBoundedList(buffer, snapshot.emblem, MAX_EMBLEM_PIXELS, (target, value) -> target.writeInt(value));
         buffer.writeUtf(snapshot.emblemUrl, MAX_EMBLEM_URL);
     }
 
@@ -151,7 +156,7 @@ public record FactionSnapshot(
         );
         List<OnlinePlayer> onlinePlayers = readBoundedList(buffer, MAX_ONLINE_PLAYERS, OnlinePlayer::decode);
         List<String> bonuses = readBoundedList(buffer, MAX_BONUSES, target -> target.readUtf(24));
-        List<Integer> emblem = readBoundedList(buffer, EMBLEM_PIXELS, RegistryFriendlyByteBuf::readInt);
+        List<Integer> emblem = readBoundedList(buffer, MAX_EMBLEM_PIXELS, RegistryFriendlyByteBuf::readInt);
         String emblemUrl = buffer.readUtf(MAX_EMBLEM_URL);
         return new FactionSnapshot(
                 tablePos, factionId, name, ownerName, color, canManage, canClaim,

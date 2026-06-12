@@ -110,7 +110,7 @@ public final class FactionPayloads {
     }
 
     private static void writeEmblem(RegistryFriendlyByteBuf buffer, List<Integer> emblem) {
-        int size = emblem.size() == FactionSnapshot.EMBLEM_PIXELS ? emblem.size() : 0;
+        int size = FactionSnapshot.isValidEmblemSize(emblem.size()) ? emblem.size() : 0;
         buffer.writeVarInt(size);
         for (int i = 0; i < size; i++) {
             Integer pixel = emblem.get(i);
@@ -120,8 +120,8 @@ public final class FactionPayloads {
 
     private static List<Integer> readEmblem(RegistryFriendlyByteBuf buffer) {
         int size = buffer.readVarInt();
-        if (size < 0 || size > FactionSnapshot.EMBLEM_PIXELS) {
-            throw new DecoderException("Emblem size " + size + " exceeds " + FactionSnapshot.EMBLEM_PIXELS);
+        if (size < 0 || size > FactionSnapshot.MAX_EMBLEM_PIXELS) {
+            throw new DecoderException("Emblem size " + size + " exceeds " + FactionSnapshot.MAX_EMBLEM_PIXELS);
         }
         List<Integer> emblem = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {

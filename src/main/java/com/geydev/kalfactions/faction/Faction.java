@@ -42,7 +42,12 @@ public final class Faction {
 
     public static final int EMBLEM_SIZE = 16;
     public static final int EMBLEM_PIXELS = EMBLEM_SIZE * EMBLEM_SIZE;
+    public static final int UPLOADED_EMBLEM_PIXELS = 32 * 32;
     public static final int MAX_EMBLEM_URL_LENGTH = 256;
+
+    public static boolean isValidEmblemLength(int length) {
+        return length == EMBLEM_PIXELS || length == UPLOADED_EMBLEM_PIXELS;
+    }
 
     private final UUID id;
     private final long createdAtEpochMillis;
@@ -172,7 +177,7 @@ public final class Faction {
     }
 
     public boolean hasEmblem() {
-        return emblem.length == EMBLEM_PIXELS || !emblemUrl.isEmpty();
+        return isValidEmblemLength(emblem.length) || !emblemUrl.isEmpty();
     }
 
     public String emblemUrl() {
@@ -266,7 +271,7 @@ public final class Faction {
     }
 
     void setEmblem(int[] pixels, String url) {
-        emblem = pixels != null && pixels.length == EMBLEM_PIXELS ? pixels.clone() : new int[0];
+        emblem = pixels != null && isValidEmblemLength(pixels.length) ? pixels.clone() : new int[0];
         String cleaned = url == null ? "" : url.strip();
         emblemUrl = cleaned.length() > MAX_EMBLEM_URL_LENGTH ? cleaned.substring(0, MAX_EMBLEM_URL_LENGTH) : cleaned;
     }
@@ -344,7 +349,7 @@ public final class Faction {
             .sorted(Comparator.comparing(FactionBonus::name))
             .forEach(value -> bonusesTag.add(net.minecraft.nbt.StringTag.valueOf(value.name())));
         tag.put(TAG_BONUSES, bonusesTag);
-        if (emblem.length == EMBLEM_PIXELS) {
+        if (isValidEmblemLength(emblem.length)) {
             tag.putIntArray(TAG_EMBLEM, emblem.clone());
         }
         if (!emblemUrl.isEmpty()) {

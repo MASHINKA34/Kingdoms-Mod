@@ -19,8 +19,8 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
 
 public final class EmblemTextures {
-    private static final int MAX_URL_BYTES = 64 * 1024;
-    private static final int MAX_URL_IMAGE_SIZE = 256;
+    private static final int MAX_URL_BYTES = 2 * 1024 * 1024;
+    private static final int MAX_URL_IMAGE_SIZE = 1024;
     private static final long FAILED_RETRY_MILLIS = 60_000L;
     private static final Map<UUID, PixelEntry> PIXEL_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, UrlEntry> URL_CACHE = new ConcurrentHashMap<>();
@@ -43,7 +43,7 @@ public final class EmblemTextures {
                 return entry.emblem;
             }
         }
-        if (factionId != null && pixels != null && pixels.size() == 256) {
+        if (factionId != null && pixels != null && isValidPixelCount(pixels.size())) {
             int hash = pixels.hashCode();
             PixelEntry entry = PIXEL_CACHE.get(factionId);
             if (entry == null || entry.hash != hash) {
@@ -55,11 +55,16 @@ public final class EmblemTextures {
         return null;
     }
 
+    public static boolean isValidPixelCount(int count) {
+        return count == 256 || count == 1024;
+    }
+
     private static Emblem uploadPixels(UUID factionId, List<Integer> pixels) {
-        NativeImage image = new NativeImage(16, 16, true);
-        for (int y = 0; y < 16; y++) {
-            for (int x = 0; x < 16; x++) {
-                Integer boxed = pixels.get(y * 16 + x);
+        int size = (int) Math.sqrt(pixels.size());
+        NativeImage image = new NativeImage(size, size, true);
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                Integer boxed = pixels.get(y * size + x);
                 image.setPixelRGBA(x, y, argbToAbgr(boxed == null ? 0 : boxed));
             }
         }
@@ -68,7 +73,7 @@ public final class EmblemTextures {
                 "emblem/px/" + factionId.toString().toLowerCase(Locale.ROOT)
         );
         Minecraft.getInstance().getTextureManager().register(location, new DynamicTexture(image));
-        return new Emblem(location, 16, 16);
+        return new Emblem(location, size, size);
     }
 
     private static void download(String url) {
