@@ -157,23 +157,23 @@ public final class FactionManageScreen extends FactionScreen {
         int leftColumn = left + CONTENT_LEFT;
         int rightColumn = left + 172;
 
-        graphics.fill(leftColumn - 1, top + 57, leftColumn + 11, top + 69, 0xFF1A140C);
-        graphics.fill(leftColumn, top + 58, leftColumn + 10, top + 68, 0xFF000000 | selectedColor);
-        graphics.drawString(font, snapshot.name(), leftColumn + 15, top + 59, TEXT_DARK, false);
         EmblemTextures.Emblem emblem = EmblemTextures.resolve(
                 snapshot.factionId(),
                 snapshot.emblem(),
                 snapshot.emblemUrl()
         );
+        graphics.fill(leftColumn - 1, top + 56, leftColumn + 13, top + 70, 0xFF1A140C);
         if (emblem != null) {
-            graphics.fill(left + 269, top + 53, left + 297, top + 81, 0xFF1A140C);
             graphics.blit(
                     emblem.texture(),
-                    left + 271, top + 55, 24, 24,
+                    leftColumn, top + 57, 12, 12,
                     0.0F, 0.0F, emblem.width(), emblem.height(),
                     emblem.width(), emblem.height()
             );
+        } else {
+            graphics.fill(leftColumn, top + 57, leftColumn + 12, top + 69, 0xFF000000 | selectedColor);
         }
+        graphics.drawString(font, snapshot.name(), leftColumn + 17, top + 59, TEXT_DARK, false);
         graphics.drawString(
                 font,
                 text("screen.kingdoms.owner", snapshot.ownerName()),
