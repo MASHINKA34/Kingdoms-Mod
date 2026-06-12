@@ -1,5 +1,7 @@
 package com.geydev.kalfactions.client;
 
+import com.geydev.kalfactions.client.screen.ChestAccessScreen;
+import com.geydev.kalfactions.client.screen.FactionListScreen;
 import com.geydev.kalfactions.client.screen.FactionScreen;
 import com.geydev.kalfactions.client.screen.FactionScreens;
 import com.geydev.kalfactions.integration.xaero.XaeroMaps;
@@ -37,8 +39,32 @@ public final class ClientFactionPayloadHandler {
         minecraft.execute(() -> showNotice(minecraft, payload.message(), payload.successful()));
     }
 
+    public static void handleFactionList(FactionPayloads.S2CFactionList payload) {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.execute(() -> {
+            if (minecraft.screen instanceof FactionListScreen screen) {
+                screen.acceptData(payload);
+            }
+        });
+    }
+
+    public static void handleChestAccess(FactionPayloads.S2CChestAccessState payload) {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.execute(() -> {
+            if (minecraft.screen instanceof ChestAccessScreen screen && screen.pos().equals(payload.pos())) {
+                screen.acceptState(payload);
+            } else {
+                minecraft.setScreen(new ChestAccessScreen(payload));
+            }
+        });
+    }
+
     private static void showNotice(Minecraft minecraft, Component message, boolean successful) {
         if (XaeroMaps.showMapNotice(message, successful)) {
+            return;
+        }
+        if (minecraft.screen instanceof FactionListScreen listScreen) {
+            listScreen.showNotice(message, successful);
             return;
         }
         if (minecraft.screen instanceof FactionScreen screen) {

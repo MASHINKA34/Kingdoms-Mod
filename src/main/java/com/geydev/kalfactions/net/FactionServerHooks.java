@@ -2,12 +2,26 @@ package com.geydev.kalfactions.net;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
+import com.geydev.kalfactions.chest.AccessTool;
+import com.geydev.kalfactions.chest.ChestAccessMode;
+import com.geydev.kalfactions.command.PendingFactionInvites;
+import com.geydev.kalfactions.faction.Faction;
+import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.faction.FactionMember;
+import com.geydev.kalfactions.war.War;
+import com.geydev.kalfactions.war.WarManager;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -55,7 +69,15 @@ public final class FactionServerHooks {
         }
     }
 
-    public static void create(ServerPlayer player, BlockPos tablePos, String requestedName, int requestedColor) {
+    public static void create(
+            ServerPlayer player,
+            BlockPos tablePos,
+            String requestedName,
+            int requestedColor,
+            List<String> bonuses,
+            List<Integer> emblem,
+            String emblemUrl
+    ) {
         Validation validation = validateTable(player, tablePos, true);
         if (!validation.allowed) {
             reject(player, tablePos, validation.message);
@@ -80,7 +102,29 @@ public final class FactionServerHooks {
             return;
         }
 
-        perform(player, tablePos, () -> service.create(player, tablePos, name, requestedColor & 0xFFFFFF));
+        perform(player, tablePos, () -> service.create(
+                player,
+                tablePos,
+                name,
+                requestedColor & 0xFFFFFF,
+                bonuses,
+                emblem,
+                emblemUrl
+        ));
+    }
+
+    public static void setEmblem(
+            ServerPlayer player,
+            BlockPos tablePos,
+            List<Integer> emblem,
+            String emblemUrl
+    ) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.setEmblem(player, tablePos, emblem, emblemUrl));
     }
 
     public static void update(ServerPlayer player, BlockPos tablePos, String requestedName, int requestedColor) {
@@ -276,6 +320,239 @@ public final class FactionServerHooks {
         PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CFactionNotice(message, successful));
     }
 
+    public static void sendFactionList(ServerPlayer player) {
+        if (!player.isAlive()) {
+            return;
+        }
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        WarManager wars = WarManager.get(player.getServer());
+        List<FactionPayloads.FactionInfo> factions = new ArrayList<>();
+        for (Faction faction : manager.factions()) {
+            String warWith = wars.warForFaction(faction.id())
+                    .filter(War::isActive)
+                    .map(war -> manager.getFactionById(war.opponentOf(faction.id()))
+                            .map(Faction::name)
+                            .orElse(""))
+                    .orElse("");
+            List<FactionPayloads.MemberInfo> members = faction.members().values().stream()
+                    .sorted(Comparator
+                            .comparing((FactionMember member) -> member.role().ordinal()).reversed()
+                            .thenComparing(
+                                    member -> resolvePlayerName(player, member.playerId()),
+                                    String.CASE_INSENSITIVE_ORDER))
+                    .limit(FactionPayloads.FactionInfo.MAX_LIST_MEMBERS)
+                    .map(member -> new FactionPayloads.MemberInfo(
+                            resolvePlayerName(player, member.playerId()),
+                            "kingdoms.role." + member.role().name().toLowerCase(Locale.ROOT)))
+                    .toList();
+            factions.add(new FactionPayloads.FactionInfo(
+                    faction.id(),
+                    faction.name(),
+                    faction.color(),
+                    faction.memberCount(),
+                    faction.influence(),
+                    warWith,
+                    FactionManagerService.bonusNames(faction),
+                    FactionManagerService.emblemPixels(faction),
+                    faction.emblemUrl(),
+                    members
+            ));
+        }
+        factions.sort(Comparator.comparing(FactionPayloads.FactionInfo::name, String.CASE_INSENSITIVE_ORDER));
+
+        List<FactionPayloads.InviteInfo> invites = new ArrayList<>();
+        for (PendingFactionInvites.Invite invite : PendingFactionInvites.allFor(player.getServer(), player.getUUID())) {
+            Faction faction = manager.getFactionById(invite.factionId()).orElse(null);
+            if (faction == null) {
+                continue;
+            }
+            invites.add(new FactionPayloads.InviteInfo(
+                    faction.id(),
+                    faction.name(),
+                    faction.color(),
+                    faction.memberCount(),
+                    resolvePlayerName(player, invite.inviterId()),
+                    FactionManagerService.bonusNames(faction),
+                    FactionManagerService.emblemPixels(faction),
+                    faction.emblemUrl()
+            ));
+        }
+        PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CFactionList(factions, invites));
+    }
+
+    public static void respondInvite(ServerPlayer player, UUID factionId, boolean accept) {
+        if (!player.isAlive() || player.isSpectator()) {
+            return;
+        }
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        PendingFactionInvites.Invite invite = PendingFactionInvites
+                .find(player.getServer(), factionId, player.getUUID())
+                .orElse(null);
+        if (invite == null) {
+            sendNotice(player, Component.translatable("kingdoms.command.faction.invite.not_found"), false);
+            sendFactionList(player);
+            return;
+        }
+        if (!accept) {
+            PendingFactionInvites.remove(player.getServer(), factionId, player.getUUID());
+            sendNotice(player, Component.translatable("kingdoms.command.faction.invite.declined"), true);
+            ServerPlayer inviter = player.getServer().getPlayerList().getPlayer(invite.inviterId());
+            if (inviter != null) {
+                sendNotice(
+                        inviter,
+                        Component.translatable(
+                                "kingdoms.command.faction.invite.declined_notice",
+                                player.getGameProfile().getName()
+                        ),
+                        false
+                );
+            }
+            sendFactionList(player);
+            return;
+        }
+        if (manager.getFactionForMember(player.getUUID()).isPresent()) {
+            sendNotice(player, Component.translatable("kingdoms.command.faction.join.leave_current_first"), false);
+            sendFactionList(player);
+            return;
+        }
+        FactionManager.OperationResult result = manager.addMember(factionId, player.getUUID());
+        if (!result.successful()) {
+            sendNotice(player, Component.translatable("kingdoms.error.faction_action_rejected"), false);
+            sendFactionList(player);
+            return;
+        }
+        PendingFactionInvites.remove(player.getServer(), factionId, player.getUUID());
+        Faction faction = manager.getFactionById(factionId).orElse(null);
+        String factionName = faction == null ? "" : faction.name();
+        sendNotice(player, Component.translatable("kingdoms.command.faction.join.success", factionName), true);
+        ServerPlayer inviter = player.getServer().getPlayerList().getPlayer(invite.inviterId());
+        if (inviter != null) {
+            sendNotice(
+                    inviter,
+                    Component.translatable(
+                            "kingdoms.command.faction.join.notice",
+                            player.getGameProfile().getName(),
+                            factionName
+                    ),
+                    true
+            );
+        }
+        ClaimSyncManager.resync(player);
+        sendFactionList(player);
+    }
+
+    private static String resolvePlayerName(ServerPlayer viewer, UUID playerId) {
+        ServerPlayer online = viewer.getServer().getPlayerList().getPlayer(playerId);
+        if (online != null) {
+            return online.getGameProfile().getName();
+        }
+        return viewer.getServer().getProfileCache()
+                .get(playerId)
+                .map(profile -> profile.getName())
+                .orElse(playerId.toString().substring(0, 8));
+    }
+
+    public static void setChestMode(ServerPlayer player, BlockPos pos, String modeName) {
+        if (!validateChestRequest(player, pos)) {
+            return;
+        }
+        ChestAccessMode mode;
+        try {
+            mode = ChestAccessMode.valueOf(modeName.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            sendNotice(player, Component.translatable("kingdoms.error.faction_action_rejected"), false);
+            return;
+        }
+        ServerLevel level = player.serverLevel();
+        AccessTool.WhitelistResult result = AccessTool.setMode(player, level, pos, mode);
+        sendChestAccessState(player, level, pos, result.message(), result.success());
+    }
+
+    public static void editChestWhitelist(
+            ServerPlayer player,
+            BlockPos pos,
+            boolean add,
+            UUID targetId,
+            String targetName
+    ) {
+        if (!validateChestRequest(player, pos)) {
+            return;
+        }
+        ServerLevel level = player.serverLevel();
+        AccessTool.WhitelistResult result;
+        if (add) {
+            ServerPlayer target = player.getServer().getPlayerList().getPlayerByName(targetName.trim());
+            if (target == null) {
+                sendChestAccessState(
+                        player,
+                        level,
+                        pos,
+                        Component.translatable("kingdoms.duel.error.player_offline"),
+                        false
+                );
+                return;
+            }
+            result = AccessTool.addWhitelistPlayer(
+                    player,
+                    level,
+                    pos,
+                    target.getUUID(),
+                    target.getGameProfile().getName()
+            );
+        } else {
+            result = AccessTool.removeWhitelistPlayer(player, level, pos, targetId, targetName);
+        }
+        sendChestAccessState(player, level, pos, result.message(), result.success());
+    }
+
+    public static void sendChestAccessState(
+            ServerPlayer player,
+            ServerLevel level,
+            BlockPos pos,
+            Component notice,
+            boolean successful
+    ) {
+        AccessTool.AccessState state = AccessTool.stateFor(player, level, pos);
+        if (state == null) {
+            if (!notice.getString().isBlank()) {
+                sendNotice(player, notice, successful);
+            }
+            return;
+        }
+        FactionManager manager = FactionManager.get(level);
+        Set<UUID> listed = new HashSet<>();
+        List<FactionPayloads.ChestWhitelistEntry> whitelist = new ArrayList<>();
+        for (AccessTool.StateEntry entry : state.whitelist()) {
+            listed.add(entry.id());
+            whitelist.add(new FactionPayloads.ChestWhitelistEntry(entry.id(), entry.name()));
+        }
+        List<String> candidates = player.getServer().getPlayerList().getPlayers().stream()
+                .filter(online -> !online.getUUID().equals(player.getUUID()))
+                .filter(online -> !listed.contains(online.getUUID()))
+                .filter(online -> !state.factionId().equals(
+                        manager.getFactionIdForMember(online.getUUID()).orElse(null)))
+                .map(online -> online.getGameProfile().getName())
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .limit(FactionPayloads.S2CChestAccessState.MAX_CANDIDATES)
+                .toList();
+        PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CChestAccessState(
+                pos,
+                state.mode().name(),
+                whitelist,
+                candidates,
+                notice,
+                successful
+        ));
+    }
+
+    private static boolean validateChestRequest(ServerPlayer player, BlockPos pos) {
+        if (!player.isAlive() || player.isSpectator() || !player.level().isLoaded(pos)) {
+            return false;
+        }
+        return player.distanceToSqr(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D)
+                <= MAX_TABLE_DISTANCE_SQR;
+    }
+
     public static void clearRateLimit(UUID playerId) {
         LAST_ACTION_TICK.remove(playerId);
     }
@@ -365,7 +642,10 @@ public final class FactionServerHooks {
                 snapshot.viewerId(),
                 snapshot.isOfficer(),
                 snapshot.knownFactions(),
-                snapshot.onlinePlayers()
+                snapshot.onlinePlayers(),
+                snapshot.bonuses(),
+                snapshot.emblem(),
+                snapshot.emblemUrl()
         );
     }
 
@@ -394,7 +674,17 @@ public final class FactionServerHooks {
     public interface Service {
         FactionSnapshot view(ServerPlayer player, BlockPos tablePos);
 
-        Result create(ServerPlayer player, BlockPos tablePos, String name, int color);
+        Result create(
+                ServerPlayer player,
+                BlockPos tablePos,
+                String name,
+                int color,
+                List<String> bonuses,
+                List<Integer> emblem,
+                String emblemUrl
+        );
+
+        Result setEmblem(ServerPlayer player, BlockPos tablePos, List<Integer> emblem, String emblemUrl);
 
         Result update(ServerPlayer player, BlockPos tablePos, String name, int color);
 
@@ -455,7 +745,20 @@ public final class FactionServerHooks {
         }
 
         @Override
-        public Result create(ServerPlayer player, BlockPos tablePos, String name, int color) {
+        public Result create(
+                ServerPlayer player,
+                BlockPos tablePos,
+                String name,
+                int color,
+                List<String> bonuses,
+                List<Integer> emblem,
+                String emblemUrl
+        ) {
+            return managementUnavailable(player, tablePos);
+        }
+
+        @Override
+        public Result setEmblem(ServerPlayer player, BlockPos tablePos, List<Integer> emblem, String emblemUrl) {
             return managementUnavailable(player, tablePos);
         }
 

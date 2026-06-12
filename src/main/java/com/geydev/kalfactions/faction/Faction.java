@@ -6,6 +6,7 @@ import com.geydev.kalfactions.economy.Treasury;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,9 @@ public final class Faction {
     private static final String TAG_COLOR = "color";
     private static final String TAG_ICON = "icon";
     private static final String TAG_BONUS = "bonus";
+    private static final String TAG_BONUSES = "bonuses";
+    private static final String TAG_EMBLEM = "emblem";
+    private static final String TAG_EMBLEM_URL = "emblemUrl";
     private static final String TAG_INTERNAL_PVP = "internalPvp";
     private static final String TAG_CREATED_AT = "createdAt";
     private static final String TAG_TREASURY = "treasury";
@@ -35,6 +39,10 @@ public final class Faction {
     private static final String TAG_CLAIMS = "claims";
     private static final String TAG_CLAIM_KEY = "key";
     private static final String TAG_CLAIM_PRICE = "paidPrice";
+
+    public static final int EMBLEM_SIZE = 16;
+    public static final int EMBLEM_PIXELS = EMBLEM_SIZE * EMBLEM_SIZE;
+    public static final int MAX_EMBLEM_URL_LENGTH = 256;
 
     private final UUID id;
     private final long createdAtEpochMillis;
@@ -45,7 +53,9 @@ public final class Faction {
     private UUID ownerId;
     private int color;
     private ResourceLocation iconId;
-    private FactionBonus bonus;
+    private Set<FactionBonus> bonuses;
+    private int[] emblem;
+    private String emblemUrl;
     private boolean internalPvp;
     private long influence;
 
@@ -55,7 +65,7 @@ public final class Faction {
         UUID ownerId,
         int color,
         ResourceLocation iconId,
-        FactionBonus bonus,
+        Set<FactionBonus> bonuses,
         boolean internalPvp,
         long createdAtEpochMillis
     ) {
@@ -65,7 +75,7 @@ public final class Faction {
             ownerId,
             color,
             iconId,
-            bonus,
+            bonuses,
             internalPvp,
             createdAtEpochMillis,
             new Treasury(),
@@ -81,7 +91,7 @@ public final class Faction {
         UUID ownerId,
         int color,
         ResourceLocation iconId,
-        FactionBonus bonus,
+        Set<FactionBonus> bonuses,
         boolean internalPvp,
         long createdAtEpochMillis,
         Treasury treasury,
@@ -94,7 +104,9 @@ public final class Faction {
         this.ownerId = Objects.requireNonNull(ownerId, "ownerId");
         this.color = color;
         this.iconId = Objects.requireNonNull(iconId, "iconId");
-        this.bonus = Objects.requireNonNull(bonus, "bonus");
+        this.bonuses = sanitizeBonuses(bonuses);
+        this.emblem = new int[0];
+        this.emblemUrl = "";
         this.internalPvp = internalPvp;
         this.createdAtEpochMillis = Math.max(0L, createdAtEpochMillis);
         this.treasury = Objects.requireNonNull(treasury, "treasury");
@@ -102,6 +114,17 @@ public final class Faction {
         this.members = new LinkedHashMap<>(members);
         this.claims = new LinkedHashMap<>(claims);
         enforceLeadershipInvariant();
+    }
+
+    private static Set<FactionBonus> sanitizeBonuses(Set<FactionBonus> bonuses) {
+        Objects.requireNonNull(bonuses, "bonuses");
+        EnumSet<FactionBonus> copy = EnumSet.noneOf(FactionBonus.class);
+        copy.addAll(bonuses);
+        copy.remove(null);
+        if (copy.isEmpty()) {
+            copy.add(FactionBonus.TRADERS);
+        }
+        return copy;
     }
 
     public UUID id() {
@@ -128,8 +151,32 @@ public final class Faction {
         return iconId;
     }
 
-    public FactionBonus bonus() {
-        return bonus;
+    public Set<FactionBonus> bonuses() {
+        return Set.copyOf(bonuses);
+    }
+
+    public boolean hasBonus(FactionBonus bonus) {
+        return bonuses.contains(bonus);
+    }
+
+    public double claimDiscount() {
+        double discount = 0.0D;
+        for (FactionBonus bonus : bonuses) {
+            discount = Math.max(discount, bonus.claimDiscount());
+        }
+        return discount;
+    }
+
+    public int[] emblem() {
+        return emblem.clone();
+    }
+
+    public boolean hasEmblem() {
+        return emblem.length == EMBLEM_PIXELS || !emblemUrl.isEmpty();
+    }
+
+    public String emblemUrl() {
+        return emblemUrl;
     }
 
     public boolean internalPvp() {
@@ -214,8 +261,14 @@ public final class Faction {
         iconId = Objects.requireNonNull(newIconId, "newIconId");
     }
 
-    void setBonus(FactionBonus newBonus) {
-        bonus = Objects.requireNonNull(newBonus, "newBonus");
+    void setBonuses(Set<FactionBonus> newBonuses) {
+        bonuses = sanitizeBonuses(newBonuses);
+    }
+
+    void setEmblem(int[] pixels, String url) {
+        emblem = pixels != null && pixels.length == EMBLEM_PIXELS ? pixels.clone() : new int[0];
+        String cleaned = url == null ? "" : url.strip();
+        emblemUrl = cleaned.length() > MAX_EMBLEM_URL_LENGTH ? cleaned.substring(0, MAX_EMBLEM_URL_LENGTH) : cleaned;
     }
 
     void setInternalPvp(boolean enabled) {
@@ -286,7 +339,17 @@ public final class Faction {
         tag.putUUID(TAG_OWNER, ownerId);
         tag.putInt(TAG_COLOR, color);
         tag.putString(TAG_ICON, iconId.toString());
-        tag.putString(TAG_BONUS, bonus.name());
+        ListTag bonusesTag = new ListTag();
+        bonuses.stream()
+            .sorted(Comparator.comparing(FactionBonus::name))
+            .forEach(value -> bonusesTag.add(net.minecraft.nbt.StringTag.valueOf(value.name())));
+        tag.put(TAG_BONUSES, bonusesTag);
+        if (emblem.length == EMBLEM_PIXELS) {
+            tag.putIntArray(TAG_EMBLEM, emblem.clone());
+        }
+        if (!emblemUrl.isEmpty()) {
+            tag.putString(TAG_EMBLEM_URL, emblemUrl);
+        }
         tag.putBoolean(TAG_INTERNAL_PVP, internalPvp);
         tag.putLong(TAG_CREATED_AT, createdAtEpochMillis);
         tag.put(TAG_TREASURY, treasury.save());
@@ -320,14 +383,25 @@ public final class Faction {
 
         UUID ownerId = tag.getUUID(TAG_OWNER);
         ResourceLocation iconId = ResourceLocation.tryParse(tag.getString(TAG_ICON));
-        FactionBonus bonus;
-        try {
-            bonus = FactionBonus.valueOf(tag.getString(TAG_BONUS).toUpperCase(java.util.Locale.ROOT));
-        } catch (IllegalArgumentException exception) {
-            return Optional.empty();
-        }
         if (iconId == null) {
             return Optional.empty();
+        }
+        EnumSet<FactionBonus> bonuses = EnumSet.noneOf(FactionBonus.class);
+        ListTag bonusesTag = tag.getList(TAG_BONUSES, Tag.TAG_STRING);
+        for (int index = 0; index < bonusesTag.size(); index++) {
+            try {
+                bonuses.add(FactionBonus.valueOf(bonusesTag.getString(index).toUpperCase(java.util.Locale.ROOT)));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        if (bonuses.isEmpty() && tag.contains(TAG_BONUS, Tag.TAG_STRING)) {
+            try {
+                bonuses.add(FactionBonus.valueOf(tag.getString(TAG_BONUS).toUpperCase(java.util.Locale.ROOT)));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        if (bonuses.isEmpty()) {
+            bonuses.add(FactionBonus.TRADERS);
         }
         Map<UUID, FactionMember> members = new LinkedHashMap<>();
         ListTag membersTag = tag.getList(TAG_MEMBERS, Tag.TAG_COMPOUND);
@@ -352,20 +426,25 @@ public final class Faction {
         }
 
         Treasury treasury = Treasury.load(tag.getCompound(TAG_TREASURY));
-        return Optional.of(new Faction(
+        Faction faction = new Faction(
             tag.getUUID(TAG_ID),
             tag.getString(TAG_NAME),
             ownerId,
             tag.getInt(TAG_COLOR),
             iconId,
-            bonus,
+            bonuses,
             tag.getBoolean(TAG_INTERNAL_PVP),
             tag.getLong(TAG_CREATED_AT),
             treasury,
             tag.getLong(TAG_INFLUENCE),
             members,
             claims
-        ));
+        );
+        faction.setEmblem(
+            tag.contains(TAG_EMBLEM, Tag.TAG_INT_ARRAY) ? tag.getIntArray(TAG_EMBLEM) : null,
+            tag.getString(TAG_EMBLEM_URL)
+        );
+        return Optional.of(faction);
     }
 
     private void enforceLeadershipInvariant() {

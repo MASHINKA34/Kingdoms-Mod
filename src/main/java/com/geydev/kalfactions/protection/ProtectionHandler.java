@@ -22,8 +22,10 @@ import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Explosion;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -64,8 +66,9 @@ public final class ProtectionHandler {
             return;
         }
 
-        // Placement is not part of the war destruction override: only members building in their own
-        // claims (canBuild) get here. We still snapshot, so a warring faction's own peaceful builds revert.
+        // The only war placement override is TNT on enemy claims; everything else needs canBuild.
+        // We still snapshot, so a warring faction's own peaceful builds revert.
+        WarManager wars = WarManager.get(level);
         Map<BlockPos, BlockState> placed = new HashMap<>();
         boolean denied = false;
         if (event instanceof BlockEvent.EntityMultiPlaceEvent multiPlaceEvent) {
@@ -76,10 +79,12 @@ public final class ProtectionHandler {
                 }
                 placed.put(snapshot.getPos().immutable(), snapshot.getState());
             }
-        } else if (!FactionAccess.canBuild(player, level, event.getPos())) {
-            denied = true;
-        } else {
+        } else if (FactionAccess.canBuild(player, level, event.getPos())
+                || (event.getPlacedBlock().is(Blocks.TNT)
+                        && wars.canBuildInWar(player, level, event.getPos()))) {
             placed.put(event.getPos().immutable(), event.getBlockSnapshot().getState());
+        } else {
+            denied = true;
         }
 
         if (denied) {
@@ -89,7 +94,7 @@ public final class ProtectionHandler {
         }
         // The place event fires after the block is in the world, so onBlocksPlaced patches the
         // captured chunk back to each position's pre-placement state (no-op outside a war).
-        WarManager.get(level).onBlocksPlaced(level, placed);
+        wars.onBlocksPlaced(level, placed);
     }
 
     @SubscribeEvent
@@ -124,6 +129,15 @@ public final class ProtectionHandler {
         }
 
         if (!FactionAccess.canBuild(player, level, pos)) {
+            WarManager wars = WarManager.get(level);
+            if (state.is(Blocks.TNT) && wars.canBuildInWar(player, level, pos)) {
+                return;
+            }
+            if (player.getItemInHand(event.getHand()).is(Items.TNT)
+                    && wars.canBuildInWar(player, level, pos)) {
+                event.setUseBlock(TriState.FALSE);
+                return;
+            }
             cancelInteraction(event);
             deny(player, event.getHand(), "kingdoms.protection.no_interact");
             return;

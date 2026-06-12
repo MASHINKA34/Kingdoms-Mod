@@ -6,6 +6,7 @@ import com.geydev.kalfactions.command.NumismaticsEconomy;
 import com.geydev.kalfactions.command.PendingFactionInvites;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
+import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.FactionMember;
 import com.geydev.kalfactions.faction.FactionRole;
@@ -57,8 +58,30 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 player.getUUID(),
                 role.isAtLeast(FactionRole.OFFICER),
                 otherFactionNames(manager, faction.id()),
-                onlinePlayers(player, manager)
+                onlinePlayers(player, manager),
+                bonusNames(faction),
+                emblemPixels(faction),
+                faction.emblemUrl()
         );
+    }
+
+    static List<String> bonusNames(Faction faction) {
+        return faction.bonuses().stream()
+                .map(Enum::name)
+                .sorted()
+                .toList();
+    }
+
+    static List<Integer> emblemPixels(Faction faction) {
+        int[] pixels = faction.emblem();
+        if (pixels.length != Faction.EMBLEM_PIXELS) {
+            return List.of();
+        }
+        List<Integer> boxed = new ArrayList<>(pixels.length);
+        for (int pixel : pixels) {
+            boxed.add(pixel);
+        }
+        return List.copyOf(boxed);
     }
 
     private static List<FactionSnapshot.OnlinePlayer> onlinePlayers(ServerPlayer viewer, FactionManager manager) {
@@ -87,7 +110,10 @@ final class FactionManagerService implements FactionServerHooks.Service {
             ServerPlayer player,
             BlockPos tablePos,
             String name,
-            int color
+            int color,
+            List<String> bonusNames,
+            List<Integer> emblem,
+            String emblemUrl
     ) {
         FactionManager manager = FactionManager.get(player.serverLevel());
         UUID boundFactionId = boundFactionId(player, tablePos);
@@ -97,17 +123,107 @@ final class FactionManagerService implements FactionServerHooks.Service {
                     view(player, tablePos)
             );
         }
+        Set<FactionBonus> bonuses = parseBonuses(bonusNames);
+        if (bonuses == null) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.bonus_selection"),
+                    view(player, tablePos)
+            );
+        }
         FactionManager.OperationResult result = manager.createFaction(
                 player.getUUID(),
                 name,
                 ClaimKey.of(player.serverLevel(), new ChunkPos(tablePos))
         );
         if (result.successful()) {
+            manager.setFactionBonuses(result.factionId(), bonuses);
+            manager.setFactionEmblem(result.factionId(), unboxEmblem(emblem), sanitizeEmblemUrl(emblemUrl));
             manager.setFactionColor(result.factionId(), color);
             updateTableMetadata(player, tablePos, result.factionId(), color);
             IntegrationManager.refreshFromServer(player.getServer());
         }
         return result(result, player, tablePos);
+    }
+
+    @Override
+    public FactionServerHooks.Result setEmblem(
+            ServerPlayer player,
+            BlockPos tablePos,
+            List<Integer> emblem,
+            String emblemUrl
+    ) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return notInFaction(player, tablePos);
+        }
+        if (!faction.ownerId().equals(player.getUUID())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.leader_settings_only"),
+                    view(player, tablePos)
+            );
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return otherFactionTable(player, tablePos);
+        }
+        FactionManager.OperationResult result =
+                manager.setFactionEmblem(faction.id(), unboxEmblem(emblem), sanitizeEmblemUrl(emblemUrl));
+        if (!result.successful()) {
+            return FactionServerHooks.Result.denied(message(result.status()), view(player, tablePos));
+        }
+        return new FactionServerHooks.Result(
+                true,
+                Component.translatable("kingdoms.command.faction.emblem.saved"),
+                view(player, tablePos)
+        );
+    }
+
+    private static Set<FactionBonus> parseBonuses(List<String> bonusNames) {
+        if (bonusNames == null || bonusNames.size() != 2) {
+            return null;
+        }
+        Set<FactionBonus> parsed = new LinkedHashSet<>();
+        for (String bonusName : bonusNames) {
+            FactionBonus bonus;
+            try {
+                bonus = FactionBonus.valueOf(bonusName.toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException exception) {
+                return null;
+            }
+            if (!FactionBonus.SELECTABLE.contains(bonus) || !parsed.add(bonus)) {
+                return null;
+            }
+        }
+        return parsed;
+    }
+
+    private static int[] unboxEmblem(List<Integer> emblem) {
+        if (emblem == null || emblem.size() != Faction.EMBLEM_PIXELS) {
+            return null;
+        }
+        int[] pixels = new int[emblem.size()];
+        for (int index = 0; index < pixels.length; index++) {
+            Integer value = emblem.get(index);
+            pixels[index] = value == null ? 0 : value;
+        }
+        return pixels;
+    }
+
+    private static String sanitizeEmblemUrl(String url) {
+        if (url == null) {
+            return "";
+        }
+        String cleaned = url.strip();
+        if (cleaned.isEmpty()) {
+            return "";
+        }
+        String lower = cleaned.toLowerCase(Locale.ROOT);
+        if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
+            return "";
+        }
+        return cleaned.length() > Faction.MAX_EMBLEM_URL_LENGTH
+                ? cleaned.substring(0, Faction.MAX_EMBLEM_URL_LENGTH)
+                : cleaned;
     }
 
     @Override
@@ -450,6 +566,32 @@ final class FactionManagerService implements FactionServerHooks.Service {
         if (!canUseBoundTable(player, tablePos, faction.id())) {
             return otherFactionTable(player, tablePos);
         }
+        if (faction.ownerId().equals(player.getUUID()) && faction.memberCount() == 1) {
+            if (!NumismaticsEconomy.canGive(faction.treasuryBalance())) {
+                return FactionServerHooks.Result.denied(
+                        Component.translatable("kingdoms.command.faction.disband.withdraw_first"),
+                        view(player, tablePos)
+                );
+            }
+            FactionManager.OperationResult disbanded = manager.disbandFaction(faction.id());
+            if (!disbanded.successful()) {
+                return FactionServerHooks.Result.denied(message(disbanded.status()), view(player, tablePos));
+            }
+            PendingFactionInvites.removeForFaction(player.getServer(), faction.id());
+            IntegrationManager.refreshFromServer(player.getServer());
+            Component message;
+            if (disbanded.amount() > 0L) {
+                NumismaticsEconomy.give(player, disbanded.amount());
+                message = Component.translatable(
+                        "kingdoms.command.faction.leave.disbanded_refund",
+                        faction.name(),
+                        NumismaticsEconomy.format(disbanded.amount())
+                );
+            } else {
+                message = Component.translatable("kingdoms.command.faction.leave.disbanded", faction.name());
+            }
+            return new FactionServerHooks.Result(true, message, view(player, tablePos));
+        }
         FactionManager.OperationResult result = manager.removeMember(faction.id(), player.getUUID());
         if (!result.successful()) {
             return FactionServerHooks.Result.denied(message(result.status()), view(player, tablePos));
@@ -541,11 +683,15 @@ final class FactionManagerService implements FactionServerHooks.Service {
         }
 
         PendingFactionInvites.put(player.getServer(), faction.id(), player.getUUID(), target.getUUID());
-        target.sendSystemMessage(Component.translatable(
-                "kingdoms.command.faction.invite.received",
-                player.getGameProfile().getName(),
-                faction.name()
-        ));
+        FactionServerHooks.sendNotice(
+                target,
+                Component.translatable(
+                        "kingdoms.command.faction.invite.received",
+                        player.getGameProfile().getName(),
+                        faction.name()
+                ),
+                true
+        );
         return new FactionServerHooks.Result(
                 true,
                 Component.translatable(

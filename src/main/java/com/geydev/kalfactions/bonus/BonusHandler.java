@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -36,12 +37,21 @@ public final class BonusHandler {
     private static volatile DurabilityPolicy durabilityPolicy = BonusHandler::defaultDurabilityChance;
 
     @SubscribeEvent
-    public static void onOreDrops(BlockDropsEvent event) {
-        if (!(event.getBreaker() instanceof ServerPlayer player)
-                || !event.getState().is(Tags.Blocks.ORES)
-                || !FactionAccess.hasAnyBonus(player, FactionBonus.MINERS)
-                || event.getDrops().isEmpty()
-                || player.getRandom().nextDouble() >= ModConfigSpec.ORE_BONUS_CHANCE.get()) {
+    public static void onBonusDrops(BlockDropsEvent event) {
+        if (!(event.getBreaker() instanceof ServerPlayer player) || event.getDrops().isEmpty()) {
+            return;
+        }
+        double chance;
+        if (event.getState().is(Tags.Blocks.ORES)
+                && FactionAccess.hasAnyBonus(player, FactionBonus.MINERS)) {
+            chance = ModConfigSpec.ORE_BONUS_CHANCE.get();
+        } else if (event.getState().is(BlockTags.CROPS)
+                && FactionAccess.hasAnyBonus(player, FactionBonus.FARMERS)) {
+            chance = ModConfigSpec.HARVEST_BONUS_CHANCE.get();
+        } else {
+            return;
+        }
+        if (player.getRandom().nextDouble() >= chance) {
             return;
         }
 

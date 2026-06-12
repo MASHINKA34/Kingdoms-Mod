@@ -98,6 +98,41 @@ public final class FactionNetwork {
                 FactionPayloads.C2SMapSetClaims.STREAM_CODEC,
                 FactionNetwork::handleMapSetClaims
         );
+        registrar.playToServer(
+                FactionPayloads.C2SSetEmblem.TYPE,
+                FactionPayloads.C2SSetEmblem.STREAM_CODEC,
+                FactionNetwork::handleSetEmblem
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SSetChestMode.TYPE,
+                FactionPayloads.C2SSetChestMode.STREAM_CODEC,
+                FactionNetwork::handleSetChestMode
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SEditChestWhitelist.TYPE,
+                FactionPayloads.C2SEditChestWhitelist.STREAM_CODEC,
+                FactionNetwork::handleEditChestWhitelist
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SRequestFactionList.TYPE,
+                FactionPayloads.C2SRequestFactionList.STREAM_CODEC,
+                FactionNetwork::handleRequestFactionList
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SRespondInvite.TYPE,
+                FactionPayloads.C2SRespondInvite.STREAM_CODEC,
+                FactionNetwork::handleRespondInvite
+        );
+        registrar.playToClient(
+                FactionPayloads.S2CFactionList.TYPE,
+                FactionPayloads.S2CFactionList.STREAM_CODEC,
+                FactionNetwork::handleFactionList
+        );
+        registrar.playToClient(
+                FactionPayloads.S2CChestAccessState.TYPE,
+                FactionPayloads.S2CChestAccessState.STREAM_CODEC,
+                FactionNetwork::handleChestAccessState
+        );
         registrar.playToClient(
                 FactionPayloads.S2CFactionState.TYPE,
                 FactionPayloads.S2CFactionState.STREAM_CODEC,
@@ -120,7 +155,24 @@ public final class FactionNetwork {
     }
 
     private static void handleCreate(FactionPayloads.C2SCreateFaction payload, IPayloadContext context) {
-        FactionServerHooks.create(serverPlayer(context), payload.tablePos(), payload.name(), payload.color());
+        FactionServerHooks.create(
+                serverPlayer(context),
+                payload.tablePos(),
+                payload.name(),
+                payload.color(),
+                payload.bonuses(),
+                payload.emblem(),
+                payload.emblemUrl()
+        );
+    }
+
+    private static void handleSetEmblem(FactionPayloads.C2SSetEmblem payload, IPayloadContext context) {
+        FactionServerHooks.setEmblem(
+                serverPlayer(context),
+                payload.tablePos(),
+                payload.emblem(),
+                payload.emblemUrl()
+        );
     }
 
     private static void handleUpdate(FactionPayloads.C2SUpdateFaction payload, IPayloadContext context) {
@@ -183,6 +235,46 @@ public final class FactionNetwork {
 
     private static void handleMapSetClaims(FactionPayloads.C2SMapSetClaims payload, IPayloadContext context) {
         FactionServerHooks.mapSetClaims(serverPlayer(context), payload.claimed(), payload.chunks());
+    }
+
+    private static void handleSetChestMode(FactionPayloads.C2SSetChestMode payload, IPayloadContext context) {
+        FactionServerHooks.setChestMode(serverPlayer(context), payload.pos(), payload.mode());
+    }
+
+    private static void handleEditChestWhitelist(
+            FactionPayloads.C2SEditChestWhitelist payload,
+            IPayloadContext context
+    ) {
+        FactionServerHooks.editChestWhitelist(
+                serverPlayer(context),
+                payload.pos(),
+                payload.add(),
+                payload.targetId(),
+                payload.targetName()
+        );
+    }
+
+    private static void handleRequestFactionList(
+            FactionPayloads.C2SRequestFactionList payload,
+            IPayloadContext context
+    ) {
+        FactionServerHooks.sendFactionList(serverPlayer(context));
+    }
+
+    private static void handleRespondInvite(FactionPayloads.C2SRespondInvite payload, IPayloadContext context) {
+        FactionServerHooks.respondInvite(serverPlayer(context), payload.factionId(), payload.accept());
+    }
+
+    private static void handleFactionList(FactionPayloads.S2CFactionList payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientFactionPayloadHandler.handleFactionList(payload);
+        }
+    }
+
+    private static void handleChestAccessState(FactionPayloads.S2CChestAccessState payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientFactionPayloadHandler.handleChestAccess(payload);
+        }
     }
 
     private static void handleState(FactionPayloads.S2CFactionState payload, IPayloadContext context) {

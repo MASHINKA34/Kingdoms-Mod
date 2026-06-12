@@ -18,6 +18,7 @@ public final class ModConfigSpec {
     public static final DoubleValue UNCLAIM_REFUND_PERCENT;
     public static final DoubleValue WARRIOR_DAMAGE_MULTIPLIER;
     public static final DoubleValue ORE_BONUS_CHANCE;
+    public static final DoubleValue HARVEST_BONUS_CHANCE;
     public static final DoubleValue CRAFT_BONUS_CHANCE;
     public static final DoubleValue BUILDER_DISCOUNT;
     public static final LongValue INFLUENCE_PER_CHUNK_PER_DAY;
@@ -37,6 +38,7 @@ public final class ModConfigSpec {
         UNCLAIM_REFUND_PERCENT = builder.defineInRange("unclaimRefundPercent", 0.5D, 0D, 1D);
         WARRIOR_DAMAGE_MULTIPLIER = builder.defineInRange("warriorDamageMultiplier", 1.1D, 1D, 100D);
         ORE_BONUS_CHANCE = builder.defineInRange("oreBonusChance", 0.1D, 0D, 1D);
+        HARVEST_BONUS_CHANCE = builder.defineInRange("harvestBonusChance", 0.15D, 0D, 1D);
         CRAFT_BONUS_CHANCE = builder.defineInRange("craftBonusChance", 0.2D, 0D, 1D);
         BUILDER_DISCOUNT = builder.defineInRange("builderDiscount", 0.2D, 0D, 1D);
         INFLUENCE_PER_CHUNK_PER_DAY = builder.defineInRange("influencePerChunkPerDay", 1L, 0L, Long.MAX_VALUE);

@@ -2,6 +2,7 @@ package com.geydev.kalfactions.faction;
 
 import com.geydev.kalfactions.chest.ChestAccess;
 import com.geydev.kalfactions.chest.ChestAccessMode;
+import com.geydev.kalfactions.chest.ChestLinks;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.economy.PriceMath;
@@ -43,7 +44,7 @@ public final class FactionManager extends SavedData {
     public static final long TICKS_PER_INFLUENCE_DAY = 24_000L;
     public static final int DEFAULT_COLOR = 0xFFFFFF;
     public static final ResourceLocation DEFAULT_ICON = ResourceLocation.fromNamespaceAndPath("kingdoms", "default");
-    public static final FactionBonus DEFAULT_BONUS = FactionBonus.TRADERS;
+    public static final Set<FactionBonus> DEFAULT_BONUSES = Set.of(FactionBonus.TRADERS);
     public static final Factory<FactionManager> FACTORY = new Factory<>(FactionManager::new, FactionManager::load);
 
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -131,7 +132,7 @@ public final class FactionManager extends SavedData {
             name,
             DEFAULT_COLOR,
             DEFAULT_ICON,
-            DEFAULT_BONUS,
+            DEFAULT_BONUSES,
             false,
             center,
             ModConfigSpec.STARTER_CLAIM_SIZE.getAsInt()
@@ -144,7 +145,7 @@ public final class FactionManager extends SavedData {
             name,
             DEFAULT_COLOR,
             DEFAULT_ICON,
-            DEFAULT_BONUS,
+            DEFAULT_BONUSES,
             false,
             center,
             DEFAULT_STARTER_SIZE
@@ -157,7 +158,7 @@ public final class FactionManager extends SavedData {
             name,
             DEFAULT_COLOR,
             DEFAULT_ICON,
-            DEFAULT_BONUS,
+            DEFAULT_BONUSES,
             false,
             center,
             starterSize
@@ -169,7 +170,7 @@ public final class FactionManager extends SavedData {
         String name,
         int color,
         ResourceLocation iconId,
-        FactionBonus bonus,
+        Set<FactionBonus> bonuses,
         boolean internalPvp,
         ClaimKey center
     ) {
@@ -178,7 +179,7 @@ public final class FactionManager extends SavedData {
             name,
             color,
             iconId,
-            bonus,
+            bonuses,
             internalPvp,
             center,
             ModConfigSpec.STARTER_CLAIM_SIZE.getAsInt()
@@ -190,14 +191,14 @@ public final class FactionManager extends SavedData {
         String name,
         int color,
         ResourceLocation iconId,
-        FactionBonus bonus,
+        Set<FactionBonus> bonuses,
         boolean internalPvp,
         ClaimKey center,
         int starterSize
     ) {
         Objects.requireNonNull(ownerId, "ownerId");
         Objects.requireNonNull(iconId, "iconId");
-        Objects.requireNonNull(bonus, "bonus");
+        Objects.requireNonNull(bonuses, "bonuses");
         Objects.requireNonNull(center, "center");
         String cleanedName = cleanName(name);
         if (!isValidName(cleanedName)) {
@@ -232,7 +233,7 @@ public final class FactionManager extends SavedData {
             ownerId,
             color,
             iconId,
-            bonus,
+            bonuses,
             internalPvp,
             System.currentTimeMillis()
         );
@@ -297,13 +298,23 @@ public final class FactionManager extends SavedData {
         return OperationResult.success(factionId, 0L);
     }
 
-    public synchronized OperationResult setFactionBonus(UUID factionId, FactionBonus bonus) {
-        Objects.requireNonNull(bonus, "bonus");
+    public synchronized OperationResult setFactionBonuses(UUID factionId, Set<FactionBonus> bonuses) {
+        Objects.requireNonNull(bonuses, "bonuses");
         Faction faction = factions.get(factionId);
         if (faction == null) {
             return OperationResult.failure(Status.FACTION_NOT_FOUND);
         }
-        faction.setBonus(bonus);
+        faction.setBonuses(bonuses);
+        setDirty();
+        return OperationResult.success(factionId, 0L);
+    }
+
+    public synchronized OperationResult setFactionEmblem(UUID factionId, int[] pixels, String url) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        faction.setEmblem(pixels, url);
         setDirty();
         return OperationResult.success(factionId, 0L);
     }
@@ -341,7 +352,7 @@ public final class FactionManager extends SavedData {
         if (faction == null) {
             return -1L;
         }
-        double discount = faction.bonus().claimDiscount();
+        double discount = faction.claimDiscount();
         return PriceMath.claimPrice(
             faction.claimCount(),
             ModConfigSpec.FREE_CLAIMS.getAsInt(),
@@ -378,7 +389,7 @@ public final class FactionManager extends SavedData {
             return OperationResult.failure(Status.CLAIM_NOT_ADJACENT);
         }
 
-        double discount = faction.bonus().claimDiscount();
+        double discount = faction.claimDiscount();
         long price = PriceMath.claimPrice(
             faction.claimCount(),
             ModConfigSpec.FREE_CLAIMS.getAsInt(),
@@ -679,6 +690,12 @@ public final class FactionManager extends SavedData {
             return true;
         }
         ChestAccess access = chestAccess.get(ChestAccess.Key.of(level, position));
+        if (access == null) {
+            BlockPos linked = ChestLinks.linkedPosition(level, position);
+            if (linked != null) {
+                access = chestAccess.get(ChestAccess.Key.of(level, linked));
+            }
+        }
         UUID playerFactionId = memberIndex.get(playerId);
         if (access == null) {
             return claimFactionId.equals(playerFactionId);

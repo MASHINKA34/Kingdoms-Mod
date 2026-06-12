@@ -7,6 +7,7 @@ import com.geydev.kalfactions.faction.FactionManager;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -50,12 +51,13 @@ public final class FactionAccess {
                 && firstFaction.get().key().equals(secondFaction.get().key());
     }
 
-    public static Optional<FactionBonus> bonusOf(ServerPlayer player) {
-        return backend.bonusOf(player);
+    public static Set<FactionBonus> bonusesOf(ServerPlayer player) {
+        return backend.bonusesOf(player);
     }
 
     public static boolean hasAnyBonus(ServerPlayer player, FactionBonus... bonuses) {
-        return bonusOf(player).filter(Arrays.asList(bonuses)::contains).isPresent();
+        Set<FactionBonus> owned = bonusesOf(player);
+        return Arrays.stream(bonuses).anyMatch(owned::contains);
     }
 
     public static boolean internalPvpEnabled(ServerPlayer player) {
@@ -83,8 +85,8 @@ public final class FactionAccess {
             return factionOf(player).map(faction -> faction.key().equals(owner.get().key())).orElse(false);
         }
 
-        default Optional<FactionBonus> bonusOf(ServerPlayer player) {
-            return Optional.empty();
+        default Set<FactionBonus> bonusesOf(ServerPlayer player) {
+            return Set.of();
         }
 
         default boolean internalPvpEnabled(ServerPlayer player) {
@@ -108,10 +110,11 @@ public final class FactionAccess {
         }
 
         @Override
-        public Optional<FactionBonus> bonusOf(ServerPlayer player) {
+        public Set<FactionBonus> bonusesOf(ServerPlayer player) {
             return FactionManager.get(player.serverLevel())
                     .getFactionForMember(player.getUUID())
-                    .map(Faction::bonus);
+                    .map(Faction::bonuses)
+                    .orElse(Set.of());
         }
 
         @Override

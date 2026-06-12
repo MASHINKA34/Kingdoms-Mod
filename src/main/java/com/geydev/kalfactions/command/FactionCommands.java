@@ -190,11 +190,15 @@ public final class FactionCommands {
             target.getGameProfile().getName(),
             faction.name()
         );
-        target.sendSystemMessage(Component.translatable(
-            "kingdoms.command.faction.invite.received",
-            actor.getGameProfile().getName(),
-            faction.name()
-        ));
+        com.geydev.kalfactions.net.FactionServerHooks.sendNotice(
+            target,
+            Component.translatable(
+                "kingdoms.command.faction.invite.received",
+                actor.getGameProfile().getName(),
+                faction.name()
+            ),
+            true
+        );
         return Command.SINGLE_SUCCESS;
     }
 
@@ -280,6 +284,28 @@ public final class FactionCommands {
         Faction faction = ownFaction(context, player).orElse(null);
         if (faction == null) {
             return 0;
+        }
+        if (faction.ownerId().equals(player.getUUID()) && faction.memberCount() == 1) {
+            if (!NumismaticsEconomy.canGive(faction.treasuryBalance())) {
+                return failure(context, "kingdoms.command.faction.disband.withdraw_first");
+            }
+            OperationResult disbanded = manager(context).disbandFaction(faction.id());
+            if (!disbanded.successful()) {
+                return failure(context, disbanded);
+            }
+            PendingFactionInvites.removeForFaction(context.getSource().getServer(), faction.id());
+            if (disbanded.amount() > 0L) {
+                NumismaticsEconomy.give(player, disbanded.amount());
+                success(
+                    context,
+                    "kingdoms.command.faction.leave.disbanded_refund",
+                    faction.name(),
+                    NumismaticsEconomy.format(disbanded.amount())
+                );
+            } else {
+                success(context, "kingdoms.command.faction.leave.disbanded", faction.name());
+            }
+            return Command.SINGLE_SUCCESS;
         }
         OperationResult result = manager(context).removeMember(faction.id(), player.getUUID());
         if (!result.successful()) {

@@ -117,7 +117,7 @@ public final class ClaimSyncManager {
                 entries,
                 viewerFactionId,
                 viewerFaction == null ? 0 : viewerFaction.claimCount(),
-                viewerFaction == null ? 0.0D : viewerFaction.bonus().claimDiscount()
+                viewerFaction == null ? 0.0D : viewerFaction.claimDiscount()
         ));
         STATES.put(player.getUUID(), new SyncState(dimension, center.toLong(), revision, viewerFactionId));
     }

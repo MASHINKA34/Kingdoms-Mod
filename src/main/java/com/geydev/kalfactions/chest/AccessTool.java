@@ -2,6 +2,7 @@ package com.geydev.kalfactions.chest;
 
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.net.FactionServerHooks;
 import com.mojang.authlib.GameProfile;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +22,7 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 
 /**
  * "Management Key": right-clicking a container inside the player's own territory
- * cycles its {@link ChestAccessMode} (Personal -> Faction -> Public -> Whitelist).
+ * opens the access-mode screen for that container.
  *
  * <p>The protection handler invokes {@link #handleProtectedUse} before vanilla opens
  * the container; {@link #useOn} is a fallback for when no other handler intercepts.</p>
@@ -40,7 +41,13 @@ public class AccessTool extends Item {
         if (!isContainer(level, pos)) {
             return ToolResult.PASS;
         }
-        return cycleAccess(player, level, pos);
+        Prepared prepared = prepare(player, level, pos);
+        if (prepared.error != null) {
+            feedback(player, prepared.error);
+            return ToolResult.CONSUME;
+        }
+        FactionServerHooks.sendChestAccessState(player, level, pos, Component.empty(), true);
+        return ToolResult.CONSUME;
     }
 
     @Override
@@ -56,37 +63,42 @@ public class AccessTool extends Item {
         };
     }
 
-    private static ToolResult cycleAccess(ServerPlayer player, ServerLevel level, BlockPos pos) {
-        FactionManager manager = FactionManager.get(level);
-        UUID factionId = manager.getFactionIdForMember(player.getUUID()).orElse(null);
-        if (factionId == null) {
-            feedback(player, "kingdoms.access_tool.not_member");
-            return ToolResult.CONSUME;
+    public static WhitelistResult setMode(
+            ServerPlayer actor,
+            ServerLevel level,
+            BlockPos pos,
+            ChestAccessMode mode
+    ) {
+        Prepared prepared = prepare(actor, level, pos);
+        if (prepared.error != null) {
+            return WhitelistResult.failure(prepared.error);
         }
-        UUID claimFactionId = manager.getFactionIdAt(ClaimKey.of(level, pos)).orElse(null);
-        if (!factionId.equals(claimFactionId)) {
-            feedback(player, "kingdoms.access_tool.not_owned");
-            return ToolResult.CONSUME;
+        ChestAccess existing = prepared.existing;
+        ChestAccess updated = existing == null
+                ? new ChestAccess(prepared.key, prepared.factionId, actor.getUUID(), mode)
+                : existing.withMode(mode);
+        if (!FactionManager.get(level).setChestAccess(updated).successful()) {
+            return WhitelistResult.failure("kingdoms.chest.update_failed");
         }
-
-        ChestAccess.Key key = ChestAccess.Key.of(level, pos);
-        ChestAccess existing = manager.getChestAccess(key).orElse(null);
-        ChestAccessMode nextMode = existing == null ? ChestAccessMode.PERSONAL : next(existing.mode());
-        UUID ownerId = existing == null ? player.getUUID() : existing.ownerId();
-        Set<UUID> whitelist = existing == null ? Set.of() : existing.whitelistedPlayers();
-
-        ChestAccess updated = new ChestAccess(key, factionId, ownerId, nextMode, whitelist);
-        FactionManager.OperationResult result = manager.setChestAccess(updated);
-        if (!result.successful()) {
-            feedback(player, "kingdoms.access_tool.not_owned");
-            return ToolResult.CONSUME;
-        }
-
-        player.displayClientMessage(
-                Component.translatable("kingdoms.access_tool.set", Component.translatable(modeKey(nextMode))),
-                true
+        return WhitelistResult.success(
+                Component.translatable("kingdoms.access_tool.set", Component.translatable(modeKey(mode)))
         );
-        return ToolResult.CONSUME;
+    }
+
+    public static AccessState stateFor(ServerPlayer actor, ServerLevel level, BlockPos pos) {
+        Prepared prepared = prepare(actor, level, pos);
+        if (prepared.error != null) {
+            return null;
+        }
+        ChestAccess existing = prepared.existing;
+        ChestAccessMode mode = existing == null ? ChestAccessMode.FACTION : existing.mode();
+        List<StateEntry> whitelist = new ArrayList<>();
+        if (existing != null) {
+            for (UUID id : existing.whitelistedPlayers()) {
+                whitelist.add(new StateEntry(id, resolveName(level, id)));
+            }
+        }
+        return new AccessState(prepared.factionId, mode, List.copyOf(whitelist));
     }
 
     /**
@@ -212,7 +224,18 @@ public class AccessTool extends Item {
             return Prepared.error("kingdoms.access_tool.not_owned");
         }
         ChestAccess.Key key = ChestAccess.Key.of(level, pos);
-        return new Prepared(factionId, key, manager.getChestAccess(key).orElse(null), null);
+        ChestAccess existing = manager.getChestAccess(key).orElse(null);
+        if (existing == null) {
+            BlockPos linked = ChestLinks.linkedPosition(level, pos);
+            if (linked != null) {
+                ChestAccess.Key linkedKey = ChestAccess.Key.of(level, linked);
+                ChestAccess linkedAccess = manager.getChestAccess(linkedKey).orElse(null);
+                if (linkedAccess != null) {
+                    return new Prepared(factionId, linkedKey, linkedAccess, null);
+                }
+            }
+        }
+        return new Prepared(factionId, key, existing, null);
     }
 
     private static String resolveName(ServerLevel level, UUID id) {
@@ -224,15 +247,6 @@ public class AccessTool extends Item {
                 .get(id)
                 .map(GameProfile::getName)
                 .orElse(id.toString().substring(0, 8));
-    }
-
-    private static ChestAccessMode next(ChestAccessMode mode) {
-        return switch (mode) {
-            case PERSONAL -> ChestAccessMode.FACTION;
-            case FACTION -> ChestAccessMode.PUBLIC;
-            case PUBLIC -> ChestAccessMode.WHITELIST;
-            case WHITELIST -> ChestAccessMode.PERSONAL;
-        };
     }
 
     private static String modeKey(ChestAccessMode mode) {
@@ -252,6 +266,12 @@ public class AccessTool extends Item {
         PASS,
         CONSUME,
         DENY
+    }
+
+    public record StateEntry(UUID id, String name) {
+    }
+
+    public record AccessState(UUID factionId, ChestAccessMode mode, List<StateEntry> whitelist) {
     }
 
     /** Outcome of a {@code /f chest} whitelist edit: a success/failure flag and a chat message. */

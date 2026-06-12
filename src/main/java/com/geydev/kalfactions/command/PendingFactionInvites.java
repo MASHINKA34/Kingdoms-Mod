@@ -30,6 +30,14 @@ public final class PendingFactionInvites {
             .max(Comparator.comparingLong(Invite::expiresAt));
     }
 
+    public static synchronized java.util.List<Invite> allFor(MinecraftServer server, UUID invitedId) {
+        purge(server);
+        return invites(server).values().stream()
+            .filter(invite -> invite.invitedId().equals(invitedId))
+            .sorted(Comparator.comparingLong(Invite::expiresAt).reversed())
+            .toList();
+    }
+
     public static synchronized Optional<Invite> find(
         MinecraftServer server,
         UUID factionId,

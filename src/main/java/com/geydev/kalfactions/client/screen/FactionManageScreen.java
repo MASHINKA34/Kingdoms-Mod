@@ -1,8 +1,11 @@
 package com.geydev.kalfactions.client.screen;
 
+import com.geydev.kalfactions.client.EmblemTextures;
 import com.geydev.kalfactions.integration.xaero.XaeroMaps;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
@@ -51,9 +54,25 @@ public final class FactionManageScreen extends FactionScreen {
         KingdomsButton color = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.color"),
                 button -> minecraft.setScreen(new ColorPickerScreen(this, selectedColor, picked -> selectedColor = picked)),
-                leftColumn, row0 + rowStep, columnWidth, 20
+                leftColumn, row0 + rowStep, 61, 20
         ));
         color.active = snapshot.canManage();
+
+        KingdomsButton emblem = addRenderableWidget(KingdomsButton.create(
+                text("screen.kingdoms.emblem"),
+                button -> minecraft.setScreen(new EmblemEditorScreen(
+                        this,
+                        unboxedEmblem(),
+                        snapshot.emblemUrl(),
+                        (pixels, url) -> PacketDistributor.sendToServer(new FactionPayloads.C2SSetEmblem(
+                                snapshot.tablePos(),
+                                boxedEmblem(pixels),
+                                url
+                        ))
+                )),
+                leftColumn + 65, row0 + rowStep, 61, 20
+        ));
+        emblem.active = snapshot.canManage();
 
         KingdomsButton save = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.save"),
@@ -102,6 +121,29 @@ public final class FactionManageScreen extends FactionScreen {
         ));
     }
 
+    private int[] unboxedEmblem() {
+        List<Integer> emblem = snapshot.emblem();
+        if (emblem.size() != FactionSnapshot.EMBLEM_PIXELS) {
+            return null;
+        }
+        int[] pixels = new int[emblem.size()];
+        for (int index = 0; index < pixels.length; index++) {
+            pixels[index] = emblem.get(index);
+        }
+        return pixels;
+    }
+
+    private static List<Integer> boxedEmblem(int[] pixels) {
+        if (pixels == null || pixels.length != FactionSnapshot.EMBLEM_PIXELS) {
+            return List.of();
+        }
+        List<Integer> boxed = new ArrayList<>(pixels.length);
+        for (int pixel : pixels) {
+            boxed.add(pixel);
+        }
+        return boxed;
+    }
+
     private Component pvpLabel() {
         Component state = snapshot.internalPvp()
                 ? text("screen.kingdoms.on")
@@ -118,6 +160,20 @@ public final class FactionManageScreen extends FactionScreen {
         graphics.fill(leftColumn - 1, top + 57, leftColumn + 11, top + 69, 0xFF1A140C);
         graphics.fill(leftColumn, top + 58, leftColumn + 10, top + 68, 0xFF000000 | selectedColor);
         graphics.drawString(font, snapshot.name(), leftColumn + 15, top + 59, TEXT_DARK, false);
+        EmblemTextures.Emblem emblem = EmblemTextures.resolve(
+                snapshot.factionId(),
+                snapshot.emblem(),
+                snapshot.emblemUrl()
+        );
+        if (emblem != null) {
+            graphics.fill(left + 269, top + 53, left + 297, top + 81, 0xFF1A140C);
+            graphics.blit(
+                    emblem.texture(),
+                    left + 271, top + 55, 24, 24,
+                    0.0F, 0.0F, emblem.width(), emblem.height(),
+                    emblem.width(), emblem.height()
+            );
+        }
         graphics.drawString(
                 font,
                 text("screen.kingdoms.owner", snapshot.ownerName()),

@@ -26,13 +26,19 @@ public record FactionSnapshot(
         UUID viewerId,
         boolean isOfficer,
         List<String> knownFactions,
-        List<OnlinePlayer> onlinePlayers
+        List<OnlinePlayer> onlinePlayers,
+        List<String> bonuses,
+        List<Integer> emblem,
+        String emblemUrl
 ) {
     public static final UUID NO_FACTION = new UUID(0L, 0L);
     public static final int MAX_MEMBERS = 256;
     public static final int MAX_CLAIMS = 1024;
     public static final int MAX_KNOWN_FACTIONS = 512;
     public static final int MAX_ONLINE_PLAYERS = 128;
+    public static final int MAX_BONUSES = 8;
+    public static final int EMBLEM_PIXELS = 256;
+    public static final int MAX_EMBLEM_URL = 256;
     public static final StreamCodec<RegistryFriendlyByteBuf, FactionSnapshot> STREAM_CODEC = StreamCodec.of(
             FactionSnapshot::encode,
             FactionSnapshot::decode
@@ -52,13 +58,17 @@ public record FactionSnapshot(
         viewerId = viewerId == null ? NO_FACTION : viewerId;
         knownFactions = knownFactions == null ? List.of() : List.copyOf(knownFactions);
         onlinePlayers = onlinePlayers == null ? List.of() : List.copyOf(onlinePlayers);
+        bonuses = bonuses == null ? List.of() : List.copyOf(bonuses);
+        emblem = emblem == null || emblem.size() != EMBLEM_PIXELS ? List.of() : List.copyOf(emblem);
+        emblemUrl = limit(emblemUrl, MAX_EMBLEM_URL);
     }
 
     public static FactionSnapshot empty(BlockPos tablePos, int centerChunkX, int centerChunkZ) {
         return new FactionSnapshot(
                 tablePos, NO_FACTION, "", "", 0x4E7A42, false, false,
                 centerChunkX, centerChunkZ, 6, List.of(), List.of(),
-                0L, 0L, false, NO_FACTION, false, List.of(), List.of()
+                0L, 0L, false, NO_FACTION, false, List.of(), List.of(),
+                List.of(), List.of(), ""
         );
     }
 
@@ -106,6 +116,14 @@ public record FactionSnapshot(
                 (target, value) -> target.writeUtf(value, 32)
         );
         writeBoundedList(buffer, snapshot.onlinePlayers, MAX_ONLINE_PLAYERS, OnlinePlayer::encode);
+        writeBoundedList(
+                buffer,
+                snapshot.bonuses,
+                MAX_BONUSES,
+                (target, value) -> target.writeUtf(value, 24)
+        );
+        writeBoundedList(buffer, snapshot.emblem, EMBLEM_PIXELS, (target, value) -> target.writeInt(value));
+        buffer.writeUtf(snapshot.emblemUrl, MAX_EMBLEM_URL);
     }
 
     private static FactionSnapshot decode(RegistryFriendlyByteBuf buffer) {
@@ -132,10 +150,14 @@ public record FactionSnapshot(
                 target -> target.readUtf(32)
         );
         List<OnlinePlayer> onlinePlayers = readBoundedList(buffer, MAX_ONLINE_PLAYERS, OnlinePlayer::decode);
+        List<String> bonuses = readBoundedList(buffer, MAX_BONUSES, target -> target.readUtf(24));
+        List<Integer> emblem = readBoundedList(buffer, EMBLEM_PIXELS, RegistryFriendlyByteBuf::readInt);
+        String emblemUrl = buffer.readUtf(MAX_EMBLEM_URL);
         return new FactionSnapshot(
                 tablePos, factionId, name, ownerName, color, canManage, canClaim,
                 centerChunkX, centerChunkZ, mapRadius, members, claims,
-                treasury, influence, internalPvp, viewerId, isOfficer, knownFactions, onlinePlayers
+                treasury, influence, internalPvp, viewerId, isOfficer, knownFactions, onlinePlayers,
+                bonuses, emblem, emblemUrl
         );
     }
 
