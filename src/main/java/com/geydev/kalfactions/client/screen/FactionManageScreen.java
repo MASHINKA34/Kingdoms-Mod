@@ -123,7 +123,7 @@ public final class FactionManageScreen extends FactionScreen {
 
     private int[] unboxedEmblem() {
         List<Integer> emblem = snapshot.emblem();
-        if (emblem.size() != FactionSnapshot.EMBLEM_PIXELS) {
+        if (!FactionSnapshot.isValidEmblemSize(emblem.size())) {
             return null;
         }
         int[] pixels = new int[emblem.size()];
@@ -134,7 +134,7 @@ public final class FactionManageScreen extends FactionScreen {
     }
 
     private static List<Integer> boxedEmblem(int[] pixels) {
-        if (pixels == null || pixels.length != FactionSnapshot.EMBLEM_PIXELS) {
+        if (pixels == null || !FactionSnapshot.isValidEmblemSize(pixels.length)) {
             return List.of();
         }
         List<Integer> boxed = new ArrayList<>(pixels.length);

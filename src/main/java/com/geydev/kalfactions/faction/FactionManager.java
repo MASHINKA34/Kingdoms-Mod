@@ -239,6 +239,7 @@ public final class FactionManager extends SavedData {
         );
         for (ClaimKey claim : starterClaims) {
             faction.addClaim(claim, 0L);
+            faction.addProtectedClaim(claim);
         }
 
         factions.put(factionId, faction);
@@ -461,6 +462,9 @@ public final class FactionManager extends SavedData {
         }
         if (!faction.hasClaim(key)) {
             return OperationResult.failure(Status.CLAIM_NOT_OWNED);
+        }
+        if (faction.isProtectedClaim(key)) {
+            return OperationResult.failure(Status.CLAIM_PROTECTED);
         }
 
         Set<ClaimKey> remaining = claimsInDimension(faction, key.dimension());
@@ -998,6 +1002,7 @@ public final class FactionManager extends SavedData {
         CLAIM_NOT_OWNED,
         CLAIM_NOT_ADJACENT,
         CLAIM_WOULD_DISCONNECT,
+        CLAIM_PROTECTED,
         CHEST_OUTSIDE_TERRITORY,
         INVALID_AMOUNT,
         INSUFFICIENT_FUNDS,

@@ -66,6 +66,7 @@ public final class RaidManager extends SavedData {
     private final Map<UUID, Raid> raids = new LinkedHashMap<>();
     private final Map<UUID, UUID> factionToRaid = new HashMap<>();
     private final Map<UUID, Long> nextRollAtEpochMillis = new HashMap<>();
+    private final Map<UUID, net.minecraft.server.level.ServerBossEvent> bossBars = new HashMap<>();
     private long nextTickAtEpochMillis;
 
     public static RaidManager get(MinecraftServer server) {
@@ -120,6 +121,7 @@ public final class RaidManager extends SavedData {
             if (raid.state() == Raid.State.ACTIVE) {
                 driveRaiders(server, raid, faction);
                 sendRemainingNotice(server, raid, nowEpochMillis);
+                updateBossBar(server, raid, faction, nowEpochMillis);
                 if (nowEpochMillis >= raid.activeEndsAtEpochMillis()) {
                     resolveDefeat(server, raid, faction, nowEpochMillis);
                 }
@@ -455,6 +457,43 @@ public final class RaidManager extends SavedData {
         );
     }
 
+    private void updateBossBar(MinecraftServer server, Raid raid, Faction faction, long nowEpochMillis) {
+        int remaining = raid.secondsRemaining(nowEpochMillis);
+        int total = Math.max(1, ModConfigSpec.RAID_COMBAT_MINUTES.getAsInt() * 60);
+        net.minecraft.server.level.ServerBossEvent bar = bossBars.computeIfAbsent(
+            raid.id(),
+            id -> new net.minecraft.server.level.ServerBossEvent(
+                Component.empty(),
+                net.minecraft.world.BossEvent.BossBarColor.RED,
+                net.minecraft.world.BossEvent.BossBarOverlay.NOTCHED_10
+            )
+        );
+        String where = raid.targetType() == Raid.TargetType.OUTPOST ? "форпост" : "город";
+        bar.setName(Component.literal(
+            "Рейд на " + where + ": рейдеров " + raid.remainingRaiderCount()
+                + " | до поражения " + formatDuration(remaining)
+        ));
+        bar.setProgress(Math.clamp((float) remaining / total, 0.0F, 1.0F));
+        List<ServerPlayer> desired = onlineMembers(server, faction);
+        for (ServerPlayer player : List.copyOf(bar.getPlayers())) {
+            if (!desired.contains(player)) {
+                bar.removePlayer(player);
+            }
+        }
+        for (ServerPlayer player : desired) {
+            if (!bar.getPlayers().contains(player)) {
+                bar.addPlayer(player);
+            }
+        }
+    }
+
+    private void clearBossBar(UUID raidId) {
+        net.minecraft.server.level.ServerBossEvent bar = bossBars.remove(raidId);
+        if (bar != null) {
+            bar.removeAllPlayers();
+        }
+    }
+
     private void resolveVictory(
         MinecraftServer server,
         Raid raid,
@@ -574,6 +613,7 @@ public final class RaidManager extends SavedData {
             faction.ownerId(),
             faction.name()
         ));
+        clearBossBar(raid.id());
         raids.remove(raid.id());
         factionToRaid.remove(raid.factionId(), raid.id());
         nextRollAtEpochMillis.put(
@@ -616,7 +656,7 @@ public final class RaidManager extends SavedData {
                 break;
             }
             Faction current = manager.getFactionById(faction.id()).orElse(null);
-            if (current == null || !current.hasClaim(candidate)) {
+            if (current == null || !current.hasClaim(candidate) || current.isProtectedClaim(candidate)) {
                 continue;
             }
             long paidPrice = current.claimPrices().getOrDefault(candidate, 0L);
@@ -672,6 +712,7 @@ public final class RaidManager extends SavedData {
     }
 
     private void removeRaid(MinecraftServer server, Raid raid, long nowEpochMillis) {
+        clearBossBar(raid.id());
         cleanupLoadedRaiders(server, raid);
         raids.remove(raid.id());
         factionToRaid.remove(raid.factionId(), raid.id());

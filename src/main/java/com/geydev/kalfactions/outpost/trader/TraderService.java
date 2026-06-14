@@ -5,8 +5,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.npc.WanderingTrader;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -23,6 +25,16 @@ public final class TraderService {
         trader.setDespawnDelay(0);
         trader.setCustomName(Component.translatable("entity.kingdoms.outpost_trader"));
         trader.setCustomNameVisible(true);
+    }
+
+    public static boolean spawn(ServerLevel level, double x, double y, double z, float yRot) {
+        WanderingTrader trader = EntityType.WANDERING_TRADER.create(level);
+        if (trader == null) {
+            return false;
+        }
+        trader.moveTo(x, y, z, yRot, 0.0F);
+        configure(trader);
+        return level.addFreshEntity(trader);
     }
 
     public static boolean isMarked(Entity entity) {

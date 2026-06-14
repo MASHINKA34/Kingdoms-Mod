@@ -1,8 +1,6 @@
 {
-  "parent": "minecraft:block/cube_bottom_top",
+  "parent": "minecraft:block/cube_all",
   "textures": {
-    "top": "minecraft:block/lodestone_top",
-    "bottom": "minecraft:block/chiseled_stone_bricks",
-    "side": "minecraft:block/lodestone_side"
+    "all": "kingdoms:block/outpost_core"
   }
 }

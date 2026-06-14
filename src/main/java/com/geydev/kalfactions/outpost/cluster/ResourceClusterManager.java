@@ -37,7 +37,7 @@ public final class ResourceClusterManager extends SavedData {
             new Factory<>(ResourceClusterManager::new, ResourceClusterManager::load);
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final int CELL_SIZE_CHUNKS = 8;
+    private static final int CELL_SIZE_CHUNKS = 16;
     private static final int LOAD_DELAY_TICKS = 20;
     private static final int MAX_PLACEMENTS_PER_TICK = 16;
     private static final long GOLDEN_GAMMA = 0x9E3779B97F4A7C15L;
@@ -52,6 +52,7 @@ public final class ResourceClusterManager extends SavedData {
     private final Map<Long, ResourceCluster> clusters = new LinkedHashMap<>();
     private final Map<Long, Long> pendingChunks = new HashMap<>();
     private final Set<Long> activeChunks = new HashSet<>();
+    private final Map<Long, Long> boundDrill = new HashMap<>();
 
     public static ResourceClusterManager get(ServerLevel level) {
         return level.getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
@@ -62,6 +63,32 @@ public final class ResourceClusterManager extends SavedData {
         return cluster == null
                 ? Optional.empty()
                 : Optional.of(new ClusterView(cluster.type(), cluster.richness()));
+    }
+
+    public synchronized boolean bindDrill(ChunkPos chunkPos, BlockPos drillPos) {
+        long key = chunkPos.toLong();
+        Long existing = boundDrill.get(key);
+        long posLong = drillPos.asLong();
+        if (existing != null && existing != posLong) {
+            return false;
+        }
+        if (existing == null) {
+            boundDrill.put(key, posLong);
+        }
+        return true;
+    }
+
+    public synchronized void unbindDrill(ChunkPos chunkPos, BlockPos drillPos) {
+        long key = chunkPos.toLong();
+        Long existing = boundDrill.get(key);
+        if (existing != null && existing == drillPos.asLong()) {
+            boundDrill.remove(key);
+        }
+    }
+
+    public synchronized boolean isBoundDrill(ChunkPos chunkPos, BlockPos drillPos) {
+        Long existing = boundDrill.get(chunkPos.toLong());
+        return existing != null && existing == drillPos.asLong();
     }
 
     public synchronized void queue(ChunkPos chunkPos, long gameTime) {
@@ -238,7 +265,7 @@ public final class ResourceClusterManager extends SavedData {
         tag.putFloat(Display.TAG_VIEW_RANGE, 1.5F);
         tag.putInt("line_width", 160);
         tag.putBoolean("shadow", true);
-        tag.putBoolean("see_through", true);
+        tag.putBoolean("see_through", false);
         tag.putInt("background", 0x60000000);
         Component text = Component.literal(
                 cluster.type().displayName() + "\nКонцентрация: " + cluster.richness() + "/3"

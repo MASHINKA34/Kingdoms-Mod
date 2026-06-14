@@ -114,7 +114,7 @@ public final class FactionCreateScreen extends FactionScreen {
     }
 
     private List<Integer> boxedEmblem() {
-        if (emblemPixels == null || emblemPixels.length != FactionSnapshot.EMBLEM_PIXELS) {
+        if (emblemPixels == null || !FactionSnapshot.isValidEmblemSize(emblemPixels.length)) {
             return List.of();
         }
         List<Integer> boxed = new ArrayList<>(emblemPixels.length);

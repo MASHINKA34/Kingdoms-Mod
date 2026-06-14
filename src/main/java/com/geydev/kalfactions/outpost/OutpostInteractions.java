@@ -4,6 +4,7 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.faction.FactionRole;
 import com.geydev.kalfactions.integration.IntegrationManager;
 import com.geydev.kalfactions.net.ClaimSyncManager;
 import com.geydev.kalfactions.net.FactionServerHooks;
@@ -85,9 +86,16 @@ public final class OutpostInteractions {
             FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.drill.not_outpost"), false);
             return;
         }
-        if (com.geydev.kalfactions.outpost.cluster.ResourceClusterManager.get(level).clusterAt(chunk).isEmpty()) {
+        com.geydev.kalfactions.outpost.cluster.ResourceClusterManager clusters =
+                com.geydev.kalfactions.outpost.cluster.ResourceClusterManager.get(level);
+        if (clusters.clusterAt(chunk).isEmpty()) {
             event.setCanceled(true);
             FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.drill.no_cluster"), false);
+            return;
+        }
+        if (!clusters.bindDrill(chunk, event.getPos())) {
+            event.setCanceled(true);
+            FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.drill.cluster_taken"), false);
         }
     }
 
@@ -96,7 +104,7 @@ public final class OutpostInteractions {
         RogueOutpostManager rogue = RogueOutpostManager.get(level);
         RogueOutpostManager.RogueOutpost outpost = rogue.byCore(level, corePos).orElse(null);
         if (outpost == null) {
-            return InteractionResult.PASS;
+            return handleOwnedCore(player, level, corePos);
         }
         if (outpost.garrisonRemaining() > 0) {
             FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.outpost.garrison_alive"), false);
@@ -128,6 +136,47 @@ public final class OutpostInteractions {
                 );
             }
         }
+        return InteractionResult.SUCCESS;
+    }
+
+    private static InteractionResult handleOwnedCore(ServerPlayer player, ServerLevel level, BlockPos corePos) {
+        FactionManager manager = FactionManager.get(level);
+        ClaimKey key = ClaimKey.of(level, new ChunkPos(corePos));
+        Faction owner = manager.getFactionAt(key).orElse(null);
+        if (owner == null || owner.outpostByCore(level.dimension(), corePos).isEmpty()) {
+            return InteractionResult.PASS;
+        }
+        Faction.Outpost outpost = owner.outpostByCore(level.dimension(), corePos).orElseThrow();
+        Faction playerFaction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (playerFaction == null || !playerFaction.id().equals(owner.id())) {
+            FactionServerHooks.sendNotice(
+                    player,
+                    Component.translatable("kingdoms.outpost.owned_by", owner.name()),
+                    true
+            );
+            return InteractionResult.SUCCESS;
+        }
+        if (!player.isShiftKeyDown()) {
+            FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.outpost.dismantle_hint"), true);
+            return InteractionResult.SUCCESS;
+        }
+        if (!owner.roleOf(player.getUUID()).map(FactionRole::canManageClaims).orElse(false)) {
+            FactionServerHooks.sendNotice(
+                    player,
+                    Component.translatable("kingdoms.error.role_cannot_change_claims"),
+                    false
+            );
+            return InteractionResult.SUCCESS;
+        }
+        manager.detachOutpost(owner.id(), outpost.id());
+        level.removeBlock(corePos, false);
+        ItemStack charter = new ItemStack(ModItems.OUTPOST_CHARTER.get());
+        if (!player.getInventory().add(charter)) {
+            player.drop(charter, false);
+        }
+        IntegrationManager.refreshFromServer(player.getServer());
+        ClaimSyncManager.resync(player);
+        FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.outpost.dismantled"), true);
         return InteractionResult.SUCCESS;
     }
 

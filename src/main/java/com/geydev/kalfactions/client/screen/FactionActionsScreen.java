@@ -79,7 +79,7 @@ public final class FactionActionsScreen extends FactionScreen {
         requestAlliance.active = snapshot.canManage() && !snapshot.allianceCandidates().isEmpty();
 
         KingdomsButton breakAlliance = addRenderableWidget(KingdomsButton.create(
-                text("screen.kingdoms.alliance_break"),
+                text("screen.kingdoms.alliance_members"),
                 button -> openBreakAlliancePicker(),
                 rightColumn, top + 142, columnWidth, 20
         ));
@@ -153,7 +153,7 @@ public final class FactionActionsScreen extends FactionScreen {
                 .toList();
         minecraft.setScreen(new SelectEntryScreen(
                 this,
-                text("screen.kingdoms.select_alliance_break"),
+                text("screen.kingdoms.alliance_members_pick"),
                 entries,
                 null,
                 entry -> PacketDistributor.sendToServer(

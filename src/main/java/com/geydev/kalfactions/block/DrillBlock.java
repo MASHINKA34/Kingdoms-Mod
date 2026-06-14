@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.block;
 
+import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager;
 import com.geydev.kalfactions.registry.ModBlockEntities;
 import com.mojang.serialization.MapCodec;
 import javax.annotation.Nullable;
@@ -65,23 +66,21 @@ public final class DrillBlock extends BaseEntityBlock {
         if (level.isClientSide()) {
             return InteractionResult.sidedSuccess(true);
         }
-        if (level.getBlockEntity(pos) instanceof DrillBlockEntity drill) {
-            if (drill.isEmpty()) {
-                player.displayClientMessage(Component.translatable("kingdoms.drill.empty"), true);
-            } else {
-                drill.collectInto(player);
-                player.displayClientMessage(Component.translatable("kingdoms.drill.collected"), true);
-            }
+        if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer
+                && level.getBlockEntity(pos) instanceof DrillBlockEntity drill) {
+            serverPlayer.openMenu(drill);
         }
         return InteractionResult.sidedSuccess(false);
     }
 
     @Override
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
-        if (!state.is(newState.getBlock())
-                && level instanceof ServerLevel serverLevel
-                && level.getBlockEntity(pos) instanceof DrillBlockEntity drill) {
-            drill.dropContents(serverLevel, pos);
+        if (!state.is(newState.getBlock()) && level instanceof ServerLevel serverLevel) {
+            if (level.getBlockEntity(pos) instanceof DrillBlockEntity drill) {
+                drill.dropContents(serverLevel, pos);
+            }
+            ResourceClusterManager.get(serverLevel)
+                    .unbindDrill(new net.minecraft.world.level.ChunkPos(pos), pos);
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
     }

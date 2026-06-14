@@ -2,7 +2,6 @@ package com.geydev.kalfactions.net;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.claim.ClaimKey;
-import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.integration.IntegrationManager;
@@ -81,18 +80,13 @@ public final class ClaimSyncManager {
 
     private static void sendTo(ServerPlayer player) {
         ResourceKey<Level> dimension = player.level().dimension();
-        ChunkPos center = player.chunkPosition();
         long revision = IntegrationManager.revision();
-        int radius = ModConfigSpec.CLAIM_SYNC_RADIUS_CHUNKS.get();
         List<FactionPayloads.ClaimEntry> entries = new ArrayList<>();
 
         outer:
         for (FactionMapData faction : IntegrationManager.snapshots()) {
             for (ClaimKey claim : faction.claims()) {
                 if (!claim.dimension().equals(dimension)) {
-                    continue;
-                }
-                if (Math.abs(claim.x() - center.x) > radius || Math.abs(claim.z() - center.z) > radius) {
                     continue;
                 }
                 entries.add(new FactionPayloads.ClaimEntry(
@@ -119,7 +113,7 @@ public final class ClaimSyncManager {
                 viewerFaction == null ? 0 : viewerFaction.claimCount(),
                 viewerFaction == null ? 0.0D : viewerFaction.claimDiscount()
         ));
-        STATES.put(player.getUUID(), new SyncState(dimension, center.toLong(), revision, viewerFactionId));
+        STATES.put(player.getUUID(), new SyncState(dimension, player.chunkPosition().toLong(), revision, viewerFactionId));
     }
 
     private static boolean within(long previousChunk, long currentChunk) {

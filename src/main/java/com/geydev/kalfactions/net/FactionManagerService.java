@@ -1231,6 +1231,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
             case CLAIM_NOT_OWNED -> "kingdoms.error.claim_not_owned";
             case CLAIM_NOT_ADJACENT -> "kingdoms.error.claim_not_adjacent";
             case CLAIM_WOULD_DISCONNECT -> "kingdoms.error.claim_would_disconnect";
+            case CLAIM_PROTECTED -> "kingdoms.error.claim_protected";
             case INSUFFICIENT_FUNDS -> "kingdoms.error.insufficient_funds";
             case TREASURY_OVERFLOW -> "kingdoms.error.treasury_overflow";
             case PLAYER_NOT_MEMBER -> "kingdoms.error.not_member_of_faction";

@@ -2,6 +2,7 @@ package com.geydev.kalfactions.registry;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.chest.AccessTool;
+import com.geydev.kalfactions.item.TraderSpawnEggItem;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.neoforged.bus.api.IEventBus;
@@ -26,6 +27,16 @@ public final class ModItems {
 
     public static final DeferredItem<BlockItem> DRILL =
             ITEMS.registerSimpleBlockItem(ModBlocks.DRILL);
+
+    public static final DeferredItem<TraderSpawnEggItem> TRADER_SPAWN_EGG = ITEMS.register(
+            "trader_spawn_egg",
+            () -> new TraderSpawnEggItem(new Item.Properties())
+    );
+
+    public static final DeferredItem<Item> TRADER_REMOVER = ITEMS.register(
+            "trader_remover",
+            () -> new Item(new Item.Properties().stacksTo(1))
+    );
 
     public static void register(IEventBus bus) {
         ITEMS.register(bus);

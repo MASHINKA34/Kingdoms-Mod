@@ -22,6 +22,10 @@ public final class ModCreativeTabs {
                     .displayItems((parameters, output) -> {
                         output.accept(ModItems.FACTION_TABLE.get());
                         output.accept(ModItems.ACCESS_TOOL.get());
+                        output.accept(ModItems.OUTPOST_CHARTER.get());
+                        output.accept(ModItems.DRILL.get());
+                        output.accept(ModItems.TRADER_SPAWN_EGG.get());
+                        output.accept(ModItems.TRADER_REMOVER.get());
                     })
                     .build()
     );

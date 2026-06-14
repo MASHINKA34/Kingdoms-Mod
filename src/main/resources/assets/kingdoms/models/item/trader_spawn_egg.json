@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "kingdoms:item/outpost_charter"
+    "layer0": "kingdoms:item/trader_spawn_egg"
   }
 }

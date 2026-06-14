@@ -115,7 +115,7 @@ public final class TraderShopScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawCenteredString(font, title, left + PANEL_WIDTH / 2, top + 48, TEXT_DARK);
+        graphics.drawString(font, title, left + (PANEL_WIDTH - font.width(title)) / 2, top + 48, TEXT_DARK, false);
         for (int i = 0; i < offers.size(); i++) {
             renderOffer(graphics, offers.get(i), top + 70 + i * 44);
         }

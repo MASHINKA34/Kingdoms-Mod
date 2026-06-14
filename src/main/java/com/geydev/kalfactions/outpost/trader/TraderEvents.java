@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.outpost.trader;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.registry.ModItems;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -21,6 +22,10 @@ public final class TraderEvents {
         }
         event.setCanceled(true);
         event.setCancellationResult(InteractionResult.SUCCESS);
+        if (player.getItemInHand(InteractionHand.MAIN_HAND).is(ModItems.TRADER_REMOVER.get())) {
+            trader.discard();
+            return;
+        }
         TraderService.open(player, trader);
     }
 

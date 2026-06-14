@@ -37,6 +37,7 @@ public final class Faction {
     private static final String TAG_INTERNAL_PVP = "internalPvp";
     private static final String TAG_ALLIES = "allies";
     private static final String TAG_OUTPOSTS = "outposts";
+    private static final String TAG_PROTECTED_CLAIMS = "protectedClaims";
     private static final String TAG_CREATED_AT = "createdAt";
     private static final String TAG_TREASURY = "treasury";
     private static final String TAG_INFLUENCE = "influence";
@@ -69,6 +70,7 @@ public final class Faction {
     private boolean internalPvp;
     private final Set<UUID> allies;
     private final Map<UUID, Outpost> outposts;
+    private final Set<ClaimKey> protectedClaims;
     private long influence;
 
     Faction(
@@ -122,6 +124,7 @@ public final class Faction {
         this.internalPvp = internalPvp;
         this.allies = new LinkedHashSet<>();
         this.outposts = new LinkedHashMap<>();
+        this.protectedClaims = new LinkedHashSet<>();
         this.createdAtEpochMillis = Math.max(0L, createdAtEpochMillis);
         this.treasury = Objects.requireNonNull(treasury, "treasury");
         this.influence = Math.max(0L, influence);
@@ -253,6 +256,18 @@ public final class Faction {
 
     Optional<Outpost> removeOutpost(UUID outpostId) {
         return Optional.ofNullable(outposts.remove(outpostId));
+    }
+
+    public Set<ClaimKey> protectedClaims() {
+        return Set.copyOf(protectedClaims);
+    }
+
+    public boolean isProtectedClaim(ClaimKey key) {
+        return protectedClaims.contains(key);
+    }
+
+    void addProtectedClaim(ClaimKey key) {
+        protectedClaims.add(key);
     }
 
     public long createdAtEpochMillis() {
@@ -433,6 +448,9 @@ public final class Faction {
             .sorted(Comparator.comparing(outpost -> outpost.id().toString()))
             .forEach(outpost -> outpostsTag.add(outpost.save()));
         tag.put(TAG_OUTPOSTS, outpostsTag);
+        ListTag protectedTag = new ListTag();
+        protectedClaims.stream().sorted().forEach(claim -> protectedTag.add(claim.save()));
+        tag.put(TAG_PROTECTED_CLAIMS, protectedTag);
         tag.putLong(TAG_CREATED_AT, createdAtEpochMillis);
         tag.put(TAG_TREASURY, treasury.save());
         tag.putLong(TAG_INFLUENCE, influence);
@@ -536,6 +554,10 @@ public final class Faction {
         ListTag outpostsTag = tag.getList(TAG_OUTPOSTS, Tag.TAG_COMPOUND);
         for (int index = 0; index < outpostsTag.size(); index++) {
             Outpost.load(outpostsTag.getCompound(index)).ifPresent(faction::addOutpost);
+        }
+        ListTag protectedTag = tag.getList(TAG_PROTECTED_CLAIMS, Tag.TAG_COMPOUND);
+        for (int index = 0; index < protectedTag.size(); index++) {
+            ClaimKey.load(protectedTag.getCompound(index)).ifPresent(faction::addProtectedClaim);
         }
         return Optional.of(faction);
     }

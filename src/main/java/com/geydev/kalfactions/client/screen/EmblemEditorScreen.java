@@ -1,10 +1,12 @@
 package com.geydev.kalfactions.client.screen;
 
 import com.mojang.blaze3d.platform.NativeImage;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import javax.imageio.ImageIO;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.CompletableFuture;
@@ -25,7 +27,7 @@ public final class EmblemEditorScreen extends Screen {
     private static final int PIXEL = 8;
     private static final int CANVAS = GRID * PIXEL;
     private static final int UPLOAD_SIZE = 32;
-    private static final long MAX_FILE_BYTES = 8L * 1024L * 1024L;
+    private static final long MAX_FILE_BYTES = 50L * 1024L * 1024L;
     private static final int[] PALETTE = {
             0xFF1A1A1A, 0xFF4C4C4C, 0xFF9A9A9A, 0xFFFFFFFF,
             0xFFB02E26, 0xFFF9801D, 0xFFFED83D, 0xFF80C71F,
@@ -189,10 +191,15 @@ public final class EmblemEditorScreen extends Screen {
         CompletableFuture.runAsync(() -> {
             String path;
             try (MemoryStack stack = MemoryStack.stackPush()) {
-                PointerBuffer filters = stack.mallocPointer(1);
+                PointerBuffer filters = stack.mallocPointer(6);
                 filters.put(stack.UTF8("*.png"));
+                filters.put(stack.UTF8("*.jpg"));
+                filters.put(stack.UTF8("*.jpeg"));
+                filters.put(stack.UTF8("*.bmp"));
+                filters.put(stack.UTF8("*.gif"));
+                filters.put(stack.UTF8("*.webp"));
                 filters.flip();
-                path = TinyFileDialogs.tinyfd_openFileDialog("PNG", "", filters, "PNG", false);
+                path = TinyFileDialogs.tinyfd_openFileDialog("Image", "", filters, "Images", false);
             }
             if (path == null) {
                 return;
@@ -202,11 +209,7 @@ public final class EmblemEditorScreen extends Screen {
                 if (Files.size(file) > MAX_FILE_BYTES) {
                     throw new IOException("File too large");
                 }
-                byte[] data = Files.readAllBytes(file);
-                int[] sampled;
-                try (NativeImage image = NativeImage.read(new ByteArrayInputStream(data))) {
-                    sampled = sample(image);
-                }
+                int[] sampled = decode(Files.readAllBytes(file));
                 minecraft.execute(() -> {
                     uploadedPixels = sampled;
                     noticeText = "";
@@ -215,6 +218,30 @@ public final class EmblemEditorScreen extends Screen {
                 minecraft.execute(() -> showNotice("screen.kingdoms.emblem.upload_failed"));
             }
         }, Util.ioPool());
+    }
+
+    private static int[] decode(byte[] data) throws IOException {
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(data));
+        if (image != null) {
+            return sampleBuffered(image);
+        }
+        try (NativeImage fallback = NativeImage.read(new ByteArrayInputStream(data))) {
+            return sample(fallback);
+        }
+    }
+
+    private static int[] sampleBuffered(BufferedImage image) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+        int[] out = new int[UPLOAD_SIZE * UPLOAD_SIZE];
+        for (int y = 0; y < UPLOAD_SIZE; y++) {
+            for (int x = 0; x < UPLOAD_SIZE; x++) {
+                int sourceX = Math.min(width - 1, x * width / UPLOAD_SIZE);
+                int sourceY = Math.min(height - 1, y * height / UPLOAD_SIZE);
+                out[y * UPLOAD_SIZE + x] = image.getRGB(sourceX, sourceY);
+            }
+        }
+        return out;
     }
 
     private static int[] sample(NativeImage image) {
