@@ -13,7 +13,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class FactionNetwork {
-    private static final String PROTOCOL_VERSION = "1";
+    private static final String PROTOCOL_VERSION = "2";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -84,6 +84,16 @@ public final class FactionNetwork {
                 FactionNetwork::handleTransfer
         );
         registrar.playToServer(
+                FactionPayloads.C2SRequestAlliance.TYPE,
+                FactionPayloads.C2SRequestAlliance.STREAM_CODEC,
+                FactionNetwork::handleRequestAlliance
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SBreakAlliance.TYPE,
+                FactionPayloads.C2SBreakAlliance.STREAM_CODEC,
+                FactionNetwork::handleBreakAlliance
+        );
+        registrar.playToServer(
                 FactionPayloads.C2SDeclareWar.TYPE,
                 FactionPayloads.C2SDeclareWar.STREAM_CODEC,
                 FactionNetwork::handleDeclareWar
@@ -122,6 +132,11 @@ public final class FactionNetwork {
                 FactionPayloads.C2SRespondInvite.TYPE,
                 FactionPayloads.C2SRespondInvite.STREAM_CODEC,
                 FactionNetwork::handleRespondInvite
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SRespondAlliance.TYPE,
+                FactionPayloads.C2SRespondAlliance.STREAM_CODEC,
+                FactionNetwork::handleRespondAlliance
         );
         registrar.playToClient(
                 FactionPayloads.S2CFactionList.TYPE,
@@ -225,6 +240,22 @@ public final class FactionNetwork {
         FactionServerHooks.transfer(serverPlayer(context), payload.tablePos(), payload.targetName());
     }
 
+    private static void handleRequestAlliance(FactionPayloads.C2SRequestAlliance payload, IPayloadContext context) {
+        FactionServerHooks.requestAlliance(
+                serverPlayer(context),
+                payload.tablePos(),
+                payload.targetFactionName()
+        );
+    }
+
+    private static void handleBreakAlliance(FactionPayloads.C2SBreakAlliance payload, IPayloadContext context) {
+        FactionServerHooks.breakAlliance(
+                serverPlayer(context),
+                payload.tablePos(),
+                payload.targetFactionName()
+        );
+    }
+
     private static void handleDeclareWar(FactionPayloads.C2SDeclareWar payload, IPayloadContext context) {
         FactionServerHooks.declareWar(serverPlayer(context), payload.tablePos(), payload.targetFactionName());
     }
@@ -263,6 +294,10 @@ public final class FactionNetwork {
 
     private static void handleRespondInvite(FactionPayloads.C2SRespondInvite payload, IPayloadContext context) {
         FactionServerHooks.respondInvite(serverPlayer(context), payload.factionId(), payload.accept());
+    }
+
+    private static void handleRespondAlliance(FactionPayloads.C2SRespondAlliance payload, IPayloadContext context) {
+        FactionServerHooks.respondAlliance(serverPlayer(context), payload.factionId(), payload.accept());
     }
 
     private static void handleFactionList(FactionPayloads.S2CFactionList payload, IPayloadContext context) {

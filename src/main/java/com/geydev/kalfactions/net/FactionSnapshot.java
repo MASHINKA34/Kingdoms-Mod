@@ -23,9 +23,12 @@ public record FactionSnapshot(
         long treasury,
         long influence,
         boolean internalPvp,
+        long creationCost,
         UUID viewerId,
         boolean isOfficer,
         List<String> knownFactions,
+        List<String> allianceCandidates,
+        List<String> allies,
         List<OnlinePlayer> onlinePlayers,
         List<String> bonuses,
         List<Integer> emblem,
@@ -60,20 +63,23 @@ public record FactionSnapshot(
         claims = List.copyOf(claims);
         treasury = Math.max(0L, treasury);
         influence = Math.max(0L, influence);
+        creationCost = Math.max(0L, creationCost);
         viewerId = viewerId == null ? NO_FACTION : viewerId;
         knownFactions = knownFactions == null ? List.of() : List.copyOf(knownFactions);
+        allianceCandidates = allianceCandidates == null ? List.of() : List.copyOf(allianceCandidates);
+        allies = allies == null ? List.of() : List.copyOf(allies);
         onlinePlayers = onlinePlayers == null ? List.of() : List.copyOf(onlinePlayers);
         bonuses = bonuses == null ? List.of() : List.copyOf(bonuses);
         emblem = emblem == null || !isValidEmblemSize(emblem.size()) ? List.of() : List.copyOf(emblem);
         emblemUrl = limit(emblemUrl, MAX_EMBLEM_URL);
     }
 
-    public static FactionSnapshot empty(BlockPos tablePos, int centerChunkX, int centerChunkZ) {
+    public static FactionSnapshot empty(BlockPos tablePos, int centerChunkX, int centerChunkZ, long creationCost) {
         return new FactionSnapshot(
                 tablePos, NO_FACTION, "", "", 0x4E7A42, false, false,
                 centerChunkX, centerChunkZ, 6, List.of(), List.of(),
-                0L, 0L, false, NO_FACTION, false, List.of(), List.of(),
-                List.of(), List.of(), ""
+                0L, 0L, false, creationCost, NO_FACTION, false,
+                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), ""
         );
     }
 
@@ -112,11 +118,24 @@ public record FactionSnapshot(
         buffer.writeLong(snapshot.treasury);
         buffer.writeLong(snapshot.influence);
         buffer.writeBoolean(snapshot.internalPvp);
+        buffer.writeLong(snapshot.creationCost);
         buffer.writeUUID(snapshot.viewerId);
         buffer.writeBoolean(snapshot.isOfficer);
         writeBoundedList(
                 buffer,
                 snapshot.knownFactions,
+                MAX_KNOWN_FACTIONS,
+                (target, value) -> target.writeUtf(value, 32)
+        );
+        writeBoundedList(
+                buffer,
+                snapshot.allianceCandidates,
+                MAX_KNOWN_FACTIONS,
+                (target, value) -> target.writeUtf(value, 32)
+        );
+        writeBoundedList(
+                buffer,
+                snapshot.allies,
                 MAX_KNOWN_FACTIONS,
                 (target, value) -> target.writeUtf(value, 32)
         );
@@ -147,9 +166,20 @@ public record FactionSnapshot(
         long treasury = buffer.readLong();
         long influence = buffer.readLong();
         boolean internalPvp = buffer.readBoolean();
+        long creationCost = buffer.readLong();
         UUID viewerId = buffer.readUUID();
         boolean isOfficer = buffer.readBoolean();
         List<String> knownFactions = readBoundedList(
+                buffer,
+                MAX_KNOWN_FACTIONS,
+                target -> target.readUtf(32)
+        );
+        List<String> allianceCandidates = readBoundedList(
+                buffer,
+                MAX_KNOWN_FACTIONS,
+                target -> target.readUtf(32)
+        );
+        List<String> allies = readBoundedList(
                 buffer,
                 MAX_KNOWN_FACTIONS,
                 target -> target.readUtf(32)
@@ -161,8 +191,8 @@ public record FactionSnapshot(
         return new FactionSnapshot(
                 tablePos, factionId, name, ownerName, color, canManage, canClaim,
                 centerChunkX, centerChunkZ, mapRadius, members, claims,
-                treasury, influence, internalPvp, viewerId, isOfficer, knownFactions, onlinePlayers,
-                bonuses, emblem, emblemUrl
+                treasury, influence, internalPvp, creationCost, viewerId, isOfficer,
+                knownFactions, allianceCandidates, allies, onlinePlayers, bonuses, emblem, emblemUrl
         );
     }
 

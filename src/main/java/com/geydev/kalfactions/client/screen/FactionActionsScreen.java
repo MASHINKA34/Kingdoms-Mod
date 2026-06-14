@@ -70,6 +70,20 @@ public final class FactionActionsScreen extends FactionScreen {
                 rightColumn, top + 94, columnWidth, 20
         ));
         endWar.active = snapshot.canManage();
+
+        KingdomsButton requestAlliance = addRenderableWidget(KingdomsButton.create(
+                text("screen.kingdoms.alliance_request"),
+                button -> openAlliancePicker(),
+                rightColumn, top + 118, columnWidth, 20
+        ));
+        requestAlliance.active = snapshot.canManage() && !snapshot.allianceCandidates().isEmpty();
+
+        KingdomsButton breakAlliance = addRenderableWidget(KingdomsButton.create(
+                text("screen.kingdoms.alliance_break"),
+                button -> openBreakAlliancePicker(),
+                rightColumn, top + 142, columnWidth, 20
+        ));
+        breakAlliance.active = snapshot.canManage() && !snapshot.allies().isEmpty();
     }
 
     private void openInvitePicker() {
@@ -119,6 +133,34 @@ public final class FactionActionsScreen extends FactionScreen {
         ));
     }
 
+    private void openAlliancePicker() {
+        List<SelectEntryScreen.Entry> entries = snapshot.allianceCandidates().stream()
+                .map(name -> SelectEntryScreen.Entry.swatch(name, 0x3F7B33))
+                .toList();
+        minecraft.setScreen(new SelectEntryScreen(
+                this,
+                text("screen.kingdoms.select_alliance_target"),
+                entries,
+                null,
+                entry -> PacketDistributor.sendToServer(
+                        new FactionPayloads.C2SRequestAlliance(snapshot.tablePos(), entry.value()))
+        ));
+    }
+
+    private void openBreakAlliancePicker() {
+        List<SelectEntryScreen.Entry> entries = snapshot.allies().stream()
+                .map(name -> SelectEntryScreen.Entry.swatch(name, 0x8C2B2B))
+                .toList();
+        minecraft.setScreen(new SelectEntryScreen(
+                this,
+                text("screen.kingdoms.select_alliance_break"),
+                entries,
+                null,
+                entry -> PacketDistributor.sendToServer(
+                        new FactionPayloads.C2SBreakAlliance(snapshot.tablePos(), entry.value()))
+        ));
+    }
+
     private static Component roleText(String role) {
         String normalized = role == null ? "" : role.toLowerCase(java.util.Locale.ROOT);
         if (normalized.startsWith("lead")) {
@@ -134,6 +176,13 @@ public final class FactionActionsScreen extends FactionScreen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
         graphics.drawString(font, text("screen.kingdoms.members_section"), left + CONTENT_LEFT, top + 59, TEXT_DARK, false);
-        graphics.drawString(font, text("screen.kingdoms.war_section"), left + 172, top + 59, TEXT_DARK, false);
+        graphics.drawString(
+                font,
+                text("screen.kingdoms.diplomacy_section"),
+                left + 172,
+                top + 59,
+                TEXT_DARK,
+                false
+        );
     }
 }

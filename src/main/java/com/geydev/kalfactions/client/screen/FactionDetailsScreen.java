@@ -18,7 +18,7 @@ public final class FactionDetailsScreen extends Screen {
     private static final int PANEL_WIDTH = 260;
     private static final int ROW_HEIGHT = 24;
     private static final int VISIBLE_ROWS = 4;
-    private static final int LIST_TOP_OFFSET = 64;
+    private static final int LIST_TOP_OFFSET = 76;
     private static final long FADE_IN_MILLIS = 200L;
 
     private final Screen parent;
@@ -88,6 +88,17 @@ public final class FactionDetailsScreen extends Screen {
                 : Component.translatable("screen.kingdoms.flist.war", info.warWith());
         graphics.drawString(font, status, panelLeft + 10, panelTop + 48,
                 alpha | (info.warWith().isEmpty() ? 0x9FD08C : 0xE89090), true);
+        graphics.drawString(
+                font,
+                Component.translatable(
+                        "screen.kingdoms.flist.alliance",
+                        info.allies().isEmpty() ? "-" : String.join(", ", info.allies())
+                ),
+                panelLeft + 10,
+                panelTop + 60,
+                alpha | 0x9FD08C,
+                true
+        );
 
         int shown = Math.min(VISIBLE_ROWS, info.members().size() - scrollOffset);
         for (int index = 0; index < shown; index++) {

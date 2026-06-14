@@ -24,6 +24,7 @@ public final class CommandEvents {
     @SubscribeEvent
     public static void serverStopping(ServerStoppingEvent event) {
         PendingFactionInvites.clear(event.getServer());
+        PendingAllianceRequests.clear(event.getServer());
     }
 
     private CommandEvents() {

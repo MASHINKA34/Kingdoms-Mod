@@ -8,14 +8,17 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -32,6 +35,8 @@ public final class Faction {
     private static final String TAG_EMBLEM = "emblem";
     private static final String TAG_EMBLEM_URL = "emblemUrl";
     private static final String TAG_INTERNAL_PVP = "internalPvp";
+    private static final String TAG_ALLIES = "allies";
+    private static final String TAG_OUTPOSTS = "outposts";
     private static final String TAG_CREATED_AT = "createdAt";
     private static final String TAG_TREASURY = "treasury";
     private static final String TAG_INFLUENCE = "influence";
@@ -62,6 +67,8 @@ public final class Faction {
     private int[] emblem;
     private String emblemUrl;
     private boolean internalPvp;
+    private final Set<UUID> allies;
+    private final Map<UUID, Outpost> outposts;
     private long influence;
 
     Faction(
@@ -113,6 +120,8 @@ public final class Faction {
         this.emblem = new int[0];
         this.emblemUrl = "";
         this.internalPvp = internalPvp;
+        this.allies = new LinkedHashSet<>();
+        this.outposts = new LinkedHashMap<>();
         this.createdAtEpochMillis = Math.max(0L, createdAtEpochMillis);
         this.treasury = Objects.requireNonNull(treasury, "treasury");
         this.influence = Math.max(0L, influence);
@@ -186,6 +195,64 @@ public final class Faction {
 
     public boolean internalPvp() {
         return internalPvp;
+    }
+
+    public Set<UUID> allies() {
+        return Set.copyOf(allies);
+    }
+
+    public boolean isAlliedWith(UUID factionId) {
+        return factionId != null && allies.contains(factionId);
+    }
+
+    boolean addAlly(UUID factionId) {
+        return !id.equals(factionId) && allies.add(factionId);
+    }
+
+    boolean removeAlly(UUID factionId) {
+        return allies.remove(factionId);
+    }
+
+    public Collection<Outpost> outposts() {
+        return List.copyOf(outposts.values());
+    }
+
+    public int outpostCount() {
+        return outposts.size();
+    }
+
+    public Set<ClaimKey> outpostChunks() {
+        Set<ClaimKey> all = new LinkedHashSet<>();
+        for (Outpost outpost : outposts.values()) {
+            all.addAll(outpost.chunks());
+        }
+        return all;
+    }
+
+    public boolean isOutpostChunk(ClaimKey key) {
+        return outposts.values().stream().anyMatch(outpost -> outpost.chunks().contains(key));
+    }
+
+    public Optional<Outpost> outpostAt(ClaimKey key) {
+        return outposts.values().stream().filter(outpost -> outpost.chunks().contains(key)).findFirst();
+    }
+
+    public Optional<Outpost> outpostByCore(ResourceKey<Level> dimension, BlockPos core) {
+        return outposts.values().stream()
+            .filter(outpost -> outpost.dimension().equals(dimension) && outpost.core().equals(core))
+            .findFirst();
+    }
+
+    public Optional<Outpost> outpost(UUID outpostId) {
+        return Optional.ofNullable(outposts.get(outpostId));
+    }
+
+    void addOutpost(Outpost outpost) {
+        outposts.put(outpost.id(), outpost);
+    }
+
+    Optional<Outpost> removeOutpost(UUID outpostId) {
+        return Optional.ofNullable(outposts.remove(outpostId));
     }
 
     public long createdAtEpochMillis() {
@@ -356,6 +423,16 @@ public final class Faction {
             tag.putString(TAG_EMBLEM_URL, emblemUrl);
         }
         tag.putBoolean(TAG_INTERNAL_PVP, internalPvp);
+        ListTag alliesTag = new ListTag();
+        allies.stream()
+            .sorted(Comparator.comparing(UUID::toString))
+            .forEach(ally -> alliesTag.add(net.minecraft.nbt.NbtUtils.createUUID(ally)));
+        tag.put(TAG_ALLIES, alliesTag);
+        ListTag outpostsTag = new ListTag();
+        outposts.values().stream()
+            .sorted(Comparator.comparing(outpost -> outpost.id().toString()))
+            .forEach(outpost -> outpostsTag.add(outpost.save()));
+        tag.put(TAG_OUTPOSTS, outpostsTag);
         tag.putLong(TAG_CREATED_AT, createdAtEpochMillis);
         tag.put(TAG_TREASURY, treasury.save());
         tag.putLong(TAG_INFLUENCE, influence);
@@ -449,6 +526,17 @@ public final class Faction {
             tag.contains(TAG_EMBLEM, Tag.TAG_INT_ARRAY) ? tag.getIntArray(TAG_EMBLEM) : null,
             tag.getString(TAG_EMBLEM_URL)
         );
+        ListTag alliesTag = tag.getList(TAG_ALLIES, Tag.TAG_INT_ARRAY);
+        for (int index = 0; index < alliesTag.size(); index++) {
+            try {
+                faction.addAlly(net.minecraft.nbt.NbtUtils.loadUUID(alliesTag.get(index)));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        ListTag outpostsTag = tag.getList(TAG_OUTPOSTS, Tag.TAG_COMPOUND);
+        for (int index = 0; index < outpostsTag.size(); index++) {
+            Outpost.load(outpostsTag.getCompound(index)).ifPresent(faction::addOutpost);
+        }
         return Optional.of(faction);
     }
 
@@ -467,6 +555,53 @@ public final class Faction {
             if (role != member.role()) {
                 members.put(playerId, new FactionMember(playerId, role));
             }
+        }
+    }
+
+    public record Outpost(UUID id, ResourceKey<Level> dimension, BlockPos core, Set<ClaimKey> chunks) {
+        private static final String TAG_OUTPOST_ID = "id";
+        private static final String TAG_OUTPOST_CORE = "core";
+        private static final String TAG_OUTPOST_CHUNKS = "chunks";
+
+        public Outpost {
+            Objects.requireNonNull(id, "id");
+            Objects.requireNonNull(dimension, "dimension");
+            core = core.immutable();
+            chunks = Set.copyOf(chunks);
+        }
+
+        CompoundTag save() {
+            CompoundTag tag = new CompoundTag();
+            tag.putUUID(TAG_OUTPOST_ID, id);
+            tag.put(TAG_OUTPOST_CORE, NbtUtils.writeBlockPos(core));
+            ListTag chunksTag = new ListTag();
+            chunks.stream().sorted().forEach(chunk -> chunksTag.add(chunk.save()));
+            tag.put(TAG_OUTPOST_CHUNKS, chunksTag);
+            return tag;
+        }
+
+        static Optional<Outpost> load(CompoundTag tag) {
+            if (!tag.hasUUID(TAG_OUTPOST_ID)) {
+                return Optional.empty();
+            }
+            Optional<BlockPos> core = NbtUtils.readBlockPos(tag, TAG_OUTPOST_CORE);
+            if (core.isEmpty()) {
+                return Optional.empty();
+            }
+            Set<ClaimKey> chunks = new LinkedHashSet<>();
+            ListTag chunksTag = tag.getList(TAG_OUTPOST_CHUNKS, Tag.TAG_COMPOUND);
+            for (int index = 0; index < chunksTag.size(); index++) {
+                Optional<ClaimKey> key = ClaimKey.load(chunksTag.getCompound(index));
+                if (key.isEmpty()) {
+                    return Optional.empty();
+                }
+                chunks.add(key.get());
+            }
+            if (chunks.isEmpty()) {
+                return Optional.empty();
+            }
+            ResourceKey<Level> dimension = chunks.iterator().next().dimension();
+            return Optional.of(new Outpost(tag.getUUID(TAG_OUTPOST_ID), dimension, core.get(), chunks));
         }
     }
 }

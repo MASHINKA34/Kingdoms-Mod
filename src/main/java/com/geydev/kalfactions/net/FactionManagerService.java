@@ -3,6 +3,7 @@ package com.geydev.kalfactions.net;
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.command.NumismaticsEconomy;
+import com.geydev.kalfactions.command.PendingAllianceRequests;
 import com.geydev.kalfactions.command.PendingFactionInvites;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
@@ -34,11 +35,17 @@ final class FactionManagerService implements FactionServerHooks.Service {
         ChunkPos center = new ChunkPos(tablePos);
         Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
         if (faction == null) {
-            return FactionSnapshot.empty(tablePos, center.x, center.z);
+            return FactionSnapshot.empty(
+                    tablePos,
+                    center.x,
+                    center.z,
+                    ModConfigSpec.CREATION_COST.getAsLong()
+            );
         }
 
         FactionRole role = faction.roleOf(player.getUUID()).orElse(FactionRole.MEMBER);
         int ownColor = faction.color();
+        List<String> allies = alliedFactionNames(manager, faction);
         return new FactionSnapshot(
                 tablePos,
                 faction.id(),
@@ -55,9 +62,12 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 faction.treasuryBalance(),
                 faction.influence(),
                 faction.internalPvp(),
+                ModConfigSpec.CREATION_COST.getAsLong(),
                 player.getUUID(),
                 role.isAtLeast(FactionRole.OFFICER),
-                otherFactionNames(manager, faction.id()),
+                warTargetNames(manager, faction),
+                allianceCandidateNames(player, manager, faction),
+                allies,
                 onlinePlayers(player, manager),
                 bonusNames(faction),
                 emblemPixels(faction),
@@ -97,9 +107,37 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 .toList();
     }
 
-    private static List<String> otherFactionNames(FactionManager manager, UUID ownFactionId) {
+    private static List<String> warTargetNames(FactionManager manager, Faction ownFaction) {
         return manager.factions().stream()
-                .filter(faction -> !faction.id().equals(ownFactionId))
+                .filter(faction -> !faction.id().equals(ownFaction.id()))
+                .filter(faction -> !manager.areAllied(ownFaction.id(), faction.id()))
+                .map(Faction::name)
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+    }
+
+    private static List<String> allianceCandidateNames(
+            ServerPlayer player,
+            FactionManager manager,
+            Faction ownFaction
+    ) {
+        WarManager wars = WarManager.get(player.getServer());
+        return manager.factions().stream()
+                .filter(faction -> !faction.id().equals(ownFaction.id()))
+                .filter(faction -> !manager.areAllied(ownFaction.id(), faction.id()))
+                .filter(faction -> !wars.areAtWar(ownFaction.id(), faction.id()))
+                .filter(faction -> PendingAllianceRequests
+                        .find(player.getServer(), ownFaction.id(), faction.id())
+                        .isEmpty())
+                .map(Faction::name)
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+    }
+
+    private static List<String> alliedFactionNames(FactionManager manager, Faction faction) {
+        return faction.allies().stream()
+                .map(manager::getFactionById)
+                .flatMap(java.util.Optional::stream)
                 .map(Faction::name)
                 .sorted(String.CASE_INSENSITIVE_ORDER)
                 .toList();
@@ -130,12 +168,35 @@ final class FactionManagerService implements FactionServerHooks.Service {
                     view(player, tablePos)
             );
         }
+        long cost = ModConfigSpec.CREATION_COST.getAsLong();
+        NumismaticsEconomy.Payment payment = null;
+        if (cost > 0L) {
+            payment = NumismaticsEconomy.preparePayment(player, cost);
+            if (!payment.ready()) {
+                return FactionServerHooks.Result.denied(
+                        Component.translatable(
+                                "kingdoms.error.creation_cost",
+                                NumismaticsEconomy.format(cost),
+                                NumismaticsEconomy.format(payment.available())
+                        ),
+                        view(player, tablePos)
+                );
+            }
+        }
         FactionManager.OperationResult result = manager.createFaction(
                 player.getUUID(),
                 name,
                 ClaimKey.of(player.serverLevel(), new ChunkPos(tablePos))
         );
         if (result.successful()) {
+            if (payment != null && !NumismaticsEconomy.commitPayment(player, payment)) {
+                manager.disbandFaction(result.factionId());
+                IntegrationManager.refreshFromServer(player.getServer());
+                return FactionServerHooks.Result.denied(
+                        Component.translatable("kingdoms.error.coin_inventory_changed"),
+                        view(player, tablePos)
+                );
+            }
             manager.setFactionBonuses(result.factionId(), bonuses);
             manager.setFactionEmblem(result.factionId(), unboxEmblem(emblem), sanitizeEmblemUrl(emblemUrl));
             manager.setFactionColor(result.factionId(), color);
@@ -582,6 +643,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 return FactionServerHooks.Result.denied(message(disbanded.status()), view(player, tablePos));
             }
             PendingFactionInvites.removeForFaction(player.getServer(), faction.id());
+            PendingAllianceRequests.removeForFaction(player.getServer(), faction.id());
             IntegrationManager.refreshFromServer(player.getServer());
             Component message;
             if (disbanded.amount() > 0L) {
@@ -636,6 +698,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
             return FactionServerHooks.Result.denied(message(result.status()), view(player, tablePos));
         }
         PendingFactionInvites.removeForFaction(player.getServer(), faction.id());
+        PendingAllianceRequests.removeForFaction(player.getServer(), faction.id());
         Component message;
         if (result.amount() > 0L) {
             NumismaticsEconomy.give(player, result.amount());
@@ -756,6 +819,112 @@ final class FactionManagerService implements FactionServerHooks.Service {
     }
 
     @Override
+    public FactionServerHooks.Result requestAlliance(
+            ServerPlayer player,
+            BlockPos tablePos,
+            String targetFactionName
+    ) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return notInFaction(player, tablePos);
+        }
+        if (!faction.ownerId().equals(player.getUUID())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.leader_settings_only"),
+                    view(player, tablePos)
+            );
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return otherFactionTable(player, tablePos);
+        }
+        Faction target = manager.getFactionByName(targetFactionName.trim()).orElse(null);
+        if (target == null) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.faction_not_found"),
+                    view(player, tablePos)
+            );
+        }
+        if (target.id().equals(faction.id())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.invalid_alliance"),
+                    view(player, tablePos)
+            );
+        }
+        if (manager.areAllied(faction.id(), target.id())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.already_allied"),
+                    view(player, tablePos)
+            );
+        }
+        if (WarManager.get(player.getServer()).areAtWar(faction.id(), target.id())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.alliance_at_war"),
+                    view(player, tablePos)
+            );
+        }
+        if (PendingAllianceRequests.find(player.getServer(), faction.id(), target.id()).isPresent()) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.alliance_request_pending"),
+                    view(player, tablePos)
+            );
+        }
+
+        PendingAllianceRequests.put(player.getServer(), faction.id(), player.getUUID(), target.id());
+        FactionServerHooks.sendNoticeToFaction(
+                player,
+                faction,
+                Component.translatable("kingdoms.alliance.request.sent", target.name()),
+                true
+        );
+        FactionServerHooks.sendNoticeToFaction(
+                player,
+                target,
+                Component.translatable("kingdoms.alliance.request.received", faction.name()),
+                true
+        );
+        return new FactionServerHooks.Result(true, Component.empty(), view(player, tablePos));
+    }
+
+    @Override
+    public FactionServerHooks.Result breakAlliance(
+            ServerPlayer player,
+            BlockPos tablePos,
+            String targetFactionName
+    ) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return notInFaction(player, tablePos);
+        }
+        if (!faction.ownerId().equals(player.getUUID())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.leader_settings_only"),
+                    view(player, tablePos)
+            );
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return otherFactionTable(player, tablePos);
+        }
+        Faction target = manager.getFactionByName(targetFactionName.trim()).orElse(null);
+        if (target == null) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.faction_not_found"),
+                    view(player, tablePos)
+            );
+        }
+        FactionManager.OperationResult result = manager.breakAlliance(faction.id(), target.id());
+        if (!result.successful()) {
+            return FactionServerHooks.Result.denied(message(result.status()), view(player, tablePos));
+        }
+        PendingAllianceRequests.removeBetween(player.getServer(), faction.id(), target.id());
+        Component notice = Component.translatable("kingdoms.alliance.broken", faction.name(), target.name());
+        FactionServerHooks.sendNoticeToFaction(player, faction, notice, true);
+        FactionServerHooks.sendNoticeToFaction(player, target, notice, true);
+        return new FactionServerHooks.Result(true, Component.empty(), view(player, tablePos));
+    }
+
+    @Override
     public FactionServerHooks.Result declareWar(ServerPlayer player, BlockPos tablePos, String targetFactionName) {
         FactionManager manager = FactionManager.get(player.serverLevel());
         Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
@@ -775,6 +944,12 @@ final class FactionManagerService implements FactionServerHooks.Service {
         if (target == null) {
             return FactionServerHooks.Result.denied(
                     Component.translatable("kingdoms.error.faction_not_found"),
+                    view(player, tablePos)
+            );
+        }
+        if (manager.areAllied(faction.id(), target.id())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.war_with_ally"),
                     view(player, tablePos)
             );
         }
@@ -1061,6 +1236,8 @@ final class FactionManagerService implements FactionServerHooks.Service {
             case PLAYER_NOT_MEMBER -> "kingdoms.error.not_member_of_faction";
             case FACTION_NOT_FOUND -> "kingdoms.error.faction_data_not_found";
             case OWNER_CANNOT_LEAVE -> "kingdoms.error.owner_cannot_leave";
+            case INVALID_ALLIANCE -> "kingdoms.error.invalid_alliance";
+            case NOT_ALLIED -> "kingdoms.error.not_allied";
             default -> "kingdoms.error.faction_action_rejected";
         };
         if (key == null) {

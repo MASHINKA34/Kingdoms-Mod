@@ -4,7 +4,9 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
 import com.geydev.kalfactions.chest.AccessTool;
 import com.geydev.kalfactions.chest.ChestAccessMode;
+import com.geydev.kalfactions.command.PendingAllianceRequests;
 import com.geydev.kalfactions.command.PendingFactionInvites;
+import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.FactionMember;
@@ -16,6 +18,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -277,6 +280,24 @@ public final class FactionServerHooks {
         perform(player, tablePos, () -> service.transfer(player, tablePos, targetName));
     }
 
+    public static void requestAlliance(ServerPlayer player, BlockPos tablePos, String targetFactionName) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.requestAlliance(player, tablePos, targetFactionName));
+    }
+
+    public static void breakAlliance(ServerPlayer player, BlockPos tablePos, String targetFactionName) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.breakAlliance(player, tablePos, targetFactionName));
+    }
+
     public static void declareWar(ServerPlayer player, BlockPos tablePos, String targetFactionName) {
         Validation validation = validateTable(player, tablePos, true);
         if (!validation.allowed) {
@@ -352,6 +373,12 @@ public final class FactionServerHooks {
                     faction.memberCount(),
                     faction.influence(),
                     warWith,
+                    faction.allies().stream()
+                            .map(manager::getFactionById)
+                            .flatMap(Optional::stream)
+                            .map(Faction::name)
+                            .sorted(String.CASE_INSENSITIVE_ORDER)
+                            .toList(),
                     FactionManagerService.bonusNames(faction),
                     FactionManagerService.emblemPixels(faction),
                     faction.emblemUrl(),
@@ -377,7 +404,30 @@ public final class FactionServerHooks {
                     faction.emblemUrl()
             ));
         }
-        PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CFactionList(factions, invites));
+        List<FactionPayloads.AllianceInviteInfo> allianceInvites = new ArrayList<>();
+        Faction ownFaction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (ownFaction != null && ownFaction.ownerId().equals(player.getUUID())) {
+            for (PendingAllianceRequests.Request request
+                    : PendingAllianceRequests.allFor(player.getServer(), ownFaction.id())) {
+                Faction faction = manager.getFactionById(request.fromFactionId()).orElse(null);
+                if (faction == null) {
+                    continue;
+                }
+                allianceInvites.add(new FactionPayloads.AllianceInviteInfo(
+                        faction.id(),
+                        faction.name(),
+                        faction.color(),
+                        faction.memberCount(),
+                        resolvePlayerName(player, request.requesterId()),
+                        FactionManagerService.emblemPixels(faction),
+                        faction.emblemUrl()
+                ));
+            }
+        }
+        PacketDistributor.sendToPlayer(
+                player,
+                new FactionPayloads.S2CFactionList(factions, invites, allianceInvites)
+        );
     }
 
     public static void respondInvite(ServerPlayer player, UUID factionId, boolean accept) {
@@ -439,6 +489,65 @@ public final class FactionServerHooks {
         }
         ClaimSyncManager.resync(player);
         sendFactionList(player);
+    }
+
+    public static void respondAlliance(ServerPlayer player, UUID factionId, boolean accept) {
+        if (!player.isAlive() || player.isSpectator()) {
+            return;
+        }
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction target = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (target == null || !target.ownerId().equals(player.getUUID())) {
+            sendNotice(player, Component.translatable("kingdoms.error.leader_settings_only"), false);
+            sendFactionList(player);
+            return;
+        }
+        PendingAllianceRequests.Request request = PendingAllianceRequests
+                .find(player.getServer(), factionId, target.id())
+                .orElse(null);
+        Faction source = manager.getFactionById(factionId).orElse(null);
+        if (request == null || source == null) {
+            sendNotice(player, Component.translatable("kingdoms.alliance.request.not_found"), false);
+            sendFactionList(player);
+            return;
+        }
+        if (!accept) {
+            PendingAllianceRequests.remove(player.getServer(), source.id(), target.id());
+            Component notice = Component.translatable(
+                    "kingdoms.alliance.request.declined",
+                    target.name(),
+                    source.name()
+            );
+            sendNoticeToFaction(player, source, notice, true);
+            sendNoticeToFaction(player, target, notice, true);
+            sendFactionList(player);
+            return;
+        }
+        if (WarManager.get(player.getServer()).areAtWar(source.id(), target.id())) {
+            sendNotice(player, Component.translatable("kingdoms.error.alliance_at_war"), false);
+            sendFactionList(player);
+            return;
+        }
+        FactionManager.OperationResult result = manager.addAlliance(source.id(), target.id());
+        if (!result.successful()) {
+            sendNotice(player, Component.translatable("kingdoms.error.alliance_rejected"), false);
+            sendFactionList(player);
+            return;
+        }
+        PendingAllianceRequests.removeBetween(player.getServer(), source.id(), target.id());
+        Component notice = Component.translatable("kingdoms.alliance.created", source.name(), target.name());
+        sendNoticeToFaction(player, source, notice, true);
+        sendNoticeToFaction(player, target, notice, true);
+        sendFactionList(player);
+    }
+
+    static void sendNoticeToFaction(ServerPlayer context, Faction faction, Component message, boolean successful) {
+        for (UUID memberId : faction.members().keySet()) {
+            ServerPlayer member = context.getServer().getPlayerList().getPlayer(memberId);
+            if (member != null) {
+                sendNotice(member, message, successful);
+            }
+        }
     }
 
     private static String resolvePlayerName(ServerPlayer viewer, UUID playerId) {
@@ -639,9 +748,12 @@ public final class FactionServerHooks {
                 snapshot.treasury(),
                 snapshot.influence(),
                 snapshot.internalPvp(),
+                snapshot.creationCost(),
                 snapshot.viewerId(),
                 snapshot.isOfficer(),
                 snapshot.knownFactions(),
+                snapshot.allianceCandidates(),
+                snapshot.allies(),
                 snapshot.onlinePlayers(),
                 snapshot.bonuses(),
                 snapshot.emblem(),
@@ -651,7 +763,7 @@ public final class FactionServerHooks {
 
     private static FactionSnapshot fallbackSnapshot(BlockPos tablePos) {
         ChunkPos center = new ChunkPos(tablePos);
-        return FactionSnapshot.empty(tablePos, center.x, center.z);
+        return FactionSnapshot.empty(tablePos, center.x, center.z, ModConfigSpec.CREATION_COST.getAsLong());
     }
 
     private static void reject(ServerPlayer player, BlockPos tablePos, Component message) {
@@ -707,6 +819,10 @@ public final class FactionServerHooks {
         Result invite(ServerPlayer player, BlockPos tablePos, String targetName);
 
         Result transfer(ServerPlayer player, BlockPos tablePos, String targetName);
+
+        Result requestAlliance(ServerPlayer player, BlockPos tablePos, String targetFactionName);
+
+        Result breakAlliance(ServerPlayer player, BlockPos tablePos, String targetFactionName);
 
         Result declareWar(ServerPlayer player, BlockPos tablePos, String targetFactionName);
 
@@ -817,6 +933,16 @@ public final class FactionServerHooks {
 
         @Override
         public Result transfer(ServerPlayer player, BlockPos tablePos, String targetName) {
+            return managementUnavailable(player, tablePos);
+        }
+
+        @Override
+        public Result requestAlliance(ServerPlayer player, BlockPos tablePos, String targetFactionName) {
+            return managementUnavailable(player, tablePos);
+        }
+
+        @Override
+        public Result breakAlliance(ServerPlayer player, BlockPos tablePos, String targetFactionName) {
             return managementUnavailable(player, tablePos);
         }
 

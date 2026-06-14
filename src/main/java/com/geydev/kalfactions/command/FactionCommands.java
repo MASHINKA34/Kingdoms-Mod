@@ -2,6 +2,7 @@ package com.geydev.kalfactions.command;
 
 import com.geydev.kalfactions.chest.AccessTool;
 import com.geydev.kalfactions.claim.ClaimKey;
+import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.FactionManager.OperationResult;
@@ -152,13 +153,31 @@ public final class FactionCommands {
 
     private static int create(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
-        OperationResult result = manager(context).createFaction(
+        FactionManager manager = manager(context);
+        long cost = ModConfigSpec.CREATION_COST.getAsLong();
+        NumismaticsEconomy.Payment payment = null;
+        if (cost > 0L) {
+            payment = NumismaticsEconomy.preparePayment(player, cost);
+            if (!payment.ready()) {
+                return failure(
+                    context,
+                    "kingdoms.error.creation_cost",
+                    NumismaticsEconomy.format(cost),
+                    NumismaticsEconomy.format(payment.available())
+                );
+            }
+        }
+        OperationResult result = manager.createFaction(
             player.getUUID(),
             StringArgumentType.getString(context, "name"),
             ClaimKey.of(player.level(), player.blockPosition())
         );
         if (!result.successful()) {
             return failure(context, result);
+        }
+        if (payment != null && !NumismaticsEconomy.commitPayment(player, payment)) {
+            manager.disbandFaction(result.factionId());
+            return failure(context, "kingdoms.error.coin_inventory_changed");
         }
         success(context, "kingdoms.command.faction.created");
         return Command.SINGLE_SUCCESS;
@@ -934,6 +953,9 @@ public final class FactionCommands {
             case INSUFFICIENT_FUNDS -> "kingdoms.error.insufficient_funds";
             case TREASURY_OVERFLOW -> "kingdoms.error.treasury_overflow";
             case INSUFFICIENT_INFLUENCE -> "kingdoms.error.insufficient_influence";
+            case INVALID_ALLIANCE -> "kingdoms.error.invalid_alliance";
+            case NOT_ALLIED -> "kingdoms.error.not_allied";
+            case OUTPOST_CHUNK -> "kingdoms.error.outpost_chunk";
         });
     }
 

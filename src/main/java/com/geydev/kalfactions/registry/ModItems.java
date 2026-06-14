@@ -19,6 +19,14 @@ public final class ModItems {
             () -> new AccessTool(new Item.Properties().stacksTo(1))
     );
 
+    public static final DeferredItem<Item> OUTPOST_CHARTER = ITEMS.register(
+            "outpost_charter",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static final DeferredItem<BlockItem> DRILL =
+            ITEMS.registerSimpleBlockItem(ModBlocks.DRILL);
+
     public static void register(IEventBus bus) {
         ITEMS.register(bus);
     }

@@ -90,7 +90,9 @@ public final class IntegrationManager {
 
         public static FactionMapData from(Faction faction) {
             Objects.requireNonNull(faction, "faction");
-            return new FactionMapData(faction.id(), faction.name(), faction.color(), faction.claims());
+            Set<ClaimKey> territory = new java.util.LinkedHashSet<>(faction.claims());
+            territory.addAll(faction.outpostChunks());
+            return new FactionMapData(faction.id(), faction.name(), faction.color(), territory);
         }
     }
 

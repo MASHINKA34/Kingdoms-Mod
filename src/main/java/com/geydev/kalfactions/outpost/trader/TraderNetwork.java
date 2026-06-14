@@ -1,0 +1,47 @@
+package com.geydev.kalfactions.outpost.trader;
+
+import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.client.screen.TraderShopScreen;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+
+@EventBusSubscriber(modid = KalFactions.MOD_ID)
+public final class TraderNetwork {
+    private static final String PROTOCOL_VERSION = "2";
+
+    @SubscribeEvent
+    public static void registerPayloads(RegisterPayloadHandlersEvent event) {
+        PayloadRegistrar registrar = event.registrar(PROTOCOL_VERSION);
+        registrar.playToServer(
+                TraderPayloads.C2SBuy.TYPE,
+                TraderPayloads.C2SBuy.STREAM_CODEC,
+                TraderNetwork::handleBuy
+        );
+        registrar.playToClient(
+                TraderPayloads.S2CShopState.TYPE,
+                TraderPayloads.S2CShopState.STREAM_CODEC,
+                TraderNetwork::handleShopState
+        );
+    }
+
+    private static void handleBuy(TraderPayloads.C2SBuy payload, IPayloadContext context) {
+        if (context.player() instanceof ServerPlayer player) {
+            TraderService.buy(player, payload.traderId(), payload.offerId());
+        }
+    }
+
+    private static void handleShopState(TraderPayloads.S2CShopState payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            TraderShopScreen.handle(payload);
+        }
+    }
+
+    private TraderNetwork() {
+    }
+}

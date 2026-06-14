@@ -338,9 +338,55 @@ public final class FactionManager extends SavedData {
         nameIndex.remove(normalizeName(faction.name()));
         faction.members().keySet().forEach(memberIndex::remove);
         faction.claims().forEach(claimIndex::remove);
+        faction.outpostChunks().forEach(claimIndex::remove);
         chestAccess.entrySet().removeIf(entry -> entry.getValue().factionId().equals(factionId));
+        factions.values().forEach(other -> other.removeAlly(factionId));
         setDirty();
         return OperationResult.success(factionId, faction.treasuryBalance());
+    }
+
+    public synchronized boolean areAllied(UUID firstFactionId, UUID secondFactionId) {
+        if (firstFactionId == null || secondFactionId == null) {
+            return false;
+        }
+        Faction first = factions.get(firstFactionId);
+        Faction second = factions.get(secondFactionId);
+        return first != null
+            && second != null
+            && first.isAlliedWith(secondFactionId)
+            && second.isAlliedWith(firstFactionId);
+    }
+
+    public synchronized OperationResult addAlliance(UUID firstFactionId, UUID secondFactionId) {
+        Faction first = factions.get(firstFactionId);
+        Faction second = factions.get(secondFactionId);
+        if (first == null || second == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        if (firstFactionId.equals(secondFactionId)) {
+            return OperationResult.failure(Status.INVALID_ALLIANCE);
+        }
+        if (areAllied(firstFactionId, secondFactionId)) {
+            return OperationResult.failure(Status.INVALID_ALLIANCE);
+        }
+        first.addAlly(secondFactionId);
+        second.addAlly(firstFactionId);
+        setDirty();
+        return OperationResult.success(firstFactionId, 0L);
+    }
+
+    public synchronized OperationResult breakAlliance(UUID firstFactionId, UUID secondFactionId) {
+        Faction first = factions.get(firstFactionId);
+        Faction second = factions.get(secondFactionId);
+        if (first == null || second == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        boolean removed = first.removeAlly(secondFactionId) | second.removeAlly(firstFactionId);
+        if (!removed) {
+            return OperationResult.failure(Status.NOT_ALLIED);
+        }
+        setDirty();
+        return OperationResult.success(firstFactionId, 0L);
     }
 
     public synchronized long quoteClaimPrice(UUID factionId, UUID actingMemberId) {
@@ -435,6 +481,67 @@ public final class FactionManager extends SavedData {
         chestAccess.entrySet().removeIf(entry -> isInside(entry.getKey(), key));
         setDirty();
         return OperationResult.success(factionId, refund);
+    }
+
+    public synchronized OperationResult claimOutpost(
+        UUID factionId,
+        net.minecraft.resources.ResourceKey<Level> dimension,
+        BlockPos corePos,
+        ChunkPos baseChunk
+    ) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        Set<ClaimKey> chunks = new LinkedHashSet<>();
+        for (int dx = 0; dx < 2; dx++) {
+            for (int dz = 0; dz < 2; dz++) {
+                chunks.add(new ClaimKey(dimension, baseChunk.x + dx, baseChunk.z + dz));
+            }
+        }
+        if (chunks.stream().anyMatch(claimIndex::containsKey)) {
+            return OperationResult.failure(Status.CLAIM_ALREADY_OWNED);
+        }
+        UUID outpostId;
+        do {
+            outpostId = UUID.randomUUID();
+        } while (faction.outpost(outpostId).isPresent());
+        faction.addOutpost(new Faction.Outpost(outpostId, dimension, corePos, chunks));
+        chunks.forEach(chunk -> claimIndex.put(chunk, factionId));
+        setDirty();
+        return OperationResult.success(factionId, 0L);
+    }
+
+    public synchronized Optional<Faction.Outpost> detachOutpost(UUID factionId, UUID outpostId) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return Optional.empty();
+        }
+        Optional<Faction.Outpost> removed = faction.removeOutpost(outpostId);
+        removed.ifPresent(outpost -> {
+            outpost.chunks().forEach(claimIndex::remove);
+            setDirty();
+        });
+        return removed;
+    }
+
+    public synchronized OperationResult attachOutpost(UUID factionId, BlockPos corePos, Set<ClaimKey> chunks) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        if (chunks.isEmpty() || chunks.stream().anyMatch(claimIndex::containsKey)) {
+            return OperationResult.failure(Status.CLAIM_ALREADY_OWNED);
+        }
+        net.minecraft.resources.ResourceKey<Level> dimension = chunks.iterator().next().dimension();
+        UUID outpostId;
+        do {
+            outpostId = UUID.randomUUID();
+        } while (faction.outpost(outpostId).isPresent());
+        faction.addOutpost(new Faction.Outpost(outpostId, dimension, corePos, chunks));
+        chunks.forEach(chunk -> claimIndex.put(chunk, factionId));
+        setDirty();
+        return OperationResult.success(factionId, 0L);
     }
 
     public synchronized OperationResult deposit(UUID factionId, long amount) {
@@ -749,6 +856,19 @@ public final class FactionManager extends SavedData {
             }
         }
 
+        for (Faction faction : manager.factions.values()) {
+            for (UUID ally : faction.allies()) {
+                Faction alliedFaction = manager.factions.get(ally);
+                if (alliedFaction == null) {
+                    faction.removeAlly(ally);
+                    repaired = true;
+                } else if (!alliedFaction.isAlliedWith(faction.id())) {
+                    alliedFaction.addAlly(faction.id());
+                    repaired = true;
+                }
+            }
+        }
+
         if (repaired) {
             manager.setDirty();
         }
@@ -763,6 +883,7 @@ public final class FactionManager extends SavedData {
             || nameIndex.containsKey(normalizedName)
             || faction.members().keySet().stream().anyMatch(memberIndex::containsKey)
             || faction.claims().stream().anyMatch(claimIndex::containsKey)
+            || faction.outpostChunks().stream().anyMatch(claimIndex::containsKey)
             || !claimsAreConnectedByDimension(faction.claims())) {
             return false;
         }
@@ -771,6 +892,7 @@ public final class FactionManager extends SavedData {
         nameIndex.put(normalizedName, faction.id());
         faction.members().keySet().forEach(playerId -> memberIndex.put(playerId, faction.id()));
         faction.claims().forEach(claim -> claimIndex.put(claim, faction.id()));
+        faction.outpostChunks().forEach(claim -> claimIndex.put(claim, faction.id()));
         return true;
     }
 
@@ -880,7 +1002,10 @@ public final class FactionManager extends SavedData {
         INVALID_AMOUNT,
         INSUFFICIENT_FUNDS,
         TREASURY_OVERFLOW,
-        INSUFFICIENT_INFLUENCE
+        INSUFFICIENT_INFLUENCE,
+        INVALID_ALLIANCE,
+        NOT_ALLIED,
+        OUTPOST_CHUNK
     }
 
     public record OperationResult(Status status, UUID factionId, long amount) {

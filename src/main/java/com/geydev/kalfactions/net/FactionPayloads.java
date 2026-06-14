@@ -130,6 +130,26 @@ public final class FactionPayloads {
         return List.copyOf(emblem);
     }
 
+    private static void writeNames(RegistryFriendlyByteBuf buffer, List<String> names, int maxSize) {
+        int size = Math.min(names.size(), maxSize);
+        buffer.writeVarInt(size);
+        for (int i = 0; i < size; i++) {
+            buffer.writeUtf(names.get(i), FactionServerHooks.MAX_NAME_LENGTH);
+        }
+    }
+
+    private static List<String> readNames(RegistryFriendlyByteBuf buffer, int maxSize) {
+        int size = buffer.readVarInt();
+        if (size < 0 || size > maxSize) {
+            throw new DecoderException("Name list size " + size + " exceeds " + maxSize);
+        }
+        List<String> names = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            names.add(buffer.readUtf(FactionServerHooks.MAX_NAME_LENGTH));
+        }
+        return List.copyOf(names);
+    }
+
     public record C2SUpdateFaction(BlockPos tablePos, String name, int color) implements CustomPacketPayload {
         public static final Type<C2SUpdateFaction> TYPE = FactionPayloads.payloadType("update_faction");
         public static final StreamCodec<RegistryFriendlyByteBuf, C2SUpdateFaction> STREAM_CODEC = StreamCodec.of(
@@ -314,6 +334,44 @@ public final class FactionPayloads {
                     buffer.writeUtf(payload.targetName, 16);
                 },
                 buffer -> new C2STransferLeadership(buffer.readBlockPos(), buffer.readUtf(16))
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SRequestAlliance(BlockPos tablePos, String targetFactionName) implements CustomPacketPayload {
+        public static final Type<C2SRequestAlliance> TYPE = FactionPayloads.payloadType("request_alliance");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SRequestAlliance> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBlockPos(payload.tablePos);
+                    buffer.writeUtf(payload.targetFactionName, FactionServerHooks.MAX_NAME_LENGTH);
+                },
+                buffer -> new C2SRequestAlliance(
+                        buffer.readBlockPos(),
+                        buffer.readUtf(FactionServerHooks.MAX_NAME_LENGTH)
+                )
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SBreakAlliance(BlockPos tablePos, String targetFactionName) implements CustomPacketPayload {
+        public static final Type<C2SBreakAlliance> TYPE = FactionPayloads.payloadType("break_alliance");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SBreakAlliance> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBlockPos(payload.tablePos);
+                    buffer.writeUtf(payload.targetFactionName, FactionServerHooks.MAX_NAME_LENGTH);
+                },
+                buffer -> new C2SBreakAlliance(
+                        buffer.readBlockPos(),
+                        buffer.readUtf(FactionServerHooks.MAX_NAME_LENGTH)
+                )
         );
 
         @Override
@@ -533,12 +591,30 @@ public final class FactionPayloads {
         }
     }
 
+    public record C2SRespondAlliance(UUID factionId, boolean accept) implements CustomPacketPayload {
+        public static final Type<C2SRespondAlliance> TYPE = FactionPayloads.payloadType("respond_alliance");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SRespondAlliance> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeUUID(payload.factionId);
+                    buffer.writeBoolean(payload.accept);
+                },
+                buffer -> new C2SRespondAlliance(buffer.readUUID(), buffer.readBoolean())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record S2CFactionList(
             List<FactionInfo> factions,
-            List<InviteInfo> invites
+            List<InviteInfo> invites,
+            List<AllianceInviteInfo> allianceInvites
     ) implements CustomPacketPayload {
         public static final int MAX_FACTIONS = 256;
         public static final int MAX_INVITES = 32;
+        public static final int MAX_ALLIANCE_INVITES = 32;
         public static final Type<S2CFactionList> TYPE = FactionPayloads.payloadType("faction_list");
         public static final StreamCodec<RegistryFriendlyByteBuf, S2CFactionList> STREAM_CODEC = StreamCodec.of(
                 (buffer, payload) -> {
@@ -551,6 +627,11 @@ public final class FactionPayloads {
                     buffer.writeVarInt(inviteCount);
                     for (int i = 0; i < inviteCount; i++) {
                         InviteInfo.encode(buffer, payload.invites.get(i));
+                    }
+                    int allianceInviteCount = Math.min(payload.allianceInvites.size(), MAX_ALLIANCE_INVITES);
+                    buffer.writeVarInt(allianceInviteCount);
+                    for (int i = 0; i < allianceInviteCount; i++) {
+                        AllianceInviteInfo.encode(buffer, payload.allianceInvites.get(i));
                     }
                 },
                 buffer -> {
@@ -570,7 +651,20 @@ public final class FactionPayloads {
                     for (int i = 0; i < inviteCount; i++) {
                         invites.add(InviteInfo.decode(buffer));
                     }
-                    return new S2CFactionList(List.copyOf(factions), List.copyOf(invites));
+                    int allianceInviteCount = buffer.readVarInt();
+                    if (allianceInviteCount < 0 || allianceInviteCount > MAX_ALLIANCE_INVITES) {
+                        throw new DecoderException(
+                                "Alliance invite list size " + allianceInviteCount + " exceeds " + MAX_ALLIANCE_INVITES);
+                    }
+                    List<AllianceInviteInfo> allianceInvites = new ArrayList<>(allianceInviteCount);
+                    for (int i = 0; i < allianceInviteCount; i++) {
+                        allianceInvites.add(AllianceInviteInfo.decode(buffer));
+                    }
+                    return new S2CFactionList(
+                            List.copyOf(factions),
+                            List.copyOf(invites),
+                            List.copyOf(allianceInvites)
+                    );
                 }
         );
 
@@ -587,12 +681,14 @@ public final class FactionPayloads {
             int memberCount,
             long influence,
             String warWith,
+            List<String> allies,
             List<String> bonuses,
             List<Integer> emblem,
             String emblemUrl,
             List<MemberInfo> members
     ) {
         public static final int MAX_LIST_MEMBERS = 64;
+        public static final int MAX_ALLIES = 64;
 
         private static void encode(RegistryFriendlyByteBuf buffer, FactionInfo info) {
             buffer.writeUUID(info.id);
@@ -601,6 +697,7 @@ public final class FactionPayloads {
             buffer.writeVarInt(info.memberCount);
             buffer.writeLong(info.influence);
             buffer.writeUtf(info.warWith, 32);
+            writeNames(buffer, info.allies, MAX_ALLIES);
             writeBonuses(buffer, info.bonuses);
             writeEmblem(buffer, info.emblem);
             buffer.writeUtf(info.emblemUrl, FactionSnapshot.MAX_EMBLEM_URL);
@@ -618,6 +715,7 @@ public final class FactionPayloads {
             int memberCount = buffer.readVarInt();
             long influence = buffer.readLong();
             String warWith = buffer.readUtf(32);
+            List<String> allies = readNames(buffer, MAX_ALLIES);
             List<String> bonuses = readBonuses(buffer);
             List<Integer> emblem = readEmblem(buffer);
             String emblemUrl = buffer.readUtf(FactionSnapshot.MAX_EMBLEM_URL);
@@ -631,7 +729,7 @@ public final class FactionPayloads {
             }
             return new FactionInfo(
                     id, name, color, memberCount, influence, warWith,
-                    bonuses, emblem, emblemUrl, List.copyOf(members)
+                    allies, bonuses, emblem, emblemUrl, List.copyOf(members)
             );
         }
     }
@@ -676,6 +774,38 @@ public final class FactionPayloads {
                     buffer.readVarInt(),
                     buffer.readUtf(32),
                     readBonuses(buffer),
+                    readEmblem(buffer),
+                    buffer.readUtf(FactionSnapshot.MAX_EMBLEM_URL)
+            );
+        }
+    }
+
+    public record AllianceInviteInfo(
+            UUID factionId,
+            String factionName,
+            int color,
+            int memberCount,
+            String requesterName,
+            List<Integer> emblem,
+            String emblemUrl
+    ) {
+        private static void encode(RegistryFriendlyByteBuf buffer, AllianceInviteInfo info) {
+            buffer.writeUUID(info.factionId);
+            buffer.writeUtf(info.factionName, 32);
+            buffer.writeInt(info.color);
+            buffer.writeVarInt(info.memberCount);
+            buffer.writeUtf(info.requesterName, 32);
+            writeEmblem(buffer, info.emblem);
+            buffer.writeUtf(info.emblemUrl, FactionSnapshot.MAX_EMBLEM_URL);
+        }
+
+        private static AllianceInviteInfo decode(RegistryFriendlyByteBuf buffer) {
+            return new AllianceInviteInfo(
+                    buffer.readUUID(),
+                    buffer.readUtf(32),
+                    buffer.readInt(),
+                    buffer.readVarInt(),
+                    buffer.readUtf(32),
                     readEmblem(buffer),
                     buffer.readUtf(FactionSnapshot.MAX_EMBLEM_URL)
             );

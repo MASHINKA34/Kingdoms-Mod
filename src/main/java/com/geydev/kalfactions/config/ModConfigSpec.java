@@ -22,9 +22,22 @@ public final class ModConfigSpec {
     public static final DoubleValue CRAFT_BONUS_CHANCE;
     public static final DoubleValue BUILDER_DISCOUNT;
     public static final LongValue INFLUENCE_PER_CHUNK_PER_DAY;
+    public static final LongValue CREATION_COST;
     public static final IntValue WAR_ROLLBACK_CHUNKS_PER_TICK;
     public static final LongValue WAR_AUTO_END_TICKS;
     public static final IntValue CLAIM_SYNC_RADIUS_CHUNKS;
+    public static final IntValue RAID_GRACE_PERIOD_HOURS;
+    public static final IntValue RAID_CHANCE_PERCENT;
+    public static final IntValue RAID_ROLL_INTERVAL_HOURS;
+    public static final IntValue RAID_WARNING_SECONDS;
+    public static final IntValue RAID_COMBAT_MINUTES;
+    public static final LongValue RAID_REWARD_PER_RAIDER_MIN;
+    public static final LongValue RAID_REWARD_PER_RAIDER_MAX;
+    public static final DoubleValue RAID_TREASURY_STEAL_PERCENT;
+    public static final LongValue RAID_TREASURY_STEAL_MIN;
+    public static final LongValue OUTPOST_CHARTER_COST;
+    public static final LongValue OUTPOST_DRILL_COST;
+    public static final IntValue OUTPOST_DRILL_INTERVAL_SECONDS;
 
     static {
         Builder builder = new Builder();
@@ -42,6 +55,51 @@ public final class ModConfigSpec {
         CRAFT_BONUS_CHANCE = builder.defineInRange("craftBonusChance", 0.2D, 0D, 1D);
         BUILDER_DISCOUNT = builder.defineInRange("builderDiscount", 0.2D, 0D, 1D);
         INFLUENCE_PER_CHUNK_PER_DAY = builder.defineInRange("influencePerChunkPerDay", 1L, 0L, Long.MAX_VALUE);
+        CREATION_COST = builder
+            .comment("Spurs charged from a player's inventory when founding a faction.")
+            .defineInRange("creationCost", 500L, 0L, Long.MAX_VALUE);
+        builder.pop();
+
+        builder.push("raids");
+        RAID_GRACE_PERIOD_HOURS = builder
+            .comment("Real-time hours after a faction is founded before it can be raided.")
+            .defineInRange("gracePeriodHours", 48, 0, 8760);
+        RAID_CHANCE_PERCENT = builder
+            .comment("Percent chance a raid triggers on each roll (only when at least one member is online).")
+            .defineInRange("chancePercent", 15, 0, 100);
+        RAID_ROLL_INTERVAL_HOURS = builder
+            .comment("Real-time hours between raid rolls for a faction.")
+            .defineInRange("rollIntervalHours", 4, 1, 8760);
+        RAID_WARNING_SECONDS = builder
+            .comment("Seconds of warning before raiders spawn.")
+            .defineInRange("warningSeconds", 300, 5, 7200);
+        RAID_COMBAT_MINUTES = builder
+            .comment("Minutes the defenders have to kill every raider before the raid is lost.")
+            .defineInRange("combatMinutes", 10, 1, 240);
+        RAID_REWARD_PER_RAIDER_MIN = builder
+            .comment("Minimum treasury reward per slain raider on victory.")
+            .defineInRange("rewardPerRaiderMin", 50L, 0L, Long.MAX_VALUE);
+        RAID_REWARD_PER_RAIDER_MAX = builder
+            .comment("Maximum treasury reward per slain raider on victory.")
+            .defineInRange("rewardPerRaiderMax", 150L, 0L, Long.MAX_VALUE);
+        RAID_TREASURY_STEAL_PERCENT = builder
+            .comment("Fraction of the treasury stolen when a raid on the main territory is lost.")
+            .defineInRange("treasuryStealPercent", 0.10D, 0D, 1D);
+        RAID_TREASURY_STEAL_MIN = builder
+            .comment("Minimum spurs stolen when a raid on the main territory is lost.")
+            .defineInRange("treasuryStealMin", 100L, 0L, Long.MAX_VALUE);
+        builder.pop();
+
+        builder.push("outposts");
+        OUTPOST_CHARTER_COST = builder
+            .comment("Spurs charged by the spawn trader for an outpost charter.")
+            .defineInRange("charterCost", 2000L, 0L, Long.MAX_VALUE);
+        OUTPOST_DRILL_COST = builder
+            .comment("Spurs charged by the spawn trader for a drill.")
+            .defineInRange("drillCost", 1500L, 0L, Long.MAX_VALUE);
+        OUTPOST_DRILL_INTERVAL_SECONDS = builder
+            .comment("Seconds between drill resource outputs (production ~8h = 28800).")
+            .defineInRange("drillIntervalSeconds", 30, 1, 86400);
         builder.pop();
 
         builder.push("war");

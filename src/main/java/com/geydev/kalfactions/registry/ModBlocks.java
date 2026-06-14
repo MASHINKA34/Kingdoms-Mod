@@ -1,7 +1,10 @@
 package com.geydev.kalfactions.registry;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.block.DrillBlock;
 import com.geydev.kalfactions.block.FactionTableBlock;
+import com.geydev.kalfactions.block.OutpostCoreBlock;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
@@ -21,8 +24,53 @@ public final class ModBlocks {
                     .noOcclusion())
     );
 
+    public static final DeferredBlock<Block> RESOURCE_CLUSTER_IRON = BLOCKS.register(
+            "resource_cluster_iron",
+            () -> new Block(resourceClusterProperties())
+    );
+
+    public static final DeferredBlock<Block> RESOURCE_CLUSTER_COPPER = BLOCKS.register(
+            "resource_cluster_copper",
+            () -> new Block(resourceClusterProperties())
+    );
+
+    public static final DeferredBlock<Block> RESOURCE_CLUSTER_GOLD = BLOCKS.register(
+            "resource_cluster_gold",
+            () -> new Block(resourceClusterProperties())
+    );
+
+    public static final DeferredBlock<Block> RESOURCE_CLUSTER_DIAMOND = BLOCKS.register(
+            "resource_cluster_diamond",
+            () -> new Block(resourceClusterProperties())
+    );
+
+    public static final DeferredBlock<DrillBlock> DRILL = BLOCKS.register(
+            "drill",
+            () -> new DrillBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .strength(3.5F)
+                    .sound(SoundType.METAL)
+                    .requiresCorrectToolForDrops())
+    );
+
+    public static final DeferredBlock<OutpostCoreBlock> OUTPOST_CORE = BLOCKS.register(
+            "outpost_core",
+            () -> new OutpostCoreBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_GRAY)
+                    .strength(50.0F, 1200.0F)
+                    .sound(SoundType.STONE))
+    );
+
     public static void register(IEventBus bus) {
         BLOCKS.register(bus);
+    }
+
+    private static BlockBehaviour.Properties resourceClusterProperties() {
+        return BlockBehaviour.Properties.of()
+                .mapColor(MapColor.STONE)
+                .strength(-1.0F, 3_600_000.0F)
+                .sound(SoundType.STONE)
+                .noLootTable();
     }
 
     private ModBlocks() {

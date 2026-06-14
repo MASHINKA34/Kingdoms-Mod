@@ -3,6 +3,7 @@ package com.geydev.kalfactions.client.screen;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.EmblemTextures;
 import com.geydev.kalfactions.net.FactionPayloads;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import net.minecraft.client.gui.GuiGraphics;
@@ -30,9 +31,16 @@ public final class FactionListScreen extends Screen {
         INVITES
     }
 
+    private enum InviteSection {
+        FACTION,
+        ALLIANCE
+    }
+
     private final long openedAt = System.currentTimeMillis();
     private List<FactionPayloads.FactionInfo> factions = List.of();
     private List<FactionPayloads.InviteInfo> invites = List.of();
+    private List<FactionPayloads.AllianceInviteInfo> allianceInvites = List.of();
+    private List<Object> inviteRows = List.of();
     private boolean loaded;
     private Tab tab = Tab.FACTIONS;
     private int scrollOffset;
@@ -60,6 +68,8 @@ public final class FactionListScreen extends Screen {
     public void acceptData(FactionPayloads.S2CFactionList payload) {
         factions = payload.factions();
         invites = payload.invites();
+        allianceInvites = payload.allianceInvites();
+        rebuildInviteRows();
         loaded = true;
         scrollOffset = Math.clamp(scrollOffset, 0, maxScroll());
         rebuildWidgets();
@@ -78,9 +88,10 @@ public final class FactionListScreen extends Screen {
         ));
         factionsTab.active = tab != Tab.FACTIONS;
 
-        Component invitesLabel = invites.isEmpty()
+        int inviteCount = invites.size() + allianceInvites.size();
+        Component invitesLabel = inviteCount == 0
                 ? Component.translatable("screen.kingdoms.tab_invites")
-                : Component.translatable("screen.kingdoms.tab_invites_count", invites.size());
+                : Component.translatable("screen.kingdoms.tab_invites_count", inviteCount);
         KingdomsButton invitesTab = addRenderableWidget(KingdomsButton.create(
                 invitesLabel,
                 button -> switchTab(Tab.INVITES),
@@ -102,7 +113,20 @@ public final class FactionListScreen extends Screen {
     }
 
     private List<?> currentRows() {
-        return tab == Tab.FACTIONS ? factions : invites;
+        return tab == Tab.FACTIONS ? factions : inviteRows;
+    }
+
+    private void rebuildInviteRows() {
+        List<Object> rows = new ArrayList<>();
+        if (!invites.isEmpty()) {
+            rows.add(InviteSection.FACTION);
+            rows.addAll(invites);
+        }
+        if (!allianceInvites.isEmpty()) {
+            rows.add(InviteSection.ALLIANCE);
+            rows.addAll(allianceInvites);
+        }
+        inviteRows = List.copyOf(rows);
     }
 
     private int maxScroll() {
@@ -149,7 +173,14 @@ public final class FactionListScreen extends Screen {
             if (tab == Tab.FACTIONS) {
                 renderFactionRow(graphics, factions.get(scrollOffset + index), rowTop, mouseX, mouseY, alpha);
             } else {
-                renderInviteRow(graphics, invites.get(scrollOffset + index), rowTop, mouseX, mouseY, alpha);
+                Object row = inviteRows.get(scrollOffset + index);
+                if (row instanceof InviteSection section) {
+                    renderInviteSection(graphics, section, rowTop, alpha);
+                } else if (row instanceof FactionPayloads.InviteInfo invite) {
+                    renderInviteRow(graphics, invite, rowTop, mouseX, mouseY, alpha);
+                } else if (row instanceof FactionPayloads.AllianceInviteInfo allianceInvite) {
+                    renderAllianceInviteRow(graphics, allianceInvite, rowTop, mouseX, mouseY, alpha);
+                }
             }
         }
         if (rows.size() > VISIBLE_ROWS) {
@@ -188,8 +219,29 @@ public final class FactionListScreen extends Screen {
         Component status = info.warWith().isEmpty()
                 ? Component.translatable("screen.kingdoms.flist.peace")
                 : Component.translatable("screen.kingdoms.flist.war", info.warWith());
+        Component alliance = Component.translatable(
+                "screen.kingdoms.flist.alliance",
+                info.allies().isEmpty() ? "-" : String.join(", ", info.allies())
+        );
+        String statusLine = status.getString() + " | " + alliance.getString();
+        String clipped = font.plainSubstrByWidth(statusLine, rowRight - rowLeft - 34);
         int statusColor = info.warWith().isEmpty() ? 0x3F6B33 : 0x8C2B2B;
-        graphics.drawString(font, status, rowLeft + 28, rowTop + 17, textAlpha | statusColor, false);
+        graphics.drawString(font, clipped, rowLeft + 28, rowTop + 17, textAlpha | statusColor, false);
+    }
+
+    private void renderInviteSection(GuiGraphics graphics, InviteSection section, int rowTop, int alpha) {
+        Component label = Component.translatable(section == InviteSection.FACTION
+                ? "screen.kingdoms.invites.factions"
+                : "screen.kingdoms.invites.alliances");
+        int color = alpha << 24 | (TEXT_DARK & 0xFFFFFF);
+        graphics.drawString(font, label, left + CONTENT_LEFT + 4, rowTop + 10, color, false);
+        graphics.fill(
+                left + CONTENT_LEFT + 4 + font.width(label) + 5,
+                rowTop + 14,
+                left + CONTENT_RIGHT,
+                rowTop + 15,
+                color
+        );
     }
 
     private void renderInviteRow(
@@ -211,6 +263,38 @@ public final class FactionListScreen extends Screen {
         graphics.drawString(font, name, rowLeft + 28, rowTop + 5, textAlpha | (TEXT_DARK & 0xFFFFFF), false);
         graphics.drawString(font, bonusLine(info.bonuses()), rowLeft + 28, rowTop + 17,
                 textAlpha | (TEXT_MUTED & 0xFFFFFF), false);
+
+        renderMiniButton(graphics, acceptZone(rowTop),
+                Component.translatable("screen.kingdoms.accept"), 0xFF2F5B27, 0xFF3F7B33, mouseX, mouseY);
+        renderMiniButton(graphics, declineZone(rowTop),
+                Component.translatable("screen.kingdoms.decline"), 0xFF6B2424, 0xFF8C2B2B, mouseX, mouseY);
+    }
+
+    private void renderAllianceInviteRow(
+            GuiGraphics graphics,
+            FactionPayloads.AllianceInviteInfo info,
+            int rowTop,
+            int mouseX,
+            int mouseY,
+            int alpha
+    ) {
+        int rowLeft = left + CONTENT_LEFT;
+        int rowRight = left + CONTENT_RIGHT;
+        graphics.fill(rowLeft, rowTop, rowRight, rowTop + ROW_HEIGHT - 2, 0x28 << 24 | 0xFFF3D5);
+
+        renderEmblem(graphics, info.factionId(), info.emblem(), info.emblemUrl(), info.color(), rowLeft + 3, rowTop + 4);
+
+        int textAlpha = alpha << 24;
+        String name = info.factionName() + " (" + info.memberCount() + ")";
+        graphics.drawString(font, name, rowLeft + 28, rowTop + 5, textAlpha | (TEXT_DARK & 0xFFFFFF), false);
+        graphics.drawString(
+                font,
+                Component.translatable("screen.kingdoms.alliance.requester", info.requesterName()),
+                rowLeft + 28,
+                rowTop + 17,
+                textAlpha | (TEXT_MUTED & 0xFFFFFF),
+                false
+        );
 
         renderMiniButton(graphics, acceptZone(rowTop),
                 Component.translatable("screen.kingdoms.accept"), 0xFF2F5B27, 0xFF3F7B33, mouseX, mouseY);
@@ -290,16 +374,29 @@ public final class FactionListScreen extends Screen {
                     continue;
                 }
                 if (tab == Tab.INVITES) {
-                    FactionPayloads.InviteInfo invite = invites.get(scrollOffset + index);
-                    if (inside(mouseX, mouseY, acceptZone(rowTop))) {
-                        PacketDistributor.sendToServer(
-                                new FactionPayloads.C2SRespondInvite(invite.factionId(), true));
-                        return true;
-                    }
-                    if (inside(mouseX, mouseY, declineZone(rowTop))) {
-                        PacketDistributor.sendToServer(
-                                new FactionPayloads.C2SRespondInvite(invite.factionId(), false));
-                        return true;
+                    Object row = inviteRows.get(scrollOffset + index);
+                    if (row instanceof FactionPayloads.InviteInfo invite) {
+                        if (inside(mouseX, mouseY, acceptZone(rowTop))) {
+                            PacketDistributor.sendToServer(
+                                    new FactionPayloads.C2SRespondInvite(invite.factionId(), true));
+                            return true;
+                        }
+                        if (inside(mouseX, mouseY, declineZone(rowTop))) {
+                            PacketDistributor.sendToServer(
+                                    new FactionPayloads.C2SRespondInvite(invite.factionId(), false));
+                            return true;
+                        }
+                    } else if (row instanceof FactionPayloads.AllianceInviteInfo allianceInvite) {
+                        if (inside(mouseX, mouseY, acceptZone(rowTop))) {
+                            PacketDistributor.sendToServer(
+                                    new FactionPayloads.C2SRespondAlliance(allianceInvite.factionId(), true));
+                            return true;
+                        }
+                        if (inside(mouseX, mouseY, declineZone(rowTop))) {
+                            PacketDistributor.sendToServer(
+                                    new FactionPayloads.C2SRespondAlliance(allianceInvite.factionId(), false));
+                            return true;
+                        }
                     }
                     return true;
                 }

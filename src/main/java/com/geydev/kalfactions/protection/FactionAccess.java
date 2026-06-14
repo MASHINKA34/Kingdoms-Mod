@@ -103,6 +103,18 @@ public final class FactionAccess {
         }
 
         @Override
+        public boolean canBuild(ServerPlayer player, ServerLevel level, BlockPos pos) {
+            FactionManager manager = FactionManager.get(level);
+            java.util.UUID owner = manager.getFactionIdAt(ClaimKey.of(level, pos)).orElse(null);
+            if (owner == null) {
+                return !com.geydev.kalfactions.outpost.RogueOutpostManager.get(level)
+                        .isRogueChunk(ClaimKey.of(level, pos));
+            }
+            java.util.UUID playerFaction = manager.getFactionIdForMember(player.getUUID()).orElse(null);
+            return owner.equals(playerFaction) || manager.areAllied(owner, playerFaction);
+        }
+
+        @Override
         public Optional<FactionRef> factionAt(ServerLevel level, BlockPos pos) {
             return FactionManager.get(level)
                     .getFactionAt(ClaimKey.of(level, pos))

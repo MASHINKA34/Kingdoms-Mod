@@ -33,7 +33,7 @@ import net.neoforged.neoforge.items.IItemHandler;
  * the providers visible during registration; providers added by later mods and
  * direct vanilla {@code Container} access still require a dedicated mixin.</p>
  */
-@EventBusSubscriber(modid = KalFactions.MOD_ID, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class AutomationBoundaryHandler {
     private static boolean installed;
 

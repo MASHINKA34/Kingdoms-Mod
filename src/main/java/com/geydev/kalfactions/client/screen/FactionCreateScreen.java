@@ -77,7 +77,7 @@ public final class FactionCreateScreen extends FactionScreen {
         ));
 
         createButton = addRenderableWidget(KingdomsButton.create(
-                text("screen.kingdoms.create"),
+                text("screen.kingdoms.create_cost", formatSpurs(snapshot.creationCost())),
                 button -> PacketDistributor.sendToServer(new FactionPayloads.C2SCreateFaction(
                         snapshot.tablePos(),
                         nameBox.getValue(),
@@ -97,6 +97,20 @@ public final class FactionCreateScreen extends FactionScreen {
 
     private void updateCreateButton() {
         createButton.active = nameValue.trim().length() >= 3 && firstBonus != null && secondBonus != null;
+    }
+
+    private static Component formatSpurs(long spurs) {
+        long lastTwo = Math.floorMod(spurs, 100L);
+        long last = Math.floorMod(spurs, 10L);
+        String key;
+        if (last == 1L && lastTwo != 11L) {
+            key = "kingdoms.currency.spurs.one";
+        } else if (last >= 2L && last <= 4L && (lastTwo < 12L || lastTwo > 14L)) {
+            key = "kingdoms.currency.spurs.few";
+        } else {
+            key = "kingdoms.currency.spurs.many";
+        }
+        return Component.translatable(key, spurs);
     }
 
     private List<Integer> boxedEmblem() {
