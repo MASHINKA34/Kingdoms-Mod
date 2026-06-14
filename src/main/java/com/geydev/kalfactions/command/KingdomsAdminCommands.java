@@ -9,8 +9,6 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.npc.WanderingTrader;
 
 public final class KingdomsAdminCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -24,15 +22,7 @@ public final class KingdomsAdminCommands {
         CommandSourceStack source = context.getSource();
         ServerPlayer player = source.getPlayerOrException();
         ServerLevel level = player.serverLevel();
-        WanderingTrader trader = EntityType.WANDERING_TRADER.create(level);
-        if (trader == null) {
-            source.sendFailure(Component.translatable("command.kingdoms.spawntrader.failed"));
-            return 0;
-        }
-
-        trader.moveTo(player.getX(), player.getY(), player.getZ(), player.getYRot(), 0.0F);
-        TraderService.configure(trader);
-        if (!level.addFreshEntity(trader)) {
+        if (!TraderService.spawn(level, player.getX(), player.getY(), player.getZ(), player.getYRot())) {
             source.sendFailure(Component.translatable("command.kingdoms.spawntrader.failed"));
             return 0;
         }

@@ -49,7 +49,9 @@ final class KingdomsWorldMapHighlighter extends ChunkHighlighter {
         if (claim == null || claim.name().isBlank()) {
             return null;
         }
-        return Component.literal(claim.name());
+        return claim.outpost()
+                ? Component.translatable("kingdoms.xaero.outpost_label", claim.name())
+                : Component.literal(claim.name());
     }
 
     @Override
@@ -62,7 +64,9 @@ final class KingdomsWorldMapHighlighter extends ChunkHighlighter {
     ) {
         ClaimInfo claim = ClientClaimStore.get(dimension, blockX >> 4, blockZ >> 4);
         if (claim != null && !claim.name().isBlank()) {
-            lines.add(Component.literal(claim.name()));
+            lines.add(claim.outpost()
+                    ? Component.translatable("kingdoms.xaero.outpost_label", claim.name())
+                    : Component.literal(claim.name()));
         }
     }
 }

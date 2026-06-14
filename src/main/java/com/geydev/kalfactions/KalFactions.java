@@ -3,6 +3,7 @@ package com.geydev.kalfactions;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.registry.ModBlocks;
 import com.geydev.kalfactions.registry.ModCreativeTabs;
+import com.geydev.kalfactions.registry.ModEntities;
 import com.geydev.kalfactions.registry.ModItems;
 import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
@@ -19,6 +20,7 @@ public final class KalFactions {
     public KalFactions(IEventBus modBus, ModContainer container) {
         ModBlocks.register(modBus);
         ModItems.register(modBus);
+        ModEntities.register(modBus);
         ModCreativeTabs.register(modBus);
         container.registerConfig(ModConfig.Type.SERVER, ModConfigSpec.SPEC);
     }

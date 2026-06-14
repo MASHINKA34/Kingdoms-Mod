@@ -77,7 +77,13 @@ public final class IntegrationManager {
         return REVISION.get();
     }
 
-    public record FactionMapData(UUID factionId, String name, int color, Set<ClaimKey> claims) {
+    public record FactionMapData(
+            UUID factionId,
+            String name,
+            int color,
+            Set<ClaimKey> claims,
+            Set<ClaimKey> outpostChunks
+    ) {
         public FactionMapData {
             Objects.requireNonNull(factionId, "factionId");
             name = Objects.requireNonNull(name, "name").strip();
@@ -86,13 +92,19 @@ public final class IntegrationManager {
             }
             color &= 0xFFFFFF;
             claims = Set.copyOf(Objects.requireNonNull(claims, "claims"));
+            outpostChunks = Set.copyOf(Objects.requireNonNull(outpostChunks, "outpostChunks"));
+        }
+
+        public boolean isOutpost(ClaimKey key) {
+            return outpostChunks.contains(key);
         }
 
         public static FactionMapData from(Faction faction) {
             Objects.requireNonNull(faction, "faction");
+            Set<ClaimKey> outposts = faction.outpostChunks();
             Set<ClaimKey> territory = new java.util.LinkedHashSet<>(faction.claims());
-            territory.addAll(faction.outpostChunks());
-            return new FactionMapData(faction.id(), faction.name(), faction.color(), territory);
+            territory.addAll(outposts);
+            return new FactionMapData(faction.id(), faction.name(), faction.color(), territory, outposts);
         }
     }
 

@@ -906,13 +906,14 @@ public final class FactionPayloads {
         }
     }
 
-    public record ClaimEntry(int chunkX, int chunkZ, int color, String name, UUID factionId) {
+    public record ClaimEntry(int chunkX, int chunkZ, int color, String name, UUID factionId, boolean outpost) {
         private static void encode(RegistryFriendlyByteBuf buffer, ClaimEntry entry) {
             buffer.writeVarInt(entry.chunkX);
             buffer.writeVarInt(entry.chunkZ);
             buffer.writeInt(entry.color);
             buffer.writeUtf(entry.name, 32);
             buffer.writeUUID(entry.factionId);
+            buffer.writeBoolean(entry.outpost);
         }
 
         private static ClaimEntry decode(RegistryFriendlyByteBuf buffer) {
@@ -921,7 +922,8 @@ public final class FactionPayloads {
                     buffer.readVarInt(),
                     buffer.readInt(),
                     buffer.readUtf(32),
-                    buffer.readUUID()
+                    buffer.readUUID(),
+                    buffer.readBoolean()
             );
         }
     }

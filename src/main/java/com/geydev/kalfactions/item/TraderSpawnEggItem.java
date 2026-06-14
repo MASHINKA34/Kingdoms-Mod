@@ -22,7 +22,7 @@ public final class TraderSpawnEggItem extends Item {
         BlockPos pos = context.getClickedPos().relative(context.getClickedFace());
         Player player = context.getPlayer();
         float yRot = player == null ? 0.0F : player.getYRot();
-        if (TraderService.spawn(level, pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, yRot)) {
+        if (TraderService.spawn(level, pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, yRot, player)) {
             ItemStack stack = context.getItemInHand();
             if (player == null || !player.isCreative()) {
                 stack.shrink(1);

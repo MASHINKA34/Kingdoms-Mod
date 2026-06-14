@@ -318,6 +318,7 @@
   "screen.kingdoms.apply": "Apply",
   "screen.kingdoms.cancel": "Cancel",
 
+  "kingdoms.xaero.outpost_label": "Outpost: %s",
   "kingdoms.xaero_map.claim": "Claim (%s): %s",
   "kingdoms.xaero_map.claim_noprice": "Claim (%s)",
   "kingdoms.xaero_map.unclaim": "Unclaim (%s)",
@@ -335,7 +336,7 @@
   "block.kingdoms.resource_cluster_copper": "Copper Cluster",
   "block.kingdoms.resource_cluster_gold": "Gold Cluster",
   "block.kingdoms.resource_cluster_diamond": "Diamond Cluster",
-  "item.kingdoms.outpost_charter": "Outpost Charter",
+  "item.kingdoms.outpost_charter": "Outpost",
   "item.kingdoms.trader_spawn_egg": "Trader Spawn Egg",
   "item.kingdoms.trader_remover": "Trader Remover",
   "entity.kingdoms.outpost_trader": "Kingdoms Trader",
@@ -351,10 +352,15 @@
   "kingdoms.outpost.owned_by": "Outpost of faction %s.",
   "kingdoms.outpost.dismantle_hint": "Sneak + right-click the core to dismantle the outpost.",
   "kingdoms.outpost.dismantled": "Outpost dismantled; the charter was returned to you.",
+  "screen.kingdoms.outpost.title": "Outpost",
+  "screen.kingdoms.outpost.faction": "Faction: %s",
+  "screen.kingdoms.outpost.info": "Place drills on resource clusters in this outpost.",
+  "screen.kingdoms.outpost.dismantle": "Dismantle outpost",
+  "screen.kingdoms.outpost.officer_only": "Only an officer or the leader can dismantle it.",
 
   "kingdoms.drill.empty": "The drill is empty.",
   "kingdoms.drill.collected": "Collected resources from the drill.",
-  "kingdoms.drill.not_outpost": "Drills can only be placed in your faction's outpost chunks.",
+  "kingdoms.drill.not_outpost": "Drills can only be placed on your faction's territory.",
   "kingdoms.drill.no_cluster": "There is no resource cluster in this chunk.",
   "kingdoms.drill.cluster_taken": "This cluster is already worked by another drill.",
 

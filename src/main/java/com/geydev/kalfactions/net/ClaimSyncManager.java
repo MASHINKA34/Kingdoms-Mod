@@ -94,7 +94,8 @@ public final class ClaimSyncManager {
                         claim.z(),
                         faction.color(),
                         faction.name(),
-                        faction.factionId()
+                        faction.factionId(),
+                        faction.isOutpost(claim)
                 ));
                 if (entries.size() >= FactionPayloads.S2CSyncClaims.MAX_ENTRIES) {
                     break outer;

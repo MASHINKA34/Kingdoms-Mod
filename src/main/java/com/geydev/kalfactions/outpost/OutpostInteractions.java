@@ -80,8 +80,9 @@ public final class OutpostInteractions {
         ClaimKey key = ClaimKey.of(level, chunk);
         FactionManager manager = FactionManager.get(level);
         Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
-        if (faction == null || !faction.isOutpostChunk(key) || !manager.getFactionIdAt(key)
-                .map(id -> id.equals(faction.id())).orElse(false)) {
+        boolean ownClaim = faction != null
+                && manager.getFactionIdAt(key).map(id -> id.equals(faction.id())).orElse(false);
+        if (!ownClaim) {
             event.setCanceled(true);
             FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.drill.not_outpost"), false);
             return;
@@ -146,7 +147,6 @@ public final class OutpostInteractions {
         if (owner == null || owner.outpostByCore(level.dimension(), corePos).isEmpty()) {
             return InteractionResult.PASS;
         }
-        Faction.Outpost outpost = owner.outpostByCore(level.dimension(), corePos).orElseThrow();
         Faction playerFaction = manager.getFactionForMember(player.getUUID()).orElse(null);
         if (playerFaction == null || !playerFaction.id().equals(owner.id())) {
             FactionServerHooks.sendNotice(
@@ -156,17 +156,36 @@ public final class OutpostInteractions {
             );
             return InteractionResult.SUCCESS;
         }
-        if (!player.isShiftKeyDown()) {
-            FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.outpost.dismantle_hint"), true);
-            return InteractionResult.SUCCESS;
+        boolean canManage = owner.roleOf(player.getUUID()).map(FactionRole::canManageClaims).orElse(false);
+        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
+                player,
+                new OutpostPayloads.S2COutpostState(corePos, owner.name(), canManage)
+        );
+        return InteractionResult.SUCCESS;
+    }
+
+    public static void dismantleFromUi(ServerPlayer player, BlockPos corePos) {
+        ServerLevel level = player.serverLevel();
+        if (!player.isAlive() || player.isSpectator() || !level.isLoaded(corePos)
+                || player.distanceToSqr(corePos.getX() + 0.5D, corePos.getY() + 0.5D, corePos.getZ() + 0.5D) > 64.0D) {
+            return;
         }
-        if (!owner.roleOf(player.getUUID()).map(FactionRole::canManageClaims).orElse(false)) {
+        FactionManager manager = FactionManager.get(level);
+        ClaimKey key = ClaimKey.of(level, new ChunkPos(corePos));
+        Faction owner = manager.getFactionAt(key).orElse(null);
+        if (owner == null) {
+            return;
+        }
+        Faction.Outpost outpost = owner.outpostByCore(level.dimension(), corePos).orElse(null);
+        Faction playerFaction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (outpost == null || playerFaction == null || !playerFaction.id().equals(owner.id())
+                || !owner.roleOf(player.getUUID()).map(FactionRole::canManageClaims).orElse(false)) {
             FactionServerHooks.sendNotice(
                     player,
                     Component.translatable("kingdoms.error.role_cannot_change_claims"),
                     false
             );
-            return InteractionResult.SUCCESS;
+            return;
         }
         manager.detachOutpost(owner.id(), outpost.id());
         level.removeBlock(corePos, false);
@@ -177,7 +196,6 @@ public final class OutpostInteractions {
         IntegrationManager.refreshFromServer(player.getServer());
         ClaimSyncManager.resync(player);
         FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.outpost.dismantled"), true);
-        return InteractionResult.SUCCESS;
     }
 
     private OutpostInteractions() {

@@ -1,48 +1,55 @@
 package com.geydev.kalfactions.outpost.trader;
 
 import com.geydev.kalfactions.command.NumismaticsEconomy;
+import com.geydev.kalfactions.entity.OutpostTraderEntity;
+import com.geydev.kalfactions.registry.ModEntities;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import javax.annotation.Nullable;
+import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.npc.WanderingTrader;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class TraderService {
-    public static final String MARKER_KEY = "kingdoms_outpost_trader";
     private static final double MAX_DISTANCE_SQUARED = 64.0D;
 
-    public static void configure(WanderingTrader trader) {
-        trader.getPersistentData().putBoolean(MARKER_KEY, true);
-        trader.setNoAi(true);
-        trader.setInvulnerable(true);
-        trader.setPersistenceRequired();
-        trader.setDespawnDelay(0);
-        trader.setCustomName(Component.translatable("entity.kingdoms.outpost_trader"));
-        trader.setCustomNameVisible(true);
+    public static boolean spawn(ServerLevel level, double x, double y, double z, float yRot) {
+        return spawn(level, x, y, z, yRot, null);
     }
 
-    public static boolean spawn(ServerLevel level, double x, double y, double z, float yRot) {
-        WanderingTrader trader = EntityType.WANDERING_TRADER.create(level);
+    public static boolean spawn(
+            ServerLevel level,
+            double x,
+            double y,
+            double z,
+            float yRot,
+            @Nullable Player spawner
+    ) {
+        OutpostTraderEntity trader = ModEntities.OUTPOST_TRADER.get().create(level);
         if (trader == null) {
             return false;
         }
         trader.moveTo(x, y, z, yRot, 0.0F);
-        configure(trader);
+        if (spawner != null) {
+            trader.lookAt(EntityAnchorArgument.Anchor.EYES, spawner.getEyePosition());
+            trader.setYBodyRot(trader.getYRot());
+            trader.yBodyRotO = trader.getYRot();
+            trader.yHeadRotO = trader.getYHeadRot();
+        }
         return level.addFreshEntity(trader);
     }
 
     public static boolean isMarked(Entity entity) {
-        return entity instanceof WanderingTrader
-                && entity.getPersistentData().getBoolean(MARKER_KEY);
+        return entity instanceof OutpostTraderEntity;
     }
 
-    public static void open(ServerPlayer player, WanderingTrader trader) {
+    public static void open(ServerPlayer player, OutpostTraderEntity trader) {
         if (!isAvailable(player, trader)) {
             sendState(
                     player,
@@ -57,7 +64,7 @@ public final class TraderService {
 
     public static void buy(ServerPlayer player, UUID traderId, String offerId) {
         Entity entity = player.serverLevel().getEntity(traderId);
-        if (!(entity instanceof WanderingTrader trader) || !isMarked(trader)) {
+        if (!(entity instanceof OutpostTraderEntity trader)) {
             sendState(
                     player,
                     traderId,
@@ -141,9 +148,8 @@ public final class TraderService {
         );
     }
 
-    private static boolean isAvailable(ServerPlayer player, WanderingTrader trader) {
-        return isMarked(trader)
-                && trader.isAlive()
+    private static boolean isAvailable(ServerPlayer player, OutpostTraderEntity trader) {
+        return trader.isAlive()
                 && !trader.isRemoved()
                 && trader.level() == player.level()
                 && player.distanceToSqr(trader) <= MAX_DISTANCE_SQUARED;

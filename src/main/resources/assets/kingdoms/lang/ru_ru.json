@@ -318,6 +318,7 @@
   "screen.kingdoms.apply": "Применить",
   "screen.kingdoms.cancel": "Отмена",
 
+  "kingdoms.xaero.outpost_label": "Форпост: %s",
   "kingdoms.xaero_map.claim": "Захват (%s): %s",
   "kingdoms.xaero_map.claim_noprice": "Захват (%s)",
   "kingdoms.xaero_map.unclaim": "Освободить (%s)",
@@ -335,7 +336,7 @@
   "block.kingdoms.resource_cluster_copper": "Медный кластер",
   "block.kingdoms.resource_cluster_gold": "Золотой кластер",
   "block.kingdoms.resource_cluster_diamond": "Алмазный кластер",
-  "item.kingdoms.outpost_charter": "Хартия форпоста",
+  "item.kingdoms.outpost_charter": "Форпост",
   "item.kingdoms.trader_spawn_egg": "Яйцо призыва торговца",
   "item.kingdoms.trader_remover": "Удалитель торговца",
   "entity.kingdoms.outpost_trader": "Торговец Королевств",
@@ -351,10 +352,15 @@
   "kingdoms.outpost.owned_by": "Форпост фракции %s.",
   "kingdoms.outpost.dismantle_hint": "Shift+ПКМ по ядру — свернуть форпост.",
   "kingdoms.outpost.dismantled": "Форпост свёрнут; хартия возвращена вам.",
+  "screen.kingdoms.outpost.title": "Форпост",
+  "screen.kingdoms.outpost.faction": "Фракция: %s",
+  "screen.kingdoms.outpost.info": "Ставьте буры на кластеры ресурсов в этом форпосте.",
+  "screen.kingdoms.outpost.dismantle": "Свернуть форпост",
+  "screen.kingdoms.outpost.officer_only": "Свернуть может только офицер или лидер.",
 
   "kingdoms.drill.empty": "Бур пока пуст.",
   "kingdoms.drill.collected": "Ресурсы из бура забраны.",
-  "kingdoms.drill.not_outpost": "Бур можно ставить только в чанках форпоста своей фракции.",
+  "kingdoms.drill.not_outpost": "Бур можно ставить только на территории своей фракции.",
   "kingdoms.drill.no_cluster": "В этом чанке нет кластера ресурсов.",
   "kingdoms.drill.cluster_taken": "Этот кластер уже разрабатывает другой бур.",
 

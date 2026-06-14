@@ -55,7 +55,7 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         ClaimKey key = ClaimKey.of(level, chunk);
         FactionManager manager = FactionManager.get(level);
         Faction faction = manager.getFactionAt(key).orElse(null);
-        if (faction == null || !faction.isOutpostChunk(key)) {
+        if (faction == null) {
             return;
         }
         ResourceClusterManager clusters = ResourceClusterManager.get(level);
