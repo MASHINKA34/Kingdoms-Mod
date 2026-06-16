@@ -13,7 +13,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class FactionNetwork {
-    private static final String PROTOCOL_VERSION = "2";
+    private static final String PROTOCOL_VERSION = "3";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -119,6 +119,11 @@ public final class FactionNetwork {
                 FactionNetwork::handleSurrenderWar
         );
         registrar.playToServer(
+                FactionPayloads.C2SClaimWarSpoils.TYPE,
+                FactionPayloads.C2SClaimWarSpoils.STREAM_CODEC,
+                FactionNetwork::handleClaimWarSpoils
+        );
+        registrar.playToServer(
                 FactionPayloads.C2SMapSetClaims.TYPE,
                 FactionPayloads.C2SMapSetClaims.STREAM_CODEC,
                 FactionNetwork::handleMapSetClaims
@@ -182,6 +187,11 @@ public final class FactionNetwork {
                 FactionPayloads.S2CFactionNotice.TYPE,
                 FactionPayloads.S2CFactionNotice.STREAM_CODEC,
                 FactionNetwork::handleNotice
+        );
+        registrar.playToClient(
+                FactionPayloads.S2COpenWarSpoils.TYPE,
+                FactionPayloads.S2COpenWarSpoils.STREAM_CODEC,
+                FactionNetwork::handleOpenWarSpoils
         );
         registrar.playToClient(
                 FactionPayloads.S2CInfluenceGain.TYPE,
@@ -306,6 +316,10 @@ public final class FactionNetwork {
         FactionServerHooks.surrenderWar(serverPlayer(context), payload.tablePos());
     }
 
+    private static void handleClaimWarSpoils(FactionPayloads.C2SClaimWarSpoils payload, IPayloadContext context) {
+        FactionServerHooks.claimWarSpoils(serverPlayer(context), payload.spoilsId(), payload.choice());
+    }
+
     private static void handleMapSetClaims(FactionPayloads.C2SMapSetClaims payload, IPayloadContext context) {
         FactionServerHooks.mapSetClaims(serverPlayer(context), payload.claimed(), payload.chunks());
     }
@@ -373,6 +387,12 @@ public final class FactionNetwork {
     private static void handleNotice(FactionPayloads.S2CFactionNotice payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientFactionPayloadHandler.handleNotice(payload);
+        }
+    }
+
+    private static void handleOpenWarSpoils(FactionPayloads.S2COpenWarSpoils payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientFactionPayloadHandler.handleOpenWarSpoils(payload);
         }
     }
 

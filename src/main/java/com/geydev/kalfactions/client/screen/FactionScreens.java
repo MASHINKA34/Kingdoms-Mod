@@ -36,6 +36,10 @@ public final class FactionScreens {
         Minecraft.getInstance().setScreen(new ResearchScreen(snapshot, successful, message));
     }
 
+    public static void openWarSpoils(FactionSnapshot.WarSpoils spoils) {
+        Minecraft.getInstance().setScreen(new WarSpoilsScreen(spoils));
+    }
+
     private FactionScreens() {
     }
 }

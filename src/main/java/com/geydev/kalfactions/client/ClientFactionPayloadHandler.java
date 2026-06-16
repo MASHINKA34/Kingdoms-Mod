@@ -4,9 +4,11 @@ import com.geydev.kalfactions.client.screen.ChestAccessScreen;
 import com.geydev.kalfactions.client.screen.FactionListScreen;
 import com.geydev.kalfactions.client.screen.FactionScreen;
 import com.geydev.kalfactions.client.screen.FactionScreens;
+import com.geydev.kalfactions.client.screen.WarSpoilsScreen;
 import com.geydev.kalfactions.faction.InfluenceType;
 import com.geydev.kalfactions.integration.xaero.XaeroMaps;
 import com.geydev.kalfactions.net.FactionPayloads;
+import com.geydev.kalfactions.net.FactionSnapshot;
 import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
@@ -38,6 +40,18 @@ public final class ClientFactionPayloadHandler {
     public static void handleNotice(FactionPayloads.S2CFactionNotice payload) {
         Minecraft minecraft = Minecraft.getInstance();
         minecraft.execute(() -> showNotice(minecraft, payload.message(), payload.successful()));
+    }
+
+    public static void handleOpenWarSpoils(FactionPayloads.S2COpenWarSpoils payload) {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.execute(() -> minecraft.setScreen(new WarSpoilsScreen(new FactionSnapshot.WarSpoils(
+                payload.spoilsId(),
+                payload.loserName(),
+                payload.money(),
+                payload.science(),
+                payload.economic(),
+                payload.military()
+        ))));
     }
 
     public static void handleInfluenceGain(FactionPayloads.S2CInfluenceGain payload) {

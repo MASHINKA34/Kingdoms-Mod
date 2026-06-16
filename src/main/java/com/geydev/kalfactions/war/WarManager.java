@@ -5,6 +5,7 @@ import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.InfluenceType;
+import com.geydev.kalfactions.net.FactionPayloads;
 import com.mojang.logging.LogUtils;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -31,6 +32,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.slf4j.Logger;
 
 /**
@@ -46,9 +48,11 @@ public final class WarManager extends SavedData {
 
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String TAG_WARS = "wars";
+    private static final String TAG_PENDING_SPOILS = "pendingSpoils";
 
     private final Map<UUID, War> wars = new LinkedHashMap<>();
     private final Map<UUID, UUID> factionToWar = new HashMap<>();
+    private final Map<UUID, PendingSpoils> pendingSpoils = new LinkedHashMap<>();
     private final Deque<RollbackTask> rollbackQueue = new ArrayDeque<>();
     private final transient Map<UUID, ServerBossEvent> bossBars = new HashMap<>();
     private final transient Map<UUID, long[]> blockPointWindows = new HashMap<>();
@@ -196,7 +200,7 @@ public final class WarManager extends SavedData {
             return;
         }
         UUID loserId = war.opponentOf(winnerId);
-        awardSpoils(server, winnerId, loserId);
+        prepareSpoils(server, war.id(), winnerId, loserId);
         broadcastToServer(server, Component.translatable(
             "kingdoms.war.victory_broadcast",
             factionName(server, winnerId),
@@ -205,19 +209,193 @@ public final class WarManager extends SavedData {
         beginRollback(server, war);
     }
 
-    private void awardSpoils(MinecraftServer server, UUID winnerId, UUID loserId) {
+    private void prepareSpoils(MinecraftServer server, UUID spoilsId, UUID winnerId, UUID loserId) {
         FactionManager factions = FactionManager.get(server);
         factions.grantInfluence(winnerId, InfluenceType.MILITARY, ModConfigSpec.INFLUENCE_WAR_WIN_INFLUENCE.getAsLong());
-        Faction loser = factions.getFactionById(loserId).orElse(null);
-        if (loser == null) {
+        if (factions.getFactionById(winnerId).isEmpty() || factions.getFactionById(loserId).isEmpty()) {
             return;
         }
-        long spoils = loser.treasuryBalance() * 30L / 100L;
-        if (spoils > 0L
-            && factions.withdraw(loserId, spoils).successful()
-            && !factions.deposit(winnerId, spoils).successful()) {
-            factions.deposit(loserId, spoils);
+        PendingSpoils spoils = new PendingSpoils(
+                spoilsId,
+                winnerId,
+                loserId,
+                server.overworld().getGameTime()
+        );
+        pendingSpoils.put(spoilsId, spoils);
+        setDirty();
+        notifySpoilsAvailable(server, spoils);
+    }
+
+    public synchronized Optional<PendingSpoilsView> pendingSpoilsForWinner(MinecraftServer server, UUID winnerId) {
+        if (winnerId == null) {
+            return Optional.empty();
         }
+        for (PendingSpoils spoils : List.copyOf(pendingSpoils.values())) {
+            if (!spoils.winnerId().equals(winnerId)) {
+                continue;
+            }
+            Optional<PendingSpoilsView> view = spoilsView(server, spoils);
+            if (view.isPresent()) {
+                return view;
+            }
+            pendingSpoils.remove(spoils.spoilsId());
+            setDirty();
+        }
+        return Optional.empty();
+    }
+
+    public synchronized Optional<PendingSpoilsView> pendingSpoils(MinecraftServer server, UUID spoilsId) {
+        PendingSpoils spoils = pendingSpoils.get(spoilsId);
+        if (spoils == null) {
+            return Optional.empty();
+        }
+        Optional<PendingSpoilsView> view = spoilsView(server, spoils);
+        if (view.isEmpty()) {
+            pendingSpoils.remove(spoilsId);
+            setDirty();
+        }
+        return view;
+    }
+
+    public synchronized ClaimSpoilsResult claimSpoils(
+            MinecraftServer server,
+            UUID winnerId,
+            UUID spoilsId,
+            SpoilsChoice choice
+    ) {
+        if (winnerId == null || spoilsId == null || choice == null) {
+            return ClaimSpoilsResult.NOT_FOUND;
+        }
+        PendingSpoils spoils = pendingSpoils.get(spoilsId);
+        if (spoils == null) {
+            return ClaimSpoilsResult.NOT_FOUND;
+        }
+        if (!spoils.winnerId().equals(winnerId)) {
+            return ClaimSpoilsResult.NOT_WINNER;
+        }
+
+        FactionManager factions = FactionManager.get(server);
+        Faction winner = factions.getFactionById(spoils.winnerId()).orElse(null);
+        Faction loser = factions.getFactionById(spoils.loserId()).orElse(null);
+        if (winner == null || loser == null) {
+            pendingSpoils.remove(spoilsId);
+            setDirty();
+            return ClaimSpoilsResult.NOT_FOUND;
+        }
+
+        boolean transferred = true;
+        if (choice.moneyPercent() > 0) {
+            transferred = transferMoney(factions, spoils.winnerId(), loser, choice.moneyPercent());
+        }
+        if (transferred && choice.resourcePercent() > 0) {
+            for (InfluenceType type : InfluenceType.VALUES) {
+                if (!transferInfluence(factions, spoils.winnerId(), loser, type, choice.resourcePercent())) {
+                    transferred = false;
+                    break;
+                }
+            }
+        }
+        if (!transferred) {
+            return ClaimSpoilsResult.TRANSFER_FAILED;
+        }
+
+        pendingSpoils.remove(spoilsId);
+        setDirty();
+        broadcast(server, spoils.winnerId(), Component.translatable(
+                "kingdoms.war.spoils_claimed_winner",
+                factionName(server, spoils.loserId())
+        ));
+        broadcast(server, spoils.loserId(), Component.translatable(
+                "kingdoms.war.spoils_claimed_loser",
+                factionName(server, spoils.winnerId())
+        ));
+        return ClaimSpoilsResult.SUCCESS;
+    }
+
+    private boolean transferMoney(FactionManager factions, UUID winnerId, Faction loser, int percent) {
+        long amount = percent(loser.treasuryBalance(), percent);
+        if (amount <= 0L) {
+            return true;
+        }
+        if (!factions.withdraw(loser.id(), amount).successful()) {
+            return false;
+        }
+        if (factions.deposit(winnerId, amount).successful()) {
+            return true;
+        }
+        factions.deposit(loser.id(), amount);
+        return false;
+    }
+
+    private boolean transferInfluence(
+            FactionManager factions,
+            UUID winnerId,
+            Faction loser,
+            InfluenceType type,
+            int percent
+    ) {
+        long amount = percent(loser.influence(type), percent);
+        if (amount <= 0L) {
+            return true;
+        }
+        if (!factions.spendInfluence(loser.id(), type, amount).successful()) {
+            return false;
+        }
+        if (factions.addInfluence(winnerId, type, amount).successful()) {
+            return true;
+        }
+        factions.addInfluence(loser.id(), type, amount);
+        return false;
+    }
+
+    private Optional<PendingSpoilsView> spoilsView(MinecraftServer server, PendingSpoils spoils) {
+        Faction loser = FactionManager.get(server).getFactionById(spoils.loserId()).orElse(null);
+        if (loser == null || FactionManager.get(server).getFactionById(spoils.winnerId()).isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new PendingSpoilsView(
+                spoils.spoilsId(),
+                spoils.loserId(),
+                loser.name(),
+                percent(loser.treasuryBalance(), 30),
+                percent(loser.influence(InfluenceType.SCIENCE), 30),
+                percent(loser.influence(InfluenceType.ECONOMIC), 30),
+                percent(loser.influence(InfluenceType.MILITARY), 30)
+        ));
+    }
+
+    private void notifySpoilsAvailable(MinecraftServer server, PendingSpoils spoils) {
+        Optional<PendingSpoilsView> view = spoilsView(server, spoils);
+        if (view.isEmpty()) {
+            return;
+        }
+        Faction winner = FactionManager.get(server).getFactionById(spoils.winnerId()).orElse(null);
+        if (winner == null) {
+            return;
+        }
+        ServerPlayer leader = server.getPlayerList().getPlayer(winner.ownerId());
+        if (leader != null) {
+            PendingSpoilsView data = view.get();
+            PacketDistributor.sendToPlayer(leader, new FactionPayloads.S2COpenWarSpoils(
+                    data.spoilsId(),
+                    data.loserName(),
+                    data.money(),
+                    data.science(),
+                    data.economic(),
+                    data.military()
+            ));
+        }
+        broadcast(server, spoils.winnerId(), Component.translatable(
+                "kingdoms.war.spoils_available",
+                view.get().loserName()
+        ));
+    }
+
+    private static long percent(long value, int percent) {
+        if (value <= 0L || percent <= 0) {
+            return 0L;
+        }
+        return (value / 100L) * percent + ((value % 100L) * percent) / 100L;
     }
 
     private void refreshBossBars(MinecraftServer server) {
@@ -540,6 +718,11 @@ public final class WarManager extends SavedData {
             warsTag.add(war.save());
         }
         tag.put(TAG_WARS, warsTag);
+        ListTag pendingSpoilsTag = new ListTag();
+        for (PendingSpoils spoils : pendingSpoils.values()) {
+            pendingSpoilsTag.add(spoils.save());
+        }
+        tag.put(TAG_PENDING_SPOILS, pendingSpoilsTag);
         return tag;
     }
 
@@ -570,6 +753,14 @@ public final class WarManager extends SavedData {
                 }
             }
         }
+        ListTag pendingSpoilsTag = tag.getList(TAG_PENDING_SPOILS, Tag.TAG_COMPOUND);
+        for (int index = 0; index < pendingSpoilsTag.size(); index++) {
+            Optional<PendingSpoils> spoils = PendingSpoils.load(pendingSpoilsTag.getCompound(index));
+            if (spoils.isEmpty() || manager.pendingSpoils.putIfAbsent(spoils.get().spoilsId(), spoils.get()) != null) {
+                repaired = true;
+                LOGGER.warn("Skipped invalid pending war spoils entry at NBT index {}", index);
+            }
+        }
         if (repaired) {
             manager.setDirty();
         }
@@ -581,6 +772,85 @@ public final class WarManager extends SavedData {
         SAME_FACTION,
         ATTACKER_BUSY,
         DEFENDER_BUSY
+    }
+
+    public enum ClaimSpoilsResult {
+        SUCCESS,
+        NOT_FOUND,
+        NOT_WINNER,
+        TRANSFER_FAILED
+    }
+
+    public enum SpoilsChoice {
+        MONEY(30, 0),
+        RESOURCES(0, 30),
+        SPLIT(15, 15);
+
+        private final int moneyPercent;
+        private final int resourcePercent;
+
+        SpoilsChoice(int moneyPercent, int resourcePercent) {
+            this.moneyPercent = moneyPercent;
+            this.resourcePercent = resourcePercent;
+        }
+
+        public int moneyPercent() {
+            return moneyPercent;
+        }
+
+        public int resourcePercent() {
+            return resourcePercent;
+        }
+
+        public static Optional<SpoilsChoice> parse(String value) {
+            if (value == null) {
+                return Optional.empty();
+            }
+            try {
+                return Optional.of(valueOf(value.trim().toUpperCase(java.util.Locale.ROOT)));
+            } catch (IllegalArgumentException exception) {
+                return Optional.empty();
+            }
+        }
+    }
+
+    public record PendingSpoilsView(
+            UUID spoilsId,
+            UUID loserId,
+            String loserName,
+            long money,
+            long science,
+            long economic,
+            long military
+    ) {
+    }
+
+    private record PendingSpoils(UUID spoilsId, UUID winnerId, UUID loserId, long gameTime) {
+        private static final String TAG_ID = "id";
+        private static final String TAG_WINNER = "winner";
+        private static final String TAG_LOSER = "loser";
+        private static final String TAG_GAME_TIME = "gameTime";
+
+        private CompoundTag save() {
+            CompoundTag tag = new CompoundTag();
+            tag.putUUID(TAG_ID, spoilsId);
+            tag.putUUID(TAG_WINNER, winnerId);
+            tag.putUUID(TAG_LOSER, loserId);
+            tag.putLong(TAG_GAME_TIME, gameTime);
+            return tag;
+        }
+
+        private static Optional<PendingSpoils> load(CompoundTag tag) {
+            if (!tag.hasUUID(TAG_ID) || !tag.hasUUID(TAG_WINNER) || !tag.hasUUID(TAG_LOSER)) {
+                return Optional.empty();
+            }
+            return Optional.of(new PendingSpoils(
+                    tag.getUUID(TAG_ID),
+                    tag.getUUID(TAG_WINNER),
+                    tag.getUUID(TAG_LOSER),
+                    tag.getLong(TAG_GAME_TIME)
+            ));
+        }
     }
 
     private record RollbackTask(UUID warId, ClaimKey key) {

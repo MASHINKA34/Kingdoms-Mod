@@ -454,6 +454,22 @@ public final class FactionPayloads {
         }
     }
 
+    public record C2SClaimWarSpoils(UUID spoilsId, String choice) implements CustomPacketPayload {
+        public static final Type<C2SClaimWarSpoils> TYPE = FactionPayloads.payloadType("claim_war_spoils");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SClaimWarSpoils> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeUUID(payload.spoilsId);
+                    buffer.writeUtf(payload.choice, 16);
+                },
+                buffer -> new C2SClaimWarSpoils(buffer.readUUID(), buffer.readUtf(16))
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record C2SMapSetClaims(boolean claimed, List<Long> chunks) implements CustomPacketPayload {
         public static final int MAX_CHUNKS = 512;
         public static final Type<C2SMapSetClaims> TYPE = FactionPayloads.payloadType("map_set_claims");
@@ -908,6 +924,40 @@ public final class FactionPayloads {
                 buffer -> new S2CFactionNotice(
                         ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer),
                         buffer.readBoolean()
+                )
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record S2COpenWarSpoils(
+            UUID spoilsId,
+            String loserName,
+            long money,
+            long science,
+            long economic,
+            long military
+    ) implements CustomPacketPayload {
+        public static final Type<S2COpenWarSpoils> TYPE = FactionPayloads.payloadType("open_war_spoils");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2COpenWarSpoils> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeUUID(payload.spoilsId);
+                    buffer.writeUtf(payload.loserName, 32);
+                    buffer.writeLong(payload.money);
+                    buffer.writeLong(payload.science);
+                    buffer.writeLong(payload.economic);
+                    buffer.writeLong(payload.military);
+                },
+                buffer -> new S2COpenWarSpoils(
+                        buffer.readUUID(),
+                        buffer.readUtf(32),
+                        buffer.readLong(),
+                        buffer.readLong(),
+                        buffer.readLong(),
+                        buffer.readLong()
                 )
         );
 

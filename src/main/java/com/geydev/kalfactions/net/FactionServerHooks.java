@@ -348,6 +348,44 @@ public final class FactionServerHooks {
         perform(player, tablePos, () -> service.surrenderWar(player, tablePos));
     }
 
+    public static void claimWarSpoils(ServerPlayer player, UUID spoilsId, String choiceName) {
+        if (!player.isAlive() || player.isSpectator()) {
+            return;
+        }
+        long now = player.level().getGameTime();
+        Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+        if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
+            sendNotice(player, Component.translatable("kingdoms.error.action_rate_limited"), false);
+            return;
+        }
+
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            sendNotice(player, Component.translatable("kingdoms.error.not_in_faction"), false);
+            return;
+        }
+        if (!faction.ownerId().equals(player.getUUID())) {
+            sendNotice(player, Component.translatable("kingdoms.error.leader_settings_only"), false);
+            return;
+        }
+        WarManager.SpoilsChoice choice = WarManager.SpoilsChoice.parse(choiceName).orElse(null);
+        if (choice == null) {
+            sendNotice(player, Component.translatable("kingdoms.error.war_spoils_choice"), false);
+            return;
+        }
+
+        WarManager.ClaimSpoilsResult result = WarManager.get(player.getServer())
+                .claimSpoils(player.getServer(), faction.id(), spoilsId, choice);
+        Component message = switch (result) {
+            case SUCCESS -> Component.translatable("kingdoms.war.spoils_claimed");
+            case NOT_WINNER -> Component.translatable("kingdoms.error.war_spoils_not_winner");
+            case TRANSFER_FAILED -> Component.translatable("kingdoms.error.war_spoils_transfer_failed");
+            case NOT_FOUND -> Component.translatable("kingdoms.error.war_spoils_unavailable");
+        };
+        sendNotice(player, message, result == WarManager.ClaimSpoilsResult.SUCCESS);
+    }
+
     public static void mapSetClaims(ServerPlayer player, boolean claimed, List<Long> packedChunks) {
         if (!player.isAlive() || player.isSpectator() || packedChunks.isEmpty()) {
             return;
@@ -839,7 +877,8 @@ public final class FactionServerHooks {
                 snapshot.emblemUrl(),
                 snapshot.completedResearch(),
                 snapshot.activeResearchNode(),
-                snapshot.activeResearchEndMillis()
+                snapshot.activeResearchEndMillis(),
+                snapshot.pendingWarSpoils()
         );
     }
 

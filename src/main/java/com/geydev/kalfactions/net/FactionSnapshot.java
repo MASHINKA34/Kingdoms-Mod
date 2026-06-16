@@ -39,7 +39,8 @@ public record FactionSnapshot(
         String emblemUrl,
         List<String> completedResearch,
         String activeResearchNode,
-        long activeResearchEndMillis
+        long activeResearchEndMillis,
+        WarSpoils pendingWarSpoils
 ) {
     public static final UUID NO_FACTION = new UUID(0L, 0L);
     public static final int MAX_RESEARCH_NODES = 64;
@@ -87,6 +88,7 @@ public record FactionSnapshot(
         completedResearch = completedResearch == null ? List.of() : List.copyOf(completedResearch);
         activeResearchNode = activeResearchNode == null ? "" : limit(activeResearchNode, 32);
         activeResearchEndMillis = Math.max(0L, activeResearchEndMillis);
+        pendingWarSpoils = pendingWarSpoils == null ? WarSpoils.EMPTY : pendingWarSpoils;
     }
 
     public static FactionSnapshot empty(BlockPos tablePos, int centerChunkX, int centerChunkZ, long creationCost) {
@@ -95,7 +97,7 @@ public record FactionSnapshot(
                 centerChunkX, centerChunkZ, 6, List.of(), List.of(),
                 0L, 0L, 0L, 0L, 0L, false, creationCost, NO_FACTION, false,
                 "", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), "",
-                List.of(), "", 0L
+                List.of(), "", 0L, WarSpoils.EMPTY
         );
     }
 
@@ -109,6 +111,10 @@ public record FactionSnapshot(
 
     public boolean isClaimedByCurrentFaction(int chunkX, int chunkZ) {
         return claims.stream().anyMatch(claim -> claim.chunkX == chunkX && claim.chunkZ == chunkZ && claim.own);
+    }
+
+    public boolean hasPendingWarSpoils() {
+        return pendingWarSpoils.hasSpoils();
     }
 
     public Claim claimAt(int chunkX, int chunkZ) {
@@ -176,6 +182,7 @@ public record FactionSnapshot(
         );
         buffer.writeUtf(snapshot.activeResearchNode, 32);
         buffer.writeLong(snapshot.activeResearchEndMillis);
+        snapshot.pendingWarSpoils.encode(buffer);
     }
 
     private static FactionSnapshot decode(RegistryFriendlyByteBuf buffer) {
@@ -223,13 +230,14 @@ public record FactionSnapshot(
         List<String> completedResearch = readBoundedList(buffer, MAX_RESEARCH_NODES, target -> target.readUtf(32));
         String activeResearchNode = buffer.readUtf(32);
         long activeResearchEndMillis = buffer.readLong();
+        WarSpoils pendingWarSpoils = WarSpoils.decode(buffer);
         return new FactionSnapshot(
                 tablePos, factionId, name, ownerName, color, canManage, canClaim,
                 centerChunkX, centerChunkZ, mapRadius, members, claims,
                 treasury, influence, influenceScience, influenceEconomic, influenceMilitary,
                 internalPvp, creationCost, viewerId, isOfficer,
                 warWith, knownFactions, allianceCandidates, allies, onlinePlayers, bonuses, emblem, emblemUrl,
-                completedResearch, activeResearchNode, activeResearchEndMillis
+                completedResearch, activeResearchNode, activeResearchEndMillis, pendingWarSpoils
         );
     }
 
@@ -283,6 +291,50 @@ public record FactionSnapshot(
 
         private static Member decode(RegistryFriendlyByteBuf buffer) {
             return new Member(buffer.readUUID(), buffer.readUtf(32), buffer.readUtf(24));
+        }
+    }
+
+    public record WarSpoils(
+            UUID spoilsId,
+            String loserName,
+            long money,
+            long science,
+            long economic,
+            long military
+    ) {
+        public static final WarSpoils EMPTY = new WarSpoils(NO_FACTION, "", 0L, 0L, 0L, 0L);
+
+        public WarSpoils {
+            spoilsId = spoilsId == null ? NO_FACTION : spoilsId;
+            loserName = limit(loserName, 32);
+            money = Math.max(0L, money);
+            science = Math.max(0L, science);
+            economic = Math.max(0L, economic);
+            military = Math.max(0L, military);
+        }
+
+        public boolean hasSpoils() {
+            return !NO_FACTION.equals(spoilsId);
+        }
+
+        private void encode(RegistryFriendlyByteBuf buffer) {
+            buffer.writeUUID(spoilsId);
+            buffer.writeUtf(loserName, 32);
+            buffer.writeLong(money);
+            buffer.writeLong(science);
+            buffer.writeLong(economic);
+            buffer.writeLong(military);
+        }
+
+        private static WarSpoils decode(RegistryFriendlyByteBuf buffer) {
+            return new WarSpoils(
+                    buffer.readUUID(),
+                    buffer.readUtf(32),
+                    buffer.readLong(),
+                    buffer.readLong(),
+                    buffer.readLong(),
+                    buffer.readLong()
+            );
         }
     }
 

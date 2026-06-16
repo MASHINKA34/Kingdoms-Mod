@@ -85,8 +85,23 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 faction.emblemUrl(),
                 researchNames(faction),
                 faction.activeResearch().map(active -> active.node().name()).orElse(""),
-                faction.activeResearch().map(Faction.ActiveResearch::endMillis).orElse(0L)
+                faction.activeResearch().map(Faction.ActiveResearch::endMillis).orElse(0L),
+                pendingWarSpoils(player, faction)
         );
+    }
+
+    private static FactionSnapshot.WarSpoils pendingWarSpoils(ServerPlayer player, Faction faction) {
+        return WarManager.get(player.getServer())
+                .pendingSpoilsForWinner(player.getServer(), faction.id())
+                .map(spoils -> new FactionSnapshot.WarSpoils(
+                        spoils.spoilsId(),
+                        spoils.loserName(),
+                        spoils.money(),
+                        spoils.science(),
+                        spoils.economic(),
+                        spoils.military()
+                ))
+                .orElse(FactionSnapshot.WarSpoils.EMPTY);
     }
 
     private static List<String> researchNames(Faction faction) {

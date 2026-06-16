@@ -64,16 +64,27 @@ public final class FactionActionsScreen extends FactionScreen {
                 leftColumn, top + 142, columnWidth, 20
         ));
 
+        boolean hasActiveWar = !snapshot.warWith().isBlank();
+        int nextDiplomacyY = top + 70;
+        if (snapshot.hasPendingWarSpoils()) {
+            KingdomsButton warSpoils = addRenderableWidget(KingdomsButton.create(
+                    text("screen.kingdoms.war_spoils"),
+                    button -> FactionScreens.openWarSpoils(snapshot.pendingWarSpoils()),
+                    rightColumn, nextDiplomacyY, columnWidth, 20
+            ));
+            warSpoils.active = snapshot.canManage();
+            nextDiplomacyY += 24;
+        }
+
         KingdomsButton declareWar = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.war_declare"),
                 button -> openWarPicker(),
-                rightColumn, top + 70, columnWidth, 20
+                rightColumn, nextDiplomacyY, columnWidth, 20
         ));
-        boolean hasActiveWar = !snapshot.warWith().isBlank();
         declareWar.active = snapshot.canManage() && !hasActiveWar && !snapshot.knownFactions().isEmpty();
 
         confirmingSurrender = false;
-        int nextDiplomacyY = top + 94;
+        nextDiplomacyY += 24;
         if (hasActiveWar) {
             KingdomsButton surrenderWar = addRenderableWidget(KingdomsButton.create(
                     text("screen.kingdoms.war_surrender"),
