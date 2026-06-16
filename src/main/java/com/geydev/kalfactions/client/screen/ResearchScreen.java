@@ -114,9 +114,11 @@ public final class ResearchScreen extends FactionScreen {
         graphics.drawString(font, title, titleAreaLeft + (titleAreaWidth - font.width(title)) / 2, top + 34, 0xFFFFE8AA, true);
         renderTabs(graphics, mouseX, mouseY);
         renderTree(graphics, mouseX, mouseY);
-        renderSelectionLine(graphics);
-        renderResearchStatusNotice(graphics);
         ResearchNode hovered = hoveredNode(mouseX, mouseY);
+        if (hovered == null) {
+            renderSelectionLine(graphics);
+        }
+        renderResearchStatusNotice(graphics);
         if (hovered != null) {
             renderNodeTooltip(graphics, hovered, mouseX, mouseY);
         } else {
@@ -251,8 +253,13 @@ public final class ResearchScreen extends FactionScreen {
         );
         int boxHeight = 68 + desc.size() * 10 + effect.size() * 10;
         int x = Math.min(mouseX + 14, width - boxWidth - 6);
-        int y = Math.min(mouseY + 12, height - boxHeight - 6);
-        graphics.fill(x, y, x + boxWidth, y + boxHeight, 0xF015171D);
+        int y = mouseY + 12;
+        int bottomLimit = top + WINDOW_HEIGHT - 34;
+        if (y + boxHeight > bottomLimit) {
+            y = mouseY - boxHeight - 12;
+        }
+        y = Math.clamp(y, top + 44, Math.max(top + 44, bottomLimit - boxHeight));
+        graphics.fill(x, y, x + boxWidth, y + boxHeight, 0xFC15171D);
         graphics.fill(x + 1, y + 1, x + boxWidth - 1, y + 2, 0xFFC9A24C);
         graphics.fill(x + 1, y + boxHeight - 2, x + boxWidth - 1, y + boxHeight - 1, 0xFF3A3D47);
         graphics.drawString(font, text(node.translationKey()), x + 8, y + 7, colorFor(node.type()), false);

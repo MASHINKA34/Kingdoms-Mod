@@ -5,17 +5,19 @@ import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.InfluenceType;
-import com.geydev.kalfactions.net.FactionPayloads;
 import com.mojang.logging.LogUtils;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -28,11 +30,17 @@ import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.BossEvent;
+import net.minecraft.world.Container;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
 import org.slf4j.Logger;
 
 /**
@@ -223,7 +231,6 @@ public final class WarManager extends SavedData {
         );
         pendingSpoils.put(spoilsId, spoils);
         setDirty();
-        notifySpoilsAvailable(server, spoils);
     }
 
     public synchronized Optional<PendingSpoilsView> pendingSpoilsForWinner(MinecraftServer server, UUID winnerId) {
@@ -259,11 +266,12 @@ public final class WarManager extends SavedData {
 
     public synchronized ClaimSpoilsResult claimSpoils(
             MinecraftServer server,
+            ServerPlayer rewardReceiver,
             UUID winnerId,
             UUID spoilsId,
             SpoilsChoice choice
     ) {
-        if (winnerId == null || spoilsId == null || choice == null) {
+        if (server == null || rewardReceiver == null || winnerId == null || spoilsId == null || choice == null) {
             return ClaimSpoilsResult.NOT_FOUND;
         }
         PendingSpoils spoils = pendingSpoils.get(spoilsId);
@@ -288,12 +296,7 @@ public final class WarManager extends SavedData {
             transferred = transferMoney(factions, spoils.winnerId(), loser, choice.moneyPercent());
         }
         if (transferred && choice.resourcePercent() > 0) {
-            for (InfluenceType type : InfluenceType.VALUES) {
-                if (!transferInfluence(factions, spoils.winnerId(), loser, type, choice.resourcePercent())) {
-                    transferred = false;
-                    break;
-                }
-            }
+            transferred = transferResources(server, rewardReceiver, loser, choice.resourcePercent());
         }
         if (!transferred) {
             return ClaimSpoilsResult.TRANSFER_FAILED;
@@ -327,67 +330,20 @@ public final class WarManager extends SavedData {
         return false;
     }
 
-    private boolean transferInfluence(
-            FactionManager factions,
-            UUID winnerId,
-            Faction loser,
-            InfluenceType type,
-            int percent
-    ) {
-        long amount = percent(loser.influence(type), percent);
-        if (amount <= 0L) {
-            return true;
-        }
-        if (!factions.spendInfluence(loser.id(), type, amount).successful()) {
-            return false;
-        }
-        if (factions.addInfluence(winnerId, type, amount).successful()) {
-            return true;
-        }
-        factions.addInfluence(loser.id(), type, amount);
-        return false;
-    }
-
     private Optional<PendingSpoilsView> spoilsView(MinecraftServer server, PendingSpoils spoils) {
         Faction loser = FactionManager.get(server).getFactionById(spoils.loserId()).orElse(null);
         if (loser == null || FactionManager.get(server).getFactionById(spoils.winnerId()).isEmpty()) {
             return Optional.empty();
         }
+        ResourcePreview preview = resourcePreview(server, loser, 30);
         return Optional.of(new PendingSpoilsView(
                 spoils.spoilsId(),
                 spoils.loserId(),
                 loser.name(),
                 percent(loser.treasuryBalance(), 30),
-                percent(loser.influence(InfluenceType.SCIENCE), 30),
-                percent(loser.influence(InfluenceType.ECONOMIC), 30),
-                percent(loser.influence(InfluenceType.MILITARY), 30)
-        ));
-    }
-
-    private void notifySpoilsAvailable(MinecraftServer server, PendingSpoils spoils) {
-        Optional<PendingSpoilsView> view = spoilsView(server, spoils);
-        if (view.isEmpty()) {
-            return;
-        }
-        Faction winner = FactionManager.get(server).getFactionById(spoils.winnerId()).orElse(null);
-        if (winner == null) {
-            return;
-        }
-        ServerPlayer leader = server.getPlayerList().getPlayer(winner.ownerId());
-        if (leader != null) {
-            PendingSpoilsView data = view.get();
-            PacketDistributor.sendToPlayer(leader, new FactionPayloads.S2COpenWarSpoils(
-                    data.spoilsId(),
-                    data.loserName(),
-                    data.money(),
-                    data.science(),
-                    data.economic(),
-                    data.military()
-            ));
-        }
-        broadcast(server, spoils.winnerId(), Component.translatable(
-                "kingdoms.war.spoils_available",
-                view.get().loserName()
+                preview.first(),
+                preview.second(),
+                preview.third()
         ));
     }
 
@@ -396,6 +352,127 @@ public final class WarManager extends SavedData {
             return 0L;
         }
         return (value / 100L) * percent + ((value % 100L) * percent) / 100L;
+    }
+
+    private boolean transferResources(MinecraftServer server, ServerPlayer receiver, Faction loser, int percent) {
+        List<ResourceBucket> buckets = selectedResourceBuckets(server, loser);
+        for (ResourceBucket bucket : buckets) {
+            long remaining = percent(bucket.count(), percent);
+            if (remaining <= 0L) {
+                continue;
+            }
+            for (ResourceSource source : bucket.sources()) {
+                if (remaining <= 0L) {
+                    break;
+                }
+                ItemStack stack = source.stack();
+                if (!isResourceStack(stack) || stack.getItem() != bucket.item()) {
+                    continue;
+                }
+                int taken = (int) Math.min(remaining, stack.getCount());
+                ItemStack payout = source.extract(taken);
+                if (!payout.isEmpty()) {
+                    giveResource(receiver, payout);
+                    remaining -= payout.getCount();
+                }
+            }
+        }
+        receiver.getInventory().setChanged();
+        receiver.inventoryMenu.broadcastChanges();
+        return true;
+    }
+
+    private ResourcePreview resourcePreview(MinecraftServer server, Faction loser, int percent) {
+        List<ResourceBucket> buckets = selectedResourceBuckets(server, loser);
+        long first = buckets.size() > 0 ? percent(buckets.get(0).count(), percent) : 0L;
+        long second = buckets.size() > 1 ? percent(buckets.get(1).count(), percent) : 0L;
+        long third = buckets.size() > 2 ? percent(buckets.get(2).count(), percent) : 0L;
+        return new ResourcePreview(first, second, third);
+    }
+
+    private List<ResourceBucket> selectedResourceBuckets(MinecraftServer server, Faction loser) {
+        Map<Item, ResourceBucket> buckets = new LinkedHashMap<>();
+        collectResourceBuckets(server, loser, buckets);
+        return buckets.values().stream()
+                .filter(bucket -> bucket.count() > 0L)
+                .sorted(Comparator
+                        .comparingLong(ResourceBucket::count)
+                        .reversed()
+                        .thenComparing(bucket -> bucket.item().getDescriptionId()))
+                .limit(3)
+                .toList();
+    }
+
+    private void collectResourceBuckets(MinecraftServer server, Faction loser, Map<Item, ResourceBucket> buckets) {
+        Set<ClaimKey> territory = new LinkedHashSet<>(loser.claims());
+        territory.addAll(loser.outpostChunks());
+        for (ClaimKey claim : territory) {
+            ServerLevel level = server.getLevel(claim.dimension());
+            if (level == null) {
+                continue;
+            }
+            LevelChunk chunk = level.getChunk(claim.x(), claim.z());
+            for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
+                if (blockEntity instanceof Container container) {
+                    collectContainerResources(container, buckets);
+                } else {
+                    IItemHandler handler = level.getCapability(
+                            Capabilities.ItemHandler.BLOCK,
+                            blockEntity.getBlockPos(),
+                            null
+                    );
+                    if (handler != null) {
+                        collectHandlerResources(handler, buckets);
+                    }
+                }
+            }
+        }
+        for (UUID memberId : loser.members().keySet()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(memberId);
+            if (player != null) {
+                collectContainerResources(player.getInventory(), buckets);
+            }
+        }
+    }
+
+    private static void collectContainerResources(Container container, Map<Item, ResourceBucket> buckets) {
+        for (int slot = 0; slot < container.getContainerSize(); slot++) {
+            ItemStack stack = container.getItem(slot);
+            if (!isResourceStack(stack)) {
+                continue;
+            }
+            buckets.computeIfAbsent(stack.getItem(), ResourceBucket::new)
+                    .add(stack.getCount(), new ContainerResourceSource(container, slot));
+        }
+    }
+
+    private static void collectHandlerResources(IItemHandler handler, Map<Item, ResourceBucket> buckets) {
+        for (int slot = 0; slot < handler.getSlots(); slot++) {
+            ItemStack stack = handler.getStackInSlot(slot);
+            if (!isResourceStack(stack)) {
+                continue;
+            }
+            buckets.computeIfAbsent(stack.getItem(), ResourceBucket::new)
+                    .add(stack.getCount(), new HandlerResourceSource(handler, slot));
+        }
+    }
+
+    private static boolean isResourceStack(ItemStack stack) {
+        return !stack.isEmpty()
+                && stack.getCount() > 0
+                && stack.getMaxStackSize() > 1
+                && !stack.isDamageableItem();
+    }
+
+    private static void giveResource(ServerPlayer receiver, ItemStack stack) {
+        if (stack.isEmpty()) {
+            return;
+        }
+        ItemStack remaining = stack.copy();
+        receiver.getInventory().add(remaining);
+        if (!remaining.isEmpty()) {
+            receiver.drop(remaining, false);
+        }
     }
 
     private void refreshBossBars(MinecraftServer server) {
@@ -819,10 +896,83 @@ public final class WarManager extends SavedData {
             UUID loserId,
             String loserName,
             long money,
-            long science,
-            long economic,
-            long military
+            long resourceOne,
+            long resourceTwo,
+            long resourceThree
     ) {
+    }
+
+    private record ResourcePreview(long first, long second, long third) {
+    }
+
+    private interface ResourceSource {
+        ItemStack stack();
+
+        ItemStack extract(int amount);
+    }
+
+    private record ContainerResourceSource(Container container, int slot) implements ResourceSource {
+        @Override
+        public ItemStack stack() {
+            return container.getItem(slot);
+        }
+
+        @Override
+        public ItemStack extract(int amount) {
+            ItemStack stack = container.getItem(slot);
+            if (!isResourceStack(stack) || amount <= 0) {
+                return ItemStack.EMPTY;
+            }
+            int taken = Math.min(amount, stack.getCount());
+            ItemStack result = stack.copy();
+            result.setCount(taken);
+            stack.shrink(taken);
+            container.setItem(slot, stack.isEmpty() ? ItemStack.EMPTY : stack);
+            container.setChanged();
+            return result;
+        }
+    }
+
+    private record HandlerResourceSource(IItemHandler handler, int slot) implements ResourceSource {
+        @Override
+        public ItemStack stack() {
+            return handler.getStackInSlot(slot);
+        }
+
+        @Override
+        public ItemStack extract(int amount) {
+            return amount <= 0 ? ItemStack.EMPTY : handler.extractItem(slot, amount, false);
+        }
+    }
+
+    private static final class ResourceBucket {
+        private final Item item;
+        private final List<ResourceSource> sources = new ArrayList<>();
+        private long count;
+
+        private ResourceBucket(Item item) {
+            this.item = item;
+        }
+
+        private Item item() {
+            return item;
+        }
+
+        private List<ResourceSource> sources() {
+            return sources;
+        }
+
+        private long count() {
+            return count;
+        }
+
+        private void add(long amount, ResourceSource source) {
+            if (amount <= 0L) {
+                return;
+            }
+            count += amount;
+            sources.add(source);
+        }
     }
 
     private record PendingSpoils(UUID spoilsId, UUID winnerId, UUID loserId, long gameTime) {

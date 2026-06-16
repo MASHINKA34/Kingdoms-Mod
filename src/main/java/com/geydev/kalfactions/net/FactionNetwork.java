@@ -189,11 +189,6 @@ public final class FactionNetwork {
                 FactionNetwork::handleNotice
         );
         registrar.playToClient(
-                FactionPayloads.S2COpenWarSpoils.TYPE,
-                FactionPayloads.S2COpenWarSpoils.STREAM_CODEC,
-                FactionNetwork::handleOpenWarSpoils
-        );
-        registrar.playToClient(
                 FactionPayloads.S2CInfluenceGain.TYPE,
                 FactionPayloads.S2CInfluenceGain.STREAM_CODEC,
                 FactionNetwork::handleInfluenceGain
@@ -387,12 +382,6 @@ public final class FactionNetwork {
     private static void handleNotice(FactionPayloads.S2CFactionNotice payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientFactionPayloadHandler.handleNotice(payload);
-        }
-    }
-
-    private static void handleOpenWarSpoils(FactionPayloads.S2COpenWarSpoils payload, IPayloadContext context) {
-        if (FMLEnvironment.dist == Dist.CLIENT) {
-            ClientFactionPayloadHandler.handleOpenWarSpoils(payload);
         }
     }
 

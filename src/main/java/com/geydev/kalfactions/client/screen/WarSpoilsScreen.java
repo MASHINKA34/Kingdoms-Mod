@@ -91,13 +91,13 @@ public final class WarSpoilsScreen extends Screen {
         }
 
         drawAmount(graphics, top + 100, Component.translatable("screen.kingdoms.war_spoils_money_amount", spoils.money()));
-        drawAmount(graphics, top + 124, resourcesAmount(spoils.science(), spoils.economic(), spoils.military()));
+        drawAmount(graphics, top + 124, resourcesAmount(spoils.resourceOne(), spoils.resourceTwo(), spoils.resourceThree()));
         drawAmount(graphics, top + 148, Component.translatable(
                 "screen.kingdoms.war_spoils_split_amount",
                 spoils.money() / 2L,
-                spoils.science() / 2L,
-                spoils.economic() / 2L,
-                spoils.military() / 2L
+                spoils.resourceOne() / 2L,
+                spoils.resourceTwo() / 2L,
+                spoils.resourceThree() / 2L
         ));
     }
 
@@ -106,8 +106,13 @@ public final class WarSpoilsScreen extends Screen {
         graphics.drawString(font, clipped, left + CONTENT_LEFT + 136, y, TEXT_DARK, false);
     }
 
-    private static Component resourcesAmount(long science, long economic, long military) {
-        return Component.translatable("screen.kingdoms.war_spoils_resources_amount", science, economic, military);
+    private static Component resourcesAmount(long resourceOne, long resourceTwo, long resourceThree) {
+        return Component.translatable(
+                "screen.kingdoms.war_spoils_resources_amount",
+                resourceOne,
+                resourceTwo,
+                resourceThree
+        );
     }
 
     @Override

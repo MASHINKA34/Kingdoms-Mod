@@ -212,9 +212,11 @@ public final class FactionListScreen extends Screen {
         renderEmblem(graphics, info.id(), info.emblem(), info.emblemUrl(), info.color(), rowLeft + 3, rowTop + 4);
 
         int textAlpha = alpha << 24;
-        graphics.drawString(font, info.name(), rowLeft + 28, rowTop + 5, textAlpha | (TEXT_DARK & 0xFFFFFF), false);
         Component membersLabel = Component.translatable("screen.kingdoms.flist.members", info.memberCount());
-        graphics.drawString(font, membersLabel, rowRight - 6 - font.width(membersLabel), rowTop + 5,
+        int membersX = rowRight - 6 - font.width(membersLabel);
+        String name = font.plainSubstrByWidth(info.name(), Math.max(20, membersX - rowLeft - 34));
+        graphics.drawString(font, name, rowLeft + 28, rowTop + 5, textAlpha | (TEXT_DARK & 0xFFFFFF), false);
+        graphics.drawString(font, membersLabel, membersX, rowTop + 5,
                 textAlpha | (TEXT_MUTED & 0xFFFFFF), false);
         Component status = info.warWith().isEmpty()
                 ? Component.translatable("screen.kingdoms.flist.peace")

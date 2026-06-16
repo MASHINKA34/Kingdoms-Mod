@@ -35,7 +35,7 @@ public final class FactionCreateScreen extends FactionScreen {
         nameBox = new EditBox(
                 font,
                 controlsLeft,
-                top + 56,
+                top + 76,
                 controlsWidth,
                 20,
                 text("screen.kingdoms.faction_name")
@@ -47,7 +47,7 @@ public final class FactionCreateScreen extends FactionScreen {
         addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.color"),
                 button -> minecraft.setScreen(new ColorPickerScreen(this, selectedColor, picked -> selectedColor = picked)),
-                controlsLeft, top + 80, controlsWidth, 20
+                controlsLeft, top + 100, controlsWidth, 20
         ));
 
         addRenderableWidget(KingdomsButton.create(
@@ -56,7 +56,7 @@ public final class FactionCreateScreen extends FactionScreen {
                     firstBonus = picked;
                     rebuildWidgets();
                 }),
-                controlsLeft, top + 104, 87, 20
+                controlsLeft, top + 124, 87, 20
         ));
         addRenderableWidget(KingdomsButton.create(
                 bonusLabel(2, secondBonus),
@@ -64,7 +64,7 @@ public final class FactionCreateScreen extends FactionScreen {
                     secondBonus = picked;
                     rebuildWidgets();
                 }),
-                controlsLeft + 93, top + 104, 87, 20
+                controlsLeft + 93, top + 124, 87, 20
         ));
 
         addRenderableWidget(KingdomsButton.create(
@@ -73,7 +73,7 @@ public final class FactionCreateScreen extends FactionScreen {
                     emblemPixels = pixels;
                     emblemUrl = url;
                 })),
-                controlsLeft, top + 128, controlsWidth, 20
+                controlsLeft, top + 148, controlsWidth, 20
         ));
 
         createButton = addRenderableWidget(KingdomsButton.create(
@@ -86,7 +86,7 @@ public final class FactionCreateScreen extends FactionScreen {
                         boxedEmblem(),
                         emblemUrl
                 )),
-                controlsLeft, top + 152, controlsWidth, 20
+                controlsLeft, top + 172, controlsWidth, 20
         ));
         nameBox.setResponder(value -> {
             nameValue = value;
@@ -176,9 +176,9 @@ public final class FactionCreateScreen extends FactionScreen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawString(font, text("screen.kingdoms.faction_name"), left + CONTENT_LEFT, top + 62, TEXT_DARK, false);
-        graphics.fill(left + 56, top + 82, left + 74, top + 100, 0xFF1A140C);
-        graphics.fill(left + 58, top + 84, left + 72, top + 98, 0xFF000000 | selectedColor);
-        graphics.drawString(font, text("screen.kingdoms.bonuses"), left + CONTENT_LEFT, top + 110, TEXT_DARK, false);
+        graphics.drawString(font, text("screen.kingdoms.faction_name"), left + CONTENT_LEFT, top + 64, TEXT_DARK, false);
+        graphics.fill(left + 56, top + 102, left + 74, top + 120, 0xFF1A140C);
+        graphics.fill(left + 58, top + 104, left + 72, top + 118, 0xFF000000 | selectedColor);
+        graphics.drawString(font, text("screen.kingdoms.bonuses"), left + CONTENT_LEFT, top + 130, TEXT_DARK, false);
     }
 }

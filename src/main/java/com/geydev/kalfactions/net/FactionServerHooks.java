@@ -376,7 +376,7 @@ public final class FactionServerHooks {
         }
 
         WarManager.ClaimSpoilsResult result = WarManager.get(player.getServer())
-                .claimSpoils(player.getServer(), faction.id(), spoilsId, choice);
+                .claimSpoils(player.getServer(), player, faction.id(), spoilsId, choice);
         Component message = switch (result) {
             case SUCCESS -> Component.translatable("kingdoms.war.spoils_claimed");
             case NOT_WINNER -> Component.translatable("kingdoms.error.war_spoils_not_winner");

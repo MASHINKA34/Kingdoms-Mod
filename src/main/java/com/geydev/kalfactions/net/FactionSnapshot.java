@@ -298,9 +298,9 @@ public record FactionSnapshot(
             UUID spoilsId,
             String loserName,
             long money,
-            long science,
-            long economic,
-            long military
+            long resourceOne,
+            long resourceTwo,
+            long resourceThree
     ) {
         public static final WarSpoils EMPTY = new WarSpoils(NO_FACTION, "", 0L, 0L, 0L, 0L);
 
@@ -308,9 +308,9 @@ public record FactionSnapshot(
             spoilsId = spoilsId == null ? NO_FACTION : spoilsId;
             loserName = limit(loserName, 32);
             money = Math.max(0L, money);
-            science = Math.max(0L, science);
-            economic = Math.max(0L, economic);
-            military = Math.max(0L, military);
+            resourceOne = Math.max(0L, resourceOne);
+            resourceTwo = Math.max(0L, resourceTwo);
+            resourceThree = Math.max(0L, resourceThree);
         }
 
         public boolean hasSpoils() {
@@ -321,9 +321,9 @@ public record FactionSnapshot(
             buffer.writeUUID(spoilsId);
             buffer.writeUtf(loserName, 32);
             buffer.writeLong(money);
-            buffer.writeLong(science);
-            buffer.writeLong(economic);
-            buffer.writeLong(military);
+            buffer.writeLong(resourceOne);
+            buffer.writeLong(resourceTwo);
+            buffer.writeLong(resourceThree);
         }
 
         private static WarSpoils decode(RegistryFriendlyByteBuf buffer) {

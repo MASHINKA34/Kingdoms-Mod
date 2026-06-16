@@ -933,40 +933,6 @@ public final class FactionPayloads {
         }
     }
 
-    public record S2COpenWarSpoils(
-            UUID spoilsId,
-            String loserName,
-            long money,
-            long science,
-            long economic,
-            long military
-    ) implements CustomPacketPayload {
-        public static final Type<S2COpenWarSpoils> TYPE = FactionPayloads.payloadType("open_war_spoils");
-        public static final StreamCodec<RegistryFriendlyByteBuf, S2COpenWarSpoils> STREAM_CODEC = StreamCodec.of(
-                (buffer, payload) -> {
-                    buffer.writeUUID(payload.spoilsId);
-                    buffer.writeUtf(payload.loserName, 32);
-                    buffer.writeLong(payload.money);
-                    buffer.writeLong(payload.science);
-                    buffer.writeLong(payload.economic);
-                    buffer.writeLong(payload.military);
-                },
-                buffer -> new S2COpenWarSpoils(
-                        buffer.readUUID(),
-                        buffer.readUtf(32),
-                        buffer.readLong(),
-                        buffer.readLong(),
-                        buffer.readLong(),
-                        buffer.readLong()
-                )
-        );
-
-        @Override
-        public Type<? extends CustomPacketPayload> type() {
-            return TYPE;
-        }
-    }
-
     public record S2CInfluenceGain(String influenceType, long amount) implements CustomPacketPayload {
         public static final Type<S2CInfluenceGain> TYPE = FactionPayloads.payloadType("influence_gain");
         public static final StreamCodec<RegistryFriendlyByteBuf, S2CInfluenceGain> STREAM_CODEC = StreamCodec.of(
