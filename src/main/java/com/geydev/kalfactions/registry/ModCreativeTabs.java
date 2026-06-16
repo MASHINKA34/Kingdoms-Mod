@@ -26,6 +26,9 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DRILL.get());
                         output.accept(ModItems.TRADER_SPAWN_EGG.get());
                         output.accept(ModItems.TRADER_REMOVER.get());
+                        output.accept(ModItems.CRYSTAL_SCIENCE.get());
+                        output.accept(ModItems.CRYSTAL_ECONOMIC.get());
+                        output.accept(ModItems.CRYSTAL_MILITARY.get());
                     })
                     .build()
     );

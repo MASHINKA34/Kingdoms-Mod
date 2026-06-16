@@ -67,6 +67,9 @@ final class KingdomsWorldMapHighlighter extends ChunkHighlighter {
             lines.add(claim.outpost()
                     ? Component.translatable("kingdoms.xaero.outpost_label", claim.name())
                     : Component.literal(claim.name()));
+            if (claim.forceLoaded()) {
+                lines.add(Component.translatable("kingdoms.xaero.forceload_label"));
+            }
         }
     }
 }

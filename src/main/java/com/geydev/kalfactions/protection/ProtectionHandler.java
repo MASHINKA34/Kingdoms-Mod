@@ -48,15 +48,26 @@ public final class ProtectionHandler {
             return;
         }
         WarManager wars = WarManager.get(level);
+        BlockPos breakPos = event.getPos();
+        boolean canBuild = FactionAccess.canBuild(player, level, breakPos);
+        boolean warBreak = !canBuild && wars.canBuildInWar(player, level, breakPos);
         // War override: a belligerent may break in the enemy faction's claims while the war is active.
-        if (!FactionAccess.canBuild(player, level, event.getPos())
-                && !wars.canBuildInWar(player, level, event.getPos())) {
+        if (!canBuild && !warBreak) {
             event.setCanceled(true);
             deny(player, "kingdoms.protection.no_break");
             return;
         }
+        if (warBreak) {
+            // Storages are excluded from war-break so loot cannot be reached through claim walls.
+            if (level.getBlockEntity(breakPos) instanceof net.minecraft.world.Container) {
+                event.setCanceled(true);
+                deny(player, "kingdoms.war.container_protected");
+                return;
+            }
+            wars.recordWarBreak(player, level, level.getBlockState(breakPos));
+        }
         // Copy-on-write the chunk before the break is applied (no-op outside a war).
-        wars.onChunkModified(level, new ChunkPos(event.getPos()));
+        wars.onChunkModified(level, new ChunkPos(breakPos));
     }
 
     @SubscribeEvent
@@ -180,7 +191,17 @@ public final class ProtectionHandler {
                 return false; // unclaimed land: vanilla explosion
             }
             if (exploderFaction != null && wars.areAtWar(owner, exploderFaction)) {
+                if (level.getBlockEntity(pos) instanceof net.minecraft.world.Container) {
+                    return true; // storages stay protected even from war explosions
+                }
                 wars.onChunkModified(level, new ChunkPos(pos)); // snapshot before the blast
+                boolean hardened = factions.getFactionById(owner)
+                        .map(faction -> faction.hasResearchBonus(
+                                com.geydev.kalfactions.faction.ResearchBonus.CLAIM_TNT_RESIST))
+                        .orElse(false);
+                if (hardened && level.getRandom().nextFloat() < 0.5F) {
+                    return true; // research-hardened claim block survives the blast
+                }
                 return false; // a belligerent's explosion may damage the enemy claim
             }
             return true; // protected claim

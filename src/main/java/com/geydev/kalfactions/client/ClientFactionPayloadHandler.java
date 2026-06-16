@@ -81,7 +81,8 @@ public final class ClientFactionPayloadHandler {
         for (FactionPayloads.ClaimEntry entry : payload.claims()) {
             claims.put(
                     ChunkPos.asLong(entry.chunkX(), entry.chunkZ()),
-                    new ClientClaimStore.ClaimInfo(entry.color(), entry.name(), entry.factionId(), entry.outpost())
+                    new ClientClaimStore.ClaimInfo(
+                            entry.color(), entry.name(), entry.factionId(), entry.outpost(), entry.forceLoaded())
             );
         }
         ClientClaimStore.ViewerInfo viewer = new ClientClaimStore.ViewerInfo(

@@ -66,7 +66,11 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         if (!clusters.isBoundDrill(chunk, pos) && !clusters.bindDrill(chunk, pos)) {
             return;
         }
-        insert(new ItemStack(cluster.type().displayItem(), cluster.richness()));
+        int amount = cluster.richness();
+        if (faction.hasResearchBonus(com.geydev.kalfactions.faction.ResearchBonus.DRILL_OUTPUT)) {
+            amount += 1;
+        }
+        insert(new ItemStack(cluster.type().displayItem(), amount));
         setChanged();
     }
 

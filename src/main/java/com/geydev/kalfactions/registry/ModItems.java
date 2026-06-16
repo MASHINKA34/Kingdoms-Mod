@@ -2,7 +2,9 @@ package com.geydev.kalfactions.registry;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.chest.AccessTool;
+import com.geydev.kalfactions.faction.InfluenceType;
 import com.geydev.kalfactions.item.TraderSpawnEggItem;
+import java.util.Optional;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.neoforged.bus.api.IEventBus;
@@ -37,6 +39,42 @@ public final class ModItems {
             "trader_remover",
             () -> new Item(new Item.Properties().stacksTo(1))
     );
+
+    public static final DeferredItem<Item> CRYSTAL_SCIENCE = ITEMS.register(
+            "crystal_science",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static final DeferredItem<Item> CRYSTAL_ECONOMIC = ITEMS.register(
+            "crystal_economic",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static final DeferredItem<Item> CRYSTAL_MILITARY = ITEMS.register(
+            "crystal_military",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static Item crystalFor(InfluenceType type) {
+        return switch (type) {
+            case SCIENCE -> CRYSTAL_SCIENCE.get();
+            case ECONOMIC -> CRYSTAL_ECONOMIC.get();
+            case MILITARY -> CRYSTAL_MILITARY.get();
+        };
+    }
+
+    public static Optional<InfluenceType> crystalType(Item item) {
+        if (item == CRYSTAL_SCIENCE.get()) {
+            return Optional.of(InfluenceType.SCIENCE);
+        }
+        if (item == CRYSTAL_ECONOMIC.get()) {
+            return Optional.of(InfluenceType.ECONOMIC);
+        }
+        if (item == CRYSTAL_MILITARY.get()) {
+            return Optional.of(InfluenceType.MILITARY);
+        }
+        return Optional.empty();
+    }
 
     public static void register(IEventBus bus) {
         ITEMS.register(bus);

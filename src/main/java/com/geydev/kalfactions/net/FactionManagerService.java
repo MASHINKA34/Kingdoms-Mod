@@ -11,7 +11,11 @@ import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.FactionMember;
 import com.geydev.kalfactions.faction.FactionRole;
+import com.geydev.kalfactions.faction.InfluenceType;
+import com.geydev.kalfactions.faction.ResearchManager;
+import com.geydev.kalfactions.faction.ResearchNode;
 import com.geydev.kalfactions.integration.IntegrationManager;
+import com.geydev.kalfactions.registry.ModItems;
 import com.geydev.kalfactions.war.WarManager;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -19,11 +23,14 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
 
 final class FactionManagerService implements FactionServerHooks.Service {
@@ -61,6 +68,9 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 claims(player, manager, faction.id(), ownColor, center),
                 faction.treasuryBalance(),
                 faction.influence(),
+                faction.influence(com.geydev.kalfactions.faction.InfluenceType.SCIENCE),
+                faction.influence(com.geydev.kalfactions.faction.InfluenceType.ECONOMIC),
+                faction.influence(com.geydev.kalfactions.faction.InfluenceType.MILITARY),
                 faction.internalPvp(),
                 ModConfigSpec.CREATION_COST.getAsLong(),
                 player.getUUID(),
@@ -71,8 +81,18 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 onlinePlayers(player, manager),
                 bonusNames(faction),
                 emblemPixels(faction),
-                faction.emblemUrl()
+                faction.emblemUrl(),
+                researchNames(faction),
+                faction.activeResearch().map(active -> active.node().name()).orElse(""),
+                faction.activeResearch().map(Faction.ActiveResearch::endMillis).orElse(0L)
         );
+    }
+
+    private static List<String> researchNames(Faction faction) {
+        return faction.completedResearch().stream()
+                .map(Enum::name)
+                .sorted()
+                .toList();
     }
 
     static List<String> bonusNames(Faction faction) {
@@ -419,6 +439,122 @@ final class FactionManagerService implements FactionServerHooks.Service {
                         NumismaticsEconomy.format(amount)
                 );
         return new FactionServerHooks.Result(true, message, view(player, tablePos));
+    }
+
+    @Override
+    public FactionServerHooks.Result turnInCrystals(ServerPlayer player, BlockPos tablePos) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.not_in_faction"),
+                    view(player, tablePos)
+            );
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.table_other_faction"),
+                    view(player, tablePos)
+            );
+        }
+        long rate = ModConfigSpec.INFLUENCE_CRYSTAL_TO_INFLUENCE.getAsLong();
+        int[] counts = new int[InfluenceType.VALUES.length];
+        Inventory inventory = player.getInventory();
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            Optional<InfluenceType> type = ModItems.crystalType(stack.getItem());
+            if (type.isEmpty()) {
+                continue;
+            }
+            counts[type.get().index()] += stack.getCount();
+            inventory.setItem(slot, ItemStack.EMPTY);
+        }
+        int totalCrystals = 0;
+        long totalInfluence = 0L;
+        for (InfluenceType type : InfluenceType.VALUES) {
+            int count = counts[type.index()];
+            if (count <= 0) {
+                continue;
+            }
+            long gain = (long) count * rate;
+            manager.grantInfluence(faction.id(), type, gain);
+            totalCrystals += count;
+            totalInfluence += gain;
+        }
+        if (totalCrystals <= 0) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.no_crystals"),
+                    view(player, tablePos)
+            );
+        }
+        Component message = Component.translatable(
+                "kingdoms.influence.turned_in",
+                totalCrystals,
+                totalInfluence
+        );
+        return new FactionServerHooks.Result(true, message, view(player, tablePos));
+    }
+
+    @Override
+    public FactionServerHooks.Result startResearch(ServerPlayer player, BlockPos tablePos, String nodeName) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.not_in_faction"),
+                    view(player, tablePos)
+            );
+        }
+        FactionRole role = manager.getRole(player.getUUID()).orElse(FactionRole.MEMBER);
+        if (!role.isAtLeast(FactionRole.OFFICER)) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.research_officer_only"),
+                    view(player, tablePos)
+            );
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.table_other_faction"),
+                    view(player, tablePos)
+            );
+        }
+        ResearchNode node = ResearchNode.parse(nodeName).orElse(null);
+        if (node == null) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.research_invalid"),
+                    view(player, tablePos)
+            );
+        }
+        FactionManager.StartResearchResult result = ResearchManager.start(manager, faction.id(), node);
+        return switch (result) {
+            case STARTED -> new FactionServerHooks.Result(
+                    true,
+                    Component.translatable(
+                            "kingdoms.research.started",
+                            Component.translatable(node.translationKey())
+                    ),
+                    view(player, tablePos)
+            );
+            case ALREADY_ACTIVE -> FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.research_active"),
+                    view(player, tablePos)
+            );
+            case UNAVAILABLE -> FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.research_unavailable"),
+                    view(player, tablePos)
+            );
+            case INSUFFICIENT_INFLUENCE -> FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.research_influence"),
+                    view(player, tablePos)
+            );
+            case NO_FACTION -> FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.not_in_faction"),
+                    view(player, tablePos)
+            );
+        };
     }
 
     @Override

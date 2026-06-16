@@ -23,6 +23,11 @@ public final class TraderNetwork {
                 TraderPayloads.C2SBuy.STREAM_CODEC,
                 TraderNetwork::handleBuy
         );
+        registrar.playToServer(
+                TraderPayloads.C2SSell.TYPE,
+                TraderPayloads.C2SSell.STREAM_CODEC,
+                TraderNetwork::handleSell
+        );
         registrar.playToClient(
                 TraderPayloads.S2CShopState.TYPE,
                 TraderPayloads.S2CShopState.STREAM_CODEC,
@@ -33,6 +38,12 @@ public final class TraderNetwork {
     private static void handleBuy(TraderPayloads.C2SBuy payload, IPayloadContext context) {
         if (context.player() instanceof ServerPlayer player) {
             TraderService.buy(player, payload.traderId(), payload.offerId());
+        }
+    }
+
+    private static void handleSell(TraderPayloads.C2SSell payload, IPayloadContext context) {
+        if (context.player() instanceof ServerPlayer player) {
+            TraderService.sell(player, payload.traderId(), payload.offerId());
         }
     }
 

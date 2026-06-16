@@ -1,7 +1,11 @@
 package com.geydev.kalfactions.outpost.trader;
 
 import com.geydev.kalfactions.command.NumismaticsEconomy;
+import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.entity.OutpostTraderEntity;
+import com.geydev.kalfactions.faction.Faction;
+import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.faction.ResearchBonus;
 import com.geydev.kalfactions.registry.ModEntities;
 import java.util.Arrays;
 import java.util.List;
@@ -160,6 +164,91 @@ public final class TraderService {
                 || player.getInventory().getFreeSlot() >= 0;
     }
 
+    public static void sell(ServerPlayer player, UUID traderId, String offerId) {
+        Entity entity = player.serverLevel().getEntity(traderId);
+        if (!(entity instanceof OutpostTraderEntity trader) || !isAvailable(player, trader)) {
+            sendState(
+                    player,
+                    traderId,
+                    Component.translatable("screen.kingdoms.trader.notice.too_far"),
+                    false
+            );
+            return;
+        }
+
+        SellOffer offer = SellOffer.byId(offerId).orElse(null);
+        if (offer == null) {
+            sendState(
+                    player,
+                    traderId,
+                    Component.translatable("screen.kingdoms.trader.notice.invalid_offer"),
+                    false
+            );
+            return;
+        }
+
+        int count = removeAll(player, offer.item());
+        if (count <= 0) {
+            sendState(
+                    player,
+                    traderId,
+                    Component.translatable("screen.kingdoms.trader.notice.nothing_to_sell"),
+                    false
+            );
+            return;
+        }
+
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        UUID factionId = manager.getFactionIdForMember(player.getUUID()).orElse(null);
+        long base = offer.price() * count;
+        long spurs = base;
+        if (factionId != null) {
+            Faction faction = manager.getFactionById(factionId).orElse(null);
+            if (faction != null && faction.hasResearchBonus(ResearchBonus.BUY_RATE)) {
+                spurs = base + Math.round(base * 0.10D);
+            }
+        }
+        NumismaticsEconomy.give(player, spurs);
+        player.inventoryMenu.broadcastChanges();
+
+        long influenceGained = 0L;
+        if (factionId != null) {
+            influenceGained = manager.recordSellEarnings(
+                    factionId,
+                    spurs,
+                    ModConfigSpec.INFLUENCE_SPURS_PER_ECON.getAsLong()
+            );
+        }
+
+        Component notice = influenceGained > 0L
+                ? Component.translatable(
+                        "screen.kingdoms.trader.notice.sold_influence",
+                        count,
+                        new ItemStack(offer.item()).getHoverName(),
+                        NumismaticsEconomy.format(spurs),
+                        influenceGained
+                )
+                : Component.translatable(
+                        "screen.kingdoms.trader.notice.sold",
+                        count,
+                        new ItemStack(offer.item()).getHoverName(),
+                        NumismaticsEconomy.format(spurs)
+                );
+        sendState(player, traderId, notice, true);
+    }
+
+    private static int removeAll(ServerPlayer player, net.minecraft.world.item.Item item) {
+        int removed = 0;
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            ItemStack stack = player.getInventory().getItem(slot);
+            if (!stack.isEmpty() && stack.is(item)) {
+                removed += stack.getCount();
+                player.getInventory().setItem(slot, ItemStack.EMPTY);
+            }
+        }
+        return removed;
+    }
+
     private static void sendState(
             ServerPlayer player,
             UUID traderId,
@@ -169,9 +258,12 @@ public final class TraderService {
         List<TraderPayloads.OfferInfo> offers = Arrays.stream(TraderOffer.values())
                 .map(offer -> new TraderPayloads.OfferInfo(offer.id(), offer.price()))
                 .toList();
+        List<TraderPayloads.OfferInfo> sellOffers = Arrays.stream(SellOffer.values())
+                .map(offer -> new TraderPayloads.OfferInfo(offer.id(), offer.price()))
+                .toList();
         PacketDistributor.sendToPlayer(
                 player,
-                new TraderPayloads.S2CShopState(traderId, offers, notice, successful)
+                new TraderPayloads.S2CShopState(traderId, offers, sellOffers, notice, successful)
         );
     }
 

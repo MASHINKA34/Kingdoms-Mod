@@ -222,9 +222,13 @@ public final class RaidManager extends SavedData {
         TargetSelection target,
         long nowEpochMillis
     ) {
+        int warningSeconds = ModConfigSpec.RAID_WARNING_SECONDS.getAsInt();
+        if (faction.hasResearchBonus(com.geydev.kalfactions.faction.ResearchBonus.RAID_WARNING)) {
+            warningSeconds += 120;
+        }
         long warningEndsAt = saturatedAdd(
             nowEpochMillis,
-            secondsToMillis(ModConfigSpec.RAID_WARNING_SECONDS.getAsInt())
+            secondsToMillis(warningSeconds)
         );
         Raid raid = Raid.warning(
             uniqueRaidId(),
@@ -253,7 +257,7 @@ public final class RaidManager extends SavedData {
                     + ", "
                     + pos.getZ()
                     + "). Рейд начнётся через "
-                    + ModConfigSpec.RAID_WARNING_SECONDS.getAsInt()
+                    + warningSeconds
                     + " сек."
             ),
             false
@@ -272,6 +276,9 @@ public final class RaidManager extends SavedData {
             return false;
         }
         int requestedRaiders = Math.min(15, 3 + faction.claimCount() / 3);
+        if (faction.hasResearchBonus(com.geydev.kalfactions.faction.ResearchBonus.FEWER_RAIDERS)) {
+            requestedRaiders = Math.max(1, requestedRaiders - 1);
+        }
         List<ClaimKey> boundary;
         if (raid.targetType() == Raid.TargetType.OUTPOST) {
             boundary = faction.outpost(raid.outpostId())

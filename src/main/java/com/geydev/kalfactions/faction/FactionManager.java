@@ -53,6 +53,7 @@ public final class FactionManager extends SavedData {
     private static final String TAG_FACTIONS = "factions";
     private static final String TAG_CHESTS = "chests";
     private static final String TAG_LAST_INFLUENCE_TICK = "lastInfluenceTick";
+    private static final String TAG_LAST_INFLUENCE_DECAY = "lastInfluenceDecay";
 
     private final Map<UUID, Faction> factions = new LinkedHashMap<>();
     private final Map<String, UUID> nameIndex = new HashMap<>();
@@ -60,6 +61,8 @@ public final class FactionManager extends SavedData {
     private final Map<ClaimKey, UUID> claimIndex = new HashMap<>();
     private final Map<ChestAccess.Key, ChestAccess> chestAccess = new LinkedHashMap<>();
     private long lastInfluenceTick = -1L;
+    private long lastInfluenceDecayMillis = -1L;
+    private final transient Set<ClaimKey> appliedForceLoads = new HashSet<>();
 
     public static FactionManager get(MinecraftServer server) {
         Objects.requireNonNull(server, "server");
@@ -697,6 +700,247 @@ public final class FactionManager extends SavedData {
         return OperationResult.success(factionId, amount);
     }
 
+    public synchronized OperationResult addInfluence(UUID factionId, InfluenceType type, long amount) {
+        if (amount < 0L) {
+            return OperationResult.failure(Status.INVALID_AMOUNT);
+        }
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        faction.addInfluence(type, amount);
+        if (amount > 0L) {
+            setDirty();
+        }
+        return OperationResult.success(factionId, amount);
+    }
+
+    public synchronized OperationResult spendInfluence(UUID factionId, InfluenceType type, long amount) {
+        if (amount < 0L) {
+            return OperationResult.failure(Status.INVALID_AMOUNT);
+        }
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        if (!faction.spendInfluence(type, amount)) {
+            return OperationResult.failure(Status.INSUFFICIENT_INFLUENCE);
+        }
+        if (amount > 0L) {
+            setDirty();
+        }
+        return OperationResult.success(factionId, amount);
+    }
+
+    public synchronized OperationResult grantInfluence(UUID factionId, InfluenceType type, long baseAmount) {
+        if (baseAmount < 0L) {
+            return OperationResult.failure(Status.INVALID_AMOUNT);
+        }
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return OperationResult.failure(Status.FACTION_NOT_FOUND);
+        }
+        long amount = faction.applyInfluenceBonus(type, baseAmount);
+        faction.addInfluence(type, amount);
+        if (amount > 0L) {
+            setDirty();
+        }
+        return OperationResult.success(factionId, amount);
+    }
+
+    public enum StartResearchResult {
+        STARTED,
+        NO_FACTION,
+        ALREADY_ACTIVE,
+        UNAVAILABLE,
+        INSUFFICIENT_INFLUENCE
+    }
+
+    public enum ForceLoadResult {
+        ENABLED,
+        DISABLED,
+        NO_FACTION,
+        NOT_OWN_CLAIM,
+        LIMIT_REACHED,
+        DIMENSION_MISSING
+    }
+
+    public synchronized ForceLoadResult toggleForceLoad(MinecraftServer server, UUID factionId, ClaimKey key) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return ForceLoadResult.NO_FACTION;
+        }
+        if (!faction.hasClaim(key) && !faction.isOutpostChunk(key)) {
+            return ForceLoadResult.NOT_OWN_CLAIM;
+        }
+        ServerLevel level = server.getLevel(key.dimension());
+        if (level == null) {
+            return ForceLoadResult.DIMENSION_MISSING;
+        }
+        if (faction.isForceLoaded(key)) {
+            faction.removeForceLoaded(key);
+            level.setChunkForced(key.chunk().x, key.chunk().z, false);
+            appliedForceLoads.remove(key);
+            setDirty();
+            return ForceLoadResult.DISABLED;
+        }
+        if (faction.forceLoadedCount() >= forceLoadLimit(faction)) {
+            return ForceLoadResult.LIMIT_REACHED;
+        }
+        faction.addForceLoaded(key);
+        level.setChunkForced(key.chunk().x, key.chunk().z, true);
+        appliedForceLoads.add(key);
+        setDirty();
+        return ForceLoadResult.ENABLED;
+    }
+
+    public synchronized int forceLoadLimit(UUID factionId) {
+        Faction faction = factions.get(factionId);
+        return faction == null ? 0 : forceLoadLimit(faction);
+    }
+
+    private int forceLoadLimit(Faction faction) {
+        return ModConfigSpec.FORCE_LOAD_SLOTS.getAsInt() + faction.researchChunkSlots();
+    }
+
+    public synchronized void reconcileForceLoads(MinecraftServer server) {
+        Set<ClaimKey> desired = new HashSet<>();
+        for (Faction faction : factions.values()) {
+            for (ClaimKey key : faction.forceLoadedChunks()) {
+                if (faction.hasClaim(key) || faction.isOutpostChunk(key)) {
+                    desired.add(key);
+                } else if (faction.removeForceLoaded(key)) {
+                    setDirty();
+                }
+            }
+        }
+        for (ClaimKey key : new ArrayList<>(appliedForceLoads)) {
+            if (!desired.contains(key)) {
+                ServerLevel level = server.getLevel(key.dimension());
+                if (level != null) {
+                    level.setChunkForced(key.chunk().x, key.chunk().z, false);
+                }
+                appliedForceLoads.remove(key);
+            }
+        }
+        for (ClaimKey key : desired) {
+            if (!appliedForceLoads.contains(key)) {
+                ServerLevel level = server.getLevel(key.dimension());
+                if (level != null) {
+                    level.setChunkForced(key.chunk().x, key.chunk().z, true);
+                    appliedForceLoads.add(key);
+                }
+            }
+        }
+    }
+
+    public synchronized StartResearchResult startResearch(UUID factionId, ResearchNode node, long nowMillis) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return StartResearchResult.NO_FACTION;
+        }
+        if (faction.hasActiveResearch()) {
+            return StartResearchResult.ALREADY_ACTIVE;
+        }
+        if (!faction.isResearchAvailable(node)) {
+            return StartResearchResult.UNAVAILABLE;
+        }
+        if (faction.influence(node.type()) < node.cost()) {
+            return StartResearchResult.INSUFFICIENT_INFLUENCE;
+        }
+        faction.spendInfluence(node.type(), node.cost());
+        faction.startResearch(node, nowMillis);
+        setDirty();
+        return StartResearchResult.STARTED;
+    }
+
+    public synchronized int completeFinishedResearch(long nowMillis, long baselinePerNode) {
+        int completed = 0;
+        for (Faction faction : factions.values()) {
+            Optional<Faction.ActiveResearch> active = faction.activeResearch();
+            if (active.isEmpty() || !active.get().isComplete(nowMillis)) {
+                continue;
+            }
+            ResearchNode node = active.get().node();
+            faction.completeResearch(node);
+            faction.addSafeBaseline(node.type(), baselinePerNode);
+            faction.clearActiveResearch();
+            completed++;
+        }
+        if (completed > 0) {
+            setDirty();
+        }
+        return completed;
+    }
+
+    public synchronized void applyTreasuryIncome(long perClaim) {
+        if (perClaim <= 0L) {
+            return;
+        }
+        boolean changed = false;
+        for (Faction faction : factions.values()) {
+            if (!faction.hasResearchBonus(ResearchBonus.TREASURY_INCOME)) {
+                continue;
+            }
+            long income = PriceMath.saturatedMultiply(faction.claimCount(), perClaim);
+            if (income > 0L && faction.deposit(income)) {
+                changed = true;
+            }
+        }
+        if (changed) {
+            setDirty();
+        }
+    }
+
+    public synchronized long recordSellEarnings(UUID factionId, long spurs, long threshold) {
+        Faction faction = factions.get(factionId);
+        if (faction == null || spurs <= 0L || threshold <= 0L) {
+            return 0L;
+        }
+        long total = faction.sellAccumulator() + spurs;
+        long influenceGained = total / threshold;
+        faction.setSellAccumulator(total % threshold);
+        if (influenceGained > 0L) {
+            long awarded = faction.applyInfluenceBonus(InfluenceType.ECONOMIC, influenceGained);
+            faction.addInfluence(InfluenceType.ECONOMIC, awarded);
+        }
+        setDirty();
+        return influenceGained;
+    }
+
+    public synchronized boolean decayInfluence(long nowMillis, long intervalMillis, double decayPercent) {
+        if (intervalMillis <= 0L) {
+            return false;
+        }
+        if (lastInfluenceDecayMillis < 0L || nowMillis < lastInfluenceDecayMillis) {
+            lastInfluenceDecayMillis = nowMillis;
+            setDirty();
+            return false;
+        }
+        if (nowMillis - lastInfluenceDecayMillis < intervalMillis) {
+            return false;
+        }
+        boolean changed = false;
+        for (Faction faction : factions.values()) {
+            for (InfluenceType type : InfluenceType.VALUES) {
+                long current = faction.influence(type);
+                long baseline = faction.safeBaseline(type);
+                if (current <= baseline) {
+                    continue;
+                }
+                long reduction = Math.round((current - baseline) * decayPercent);
+                if (reduction <= 0L) {
+                    continue;
+                }
+                faction.setInfluence(type, Math.max(baseline, current - reduction));
+                changed = true;
+            }
+        }
+        lastInfluenceDecayMillis = nowMillis;
+        setDirty();
+        return changed;
+    }
+
     public synchronized long tickInfluence(long gameTime) {
         return tickInfluence(gameTime, ModConfigSpec.INFLUENCE_PER_CHUNK_PER_DAY.getAsLong());
     }
@@ -818,6 +1062,7 @@ public final class FactionManager extends SavedData {
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putInt(TAG_VERSION, DATA_VERSION);
         tag.putLong(TAG_LAST_INFLUENCE_TICK, lastInfluenceTick);
+        tag.putLong(TAG_LAST_INFLUENCE_DECAY, lastInfluenceDecayMillis);
 
         ListTag factionsTag = new ListTag();
         factions.values().stream()
@@ -839,6 +1084,9 @@ public final class FactionManager extends SavedData {
         FactionManager manager = new FactionManager();
         manager.lastInfluenceTick = tag.contains(TAG_LAST_INFLUENCE_TICK)
             ? tag.getLong(TAG_LAST_INFLUENCE_TICK)
+            : -1L;
+        manager.lastInfluenceDecayMillis = tag.contains(TAG_LAST_INFLUENCE_DECAY)
+            ? tag.getLong(TAG_LAST_INFLUENCE_DECAY)
             : -1L;
         boolean repaired = tag.getInt(TAG_VERSION) != DATA_VERSION;
 

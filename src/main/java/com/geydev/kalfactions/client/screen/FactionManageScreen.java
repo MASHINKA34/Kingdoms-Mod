@@ -119,6 +119,12 @@ public final class FactionManageScreen extends FactionScreen {
                 button -> FactionScreens.openActions(snapshot, true, ""),
                 rightColumn, row0 + rowStep * 3, columnWidth, 20
         ));
+
+        addRenderableWidget(KingdomsButton.create(
+                text("screen.kingdoms.influence_open"),
+                button -> FactionScreens.openInfluence(snapshot, true, ""),
+                leftColumn, row0 + rowStep * 4, columnWidth, 20
+        ));
     }
 
     private int[] unboxedEmblem() {

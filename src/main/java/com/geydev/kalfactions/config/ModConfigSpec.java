@@ -38,6 +38,22 @@ public final class ModConfigSpec {
     public static final LongValue OUTPOST_CHARTER_COST;
     public static final LongValue OUTPOST_DRILL_COST;
     public static final IntValue OUTPOST_DRILL_INTERVAL_SECONDS;
+    public static final DoubleValue INFLUENCE_DECAY_PERCENT;
+    public static final IntValue INFLUENCE_DECAY_INTERVAL_HOURS;
+    public static final LongValue INFLUENCE_BASELINE_PER_NODE;
+    public static final LongValue INFLUENCE_CRYSTAL_TO_INFLUENCE;
+    public static final LongValue INFLUENCE_KILL_INFLUENCE;
+    public static final IntValue INFLUENCE_KILL_CAP_PER_VICTIM;
+    public static final IntValue INFLUENCE_KILL_CAP_HOURS;
+    public static final LongValue INFLUENCE_WAR_WIN_INFLUENCE;
+    public static final DoubleValue INFLUENCE_CRAFT_CHANCE;
+    public static final LongValue INFLUENCE_FURNACE_TICK;
+    public static final LongValue INFLUENCE_SPURS_PER_ECON;
+    public static final LongValue WAR_POINTS_GOAL;
+    public static final IntValue WAR_BLOCK_BREAK_POINTS;
+    public static final IntValue WAR_KILL_POINTS;
+    public static final IntValue WAR_BLOCK_POINT_CAP_PER_MINUTE;
+    public static final IntValue FORCE_LOAD_SLOTS;
 
     static {
         Builder builder = new Builder();
@@ -102,6 +118,42 @@ public final class ModConfigSpec {
             .defineInRange("drillIntervalSeconds", 30, 1, 86400);
         builder.pop();
 
+        builder.push("influence");
+        INFLUENCE_DECAY_PERCENT = builder
+            .comment("Fraction of the influence above the safe baseline that decays each interval.")
+            .defineInRange("decayPercent", 0.10D, 0D, 1D);
+        INFLUENCE_DECAY_INTERVAL_HOURS = builder
+            .comment("Real-time hours between influence decay passes.")
+            .defineInRange("decayIntervalHours", 12, 1, 8760);
+        INFLUENCE_BASELINE_PER_NODE = builder
+            .comment("Safe baseline added to an influence type when a research node of that type completes.")
+            .defineInRange("baselinePerNode", 25L, 0L, Long.MAX_VALUE);
+        INFLUENCE_CRYSTAL_TO_INFLUENCE = builder
+            .comment("Influence granted per crystal turned in at the faction table.")
+            .defineInRange("crystalToInfluence", 10L, 0L, Long.MAX_VALUE);
+        INFLUENCE_KILL_INFLUENCE = builder
+            .comment("Military influence awarded for killing an enemy faction player.")
+            .defineInRange("killInfluence", 15L, 0L, Long.MAX_VALUE);
+        INFLUENCE_KILL_CAP_PER_VICTIM = builder
+            .comment("Maximum kill-influence awards per killer/victim pair within the cap window.")
+            .defineInRange("killCapPerVictim", 5, 0, Integer.MAX_VALUE);
+        INFLUENCE_KILL_CAP_HOURS = builder
+            .comment("Real-time hours the kill-influence anti-farm cap window lasts.")
+            .defineInRange("killCapHours", 24, 1, 8760);
+        INFLUENCE_WAR_WIN_INFLUENCE = builder
+            .comment("Military influence awarded to a faction that wins a war.")
+            .defineInRange("warWinInfluence", 100L, 0L, Long.MAX_VALUE);
+        INFLUENCE_CRAFT_CHANCE = builder
+            .comment("Chance a member crafting on faction territory grants 1 science influence.")
+            .defineInRange("craftInfluenceChance", 0.1D, 0D, 1D);
+        INFLUENCE_FURNACE_TICK = builder
+            .comment("Science influence per minute for each lit furnace inside faction claims.")
+            .defineInRange("furnaceTickInfluence", 1L, 0L, Long.MAX_VALUE);
+        INFLUENCE_SPURS_PER_ECON = builder
+            .comment("Spurs a member must earn selling to the trader to grant 1 economic influence.")
+            .defineInRange("spursPerEconInfluence", 50L, 1L, Long.MAX_VALUE);
+        builder.pop();
+
         builder.push("war");
         WAR_ROLLBACK_CHUNKS_PER_TICK = builder
             .comment("How many snapshotted chunks to roll back per server tick when a war ends.")
@@ -109,6 +161,24 @@ public final class ModConfigSpec {
         WAR_AUTO_END_TICKS = builder
             .comment("Game-time ticks after which an active war ends automatically (0 disables auto-end).")
             .defineInRange("autoEndTicks", 0L, 0L, Long.MAX_VALUE);
+        WAR_POINTS_GOAL = builder
+            .comment("War points a side needs to win the war outright.")
+            .defineInRange("warPointsGoal", 100L, 1L, Long.MAX_VALUE);
+        WAR_KILL_POINTS = builder
+            .comment("War points awarded for killing an enemy faction player.")
+            .defineInRange("killPoints", 10, 0, Integer.MAX_VALUE);
+        WAR_BLOCK_BREAK_POINTS = builder
+            .comment("War points awarded for breaking an enemy-placed block in their claims.")
+            .defineInRange("blockBreakPoints", 1, 0, Integer.MAX_VALUE);
+        WAR_BLOCK_POINT_CAP_PER_MINUTE = builder
+            .comment("Maximum block-break war points a faction can earn per minute.")
+            .defineInRange("blockPointCapPerMinute", 30, 0, Integer.MAX_VALUE);
+        builder.pop();
+
+        builder.push("chunkloader");
+        FORCE_LOAD_SLOTS = builder
+            .comment("Base number of chunks a faction may force-load (research adds more).")
+            .defineInRange("forceLoadSlots", 1, 0, 4096);
         builder.pop();
 
         builder.push("integration");

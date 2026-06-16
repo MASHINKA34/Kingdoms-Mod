@@ -14,7 +14,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 
 public final class ClientClaimStore {
-    public record ClaimInfo(int color, String name, UUID factionId, boolean outpost) {
+    public record ClaimInfo(int color, String name, UUID factionId, boolean outpost, boolean forceLoaded) {
     }
 
     public record ViewerInfo(UUID factionId, int claimCount, double claimDiscount) {

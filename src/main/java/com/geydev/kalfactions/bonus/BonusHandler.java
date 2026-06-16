@@ -3,6 +3,8 @@ package com.geydev.kalfactions.bonus;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionBonus;
+import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.faction.ResearchBonus;
 import com.geydev.kalfactions.protection.FactionAccess;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -75,6 +77,20 @@ public final class BonusHandler {
             bonusDrops.add(bonus);
         }
         event.getDrops().addAll(bonusDrops);
+    }
+
+    @SubscribeEvent
+    public static void onBreakSpeed(PlayerEvent.BreakSpeed event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        boolean boosted = FactionManager.get(player.serverLevel())
+                .getFactionForMember(player.getUUID())
+                .map(faction -> faction.hasResearchBonus(ResearchBonus.MINING_SPEED))
+                .orElse(false);
+        if (boosted) {
+            event.setNewSpeed(event.getNewSpeed() * 1.10F);
+        }
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)

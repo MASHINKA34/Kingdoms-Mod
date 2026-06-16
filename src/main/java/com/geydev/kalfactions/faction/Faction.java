@@ -38,9 +38,16 @@ public final class Faction {
     private static final String TAG_ALLIES = "allies";
     private static final String TAG_OUTPOSTS = "outposts";
     private static final String TAG_PROTECTED_CLAIMS = "protectedClaims";
+    private static final String TAG_FORCE_LOADED = "forceLoadedChunks";
     private static final String TAG_CREATED_AT = "createdAt";
     private static final String TAG_TREASURY = "treasury";
     private static final String TAG_INFLUENCE = "influence";
+    private static final String TAG_INFLUENCE_TYPED = "influenceTyped";
+    private static final String TAG_SAFE_BASELINE = "safeBaseline";
+    private static final String TAG_COMPLETED_RESEARCH = "completedResearch";
+    private static final String TAG_ACTIVE_RESEARCH_NODE = "activeResearchNode";
+    private static final String TAG_ACTIVE_RESEARCH_START = "activeResearchStart";
+    private static final String TAG_SELL_ACCUMULATOR = "sellAccumulator";
     private static final String TAG_MEMBERS = "members";
     private static final String TAG_CLAIMS = "claims";
     private static final String TAG_CLAIM_KEY = "key";
@@ -71,7 +78,13 @@ public final class Faction {
     private final Set<UUID> allies;
     private final Map<UUID, Outpost> outposts;
     private final Set<ClaimKey> protectedClaims;
-    private long influence;
+    private final Set<ClaimKey> forceLoadedChunks;
+    private final long[] influence;
+    private final long[] safeBaseline;
+    private final EnumSet<ResearchNode> completedResearch;
+    private ResearchNode activeResearchNode;
+    private long activeResearchStartMillis;
+    private long sellAccumulator;
 
     Faction(
         UUID id,
@@ -93,7 +106,6 @@ public final class Faction {
             internalPvp,
             createdAtEpochMillis,
             new Treasury(),
-            0L,
             Map.of(ownerId, new FactionMember(ownerId, FactionRole.LEADER)),
             Map.of()
         );
@@ -109,7 +121,6 @@ public final class Faction {
         boolean internalPvp,
         long createdAtEpochMillis,
         Treasury treasury,
-        long influence,
         Map<UUID, FactionMember> members,
         Map<ClaimKey, Long> claims
     ) {
@@ -125,9 +136,15 @@ public final class Faction {
         this.allies = new LinkedHashSet<>();
         this.outposts = new LinkedHashMap<>();
         this.protectedClaims = new LinkedHashSet<>();
+        this.forceLoadedChunks = new LinkedHashSet<>();
         this.createdAtEpochMillis = Math.max(0L, createdAtEpochMillis);
         this.treasury = Objects.requireNonNull(treasury, "treasury");
-        this.influence = Math.max(0L, influence);
+        this.influence = new long[InfluenceType.VALUES.length];
+        this.safeBaseline = new long[InfluenceType.VALUES.length];
+        this.completedResearch = EnumSet.noneOf(ResearchNode.class);
+        this.activeResearchNode = null;
+        this.activeResearchStartMillis = 0L;
+        this.sellAccumulator = 0L;
         this.members = new LinkedHashMap<>(members);
         this.claims = new LinkedHashMap<>(claims);
         enforceLeadershipInvariant();
@@ -180,6 +197,9 @@ public final class Faction {
         double discount = 0.0D;
         for (FactionBonus bonus : bonuses) {
             discount = Math.max(discount, bonus.claimDiscount());
+        }
+        if (hasResearchBonus(ResearchBonus.CLAIM_DISCOUNT)) {
+            discount = Math.max(discount, 0.10D);
         }
         return discount;
     }
@@ -270,6 +290,26 @@ public final class Faction {
         protectedClaims.add(key);
     }
 
+    public Set<ClaimKey> forceLoadedChunks() {
+        return Set.copyOf(forceLoadedChunks);
+    }
+
+    public boolean isForceLoaded(ClaimKey key) {
+        return forceLoadedChunks.contains(key);
+    }
+
+    public int forceLoadedCount() {
+        return forceLoadedChunks.size();
+    }
+
+    boolean addForceLoaded(ClaimKey key) {
+        return forceLoadedChunks.add(key);
+    }
+
+    boolean removeForceLoaded(ClaimKey key) {
+        return forceLoadedChunks.remove(key);
+    }
+
     public long createdAtEpochMillis() {
         return createdAtEpochMillis;
     }
@@ -279,7 +319,63 @@ public final class Faction {
     }
 
     public long influence() {
-        return influence;
+        long total = 0L;
+        for (long value : influence) {
+            total = PriceMath.saturatedAdd(total, value);
+        }
+        return total;
+    }
+
+    public long influence(InfluenceType type) {
+        return influence[type.index()];
+    }
+
+    public long safeBaseline(InfluenceType type) {
+        return safeBaseline[type.index()];
+    }
+
+    public Set<ResearchNode> completedResearch() {
+        return Set.copyOf(completedResearch);
+    }
+
+    public boolean hasResearch(ResearchNode node) {
+        return completedResearch.contains(node);
+    }
+
+    public boolean hasResearchBonus(ResearchBonus bonus) {
+        for (ResearchNode node : completedResearch) {
+            if (node.bonus() == bonus) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public int researchChunkSlots() {
+        int slots = 0;
+        for (ResearchNode node : completedResearch) {
+            if (node.bonus().isChunkSlot()) {
+                slots++;
+            }
+        }
+        return slots;
+    }
+
+    public boolean isResearchAvailable(ResearchNode node) {
+        if (completedResearch.contains(node)) {
+            return false;
+        }
+        return node.prerequisite().map(completedResearch::contains).orElse(true);
+    }
+
+    public Optional<ActiveResearch> activeResearch() {
+        return activeResearchNode == null
+            ? Optional.empty()
+            : Optional.of(new ActiveResearch(activeResearchNode, activeResearchStartMillis));
+    }
+
+    public boolean hasActiveResearch() {
+        return activeResearchNode != null;
     }
 
     public int memberCount() {
@@ -407,16 +503,67 @@ public final class Faction {
         return treasury.canWithdraw(amount);
     }
 
+    void addInfluence(InfluenceType type, long amount) {
+        long updated = PriceMath.saturatedAdd(influence[type.index()], amount);
+        influence[type.index()] = Math.max(0L, updated);
+    }
+
     void addInfluence(long amount) {
-        influence = PriceMath.saturatedAdd(influence, amount);
+        addInfluence(InfluenceType.ECONOMIC, amount);
+    }
+
+    boolean spendInfluence(InfluenceType type, long amount) {
+        if (amount < 0L || influence[type.index()] < amount) {
+            return false;
+        }
+        influence[type.index()] -= amount;
+        return true;
     }
 
     boolean spendInfluence(long amount) {
-        if (amount < 0L || influence < amount) {
-            return false;
+        return spendInfluence(InfluenceType.ECONOMIC, amount);
+    }
+
+    void setInfluence(InfluenceType type, long value) {
+        influence[type.index()] = Math.max(0L, value);
+    }
+
+    void addSafeBaseline(InfluenceType type, long amount) {
+        safeBaseline[type.index()] = Math.max(0L, PriceMath.saturatedAdd(safeBaseline[type.index()], amount));
+    }
+
+    long sellAccumulator() {
+        return sellAccumulator;
+    }
+
+    void setSellAccumulator(long value) {
+        sellAccumulator = Math.max(0L, value);
+    }
+
+    public long applyInfluenceBonus(InfluenceType type, long base) {
+        if (base <= 0L) {
+            return base;
         }
-        influence -= amount;
-        return true;
+        ResearchBonus bonus = switch (type) {
+            case SCIENCE -> ResearchBonus.SCIENCE_INFLUENCE;
+            case ECONOMIC -> ResearchBonus.ECONOMIC_INFLUENCE;
+            case MILITARY -> ResearchBonus.MILITARY_INFLUENCE_RESPAWN;
+        };
+        return hasResearchBonus(bonus) ? base + Math.round(base * 0.15D) : base;
+    }
+
+    void startResearch(ResearchNode node, long startMillis) {
+        activeResearchNode = node;
+        activeResearchStartMillis = startMillis;
+    }
+
+    void clearActiveResearch() {
+        activeResearchNode = null;
+        activeResearchStartMillis = 0L;
+    }
+
+    void completeResearch(ResearchNode node) {
+        completedResearch.add(node);
     }
 
     CompoundTag save() {
@@ -451,9 +598,23 @@ public final class Faction {
         ListTag protectedTag = new ListTag();
         protectedClaims.stream().sorted().forEach(claim -> protectedTag.add(claim.save()));
         tag.put(TAG_PROTECTED_CLAIMS, protectedTag);
+        ListTag forceLoadedTag = new ListTag();
+        forceLoadedChunks.stream().sorted().forEach(claim -> forceLoadedTag.add(claim.save()));
+        tag.put(TAG_FORCE_LOADED, forceLoadedTag);
         tag.putLong(TAG_CREATED_AT, createdAtEpochMillis);
         tag.put(TAG_TREASURY, treasury.save());
-        tag.putLong(TAG_INFLUENCE, influence);
+        tag.putLongArray(TAG_INFLUENCE_TYPED, influence.clone());
+        tag.putLongArray(TAG_SAFE_BASELINE, safeBaseline.clone());
+        ListTag completedResearchTag = new ListTag();
+        completedResearch.stream()
+            .sorted(Comparator.comparing(ResearchNode::name))
+            .forEach(node -> completedResearchTag.add(net.minecraft.nbt.StringTag.valueOf(node.name())));
+        tag.put(TAG_COMPLETED_RESEARCH, completedResearchTag);
+        if (activeResearchNode != null) {
+            tag.putString(TAG_ACTIVE_RESEARCH_NODE, activeResearchNode.name());
+            tag.putLong(TAG_ACTIVE_RESEARCH_START, activeResearchStartMillis);
+        }
+        tag.putLong(TAG_SELL_ACCUMULATOR, sellAccumulator);
 
         ListTag membersTag = new ListTag();
         members.values().stream()
@@ -536,10 +697,10 @@ public final class Faction {
             tag.getBoolean(TAG_INTERNAL_PVP),
             tag.getLong(TAG_CREATED_AT),
             treasury,
-            tag.getLong(TAG_INFLUENCE),
             members,
             claims
         );
+        faction.loadInfluence(tag);
         faction.setEmblem(
             tag.contains(TAG_EMBLEM, Tag.TAG_INT_ARRAY) ? tag.getIntArray(TAG_EMBLEM) : null,
             tag.getString(TAG_EMBLEM_URL)
@@ -559,7 +720,43 @@ public final class Faction {
         for (int index = 0; index < protectedTag.size(); index++) {
             ClaimKey.load(protectedTag.getCompound(index)).ifPresent(faction::addProtectedClaim);
         }
+        ListTag forceLoadedTag = tag.getList(TAG_FORCE_LOADED, Tag.TAG_COMPOUND);
+        for (int index = 0; index < forceLoadedTag.size(); index++) {
+            ClaimKey.load(forceLoadedTag.getCompound(index)).ifPresent(faction::addForceLoaded);
+        }
         return Optional.of(faction);
+    }
+
+    private void loadInfluence(CompoundTag tag) {
+        if (tag.contains(TAG_INFLUENCE_TYPED, Tag.TAG_LONG_ARRAY)) {
+            long[] values = tag.getLongArray(TAG_INFLUENCE_TYPED);
+            for (InfluenceType type : InfluenceType.VALUES) {
+                if (type.index() < values.length) {
+                    influence[type.index()] = Math.max(0L, values[type.index()]);
+                }
+            }
+        } else if (tag.contains(TAG_INFLUENCE, Tag.TAG_LONG)) {
+            influence[InfluenceType.ECONOMIC.index()] = Math.max(0L, tag.getLong(TAG_INFLUENCE));
+        }
+        if (tag.contains(TAG_SAFE_BASELINE, Tag.TAG_LONG_ARRAY)) {
+            long[] values = tag.getLongArray(TAG_SAFE_BASELINE);
+            for (InfluenceType type : InfluenceType.VALUES) {
+                if (type.index() < values.length) {
+                    safeBaseline[type.index()] = Math.max(0L, values[type.index()]);
+                }
+            }
+        }
+        ListTag completedResearchTag = tag.getList(TAG_COMPLETED_RESEARCH, Tag.TAG_STRING);
+        for (int index = 0; index < completedResearchTag.size(); index++) {
+            ResearchNode.parse(completedResearchTag.getString(index)).ifPresent(completedResearch::add);
+        }
+        if (tag.contains(TAG_ACTIVE_RESEARCH_NODE, Tag.TAG_STRING)) {
+            ResearchNode.parse(tag.getString(TAG_ACTIVE_RESEARCH_NODE)).ifPresent(node -> {
+                activeResearchNode = node;
+                activeResearchStartMillis = tag.getLong(TAG_ACTIVE_RESEARCH_START);
+            });
+        }
+        sellAccumulator = Math.max(0L, tag.getLong(TAG_SELL_ACCUMULATOR));
     }
 
     private void enforceLeadershipInvariant() {
@@ -577,6 +774,20 @@ public final class Faction {
             if (role != member.role()) {
                 members.put(playerId, new FactionMember(playerId, role));
             }
+        }
+    }
+
+    public record ActiveResearch(ResearchNode node, long startMillis) {
+        public long endMillis() {
+            return startMillis + node.durationMillis();
+        }
+
+        public boolean isComplete(long nowMillis) {
+            return nowMillis >= endMillis();
+        }
+
+        public long remainingMillis(long nowMillis) {
+            return Math.max(0L, endMillis() - nowMillis);
         }
     }
 

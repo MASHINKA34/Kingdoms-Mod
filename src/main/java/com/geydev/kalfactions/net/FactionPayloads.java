@@ -231,6 +231,35 @@ public final class FactionPayloads {
         }
     }
 
+    public record C2STurnInCrystals(BlockPos tablePos) implements CustomPacketPayload {
+        public static final Type<C2STurnInCrystals> TYPE = FactionPayloads.payloadType("turn_in_crystals");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2STurnInCrystals> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> buffer.writeBlockPos(payload.tablePos),
+                buffer -> new C2STurnInCrystals(buffer.readBlockPos())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SStartResearch(BlockPos tablePos, String nodeName) implements CustomPacketPayload {
+        public static final Type<C2SStartResearch> TYPE = FactionPayloads.payloadType("start_research");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SStartResearch> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBlockPos(payload.tablePos);
+                    buffer.writeUtf(payload.nodeName, 32);
+                },
+                buffer -> new C2SStartResearch(buffer.readBlockPos(), buffer.readUtf(32))
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record C2SKickMember(BlockPos tablePos, UUID playerId) implements CustomPacketPayload {
         public static final Type<C2SKickMember> TYPE = FactionPayloads.payloadType("kick_member");
         public static final StreamCodec<RegistryFriendlyByteBuf, C2SKickMember> STREAM_CODEC = StreamCodec.of(
@@ -906,7 +935,15 @@ public final class FactionPayloads {
         }
     }
 
-    public record ClaimEntry(int chunkX, int chunkZ, int color, String name, UUID factionId, boolean outpost) {
+    public record ClaimEntry(
+            int chunkX,
+            int chunkZ,
+            int color,
+            String name,
+            UUID factionId,
+            boolean outpost,
+            boolean forceLoaded
+    ) {
         private static void encode(RegistryFriendlyByteBuf buffer, ClaimEntry entry) {
             buffer.writeVarInt(entry.chunkX);
             buffer.writeVarInt(entry.chunkZ);
@@ -914,6 +951,7 @@ public final class FactionPayloads {
             buffer.writeUtf(entry.name, 32);
             buffer.writeUUID(entry.factionId);
             buffer.writeBoolean(entry.outpost);
+            buffer.writeBoolean(entry.forceLoaded);
         }
 
         private static ClaimEntry decode(RegistryFriendlyByteBuf buffer) {
@@ -923,6 +961,7 @@ public final class FactionPayloads {
                     buffer.readInt(),
                     buffer.readUtf(32),
                     buffer.readUUID(),
+                    buffer.readBoolean(),
                     buffer.readBoolean()
             );
         }

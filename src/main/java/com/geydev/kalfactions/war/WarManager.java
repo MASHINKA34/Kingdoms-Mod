@@ -1,8 +1,10 @@
 package com.geydev.kalfactions.war;
 
 import com.geydev.kalfactions.claim.ClaimKey;
+import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.faction.InfluenceType;
 import com.mojang.logging.LogUtils;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -21,9 +23,12 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.BossEvent;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.saveddata.SavedData;
 import org.slf4j.Logger;
@@ -45,6 +50,9 @@ public final class WarManager extends SavedData {
     private final Map<UUID, War> wars = new LinkedHashMap<>();
     private final Map<UUID, UUID> factionToWar = new HashMap<>();
     private final Deque<RollbackTask> rollbackQueue = new ArrayDeque<>();
+    private final transient Map<UUID, ServerBossEvent> bossBars = new HashMap<>();
+    private final transient Map<UUID, long[]> blockPointWindows = new HashMap<>();
+    private transient int bossSyncCounter;
 
     public static WarManager get(MinecraftServer server) {
         Objects.requireNonNull(server, "server");
@@ -86,6 +94,201 @@ public final class WarManager extends SavedData {
         }
         UUID playerFaction = factions.getFactionIdForMember(player.getUUID()).orElse(null);
         return areAtWar(owner, playerFaction);
+    }
+
+    // ------------------------------------------------------------------ war points
+
+    /**
+     * Awards war points to the scoring faction's side of its active war. Points only count when the
+     * opposing belligerent has at least one member online (anti-grief). Reaching the configured goal
+     * ends the war with the scoring side as the winner.
+     */
+    public synchronized void addWarPoints(MinecraftServer server, UUID scoringFactionId, long amount) {
+        if (amount <= 0L || scoringFactionId == null) {
+            return;
+        }
+        War war = warFor(scoringFactionId);
+        if (war == null || !war.isActive()) {
+            return;
+        }
+        UUID opponent = war.opponentOf(scoringFactionId);
+        if (!hasOnlineMember(server, opponent)) {
+            return;
+        }
+        war.addPoints(scoringFactionId, amount);
+        setDirty();
+        if (war.points(scoringFactionId) >= ModConfigSpec.WAR_POINTS_GOAL.getAsLong()) {
+            concludeWar(server, war, scoringFactionId);
+        }
+    }
+
+    /** Block-break scoring entry point used by the protection layer; applies the per-minute cap. */
+    public synchronized void recordWarBreak(ServerPlayer breaker, ServerLevel level, BlockState state) {
+        UUID breakerFaction = FactionManager.get(level).getFactionIdForMember(breaker.getUUID()).orElse(null);
+        if (breakerFaction == null || isNaturalBlock(state)) {
+            return;
+        }
+        int cap = ModConfigSpec.WAR_BLOCK_POINT_CAP_PER_MINUTE.getAsInt();
+        int points = ModConfigSpec.WAR_BLOCK_BREAK_POINTS.getAsInt();
+        if (points <= 0 || !consumeBlockBudget(breakerFaction, points, cap)) {
+            return;
+        }
+        addWarPoints(level.getServer(), breakerFaction, points);
+    }
+
+    private boolean consumeBlockBudget(UUID factionId, int points, int cap) {
+        if (cap <= 0) {
+            return true;
+        }
+        long now = System.currentTimeMillis();
+        long[] window = blockPointWindows.computeIfAbsent(factionId, ignored -> new long[]{now, 0L});
+        if (now - window[0] >= 60_000L) {
+            window[0] = now;
+            window[1] = 0L;
+        }
+        if (window[1] + points > cap) {
+            return false;
+        }
+        window[1] += points;
+        return true;
+    }
+
+    private static boolean isNaturalBlock(BlockState state) {
+        return state.is(Blocks.DIRT)
+            || state.is(Blocks.COARSE_DIRT)
+            || state.is(Blocks.GRASS_BLOCK)
+            || state.is(Blocks.STONE)
+            || state.is(Blocks.COBBLESTONE)
+            || state.is(Blocks.DEEPSLATE)
+            || state.is(Blocks.SAND)
+            || state.is(Blocks.RED_SAND)
+            || state.is(Blocks.GRAVEL)
+            || state.is(Blocks.NETHERRACK);
+    }
+
+    private boolean hasOnlineMember(MinecraftServer server, UUID factionId) {
+        Faction faction = FactionManager.get(server).getFactionById(factionId).orElse(null);
+        if (faction == null) {
+            return false;
+        }
+        for (UUID memberId : faction.members().keySet()) {
+            if (server.getPlayerList().getPlayer(memberId) != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** A belligerent leader concedes the war; the opponent is declared the winner. */
+    public synchronized Optional<UUID> surrender(MinecraftServer server, UUID factionId) {
+        War war = warFor(factionId);
+        if (war == null || !war.isActive()) {
+            return Optional.empty();
+        }
+        UUID opponent = war.opponentOf(factionId);
+        concludeWar(server, war, opponent);
+        return Optional.ofNullable(opponent);
+    }
+
+    private void concludeWar(MinecraftServer server, War war, UUID winnerId) {
+        if (!war.isActive() || winnerId == null) {
+            beginRollback(server, war);
+            return;
+        }
+        UUID loserId = war.opponentOf(winnerId);
+        awardSpoils(server, winnerId, loserId);
+        broadcastToServer(server, Component.translatable(
+            "kingdoms.war.victory_broadcast",
+            factionName(server, winnerId),
+            factionName(server, loserId)
+        ));
+        beginRollback(server, war);
+    }
+
+    private void awardSpoils(MinecraftServer server, UUID winnerId, UUID loserId) {
+        FactionManager factions = FactionManager.get(server);
+        factions.grantInfluence(winnerId, InfluenceType.MILITARY, ModConfigSpec.INFLUENCE_WAR_WIN_INFLUENCE.getAsLong());
+        Faction loser = factions.getFactionById(loserId).orElse(null);
+        if (loser == null) {
+            return;
+        }
+        long spoils = loser.treasuryBalance() * 30L / 100L;
+        if (spoils > 0L
+            && factions.withdraw(loserId, spoils).successful()
+            && !factions.deposit(winnerId, spoils).successful()) {
+            factions.deposit(loserId, spoils);
+        }
+    }
+
+    private void refreshBossBars(MinecraftServer server) {
+        bossBars.keySet().removeIf(warId -> {
+            War war = wars.get(warId);
+            if (war == null || !war.isActive()) {
+                ServerBossEvent bar = bossBars.get(warId);
+                if (bar != null) {
+                    bar.removeAllPlayers();
+                }
+                return true;
+            }
+            return false;
+        });
+        boolean syncPlayers = (++bossSyncCounter % 40) == 0;
+        long goal = Math.max(1L, ModConfigSpec.WAR_POINTS_GOAL.getAsLong());
+        for (War war : wars.values()) {
+            if (!war.isActive()) {
+                continue;
+            }
+            ServerBossEvent bar = bossBars.computeIfAbsent(war.id(), id -> new ServerBossEvent(
+                Component.empty(),
+                BossEvent.BossBarColor.RED,
+                BossEvent.BossBarOverlay.NOTCHED_10
+            ));
+            bar.setName(Component.translatable(
+                "kingdoms.war.bossbar",
+                factionName(server, war.attackerFactionId()),
+                war.attackerPoints(),
+                war.defenderPoints(),
+                factionName(server, war.defenderFactionId())
+            ));
+            bar.setProgress(Math.clamp(Math.max(war.attackerPoints(), war.defenderPoints()) / (float) goal, 0.0F, 1.0F));
+            if (syncPlayers) {
+                syncBossBarPlayers(server, war, bar);
+            }
+        }
+    }
+
+    private void syncBossBarPlayers(MinecraftServer server, War war, ServerBossEvent bar) {
+        List<ServerPlayer> desired = new ArrayList<>();
+        addOnlineMembers(server, war.attackerFactionId(), desired);
+        addOnlineMembers(server, war.defenderFactionId(), desired);
+        for (ServerPlayer player : List.copyOf(bar.getPlayers())) {
+            if (!desired.contains(player)) {
+                bar.removePlayer(player);
+            }
+        }
+        for (ServerPlayer player : desired) {
+            if (!bar.getPlayers().contains(player)) {
+                bar.addPlayer(player);
+            }
+        }
+    }
+
+    private static void addOnlineMembers(MinecraftServer server, UUID factionId, List<ServerPlayer> out) {
+        FactionManager.get(server).getFactionById(factionId).ifPresent(faction -> {
+            for (UUID memberId : faction.members().keySet()) {
+                ServerPlayer player = server.getPlayerList().getPlayer(memberId);
+                if (player != null) {
+                    out.add(player);
+                }
+            }
+        });
+    }
+
+    private void clearBossBar(UUID warId) {
+        ServerBossEvent bar = bossBars.remove(warId);
+        if (bar != null) {
+            bar.removeAllPlayers();
+        }
     }
 
     // ------------------------------------------------------------------ snapshot capture (copy-on-write)
@@ -232,10 +435,13 @@ public final class WarManager extends SavedData {
                 boolean factionsGone = factions.getFactionById(war.attackerFactionId()).isEmpty()
                     || factions.getFactionById(war.defenderFactionId()).isEmpty();
                 boolean timedOut = autoEndTicks > 0L && now - war.startGameTime() >= autoEndTicks;
-                if (factionsGone || timedOut) {
+                if (factionsGone) {
                     beginRollback(server, war);
+                } else if (timedOut) {
+                    concludeWar(server, war, timeoutWinner(war));
                 }
             }
+            refreshBossBars(server);
         }
 
         if (rollbackQueue.isEmpty()) {
@@ -269,6 +475,9 @@ public final class WarManager extends SavedData {
         wars.remove(war.id());
         factionToWar.remove(war.attackerFactionId(), war.id());
         factionToWar.remove(war.defenderFactionId(), war.id());
+        clearBossBar(war.id());
+        blockPointWindows.remove(war.attackerFactionId());
+        blockPointWindows.remove(war.defenderFactionId());
         setDirty();
         LOGGER.info("War {} finished and removed", war.id());
 
@@ -280,6 +489,16 @@ public final class WarManager extends SavedData {
     }
 
     // ------------------------------------------------------------------ helpers
+
+    private static UUID timeoutWinner(War war) {
+        if (war.attackerPoints() > war.defenderPoints()) {
+            return war.attackerFactionId();
+        }
+        if (war.defenderPoints() > war.attackerPoints()) {
+            return war.defenderFactionId();
+        }
+        return null;
+    }
 
     private War warFor(UUID factionId) {
         UUID warId = factionToWar.get(factionId);

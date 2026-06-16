@@ -28,6 +28,14 @@ public final class FactionScreens {
         Minecraft.getInstance().setScreen(new FactionActionsScreen(snapshot, successful, message));
     }
 
+    public static void openInfluence(FactionSnapshot snapshot, boolean successful, String message) {
+        Minecraft.getInstance().setScreen(new FactionInfluenceScreen(snapshot, successful, message));
+    }
+
+    public static void openResearch(FactionSnapshot snapshot, boolean successful, String message) {
+        Minecraft.getInstance().setScreen(new ResearchScreen(snapshot, successful, message));
+    }
+
     private FactionScreens() {
     }
 }

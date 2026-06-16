@@ -14,6 +14,7 @@ import net.minecraft.resources.ResourceLocation;
 
 public final class TraderPayloads {
     public static final int MAX_OFFERS = 8;
+    public static final int MAX_SELL_OFFERS = 16;
     public static final int MAX_OFFER_ID_LENGTH = 32;
 
     public record C2SBuy(UUID traderId, String offerId) implements CustomPacketPayload {
@@ -35,9 +36,29 @@ public final class TraderPayloads {
         }
     }
 
+    public record C2SSell(UUID traderId, String offerId) implements CustomPacketPayload {
+        public static final Type<C2SSell> TYPE = payloadType("trader_sell");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SSell> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeUUID(payload.traderId);
+                    buffer.writeUtf(payload.offerId, MAX_OFFER_ID_LENGTH);
+                },
+                buffer -> new C2SSell(
+                        buffer.readUUID(),
+                        buffer.readUtf(MAX_OFFER_ID_LENGTH)
+                )
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record S2CShopState(
             UUID traderId,
             List<OfferInfo> offers,
+            List<OfferInfo> sellOffers,
             Component notice,
             boolean successful
     ) implements CustomPacketPayload {
@@ -49,6 +70,11 @@ public final class TraderPayloads {
                     buffer.writeVarInt(size);
                     for (int i = 0; i < size; i++) {
                         OfferInfo.encode(buffer, payload.offers.get(i));
+                    }
+                    int sellSize = Math.min(payload.sellOffers.size(), MAX_SELL_OFFERS);
+                    buffer.writeVarInt(sellSize);
+                    for (int i = 0; i < sellSize; i++) {
+                        OfferInfo.encode(buffer, payload.sellOffers.get(i));
                     }
                     ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buffer, payload.notice);
                     buffer.writeBoolean(payload.successful);
@@ -63,9 +89,18 @@ public final class TraderPayloads {
                     for (int i = 0; i < size; i++) {
                         offers.add(OfferInfo.decode(buffer));
                     }
+                    int sellSize = buffer.readVarInt();
+                    if (sellSize < 0 || sellSize > MAX_SELL_OFFERS) {
+                        throw new DecoderException("Trader sell offer count " + sellSize + " exceeds " + MAX_SELL_OFFERS);
+                    }
+                    List<OfferInfo> sellOffers = new ArrayList<>(sellSize);
+                    for (int i = 0; i < sellSize; i++) {
+                        sellOffers.add(OfferInfo.decode(buffer));
+                    }
                     return new S2CShopState(
                             traderId,
                             List.copyOf(offers),
+                            List.copyOf(sellOffers),
                             ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer),
                             buffer.readBoolean()
                     );
@@ -74,6 +109,7 @@ public final class TraderPayloads {
 
         public S2CShopState {
             offers = List.copyOf(offers);
+            sellOffers = List.copyOf(sellOffers);
         }
 
         @Override

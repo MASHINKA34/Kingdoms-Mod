@@ -44,6 +44,16 @@ public final class FactionNetwork {
                 FactionNetwork::handleDeposit
         );
         registrar.playToServer(
+                FactionPayloads.C2STurnInCrystals.TYPE,
+                FactionPayloads.C2STurnInCrystals.STREAM_CODEC,
+                FactionNetwork::handleTurnInCrystals
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SStartResearch.TYPE,
+                FactionPayloads.C2SStartResearch.STREAM_CODEC,
+                FactionNetwork::handleStartResearch
+        );
+        registrar.playToServer(
                 FactionPayloads.C2SWithdrawTreasury.TYPE,
                 FactionPayloads.C2SWithdrawTreasury.STREAM_CODEC,
                 FactionNetwork::handleWithdraw
@@ -206,6 +216,14 @@ public final class FactionNetwork {
 
     private static void handleDeposit(FactionPayloads.C2SDepositTreasury payload, IPayloadContext context) {
         FactionServerHooks.deposit(serverPlayer(context), payload.tablePos(), payload.amount());
+    }
+
+    private static void handleTurnInCrystals(FactionPayloads.C2STurnInCrystals payload, IPayloadContext context) {
+        FactionServerHooks.turnInCrystals(serverPlayer(context), payload.tablePos());
+    }
+
+    private static void handleStartResearch(FactionPayloads.C2SStartResearch payload, IPayloadContext context) {
+        FactionServerHooks.startResearch(serverPlayer(context), payload.tablePos(), payload.nodeName());
     }
 
     private static void handleWithdraw(FactionPayloads.C2SWithdrawTreasury payload, IPayloadContext context) {

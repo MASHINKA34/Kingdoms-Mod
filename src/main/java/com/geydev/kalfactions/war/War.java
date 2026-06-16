@@ -22,6 +22,8 @@ public final class War {
     private static final String TAG_DEFENDER = "defender";
     private static final String TAG_STATE = "state";
     private static final String TAG_START_TIME = "startGameTime";
+    private static final String TAG_ATTACKER_POINTS = "attackerPoints";
+    private static final String TAG_DEFENDER_POINTS = "defenderPoints";
     private static final String TAG_SNAPSHOTS = "snapshots";
     private static final String TAG_SNAPSHOT_KEY = "key";
     private static final String TAG_SNAPSHOT_DATA = "data";
@@ -32,6 +34,8 @@ public final class War {
     private final long startGameTime;
     private final Map<ClaimKey, WarChunkSnapshot> snapshots;
     private State state;
+    private long attackerPoints;
+    private long defenderPoints;
 
     public War(UUID id, UUID attackerFactionId, UUID defenderFactionId, State state, long startGameTime) {
         this(id, attackerFactionId, defenderFactionId, state, startGameTime, new LinkedHashMap<>());
@@ -85,6 +89,40 @@ public final class War {
         return attackerFactionId.equals(factionId) || defenderFactionId.equals(factionId);
     }
 
+    public long attackerPoints() {
+        return attackerPoints;
+    }
+
+    public long defenderPoints() {
+        return defenderPoints;
+    }
+
+    public long points(UUID factionId) {
+        if (attackerFactionId.equals(factionId)) {
+            return attackerPoints;
+        }
+        if (defenderFactionId.equals(factionId)) {
+            return defenderPoints;
+        }
+        return 0L;
+    }
+
+    public void addPoints(UUID factionId, long amount) {
+        if (amount <= 0L) {
+            return;
+        }
+        if (attackerFactionId.equals(factionId)) {
+            attackerPoints += amount;
+        } else if (defenderFactionId.equals(factionId)) {
+            defenderPoints += amount;
+        }
+    }
+
+    void setPointsRaw(long attacker, long defender) {
+        attackerPoints = Math.max(0L, attacker);
+        defenderPoints = Math.max(0L, defender);
+    }
+
     public UUID opponentOf(UUID factionId) {
         if (attackerFactionId.equals(factionId)) {
             return defenderFactionId;
@@ -127,6 +165,8 @@ public final class War {
         tag.putUUID(TAG_DEFENDER, defenderFactionId);
         tag.putString(TAG_STATE, state.name());
         tag.putLong(TAG_START_TIME, startGameTime);
+        tag.putLong(TAG_ATTACKER_POINTS, attackerPoints);
+        tag.putLong(TAG_DEFENDER_POINTS, defenderPoints);
 
         ListTag snapshotsTag = new ListTag();
         for (Map.Entry<ClaimKey, WarChunkSnapshot> entry : snapshots.entrySet()) {
@@ -161,14 +201,16 @@ public final class War {
             snapshots.put(key.get(), WarChunkSnapshot.load(entryTag.getCompound(TAG_SNAPSHOT_DATA)));
         }
 
-        return Optional.of(new War(
+        War war = new War(
             tag.getUUID(TAG_ID),
             tag.getUUID(TAG_ATTACKER),
             tag.getUUID(TAG_DEFENDER),
             state,
             tag.getLong(TAG_START_TIME),
             snapshots
-        ));
+        );
+        war.setPointsRaw(tag.getLong(TAG_ATTACKER_POINTS), tag.getLong(TAG_DEFENDER_POINTS));
+        return Optional.of(war);
     }
 
     public enum State {

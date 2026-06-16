@@ -24,18 +24,18 @@ public final class ModBlocks {
                     .noOcclusion())
     );
 
-    public static final DeferredBlock<Block> RESOURCE_CLUSTER_IRON = BLOCKS.register(
-            "resource_cluster_iron",
+    public static final DeferredBlock<Block> RESOURCE_CLUSTER_SCIENCE = BLOCKS.register(
+            "resource_cluster_science",
             () -> new Block(resourceClusterProperties())
     );
 
-    public static final DeferredBlock<Block> RESOURCE_CLUSTER_COPPER = BLOCKS.register(
-            "resource_cluster_copper",
+    public static final DeferredBlock<Block> RESOURCE_CLUSTER_ECONOMIC = BLOCKS.register(
+            "resource_cluster_economic",
             () -> new Block(resourceClusterProperties())
     );
 
-    public static final DeferredBlock<Block> RESOURCE_CLUSTER_GOLD = BLOCKS.register(
-            "resource_cluster_gold",
+    public static final DeferredBlock<Block> RESOURCE_CLUSTER_MILITARY = BLOCKS.register(
+            "resource_cluster_military",
             () -> new Block(resourceClusterProperties())
     );
 

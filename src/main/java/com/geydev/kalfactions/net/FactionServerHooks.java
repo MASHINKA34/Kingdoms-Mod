@@ -217,6 +217,24 @@ public final class FactionServerHooks {
         perform(player, tablePos, () -> service.withdraw(player, tablePos, amount));
     }
 
+    public static void turnInCrystals(ServerPlayer player, BlockPos tablePos) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.turnInCrystals(player, tablePos));
+    }
+
+    public static void startResearch(ServerPlayer player, BlockPos tablePos, String nodeName) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.startResearch(player, tablePos, nodeName));
+    }
+
     public static void kickMember(ServerPlayer player, BlockPos tablePos, UUID targetId) {
         Validation validation = validateTable(player, tablePos, true);
         if (!validation.allowed) {
@@ -747,6 +765,9 @@ public final class FactionServerHooks {
                 snapshot.claims(),
                 snapshot.treasury(),
                 snapshot.influence(),
+                snapshot.influenceScience(),
+                snapshot.influenceEconomic(),
+                snapshot.influenceMilitary(),
                 snapshot.internalPvp(),
                 snapshot.creationCost(),
                 snapshot.viewerId(),
@@ -757,7 +778,10 @@ public final class FactionServerHooks {
                 snapshot.onlinePlayers(),
                 snapshot.bonuses(),
                 snapshot.emblem(),
-                snapshot.emblemUrl()
+                snapshot.emblemUrl(),
+                snapshot.completedResearch(),
+                snapshot.activeResearchNode(),
+                snapshot.activeResearchEndMillis()
         );
     }
 
@@ -805,6 +829,10 @@ public final class FactionServerHooks {
         Result deposit(ServerPlayer player, BlockPos tablePos, long amount);
 
         Result withdraw(ServerPlayer player, BlockPos tablePos, long amount);
+
+        Result turnInCrystals(ServerPlayer player, BlockPos tablePos);
+
+        Result startResearch(ServerPlayer player, BlockPos tablePos, String nodeName);
 
         Result kickMember(ServerPlayer player, BlockPos tablePos, UUID targetId);
 
@@ -898,6 +926,16 @@ public final class FactionServerHooks {
 
         @Override
         public Result withdraw(ServerPlayer player, BlockPos tablePos, long amount) {
+            return managementUnavailable(player, tablePos);
+        }
+
+        @Override
+        public Result turnInCrystals(ServerPlayer player, BlockPos tablePos) {
+            return managementUnavailable(player, tablePos);
+        }
+
+        @Override
+        public Result startResearch(ServerPlayer player, BlockPos tablePos, String nodeName) {
             return managementUnavailable(player, tablePos);
         }
 

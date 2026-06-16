@@ -125,6 +125,9 @@ public final class FactionCommands {
                 .executes(context -> map(context, 4))
                 .then(Commands.argument("radius", IntegerArgumentType.integer(1, 8))
                     .executes(context -> map(context, IntegerArgumentType.getInteger(context, "radius")))))
+            .then(Commands.literal("forceload")
+                .requires(source -> CommandPermissions.has(source, CommandPermissions.FACTION))
+                .executes(FactionCommands::forceLoadToggle))
             .then(Commands.literal("war")
                 .requires(source -> CommandPermissions.has(source, CommandPermissions.FACTION))
                 .executes(FactionCommands::warStatus)
@@ -137,7 +140,7 @@ public final class FactionCommands {
                     .executes(FactionCommands::warEnd))
                 .then(Commands.literal("surrender")
                     .requires(source -> CommandPermissions.has(source, CommandPermissions.SETTINGS))
-                    .executes(FactionCommands::warEnd))
+                    .executes(FactionCommands::warSurrender))
                 .then(Commands.literal("status")
                     .requires(source -> CommandPermissions.has(source, CommandPermissions.INFO))
                     .executes(FactionCommands::warStatus))));
@@ -819,6 +822,58 @@ public final class FactionCommands {
             return failure(context, "kingdoms.command.faction.war.not_active");
         }
         success(context, "kingdoms.command.faction.war.ended");
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int forceLoadToggle(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        Faction faction = ownFaction(context, player).orElse(null);
+        if (faction == null) {
+            return failure(context, "kingdoms.error.not_in_faction");
+        }
+        MinecraftServer server = context.getSource().getServer();
+        ClaimKey key = ClaimKey.of(player.serverLevel(), player.blockPosition());
+        com.geydev.kalfactions.faction.FactionManager manager =
+            com.geydev.kalfactions.faction.FactionManager.get(server);
+        com.geydev.kalfactions.faction.FactionManager.ForceLoadResult result =
+            manager.toggleForceLoad(server, faction.id(), key);
+        switch (result) {
+            case ENABLED -> {
+                success(context, "kingdoms.command.faction.forceload.enabled");
+                return Command.SINGLE_SUCCESS;
+            }
+            case DISABLED -> {
+                success(context, "kingdoms.command.faction.forceload.disabled");
+                return Command.SINGLE_SUCCESS;
+            }
+            case LIMIT_REACHED -> {
+                return failure(
+                    context,
+                    "kingdoms.command.faction.forceload.limit",
+                    manager.forceLoadLimit(faction.id())
+                );
+            }
+            case NOT_OWN_CLAIM -> {
+                return failure(context, "kingdoms.command.faction.forceload.not_own");
+            }
+            default -> {
+                return failure(context, "kingdoms.error.not_in_faction");
+            }
+        }
+    }
+
+    private static int warSurrender(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        Faction faction = ownFaction(context, player).orElse(null);
+        if (faction == null || !requireLeader(context, faction, player)) {
+            return 0;
+        }
+        MinecraftServer server = context.getSource().getServer();
+        Optional<UUID> opponent = WarManager.get(server).surrender(server, faction.id());
+        if (opponent.isEmpty()) {
+            return failure(context, "kingdoms.command.faction.war.not_active");
+        }
+        success(context, "kingdoms.command.faction.war.surrendered");
         return Command.SINGLE_SUCCESS;
     }
 

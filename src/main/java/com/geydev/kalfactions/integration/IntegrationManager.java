@@ -82,7 +82,8 @@ public final class IntegrationManager {
             String name,
             int color,
             Set<ClaimKey> claims,
-            Set<ClaimKey> outpostChunks
+            Set<ClaimKey> outpostChunks,
+            Set<ClaimKey> forceLoadedChunks
     ) {
         public FactionMapData {
             Objects.requireNonNull(factionId, "factionId");
@@ -93,10 +94,15 @@ public final class IntegrationManager {
             color &= 0xFFFFFF;
             claims = Set.copyOf(Objects.requireNonNull(claims, "claims"));
             outpostChunks = Set.copyOf(Objects.requireNonNull(outpostChunks, "outpostChunks"));
+            forceLoadedChunks = Set.copyOf(Objects.requireNonNull(forceLoadedChunks, "forceLoadedChunks"));
         }
 
         public boolean isOutpost(ClaimKey key) {
             return outpostChunks.contains(key);
+        }
+
+        public boolean isForceLoaded(ClaimKey key) {
+            return forceLoadedChunks.contains(key);
         }
 
         public static FactionMapData from(Faction faction) {
@@ -104,7 +110,14 @@ public final class IntegrationManager {
             Set<ClaimKey> outposts = faction.outpostChunks();
             Set<ClaimKey> territory = new java.util.LinkedHashSet<>(faction.claims());
             territory.addAll(outposts);
-            return new FactionMapData(faction.id(), faction.name(), faction.color(), territory, outposts);
+            return new FactionMapData(
+                    faction.id(),
+                    faction.name(),
+                    faction.color(),
+                    territory,
+                    outposts,
+                    faction.forceLoadedChunks()
+            );
         }
     }
 

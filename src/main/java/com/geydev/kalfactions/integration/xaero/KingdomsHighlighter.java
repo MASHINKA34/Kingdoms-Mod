@@ -46,6 +46,9 @@ final class KingdomsHighlighter extends ChunkHighlighter {
             compiler.addLine(claim.outpost()
                     ? Component.translatable("kingdoms.xaero.outpost_label", claim.name())
                     : Component.literal(claim.name()));
+            if (claim.forceLoaded()) {
+                compiler.addLine(Component.translatable("kingdoms.xaero.forceload_label"));
+            }
         }
     }
 }
