@@ -9,6 +9,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class FactionActionsScreen extends FactionScreen {
     private boolean confirmingDisband;
+    private boolean confirmingSurrender;
 
     public FactionActionsScreen(FactionSnapshot snapshot, boolean successful, String message) {
         super(text("screen.kingdoms.actions"), snapshot, successful, message);
@@ -57,6 +58,12 @@ public final class FactionActionsScreen extends FactionScreen {
         ));
         disband.active = snapshot.canManage();
 
+        addRenderableWidget(KingdomsButton.create(
+                text("screen.kingdoms.influence_open"),
+                button -> FactionScreens.openInfluence(snapshot, true, ""),
+                leftColumn, top + 142, columnWidth, 20
+        ));
+
         KingdomsButton declareWar = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.war_declare"),
                 button -> openWarPicker(),
@@ -64,12 +71,20 @@ public final class FactionActionsScreen extends FactionScreen {
         ));
         declareWar.active = snapshot.canManage() && !snapshot.knownFactions().isEmpty();
 
-        KingdomsButton endWar = addRenderableWidget(KingdomsButton.create(
-                text("screen.kingdoms.war_end"),
-                button -> PacketDistributor.sendToServer(new FactionPayloads.C2SEndWar(snapshot.tablePos())),
+        confirmingSurrender = false;
+        KingdomsButton surrenderWar = addRenderableWidget(KingdomsButton.create(
+                text("screen.kingdoms.war_surrender"),
+                button -> {
+                    if (!confirmingSurrender) {
+                        confirmingSurrender = true;
+                        button.setMessage(text("screen.kingdoms.war_surrender_confirm"));
+                    } else {
+                        PacketDistributor.sendToServer(new FactionPayloads.C2SSurrenderWar(snapshot.tablePos()));
+                    }
+                },
                 rightColumn, top + 94, columnWidth, 20
         ));
-        endWar.active = snapshot.canManage();
+        surrenderWar.active = snapshot.canManage();
 
         KingdomsButton requestAlliance = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.alliance_request"),

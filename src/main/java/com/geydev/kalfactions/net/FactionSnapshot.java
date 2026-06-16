@@ -41,7 +41,7 @@ public record FactionSnapshot(
         long activeResearchEndMillis
 ) {
     public static final UUID NO_FACTION = new UUID(0L, 0L);
-    public static final int MAX_RESEARCH_NODES = 32;
+    public static final int MAX_RESEARCH_NODES = 64;
     public static final int MAX_MEMBERS = 256;
     public static final int MAX_CLAIMS = 1024;
     public static final int MAX_KNOWN_FACTIONS = 512;
@@ -83,7 +83,7 @@ public record FactionSnapshot(
         emblem = emblem == null || !isValidEmblemSize(emblem.size()) ? List.of() : List.copyOf(emblem);
         emblemUrl = limit(emblemUrl, MAX_EMBLEM_URL);
         completedResearch = completedResearch == null ? List.of() : List.copyOf(completedResearch);
-        activeResearchNode = activeResearchNode == null ? "" : limit(activeResearchNode, 24);
+        activeResearchNode = activeResearchNode == null ? "" : limit(activeResearchNode, 32);
         activeResearchEndMillis = Math.max(0L, activeResearchEndMillis);
     }
 
@@ -169,9 +169,9 @@ public record FactionSnapshot(
                 buffer,
                 snapshot.completedResearch,
                 MAX_RESEARCH_NODES,
-                (target, value) -> target.writeUtf(value, 24)
+                (target, value) -> target.writeUtf(value, 32)
         );
-        buffer.writeUtf(snapshot.activeResearchNode, 24);
+        buffer.writeUtf(snapshot.activeResearchNode, 32);
         buffer.writeLong(snapshot.activeResearchEndMillis);
     }
 
@@ -216,8 +216,8 @@ public record FactionSnapshot(
         List<String> bonuses = readBoundedList(buffer, MAX_BONUSES, target -> target.readUtf(24));
         List<Integer> emblem = readBoundedList(buffer, MAX_EMBLEM_PIXELS, RegistryFriendlyByteBuf::readInt);
         String emblemUrl = buffer.readUtf(MAX_EMBLEM_URL);
-        List<String> completedResearch = readBoundedList(buffer, MAX_RESEARCH_NODES, target -> target.readUtf(24));
-        String activeResearchNode = buffer.readUtf(24);
+        List<String> completedResearch = readBoundedList(buffer, MAX_RESEARCH_NODES, target -> target.readUtf(32));
+        String activeResearchNode = buffer.readUtf(32);
         long activeResearchEndMillis = buffer.readLong();
         return new FactionSnapshot(
                 tablePos, factionId, name, ownerName, color, canManage, canClaim,

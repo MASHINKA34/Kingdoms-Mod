@@ -3,9 +3,11 @@ package com.geydev.kalfactions.client.screen;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
+import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class FactionInfluenceScreen extends FactionScreen {
@@ -25,12 +27,12 @@ public final class FactionInfluenceScreen extends FactionScreen {
         addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.turn_in_crystals"),
                 button -> PacketDistributor.sendToServer(new FactionPayloads.C2STurnInCrystals(snapshot.tablePos())),
-                left + CONTENT_LEFT, top + 142, 180, 20
+                left + CONTENT_LEFT, top + 150, 180, 20
         ));
         addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.research_open"),
                 button -> FactionScreens.openResearch(snapshot, true, ""),
-                left + CONTENT_LEFT + 188, top + 142, 82, 20
+                left + CONTENT_LEFT + 188, top + 150, 82, 20
         ));
         addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.back"),
@@ -42,17 +44,24 @@ public final class FactionInfluenceScreen extends FactionScreen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
+        graphics.drawString(
+                font,
+                text("screen.kingdoms.total_influence", snapshot.influence()),
+                left + CONTENT_LEFT,
+                top + 55,
+                TEXT_DARK,
+                false
+        );
         renderRow(graphics, ICON_SCIENCE, "kingdoms.influence.science", snapshot.influenceScience(), top + 64);
         renderRow(graphics, ICON_ECONOMIC, "kingdoms.influence.economic", snapshot.influenceEconomic(), top + 88);
         renderRow(graphics, ICON_MILITARY, "kingdoms.influence.military", snapshot.influenceMilitary(), top + 112);
-        graphics.drawString(
-                font,
+        List<FormattedCharSequence> hintLines = font.split(
                 text("screen.kingdoms.turn_in_hint"),
-                left + CONTENT_LEFT,
-                top + 132,
-                TEXT_HINT,
-                false
+                CONTENT_RIGHT - CONTENT_LEFT
         );
+        for (int index = 0; index < Math.min(2, hintLines.size()); index++) {
+            graphics.drawString(font, hintLines.get(index), left + CONTENT_LEFT, top + 132 + index * 9, TEXT_HINT, false);
+        }
     }
 
     private void renderRow(GuiGraphics graphics, ResourceLocation icon, String key, long value, int y) {

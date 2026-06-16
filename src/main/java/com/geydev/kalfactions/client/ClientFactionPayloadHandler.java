@@ -4,6 +4,7 @@ import com.geydev.kalfactions.client.screen.ChestAccessScreen;
 import com.geydev.kalfactions.client.screen.FactionListScreen;
 import com.geydev.kalfactions.client.screen.FactionScreen;
 import com.geydev.kalfactions.client.screen.FactionScreens;
+import com.geydev.kalfactions.faction.InfluenceType;
 import com.geydev.kalfactions.integration.xaero.XaeroMaps;
 import com.geydev.kalfactions.net.FactionPayloads;
 import java.util.HashMap;
@@ -37,6 +38,13 @@ public final class ClientFactionPayloadHandler {
     public static void handleNotice(FactionPayloads.S2CFactionNotice payload) {
         Minecraft minecraft = Minecraft.getInstance();
         minecraft.execute(() -> showNotice(minecraft, payload.message(), payload.successful()));
+    }
+
+    public static void handleInfluenceGain(FactionPayloads.S2CInfluenceGain payload) {
+        InfluenceType.parse(payload.influenceType()).ifPresent(type -> {
+            Minecraft minecraft = Minecraft.getInstance();
+            minecraft.execute(() -> minecraft.getToasts().addToast(new InfluenceGainToast(type, payload.amount())));
+        });
     }
 
     public static void handleFactionList(FactionPayloads.S2CFactionList payload) {

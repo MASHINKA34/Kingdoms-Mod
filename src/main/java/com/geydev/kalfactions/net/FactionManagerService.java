@@ -1139,6 +1139,35 @@ final class FactionManagerService implements FactionServerHooks.Service {
     }
 
     @Override
+    public FactionServerHooks.Result surrenderWar(ServerPlayer player, BlockPos tablePos) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return notInFaction(player, tablePos);
+        }
+        if (!faction.ownerId().equals(player.getUUID())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.leader_settings_only"),
+                    view(player, tablePos)
+            );
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return otherFactionTable(player, tablePos);
+        }
+        if (WarManager.get(player.getServer()).surrender(player.getServer(), faction.id()).isEmpty()) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.command.faction.war.not_active"),
+                    view(player, tablePos)
+            );
+        }
+        return new FactionServerHooks.Result(
+                true,
+                Component.translatable("kingdoms.command.faction.war.surrendered"),
+                view(player, tablePos)
+        );
+    }
+
+    @Override
     public FactionServerHooks.Result mapSetClaims(ServerPlayer player, boolean claimed, List<Long> packedChunks) {
         FactionManager manager = FactionManager.get(player.serverLevel());
         Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);

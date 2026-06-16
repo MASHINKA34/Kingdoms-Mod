@@ -4,6 +4,7 @@ import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.menu.DrillMenu;
 import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager;
 import com.geydev.kalfactions.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
@@ -19,8 +20,7 @@ import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ChestMenu;
-import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -32,6 +32,28 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
     private static final int SLOTS = 18;
 
     private final NonNullList<ItemStack> items = NonNullList.withSize(SLOTS, ItemStack.EMPTY);
+    private final ContainerData dataAccess = new ContainerData() {
+        @Override
+        public int get(int index) {
+            return switch (index) {
+                case 0 -> progress;
+                case 1 -> intervalTicks();
+                default -> 0;
+            };
+        }
+
+        @Override
+        public void set(int index, int value) {
+            if (index == 0) {
+                progress = Math.max(0, value);
+            }
+        }
+
+        @Override
+        public int getCount() {
+            return 2;
+        }
+    };
     private int progress;
 
     public DrillBlockEntity(BlockPos pos, BlockState state) {
@@ -42,7 +64,7 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         if (!(level instanceof ServerLevel serverLevel)) {
             return;
         }
-        int intervalTicks = Math.max(1, ModConfigSpec.OUTPOST_DRILL_INTERVAL_SECONDS.getAsInt() * 20);
+        int intervalTicks = drill.intervalTicks();
         if (++drill.progress < intervalTicks) {
             return;
         }
@@ -152,7 +174,11 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
 
     @Override
     public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player player) {
-        return new ChestMenu(MenuType.GENERIC_9x2, containerId, playerInventory, this, 2);
+        return new DrillMenu(containerId, playerInventory, this, dataAccess);
+    }
+
+    private int intervalTicks() {
+        return Math.max(1, ModConfigSpec.OUTPOST_DRILL_INTERVAL_SECONDS.getAsInt() * 20);
     }
 
     @Override

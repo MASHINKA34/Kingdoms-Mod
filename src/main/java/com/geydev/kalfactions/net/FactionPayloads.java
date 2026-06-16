@@ -441,6 +441,19 @@ public final class FactionPayloads {
         }
     }
 
+    public record C2SSurrenderWar(BlockPos tablePos) implements CustomPacketPayload {
+        public static final Type<C2SSurrenderWar> TYPE = FactionPayloads.payloadType("surrender_war");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SSurrenderWar> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> buffer.writeBlockPos(payload.tablePos),
+                buffer -> new C2SSurrenderWar(buffer.readBlockPos())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record C2SMapSetClaims(boolean claimed, List<Long> chunks) implements CustomPacketPayload {
         public static final int MAX_CHUNKS = 512;
         public static final Type<C2SMapSetClaims> TYPE = FactionPayloads.payloadType("map_set_claims");
@@ -465,6 +478,22 @@ public final class FactionPayloads {
                     }
                     return new C2SMapSetClaims(claimed, List.copyOf(chunks));
                 }
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SToggleForceLoad(ResourceLocation dimension, long packedChunk) implements CustomPacketPayload {
+        public static final Type<C2SToggleForceLoad> TYPE = FactionPayloads.payloadType("toggle_force_load");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SToggleForceLoad> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeResourceLocation(payload.dimension);
+                    buffer.writeLong(payload.packedChunk);
+                },
+                buffer -> new C2SToggleForceLoad(buffer.readResourceLocation(), buffer.readLong())
         );
 
         @Override
@@ -880,6 +909,22 @@ public final class FactionPayloads {
                         ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer),
                         buffer.readBoolean()
                 )
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record S2CInfluenceGain(String influenceType, long amount) implements CustomPacketPayload {
+        public static final Type<S2CInfluenceGain> TYPE = FactionPayloads.payloadType("influence_gain");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CInfluenceGain> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeUtf(payload.influenceType, 16);
+                    buffer.writeLong(payload.amount);
+                },
+                buffer -> new S2CInfluenceGain(buffer.readUtf(16), buffer.readLong())
         );
 
         @Override

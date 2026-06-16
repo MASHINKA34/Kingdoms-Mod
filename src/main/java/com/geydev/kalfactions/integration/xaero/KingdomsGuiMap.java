@@ -135,6 +135,20 @@ final class KingdomsGuiMap extends GuiMap {
             boolean withinLimit = selected.size() <= FactionPayloads.C2SMapSetClaims.MAX_CHUNKS;
             options.add(claimOption(options.size(), viewer, claimable, sameDimension && withinLimit));
             options.add(unclaimOption(options.size(), ownClaims, sameDimension && withinLimit));
+            if (selected.size() == 1 && clickedDimension != null) {
+                long packed = selected.getFirst();
+                ChunkPos chunk = new ChunkPos(packed);
+                ClaimInfo claim = ClientClaimStore.get(clickedDimension, chunk.x, chunk.z);
+                if (claim != null && claim.factionId().equals(viewer.factionId())) {
+                    options.add(forceLoadOption(
+                            options.size(),
+                            clickedDimension,
+                            packed,
+                            claim.forceLoaded(),
+                            sameDimension
+                    ));
+                }
+            }
         } catch (ReflectiveOperationException | RuntimeException exception) {
             if (!failureLogged) {
                 failureLogged = true;
@@ -161,6 +175,27 @@ final class KingdomsGuiMap extends GuiMap {
         RightClickOption option = option("kingdoms.xaero_map.unclaim", index, chunks, false);
         option.setNameFormatArgs(chunks.size());
         option.setActive(usable && !chunks.isEmpty());
+        return option;
+    }
+
+    private RightClickOption forceLoadOption(
+            int index,
+            ResourceKey<Level> dimension,
+            long packedChunk,
+            boolean forceLoaded,
+            boolean usable
+    ) {
+        String key = forceLoaded ? "kingdoms.xaero_map.forceload.disable" : "kingdoms.xaero_map.forceload.enable";
+        RightClickOption option = new RightClickOption(key, index, this) {
+            @Override
+            public void onAction(Screen screen) {
+                PacketDistributor.sendToServer(new FactionPayloads.C2SToggleForceLoad(
+                        dimension.location(),
+                        packedChunk
+                ));
+            }
+        };
+        option.setActive(usable);
         return option;
     }
 

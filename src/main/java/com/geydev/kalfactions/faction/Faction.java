@@ -344,7 +344,9 @@ public final class Faction {
 
     public boolean hasResearchBonus(ResearchBonus bonus) {
         for (ResearchNode node : completedResearch) {
-            if (node.bonus() == bonus) {
+            if (node.bonus() == bonus
+                    || bonus == ResearchBonus.CLAIM_TNT_RESIST && node.bonus() == ResearchBonus.TNT_RESIST
+                    || bonus.isChunkSlot() && node.bonus() == ResearchBonus.CHUNK_SLOT) {
                 return true;
             }
         }

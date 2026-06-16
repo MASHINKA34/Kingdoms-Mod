@@ -114,9 +114,19 @@ public final class FactionNetwork {
                 FactionNetwork::handleEndWar
         );
         registrar.playToServer(
+                FactionPayloads.C2SSurrenderWar.TYPE,
+                FactionPayloads.C2SSurrenderWar.STREAM_CODEC,
+                FactionNetwork::handleSurrenderWar
+        );
+        registrar.playToServer(
                 FactionPayloads.C2SMapSetClaims.TYPE,
                 FactionPayloads.C2SMapSetClaims.STREAM_CODEC,
                 FactionNetwork::handleMapSetClaims
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SToggleForceLoad.TYPE,
+                FactionPayloads.C2SToggleForceLoad.STREAM_CODEC,
+                FactionNetwork::handleToggleForceLoad
         );
         registrar.playToServer(
                 FactionPayloads.C2SSetEmblem.TYPE,
@@ -172,6 +182,11 @@ public final class FactionNetwork {
                 FactionPayloads.S2CFactionNotice.TYPE,
                 FactionPayloads.S2CFactionNotice.STREAM_CODEC,
                 FactionNetwork::handleNotice
+        );
+        registrar.playToClient(
+                FactionPayloads.S2CInfluenceGain.TYPE,
+                FactionPayloads.S2CInfluenceGain.STREAM_CODEC,
+                FactionNetwork::handleInfluenceGain
         );
     }
 
@@ -282,8 +297,16 @@ public final class FactionNetwork {
         FactionServerHooks.endWar(serverPlayer(context), payload.tablePos());
     }
 
+    private static void handleSurrenderWar(FactionPayloads.C2SSurrenderWar payload, IPayloadContext context) {
+        FactionServerHooks.surrenderWar(serverPlayer(context), payload.tablePos());
+    }
+
     private static void handleMapSetClaims(FactionPayloads.C2SMapSetClaims payload, IPayloadContext context) {
         FactionServerHooks.mapSetClaims(serverPlayer(context), payload.claimed(), payload.chunks());
+    }
+
+    private static void handleToggleForceLoad(FactionPayloads.C2SToggleForceLoad payload, IPayloadContext context) {
+        FactionServerHooks.toggleForceLoad(serverPlayer(context), payload.dimension(), payload.packedChunk());
     }
 
     private static void handleSetChestMode(FactionPayloads.C2SSetChestMode payload, IPayloadContext context) {
@@ -345,6 +368,12 @@ public final class FactionNetwork {
     private static void handleNotice(FactionPayloads.S2CFactionNotice payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientFactionPayloadHandler.handleNotice(payload);
+        }
+    }
+
+    private static void handleInfluenceGain(FactionPayloads.S2CInfluenceGain payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientFactionPayloadHandler.handleInfluenceGain(payload);
         }
     }
 

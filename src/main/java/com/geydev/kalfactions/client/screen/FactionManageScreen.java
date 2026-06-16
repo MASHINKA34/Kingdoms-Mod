@@ -120,11 +120,6 @@ public final class FactionManageScreen extends FactionScreen {
                 rightColumn, row0 + rowStep * 3, columnWidth, 20
         ));
 
-        addRenderableWidget(KingdomsButton.create(
-                text("screen.kingdoms.influence_open"),
-                button -> FactionScreens.openInfluence(snapshot, true, ""),
-                leftColumn, row0 + rowStep * 4, columnWidth, 20
-        ));
     }
 
     private int[] unboxedEmblem() {
@@ -198,7 +193,7 @@ public final class FactionManageScreen extends FactionScreen {
         );
         graphics.drawString(
                 font,
-                text("screen.kingdoms.influence_value", snapshot.influence()),
+                text("screen.kingdoms.total_influence", snapshot.influence()),
                 rightColumn,
                 top + 71,
                 TEXT_MUTED,

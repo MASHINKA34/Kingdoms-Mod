@@ -3,6 +3,7 @@ package com.geydev.kalfactions.registry;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.chest.AccessTool;
 import com.geydev.kalfactions.faction.InfluenceType;
+import com.geydev.kalfactions.item.SellerSpawnEggItem;
 import com.geydev.kalfactions.item.TraderSpawnEggItem;
 import java.util.Optional;
 import net.minecraft.world.item.BlockItem;
@@ -33,6 +34,11 @@ public final class ModItems {
     public static final DeferredItem<TraderSpawnEggItem> TRADER_SPAWN_EGG = ITEMS.register(
             "trader_spawn_egg",
             () -> new TraderSpawnEggItem(new Item.Properties())
+    );
+
+    public static final DeferredItem<SellerSpawnEggItem> SELLER_SPAWN_EGG = ITEMS.register(
+            "seller_spawn_egg",
+            () -> new SellerSpawnEggItem(new Item.Properties())
     );
 
     public static final DeferredItem<Item> TRADER_REMOVER = ITEMS.register(

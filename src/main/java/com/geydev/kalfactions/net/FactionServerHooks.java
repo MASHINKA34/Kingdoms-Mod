@@ -10,6 +10,7 @@ import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.FactionMember;
+import com.geydev.kalfactions.integration.IntegrationManager;
 import com.geydev.kalfactions.war.War;
 import com.geydev.kalfactions.war.WarManager;
 import java.util.ArrayList;
@@ -23,10 +24,14 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class FactionServerHooks {
@@ -334,6 +339,15 @@ public final class FactionServerHooks {
         perform(player, tablePos, () -> service.endWar(player, tablePos));
     }
 
+    public static void surrenderWar(ServerPlayer player, BlockPos tablePos) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.surrenderWar(player, tablePos));
+    }
+
     public static void mapSetClaims(ServerPlayer player, boolean claimed, List<Long> packedChunks) {
         if (!player.isAlive() || player.isSpectator() || packedChunks.isEmpty()) {
             return;
@@ -353,6 +367,49 @@ public final class FactionServerHooks {
             KalFactions.LOGGER.error("Map claim operation failed for {}", player.getGameProfile().getName(), exception);
             sendNotice(player, Component.translatable("kingdoms.error.faction_action_failed"), false);
         }
+    }
+
+    public static void toggleForceLoad(ServerPlayer player, ResourceLocation dimensionId, long packedChunk) {
+        if (!player.isAlive() || player.isSpectator()) {
+            return;
+        }
+        long now = player.level().getGameTime();
+        Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+        if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
+            sendNotice(player, Component.translatable("kingdoms.error.action_rate_limited"), false);
+            return;
+        }
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            sendNotice(player, Component.translatable("kingdoms.error.not_in_faction"), false);
+            return;
+        }
+        FactionMember member = faction.member(player.getUUID()).orElse(null);
+        if (member == null || !member.role().canManageClaims()) {
+            sendNotice(player, Component.translatable("kingdoms.error.role_cannot_change_claims"), false);
+            return;
+        }
+        ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, dimensionId);
+        ChunkPos chunk = new ChunkPos(packedChunk);
+        FactionManager.ForceLoadResult result = manager.toggleForceLoad(
+                player.getServer(),
+                faction.id(),
+                new com.geydev.kalfactions.claim.ClaimKey(dimension, chunk)
+        );
+        switch (result) {
+            case ENABLED -> sendNotice(player, Component.translatable("kingdoms.command.faction.forceload.enabled"), true);
+            case DISABLED -> sendNotice(player, Component.translatable("kingdoms.command.faction.forceload.disabled"), true);
+            case LIMIT_REACHED -> sendNotice(
+                    player,
+                    Component.translatable("kingdoms.command.faction.forceload.limit", manager.forceLoadLimit(faction.id())),
+                    false
+            );
+            case NOT_OWN_CLAIM -> sendNotice(player, Component.translatable("kingdoms.command.faction.forceload.not_own"), false);
+            default -> sendNotice(player, Component.translatable("kingdoms.error.faction_action_failed"), false);
+        }
+        IntegrationManager.refreshFromServer(player.getServer());
+        ClaimSyncManager.resync(player);
     }
 
     public static void sendNotice(ServerPlayer player, Component message, boolean successful) {
@@ -856,6 +913,8 @@ public final class FactionServerHooks {
 
         Result endWar(ServerPlayer player, BlockPos tablePos);
 
+        Result surrenderWar(ServerPlayer player, BlockPos tablePos);
+
         Result mapSetClaims(ServerPlayer player, boolean claimed, List<Long> packedChunks);
     }
 
@@ -991,6 +1050,11 @@ public final class FactionServerHooks {
 
         @Override
         public Result endWar(ServerPlayer player, BlockPos tablePos) {
+            return managementUnavailable(player, tablePos);
+        }
+
+        @Override
+        public Result surrenderWar(ServerPlayer player, BlockPos tablePos) {
             return managementUnavailable(player, tablePos);
         }
 
