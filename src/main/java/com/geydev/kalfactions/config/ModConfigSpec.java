@@ -114,8 +114,8 @@ public final class ModConfigSpec {
             .comment("Spurs charged by the spawn trader for a drill.")
             .defineInRange("drillCost", 1500L, 0L, Long.MAX_VALUE);
         OUTPOST_DRILL_INTERVAL_SECONDS = builder
-            .comment("Seconds between drill resource outputs (production ~8h = 28800).")
-            .defineInRange("drillIntervalSeconds", 30, 1, 86400);
+            .comment("Seconds between drill resource outputs (base production 12h = 43200).")
+            .defineInRange("drillIntervalSeconds", 43200, 1, 86400);
         builder.pop();
 
         builder.push("influence");

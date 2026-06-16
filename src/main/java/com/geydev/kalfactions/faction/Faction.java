@@ -198,8 +198,9 @@ public final class Faction {
         for (FactionBonus bonus : bonuses) {
             discount = Math.max(discount, bonus.claimDiscount());
         }
-        if (hasResearchBonus(ResearchBonus.CLAIM_DISCOUNT)) {
-            discount = Math.max(discount, 0.10D);
+        int researchLevels = researchBonusCount("CLAIM_DISCOUNT");
+        if (researchLevels > 0) {
+            discount = Math.max(discount, Math.min(0.50D, 0.05D * researchLevels));
         }
         return discount;
     }
@@ -353,14 +354,45 @@ public final class Faction {
         return false;
     }
 
-    public int researchChunkSlots() {
-        int slots = 0;
+    public int researchBonusCount(String tag) {
+        if (tag == null || tag.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
         for (ResearchNode node : completedResearch) {
-            if (node.bonus().isChunkSlot()) {
-                slots++;
+            for (String part : node.bonusTag().split("\\+")) {
+                if (part.equalsIgnoreCase(tag)) {
+                    count++;
+                    break;
+                }
             }
         }
-        return slots;
+        return count;
+    }
+
+    public int researchBonusCount(ResearchBonus bonus) {
+        return bonus == null ? 0 : researchBonusCount(bonus.name());
+    }
+
+    public int researchChunkSlots() {
+        return researchBonusCount("CHUNK_SLOT");
+    }
+
+    public double miningSpeedMultiplier() {
+        return 1.0D + 0.05D * researchBonusCount("MINING_SPEED");
+    }
+
+    public long researchTreasuryIncome() {
+        long income = 0L;
+        for (ResearchNode node : completedResearch) {
+            for (String part : node.bonusTag().split("\\+")) {
+                if (part.equalsIgnoreCase("TREASURY_INCOME")) {
+                    income += node.tier();
+                    break;
+                }
+            }
+        }
+        return income;
     }
 
     public boolean isResearchAvailable(ResearchNode node) {
@@ -546,12 +578,16 @@ public final class Faction {
         if (base <= 0L) {
             return base;
         }
-        ResearchBonus bonus = switch (type) {
-            case SCIENCE -> ResearchBonus.SCIENCE_INFLUENCE;
-            case ECONOMIC -> ResearchBonus.ECONOMIC_INFLUENCE;
-            case MILITARY -> ResearchBonus.MILITARY_INFLUENCE_RESPAWN;
+        String tag = switch (type) {
+            case SCIENCE -> "SCIENCE_INFLUENCE";
+            case ECONOMIC -> "ECONOMIC_INFLUENCE";
+            case MILITARY -> "MILITARY_INFLUENCE";
         };
-        return hasResearchBonus(bonus) ? base + Math.round(base * 0.15D) : base;
+        int levels = researchBonusCount(tag);
+        if (levels <= 0) {
+            return base;
+        }
+        return PriceMath.saturatedAdd(base, Math.round(base * 0.15D * levels));
     }
 
     void startResearch(ResearchNode node, long startMillis) {

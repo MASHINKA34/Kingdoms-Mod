@@ -2,17 +2,20 @@ package com.geydev.kalfactions.faction;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.net.FactionPayloads;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.ChunkPos;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class InfluenceSourceHandler {
@@ -36,10 +39,11 @@ public final class InfluenceSourceHandler {
                 com.geydev.kalfactions.war.WarManager.get(killer.serverLevel());
         if (wars.areAtWar(killerFaction, victimFaction)) {
             long warPoints = ModConfigSpec.WAR_KILL_POINTS.getAsInt();
-            if (manager.getFactionById(killerFaction)
-                    .map(f -> f.hasResearchBonus(ResearchBonus.WAR_KILL_POINTS))
-                    .orElse(false)) {
-                warPoints = warPoints + Math.round(warPoints * 0.25D);
+            int killPointLevels = manager.getFactionById(killerFaction)
+                    .map(f -> f.researchBonusCount("WAR_KILL_POINTS"))
+                    .orElse(0);
+            if (killPointLevels > 0) {
+                warPoints = warPoints + Math.round(warPoints * 0.25D * killPointLevels);
             }
             wars.addWarPoints(killer.getServer(), killerFaction, warPoints);
         }
@@ -58,8 +62,11 @@ public final class InfluenceSourceHandler {
         if (cap > 0 && awards.size() >= cap) {
             return;
         }
-        manager.grantInfluence(killerFaction, InfluenceType.MILITARY, amount);
+        FactionManager.OperationResult result = manager.grantInfluence(killerFaction, InfluenceType.MILITARY, amount);
         awards.addLast(now);
+        if (result.successful()) {
+            sendInfluenceToast(killer, InfluenceType.MILITARY, result.amount());
+        }
     }
 
     @SubscribeEvent
@@ -72,18 +79,20 @@ public final class InfluenceSourceHandler {
         if (factionId == null) {
             return;
         }
-        ChunkPos chunk = new ChunkPos(player.blockPosition());
-        UUID territoryFaction = manager.getFactionAt(player.serverLevel(), chunk)
-                .map(Faction::id)
-                .orElse(null);
-        if (!factionId.equals(territoryFaction)) {
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(event.getCrafting().getItem());
+        if (itemId == null || itemId.getNamespace().equals("minecraft")) {
             return;
         }
-        double chance = ModConfigSpec.INFLUENCE_CRAFT_CHANCE.get();
-        if (chance <= 0.0D || player.serverLevel().getRandom().nextDouble() >= chance) {
-            return;
+        FactionManager.OperationResult result = manager.grantInfluence(factionId, InfluenceType.SCIENCE, 1L);
+        if (result.successful()) {
+            sendInfluenceToast(player, InfluenceType.SCIENCE, result.amount());
         }
-        manager.grantInfluence(factionId, InfluenceType.SCIENCE, 1L);
+    }
+
+    private static void sendInfluenceToast(ServerPlayer player, InfluenceType type, long amount) {
+        if (amount > 0L) {
+            PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CInfluenceGain(type.id(), amount));
+        }
     }
 
     @SubscribeEvent

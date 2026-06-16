@@ -6,7 +6,6 @@ import com.geydev.kalfactions.entity.OutpostTraderEntity;
 import com.geydev.kalfactions.entity.SellerTraderEntity;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
-import com.geydev.kalfactions.faction.ResearchBonus;
 import com.geydev.kalfactions.registry.ModEntities;
 import java.util.Arrays;
 import java.util.List;
@@ -240,8 +239,9 @@ public final class TraderService {
         long spurs = base;
         if (factionId != null) {
             Faction faction = manager.getFactionById(factionId).orElse(null);
-            if (faction != null && faction.hasResearchBonus(ResearchBonus.BUY_RATE)) {
-                spurs = base + Math.round(base * 0.10D);
+            int buyRateLevels = faction == null ? 0 : faction.researchBonusCount("BUY_RATE");
+            if (buyRateLevels > 0) {
+                spurs = base + Math.round(base * 0.10D * buyRateLevels);
             }
         }
         NumismaticsEconomy.give(player, spurs);
@@ -254,6 +254,15 @@ public final class TraderService {
                     spurs,
                     ModConfigSpec.INFLUENCE_SPURS_PER_ECON.getAsLong()
             );
+            if (influenceGained > 0L) {
+                PacketDistributor.sendToPlayer(
+                        player,
+                        new com.geydev.kalfactions.net.FactionPayloads.S2CInfluenceGain(
+                                com.geydev.kalfactions.faction.InfluenceType.ECONOMIC.id(),
+                                influenceGained
+                        )
+                );
+            }
         }
 
         Component notice = influenceGained > 0L

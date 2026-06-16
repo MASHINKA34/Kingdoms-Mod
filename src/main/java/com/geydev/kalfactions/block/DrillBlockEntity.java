@@ -30,6 +30,9 @@ import net.minecraft.world.level.block.state.BlockState;
 public final class DrillBlockEntity extends BlockEntity implements Container, MenuProvider {
     private static final String TAG_PROGRESS = "Progress";
     private static final int SLOTS = 18;
+    private static final int BASE_OUTPUT = 32;
+    private static final int HOUR_TICKS = 3600 * 20;
+    private static final int INTERVAL_FLOOR_TICKS = 4 * HOUR_TICKS;
 
     private final NonNullList<ItemStack> items = NonNullList.withSize(SLOTS, ItemStack.EMPTY);
     private final ContainerData dataAccess = new ContainerData() {
@@ -37,7 +40,7 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         public int get(int index) {
             return switch (index) {
                 case 0 -> progress;
-                case 1 -> intervalTicks();
+                case 1 -> interval;
                 default -> 0;
             };
         }
@@ -55,6 +58,7 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         }
     };
     private int progress;
+    private int interval = baseIntervalTicks();
 
     public DrillBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.DRILL.get(), pos, state);
@@ -64,8 +68,8 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         if (!(level instanceof ServerLevel serverLevel)) {
             return;
         }
-        int intervalTicks = drill.intervalTicks();
-        if (++drill.progress < intervalTicks) {
+        drill.recomputeInterval(serverLevel, pos);
+        if (++drill.progress < drill.interval) {
             return;
         }
         drill.progress = 0;
@@ -88,10 +92,7 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         if (!clusters.isBoundDrill(chunk, pos) && !clusters.bindDrill(chunk, pos)) {
             return;
         }
-        int amount = cluster.richness();
-        if (faction.hasResearchBonus(com.geydev.kalfactions.faction.ResearchBonus.DRILL_OUTPUT)) {
-            amount += 1;
-        }
+        int amount = BASE_OUTPUT + 8 * faction.researchBonusCount("DRILL_OUTPUT");
         insert(new ItemStack(cluster.type().displayItem(), amount));
         setChanged();
     }
@@ -177,8 +178,18 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         return new DrillMenu(containerId, playerInventory, this, dataAccess);
     }
 
-    private int intervalTicks() {
+    private static int baseIntervalTicks() {
         return Math.max(1, ModConfigSpec.OUTPOST_DRILL_INTERVAL_SECONDS.getAsInt() * 20);
+    }
+
+    private void recomputeInterval(ServerLevel level, BlockPos pos) {
+        int base = baseIntervalTicks();
+        int levels = FactionManager.get(level)
+                .getFactionAt(ClaimKey.of(level, new ChunkPos(pos)))
+                .map(faction -> faction.researchBonusCount("DRILL_INTERVAL"))
+                .orElse(0);
+        int floor = Math.min(base, INTERVAL_FLOOR_TICKS);
+        interval = Math.max(floor, base - levels * 2 * HOUR_TICKS);
     }
 
     @Override

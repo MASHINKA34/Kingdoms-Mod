@@ -47,6 +47,10 @@ public final class ClientFactionPayloadHandler {
         });
     }
 
+    public static void handleMiningBonus(FactionPayloads.S2CMiningBonus payload) {
+        ClientResearchBonuses.setMiningMultiplier(payload.multiplier());
+    }
+
     public static void handleFactionList(FactionPayloads.S2CFactionList payload) {
         Minecraft minecraft = Minecraft.getInstance();
         minecraft.execute(() -> {

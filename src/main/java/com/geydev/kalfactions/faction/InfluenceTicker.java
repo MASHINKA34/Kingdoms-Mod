@@ -3,8 +3,10 @@ package com.geydev.kalfactions.faction;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.net.FactionPayloads;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -12,7 +14,9 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class InfluenceTicker {
@@ -37,11 +41,33 @@ public final class InfluenceTicker {
             ModConfigSpec.INFLUENCE_DECAY_PERCENT.get()
         );
         ResearchManager.tick(manager);
+        broadcastMiningBonus(server, manager);
         if (++furnaceCounter >= FURNACE_INTERVAL) {
             furnaceCounter = 0;
             awardFurnaceInfluence(server, manager);
-            manager.applyTreasuryIncome(1L);
+            manager.applyTreasuryIncome();
         }
+    }
+
+    @SubscribeEvent
+    public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            sendMiningBonus(player, FactionManager.get(player.serverLevel()));
+        }
+    }
+
+    private static void broadcastMiningBonus(MinecraftServer server, FactionManager manager) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            sendMiningBonus(player, manager);
+        }
+    }
+
+    private static void sendMiningBonus(ServerPlayer player, FactionManager manager) {
+        float multiplier = manager.getFactionForMember(player.getUUID())
+            .map(Faction::miningSpeedMultiplier)
+            .orElse(1.0D)
+            .floatValue();
+        PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CMiningBonus(multiplier));
     }
 
     private static void awardFurnaceInfluence(MinecraftServer server, FactionManager manager) {

@@ -195,11 +195,10 @@ public final class ProtectionHandler {
                     return true; // storages stay protected even from war explosions
                 }
                 wars.onChunkModified(level, new ChunkPos(pos)); // snapshot before the blast
-                boolean hardened = factions.getFactionById(owner)
-                        .map(faction -> faction.hasResearchBonus(
-                                com.geydev.kalfactions.faction.ResearchBonus.CLAIM_TNT_RESIST))
-                        .orElse(false);
-                if (hardened && level.getRandom().nextFloat() < 0.5F) {
+                double surviveChance = factions.getFactionById(owner)
+                        .map(faction -> Math.min(0.90D, 0.25D * faction.researchBonusCount("TNT_RESIST")))
+                        .orElse(0.0D);
+                if (surviveChance > 0.0D && level.getRandom().nextFloat() < surviveChance) {
                     return true; // research-hardened claim block survives the blast
                 }
                 return false; // a belligerent's explosion may damage the enemy claim

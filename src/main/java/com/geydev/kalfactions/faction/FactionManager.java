@@ -873,16 +873,10 @@ public final class FactionManager extends SavedData {
         return completed;
     }
 
-    public synchronized void applyTreasuryIncome(long perClaim) {
-        if (perClaim <= 0L) {
-            return;
-        }
+    public synchronized void applyTreasuryIncome() {
         boolean changed = false;
         for (Faction faction : factions.values()) {
-            if (!faction.hasResearchBonus(ResearchBonus.TREASURY_INCOME)) {
-                continue;
-            }
-            long income = PriceMath.saturatedMultiply(faction.claimCount(), perClaim);
+            long income = faction.researchTreasuryIncome();
             if (income > 0L && faction.deposit(income)) {
                 changed = true;
             }

@@ -933,6 +933,19 @@ public final class FactionPayloads {
         }
     }
 
+    public record S2CMiningBonus(float multiplier) implements CustomPacketPayload {
+        public static final Type<S2CMiningBonus> TYPE = FactionPayloads.payloadType("mining_bonus");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CMiningBonus> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> buffer.writeFloat(payload.multiplier),
+                buffer -> new S2CMiningBonus(buffer.readFloat())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record S2CSyncClaims(
             ResourceLocation dimension,
             List<ClaimEntry> claims,

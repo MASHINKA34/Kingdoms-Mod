@@ -267,9 +267,7 @@ public final class ResourceClusterManager extends SavedData {
         tag.putBoolean("shadow", true);
         tag.putBoolean("see_through", false);
         tag.putInt("background", 0x60000000);
-        Component text = Component.literal(
-                cluster.type().displayName() + "\nКонцентрация: " + cluster.richness() + "/3"
-        );
+        Component text = Component.literal(cluster.type().displayName());
         tag.putString(Display.TextDisplay.TAG_TEXT, Component.Serializer.toJson(text, level.registryAccess()));
         display.load(tag);
         return level.addFreshEntity(display) ? display : existingTextById(level, cluster);

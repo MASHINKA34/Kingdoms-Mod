@@ -188,6 +188,11 @@ public final class FactionNetwork {
                 FactionPayloads.S2CInfluenceGain.STREAM_CODEC,
                 FactionNetwork::handleInfluenceGain
         );
+        registrar.playToClient(
+                FactionPayloads.S2CMiningBonus.TYPE,
+                FactionPayloads.S2CMiningBonus.STREAM_CODEC,
+                FactionNetwork::handleMiningBonus
+        );
     }
 
     private static void handleOpen(FactionPayloads.C2SOpenTable payload, IPayloadContext context) {
@@ -374,6 +379,12 @@ public final class FactionNetwork {
     private static void handleInfluenceGain(FactionPayloads.S2CInfluenceGain payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientFactionPayloadHandler.handleInfluenceGain(payload);
+        }
+    }
+
+    private static void handleMiningBonus(FactionPayloads.S2CMiningBonus payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientFactionPayloadHandler.handleMiningBonus(payload);
         }
     }
 

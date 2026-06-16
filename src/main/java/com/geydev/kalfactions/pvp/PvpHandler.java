@@ -39,6 +39,14 @@ public final class PvpHandler {
             float multiplier = ModConfigSpec.WARRIOR_DAMAGE_MULTIPLIER.get().floatValue();
             event.setAmount(event.getAmount() * multiplier);
         }
+
+        int warriorLevels = com.geydev.kalfactions.faction.FactionManager.get(attacker.serverLevel())
+                .getFactionForMember(attacker.getUUID())
+                .map(faction -> faction.researchBonusCount("WARRIOR_DAMAGE"))
+                .orElse(0);
+        if (warriorLevels > 0) {
+            event.setAmount(event.getAmount() * (1.0F + 0.05F * warriorLevels));
+        }
     }
 
     @SubscribeEvent
