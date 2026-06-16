@@ -91,13 +91,17 @@ public abstract class FactionScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.render(graphics, mouseX, mouseY, partialTick);
+        renderWidgets(graphics, mouseX, mouseY, partialTick);
         int titleWidth = font.width(title);
         graphics.drawString(font, title, left + (PANEL_WIDTH - titleWidth) / 2, top + CONTENT_TOP + 2, TEXT_DARK, false);
         renderStatusNotice(graphics);
     }
 
-    private void renderStatusNotice(GuiGraphics graphics) {
+    protected final void renderWidgets(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        super.render(graphics, mouseX, mouseY, partialTick);
+    }
+
+    protected final void renderStatusNotice(GuiGraphics graphics) {
         if (statusMessage.isBlank() || statusShownAt == 0L) {
             return;
         }

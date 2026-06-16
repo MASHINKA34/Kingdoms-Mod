@@ -189,6 +189,7 @@ final class KingdomsGuiMap extends GuiMap {
         RightClickOption option = new RightClickOption(key, index, this) {
             @Override
             public void onAction(Screen screen) {
+                ClientClaimStore.setForceLoaded(dimension, packedChunk, !forceLoaded);
                 PacketDistributor.sendToServer(new FactionPayloads.C2SToggleForceLoad(
                         dimension.location(),
                         packedChunk

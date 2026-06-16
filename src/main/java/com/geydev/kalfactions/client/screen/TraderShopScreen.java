@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.client.KingdomsNoticeToast;
 import com.geydev.kalfactions.outpost.trader.TraderOffer;
 import com.geydev.kalfactions.outpost.trader.TraderPayloads;
 import java.util.List;
@@ -20,13 +21,9 @@ public final class TraderShopScreen extends Screen {
     private static final int PANEL_HEIGHT = 220;
     private static final int TEXT_DARK = 0xFF3F2A19;
     private static final int TEXT_MUTED = 0xFF5B452E;
-    private static final int TEXT_SUCCESS = 0xFF427A36;
-    private static final int TEXT_FAILURE = 0xFFA33B32;
 
     private final UUID traderId;
     private List<TraderPayloads.OfferInfo> offers;
-    private Component notice;
-    private boolean successful;
     private String pendingOfferId = "";
     private int left;
     private int top;
@@ -35,8 +32,6 @@ public final class TraderShopScreen extends Screen {
         super(Component.translatable("screen.kingdoms.trader.title"));
         traderId = state.traderId();
         offers = state.offers();
-        notice = state.notice();
-        successful = state.successful();
     }
 
     public static void handle(TraderPayloads.S2CShopState state) {
@@ -48,6 +43,7 @@ public final class TraderShopScreen extends Screen {
                     && screen.traderId.equals(state.traderId())) {
                 screen.acceptState(state);
             } else {
+                showShopNotice(state.notice(), state.successful());
                 minecraft.setScreen(new TraderShopScreen(state));
             }
         });
@@ -55,9 +51,8 @@ public final class TraderShopScreen extends Screen {
 
     private void acceptState(TraderPayloads.S2CShopState state) {
         offers = state.offers();
-        notice = state.notice();
-        successful = state.successful();
         pendingOfferId = "";
+        showShopNotice(state.notice(), state.successful());
         rebuildWidgets();
     }
 
@@ -71,9 +66,9 @@ public final class TraderShopScreen extends Screen {
             KingdomsButton button = KingdomsButton.create(
                     Component.translatable("screen.kingdoms.trader.buy"),
                     pressed -> buy(offer.id()),
-                    left + 92,
+                    left + PANEL_WIDTH - 92,
                     rowTop + 6,
-                    58,
+                    68,
                     20
             );
             button.active = pendingOfferId.isBlank();
@@ -129,7 +124,6 @@ public final class TraderShopScreen extends Screen {
         for (int i = 0; i < offers.size(); i++) {
             renderOffer(graphics, offers.get(i), top + 72 + i * 42);
         }
-        renderNotice(graphics);
     }
 
     private void renderOffer(
@@ -152,21 +146,6 @@ public final class TraderShopScreen extends Screen {
         });
     }
 
-    private void renderNotice(GuiGraphics graphics) {
-        if (notice == null || notice.getString().isBlank()) {
-            return;
-        }
-        String clipped = font.plainSubstrByWidth(notice.getString(), PANEL_WIDTH - 90);
-        graphics.drawString(
-                font,
-                clipped,
-                left + 24,
-                top + PANEL_HEIGHT - 20,
-                successful ? TEXT_SUCCESS : TEXT_FAILURE,
-                false
-        );
-    }
-
     static Component formatPrice(long spurs) {
         long lastTwo = Math.floorMod(spurs, 100L);
         long last = Math.floorMod(spurs, 10L);
@@ -184,6 +163,10 @@ public final class TraderShopScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    private static void showShopNotice(Component notice, boolean successful) {
+        KingdomsNoticeToast.show(notice, successful);
     }
 
 }

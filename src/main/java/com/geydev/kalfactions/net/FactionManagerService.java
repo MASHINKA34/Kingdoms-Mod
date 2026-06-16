@@ -75,6 +75,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 ModConfigSpec.CREATION_COST.getAsLong(),
                 player.getUUID(),
                 role.isAtLeast(FactionRole.OFFICER),
+                activeWarName(player, manager, faction),
                 warTargetNames(manager, faction),
                 allianceCandidateNames(player, manager, faction),
                 allies,
@@ -134,6 +135,15 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 .map(Faction::name)
                 .sorted(String.CASE_INSENSITIVE_ORDER)
                 .toList();
+    }
+
+    private static String activeWarName(ServerPlayer player, FactionManager manager, Faction faction) {
+        return WarManager.get(player.getServer()).warForFaction(faction.id())
+                .filter(war -> war.isActive())
+                .map(war -> manager.getFactionById(war.opponentOf(faction.id()))
+                        .map(Faction::name)
+                        .orElse(""))
+                .orElse("");
     }
 
     private static List<String> allianceCandidateNames(

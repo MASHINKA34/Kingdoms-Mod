@@ -38,7 +38,7 @@ public final class FactionActionsScreen extends FactionScreen {
         KingdomsButton leave = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.leave"),
                 button -> PacketDistributor.sendToServer(new FactionPayloads.C2SLeaveFaction(snapshot.tablePos())),
-                leftColumn, top + 118, 60, 20
+                leftColumn, top + 118, 52, 20
         ));
         leave.active = snapshot.hasFaction();
 
@@ -54,7 +54,7 @@ public final class FactionActionsScreen extends FactionScreen {
                                 new FactionPayloads.C2SDisbandFaction(snapshot.tablePos()));
                     }
                 },
-                leftColumn + 66, top + 118, 60, 20
+                leftColumn + 56, top + 118, 70, 20
         ));
         disband.active = snapshot.canManage();
 
@@ -69,34 +69,40 @@ public final class FactionActionsScreen extends FactionScreen {
                 button -> openWarPicker(),
                 rightColumn, top + 70, columnWidth, 20
         ));
-        declareWar.active = snapshot.canManage() && !snapshot.knownFactions().isEmpty();
+        boolean hasActiveWar = !snapshot.warWith().isBlank();
+        declareWar.active = snapshot.canManage() && !hasActiveWar && !snapshot.knownFactions().isEmpty();
 
         confirmingSurrender = false;
-        KingdomsButton surrenderWar = addRenderableWidget(KingdomsButton.create(
-                text("screen.kingdoms.war_surrender"),
-                button -> {
-                    if (!confirmingSurrender) {
-                        confirmingSurrender = true;
-                        button.setMessage(text("screen.kingdoms.war_surrender_confirm"));
-                    } else {
-                        PacketDistributor.sendToServer(new FactionPayloads.C2SSurrenderWar(snapshot.tablePos()));
-                    }
-                },
-                rightColumn, top + 94, columnWidth, 20
-        ));
-        surrenderWar.active = snapshot.canManage();
+        int nextDiplomacyY = top + 94;
+        if (hasActiveWar) {
+            KingdomsButton surrenderWar = addRenderableWidget(KingdomsButton.create(
+                    text("screen.kingdoms.war_surrender"),
+                    button -> {
+                        if (!confirmingSurrender) {
+                            confirmingSurrender = true;
+                            button.setMessage(text("screen.kingdoms.war_surrender_confirm"));
+                        } else {
+                            PacketDistributor.sendToServer(new FactionPayloads.C2SSurrenderWar(snapshot.tablePos()));
+                        }
+                    },
+                    rightColumn, nextDiplomacyY, columnWidth, 20
+            ));
+            surrenderWar.active = snapshot.canManage();
+            nextDiplomacyY += 24;
+        }
 
         KingdomsButton requestAlliance = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.alliance_request"),
                 button -> openAlliancePicker(),
-                rightColumn, top + 118, columnWidth, 20
+                rightColumn, nextDiplomacyY, columnWidth, 20
         ));
         requestAlliance.active = snapshot.canManage() && !snapshot.allianceCandidates().isEmpty();
+        nextDiplomacyY += 24;
 
         KingdomsButton breakAlliance = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.alliance_members"),
                 button -> openBreakAlliancePicker(),
-                rightColumn, top + 142, columnWidth, 20
+                rightColumn, nextDiplomacyY, columnWidth, 20
         ));
         breakAlliance.active = snapshot.canManage() && !snapshot.allies().isEmpty();
     }

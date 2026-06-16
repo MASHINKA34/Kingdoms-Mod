@@ -32,26 +32,26 @@ public final class InfluenceGainToast implements Toast {
     public Visibility render(GuiGraphics graphics, ToastComponent component, long timeSinceLastVisible) {
         Minecraft minecraft = Minecraft.getInstance();
         graphics.blit(BACKGROUND, 0, 0, width(), height(), 0.0F, 0.0F, 256, 64, 256, 64);
-        graphics.blit(icon(), 17, 11, 18, 18, 0.0F, 0.0F, 16, 16, 16, 16);
+        graphics.blit(icon(), 15, 13, 20, 20, 0.0F, 0.0F, 16, 16, 16, 16);
         graphics.drawString(
                 minecraft.font,
                 Component.translatable("screen.kingdoms.influence_gain", amount, Component.translatable(type.translationKey())),
-                45,
-                16,
+                44,
+                18,
                 color(),
-                false
+                true
         );
         return timeSinceLastVisible >= DISPLAY_TIME ? Visibility.HIDE : Visibility.SHOW;
     }
 
     @Override
     public int width() {
-        return 160;
+        return 200;
     }
 
     @Override
     public int height() {
-        return 40;
+        return 48;
     }
 
     private ResourceLocation icon() {

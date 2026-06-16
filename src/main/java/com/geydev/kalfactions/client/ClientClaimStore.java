@@ -54,6 +54,25 @@ public final class ClientClaimStore {
         return claims == null ? null : claims.get(ChunkPos.asLong(chunkX, chunkZ));
     }
 
+    public static void setForceLoaded(ResourceKey<Level> dimension, long packedChunk, boolean forceLoaded) {
+        Map<Long, ClaimInfo> claims = BY_DIMENSION.get(dimension);
+        if (claims == null) {
+            return;
+        }
+        ClaimInfo claim = claims.get(packedChunk);
+        if (claim == null || claim.forceLoaded() == forceLoaded) {
+            return;
+        }
+        Map<Long, ClaimInfo> updated = new HashMap<>(claims);
+        updated.put(
+                packedChunk,
+                new ClaimInfo(claim.color(), claim.name(), claim.factionId(), claim.outpost(), forceLoaded)
+        );
+        BY_DIMENSION.put(dimension, Map.copyOf(updated));
+        REGION_HASHES.put(dimension, regionHashes(updated));
+        REVISION.incrementAndGet();
+    }
+
     public static Map<Long, ClaimInfo> claims(ResourceKey<Level> dimension) {
         return BY_DIMENSION.getOrDefault(dimension, Map.of());
     }

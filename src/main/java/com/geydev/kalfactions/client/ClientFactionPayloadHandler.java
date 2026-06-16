@@ -79,12 +79,12 @@ public final class ClientFactionPayloadHandler {
             listScreen.showNotice(message, successful);
             return;
         }
-        if (minecraft.screen instanceof FactionScreen screen) {
-            screen.acceptStatus(message.getString(), successful);
+        if (minecraft.screen instanceof FactionScreen) {
+            KingdomsNoticeToast.show(message, successful);
             return;
         }
         if (minecraft.player != null) {
-            minecraft.player.displayClientMessage(message, true);
+            KingdomsNoticeToast.show(message, successful);
         }
     }
 

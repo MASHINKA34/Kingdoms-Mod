@@ -829,6 +829,7 @@ public final class FactionServerHooks {
                 snapshot.creationCost(),
                 snapshot.viewerId(),
                 snapshot.isOfficer(),
+                snapshot.warWith(),
                 snapshot.knownFactions(),
                 snapshot.allianceCandidates(),
                 snapshot.allies(),

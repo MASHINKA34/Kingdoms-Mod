@@ -34,12 +34,12 @@ public final class ResearchScreen extends FactionScreen {
     private static final int WINDOW_WIDTH = 420;
     private static final int WINDOW_HEIGHT = 260;
     private static final int TREE_LEFT = 24;
-    private static final int TREE_TOP = 58;
+    private static final int TREE_TOP = 62;
     private static final int TREE_WIDTH = 372;
-    private static final int TREE_HEIGHT = 154;
-    private static final int TAB_WIDTH = 42;
-    private static final int TAB_HEIGHT = 32;
-    private static final int TAB_STEP = 50;
+    private static final int TREE_HEIGHT = 148;
+    private static final int TAB_WIDTH = 44;
+    private static final int TAB_HEIGHT = 34;
+    private static final int TAB_STEP = 52;
     private static final int NODE_SIZE = 30;
     private static final int ROOT_SIZE = 46;
 
@@ -48,7 +48,7 @@ public final class ResearchScreen extends FactionScreen {
     private Button startButton;
     private float panX;
     private float panY;
-    private float zoom = 0.92F;
+    private float zoom = 0.72F;
     private boolean draggingTree;
     private double lastDragX;
     private double lastDragY;
@@ -108,24 +108,38 @@ public final class ResearchScreen extends FactionScreen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawString(font, title, left + (WINDOW_WIDTH - font.width(title)) / 2, top + 33, 0xFFFFE8AA, true);
-        renderTabs(graphics);
+        renderWidgets(graphics, mouseX, mouseY, partialTick);
+        int titleAreaLeft = left + 184;
+        int titleAreaWidth = WINDOW_WIDTH - 208;
+        graphics.drawString(font, title, titleAreaLeft + (titleAreaWidth - font.width(title)) / 2, top + 34, 0xFFFFE8AA, true);
+        renderTabs(graphics, mouseX, mouseY);
         renderTree(graphics, mouseX, mouseY);
         renderSelectionLine(graphics);
-        renderStatusNotice(graphics);
+        renderResearchStatusNotice(graphics);
         ResearchNode hovered = hoveredNode(mouseX, mouseY);
         if (hovered != null) {
             renderNodeTooltip(graphics, hovered, mouseX, mouseY);
+        } else {
+            int tab = hoveredTab(mouseX, mouseY);
+            if (tab >= 0) {
+                graphics.renderTooltip(font, text(InfluenceType.VALUES[tab].translationKey()), mouseX, mouseY);
+            }
         }
     }
 
-    private void renderTabs(GuiGraphics graphics) {
+    private void renderTabs(GuiGraphics graphics, int mouseX, int mouseY) {
         ResourceLocation[] tabs = {TAB_SCIENCE, TAB_ECONOMIC, TAB_MILITARY};
         for (int i = 0; i < tabs.length; i++) {
-            int tabX = left + TREE_LEFT + i * TAB_STEP;
-            int tabY = top + 18;
-            float alpha = selectedType == InfluenceType.VALUES[i] ? 1.0F : 0.58F;
+            int tabX = tabX(i);
+            int tabY = tabY(i);
+            boolean active = selectedType == InfluenceType.VALUES[i];
+            boolean hovered = mouseX >= tabX && mouseX < tabX + TAB_WIDTH && mouseY >= tabY && mouseY < tabY + TAB_HEIGHT;
+            int frame = active ? 0xFFFFCE4A : hovered ? 0xFFC9A24C : 0x663A3D47;
+            graphics.fill(tabX - 2, tabY - 2, tabX + TAB_WIDTH + 2, tabY - 1, frame);
+            graphics.fill(tabX - 2, tabY + TAB_HEIGHT + 1, tabX + TAB_WIDTH + 2, tabY + TAB_HEIGHT + 2, frame);
+            graphics.fill(tabX - 2, tabY - 2, tabX - 1, tabY + TAB_HEIGHT + 2, frame);
+            graphics.fill(tabX + TAB_WIDTH + 1, tabY - 2, tabX + TAB_WIDTH + 2, tabY + TAB_HEIGHT + 2, frame);
+            float alpha = active ? 1.0F : hovered ? 0.82F : 0.58F;
             graphics.setColor(1.0F, 1.0F, 1.0F, alpha);
             graphics.blit(tabs[i], tabX, tabY, TAB_WIDTH, TAB_HEIGHT, 0.0F, 0.0F, 128, 96, 128, 96);
             graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
@@ -179,7 +193,7 @@ public final class ResearchScreen extends FactionScreen {
         int x = screenX(node) - size / 2;
         int y = screenY(node) - size / 2;
         if (hovered || node == selectedNode) {
-            graphics.fill(x - 3, y - 3, x + size + 3, y + size + 3, hovered ? 0x66C9A24C : 0x663FAE9E);
+            drawSelectionFrame(graphics, x - 3, y - 3, size + 6, hovered ? 0xCCC9A24C : 0xCC6FE3D4);
         }
         int sourceSize = node.root() ? 64 : 64;
         graphics.blit(texture, x, y, size, size, 0.0F, 0.0F, sourceSize, sourceSize, sourceSize, sourceSize);
@@ -198,6 +212,13 @@ public final class ResearchScreen extends FactionScreen {
         }
     }
 
+    private static void drawSelectionFrame(GuiGraphics graphics, int x, int y, int size, int color) {
+        graphics.fill(x, y, x + size, y + 2, color);
+        graphics.fill(x, y + size - 2, x + size, y + size, color);
+        graphics.fill(x, y, x + 2, y + size, color);
+        graphics.fill(x + size - 2, y, x + size, y + size, color);
+    }
+
     private void renderSelectionLine(GuiGraphics graphics) {
         if (selectedNode == null) {
             return;
@@ -213,7 +234,7 @@ public final class ResearchScreen extends FactionScreen {
         graphics.drawString(font, cost, left + TREE_LEFT + 150, top + 218, 0xFFD7C57C, true);
     }
 
-    private void renderStatusNotice(GuiGraphics graphics) {
+    private void renderResearchStatusNotice(GuiGraphics graphics) {
         if (statusMessage == null || statusMessage.isBlank()) {
             return;
         }
@@ -222,9 +243,13 @@ public final class ResearchScreen extends FactionScreen {
     }
 
     private void renderNodeTooltip(GuiGraphics graphics, ResearchNode node, int mouseX, int mouseY) {
-        int boxWidth = 214;
+        int boxWidth = 228;
         List<FormattedCharSequence> desc = font.split(text(node.descriptionKey()), boxWidth - 18);
-        int boxHeight = 58 + desc.size() * 10;
+        List<FormattedCharSequence> effect = font.split(
+                text("screen.kingdoms.research_effect", bonusText(node.bonusTag())),
+                boxWidth - 18
+        );
+        int boxHeight = 68 + desc.size() * 10 + effect.size() * 10;
         int x = Math.min(mouseX + 14, width - boxWidth - 6);
         int y = Math.min(mouseY + 12, height - boxHeight - 6);
         graphics.fill(x, y, x + boxWidth, y + boxHeight, 0xF015171D);
@@ -245,7 +270,22 @@ public final class ResearchScreen extends FactionScreen {
                 false
         );
         graphics.drawString(font, statusText(node), x + 8, lineY + 14, statusColor(node), false);
-        graphics.drawString(font, text("screen.kingdoms.research_tag", node.bonusTag()), x + 8, lineY + 26, 0xFF9CA2B2, false);
+        for (int i = 0; i < effect.size(); i++) {
+            graphics.drawString(font, effect.get(i), x + 8, lineY + 28 + i * 10, 0xFF9CA2B2, false);
+        }
+    }
+
+    private static Component bonusText(String bonusTag) {
+        String[] parts = bonusTag.split("\\+");
+        net.minecraft.network.chat.MutableComponent result = Component.empty();
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) {
+                result.append(", ");
+            }
+            String normalized = parts[i].trim().toLowerCase(java.util.Locale.ROOT);
+            result.append(Component.translatable("kingdoms.research.effect." + normalized));
+        }
+        return result;
     }
 
     private Component statusText(ResearchNode node) {
@@ -310,8 +350,8 @@ public final class ResearchScreen extends FactionScreen {
             return false;
         }
         for (int i = 0; i < InfluenceType.VALUES.length; i++) {
-            int tabX = left + TREE_LEFT + i * TAB_STEP;
-            int tabY = top + 18;
+            int tabX = tabX(i);
+            int tabY = tabY(i);
             if (mouseX >= tabX && mouseX < tabX + TAB_WIDTH && mouseY >= tabY && mouseY < tabY + TAB_HEIGHT) {
                 if (selectedType != InfluenceType.VALUES[i]) {
                     selectedType = InfluenceType.VALUES[i];
@@ -336,6 +376,25 @@ public final class ResearchScreen extends FactionScreen {
             return true;
         }
         return false;
+    }
+
+    private int hoveredTab(double mouseX, double mouseY) {
+        for (int i = 0; i < InfluenceType.VALUES.length; i++) {
+            int x = tabX(i);
+            int y = tabY(i);
+            if (mouseX >= x && mouseX < x + TAB_WIDTH && mouseY >= y && mouseY < y + TAB_HEIGHT) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private int tabX(int index) {
+        return left + TREE_LEFT + 4 + index * TAB_STEP;
+    }
+
+    private int tabY(int index) {
+        return top + (selectedType == InfluenceType.VALUES[index] ? 16 : 19);
     }
 
     @Override

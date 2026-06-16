@@ -17,10 +17,11 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     public DrillScreen(DrillMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
         imageWidth = 256;
-        imageHeight = 196;
-        inventoryLabelY = 94;
-        titleLabelX = 18;
-        titleLabelY = 22;
+        imageHeight = 228;
+        inventoryLabelX = 48;
+        inventoryLabelY = 128;
+        titleLabelX = 0;
+        titleLabelY = 0;
     }
 
     @Override
@@ -33,24 +34,27 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
         graphics.blit(BACKGROUND, leftPos, topPos, 0.0F, 0.0F, imageWidth, imageHeight, imageWidth, imageHeight);
-        int width = Math.max(0, (int) (58 * menu.progressFraction()));
+        int progressWidth = 112;
+        int width = Math.max(0, (int) (progressWidth * menu.progressFraction()));
         if (width > 0) {
-            graphics.blit(PROGRESS, leftPos + 178, topPos + 56, width, 10, 0.0F, 0.0F, width, 16, 128, 16);
+            graphics.blit(PROGRESS, leftPos + 110, topPos + 49, width, 10, 0.0F, 0.0F, width, 16, 128, 16);
         }
+        Component timer = Component.translatable("screen.kingdoms.drill.remaining", formatTicks(menu.remainingTicks()));
         graphics.drawString(
                 font,
-                Component.translatable("screen.kingdoms.drill.remaining", formatTicks(menu.remainingTicks())),
-                leftPos + 168,
-                topPos + 74,
+                timer,
+                leftPos + 166 - font.width(timer) / 2,
+                topPos + 64,
                 0xFFE8D6A0,
-                false
+                true
         );
     }
 
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
-        graphics.drawString(font, title, titleLabelX, titleLabelY, 0xFFE8D6A0, false);
-        graphics.drawString(font, playerInventoryTitle, inventoryLabelX + 30, inventoryLabelY, 0xFFE8D6A0, false);
+        graphics.drawString(font, title, (imageWidth - font.width(title)) / 2, 19, 0xFFFFE8AA, true);
+        graphics.drawString(font, Component.translatable("screen.kingdoms.drill.storage"), 42, 77, 0xFFE8D6A0, true);
+        graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, 0xFFE8D6A0, true);
     }
 
     private static String formatTicks(int ticks) {

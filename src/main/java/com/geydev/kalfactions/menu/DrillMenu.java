@@ -13,6 +13,11 @@ import net.minecraft.world.item.ItemStack;
 
 public final class DrillMenu extends AbstractContainerMenu {
     private static final int SLOTS = 18;
+    private static final int DRILL_SLOT_X = 42;
+    private static final int DRILL_SLOT_Y = 88;
+    private static final int PLAYER_SLOT_X = 48;
+    private static final int PLAYER_SLOT_Y = 140;
+    private static final int HOTBAR_SLOT_Y = 200;
     private final Container container;
     private final ContainerData data;
 
@@ -29,16 +34,16 @@ public final class DrillMenu extends AbstractContainerMenu {
         container.startOpen(playerInventory.player);
         for (int row = 0; row < 2; row++) {
             for (int column = 0; column < 9; column++) {
-                addSlot(new Slot(container, column + row * 9, 18 + column * 18, 52 + row * 18));
+                addSlot(new Slot(container, column + row * 9, DRILL_SLOT_X + column * 18, DRILL_SLOT_Y + row * 18));
             }
         }
         for (int row = 0; row < 3; row++) {
             for (int column = 0; column < 9; column++) {
-                addSlot(new Slot(playerInventory, column + row * 9 + 9, 48 + column * 18, 106 + row * 18));
+                addSlot(new Slot(playerInventory, column + row * 9 + 9, PLAYER_SLOT_X + column * 18, PLAYER_SLOT_Y + row * 18));
             }
         }
         for (int column = 0; column < 9; column++) {
-            addSlot(new Slot(playerInventory, column, 48 + column * 18, 166));
+            addSlot(new Slot(playerInventory, column, PLAYER_SLOT_X + column * 18, HOTBAR_SLOT_Y));
         }
         addDataSlots(data);
     }

@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.client.KingdomsNoticeToast;
 import com.geydev.kalfactions.outpost.trader.SellOffer;
 import com.geydev.kalfactions.outpost.trader.TraderPayloads;
 import java.util.ArrayList;
@@ -18,21 +19,17 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class SellerShopScreen extends Screen {
     private static final ResourceLocation PANEL_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/gui/research/panel.png");
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/gui/faction/panel.png");
     private static final int PANEL_WIDTH = 330;
     private static final int PANEL_HEIGHT = 220;
-    private static final int TEXT_DARK = 0xFFE8D6A0;
-    private static final int TEXT_MUTED = 0xFFC9A24C;
-    private static final int TEXT_SUCCESS = 0xFF6FE3D4;
-    private static final int TEXT_FAILURE = 0xFFFF9E9E;
+    private static final int TEXT_DARK = 0xFF3F2A19;
+    private static final int TEXT_MUTED = 0xFF5B452E;
     private static final int SELL_COLUMNS = 3;
     private static final int SELL_CELL_WIDTH = 82;
     private static final int SELL_CELL_HEIGHT = 25;
 
     private final UUID traderId;
     private List<TraderPayloads.OfferInfo> sellOffers;
-    private Component notice;
-    private boolean successful;
     private String pendingOfferId = "";
     private int left;
     private int top;
@@ -42,8 +39,6 @@ public final class SellerShopScreen extends Screen {
         super(Component.translatable("screen.kingdoms.seller.title"));
         traderId = state.traderId();
         sellOffers = state.sellOffers();
-        notice = state.notice();
-        successful = state.successful();
     }
 
     public static void handle(TraderPayloads.S2CShopState state) {
@@ -53,6 +48,7 @@ public final class SellerShopScreen extends Screen {
                     && screen.traderId.equals(state.traderId())) {
                 screen.acceptState(state);
             } else {
+                showShopNotice(state.notice(), state.successful());
                 minecraft.setScreen(new SellerShopScreen(state));
             }
         });
@@ -60,9 +56,8 @@ public final class SellerShopScreen extends Screen {
 
     private void acceptState(TraderPayloads.S2CShopState state) {
         sellOffers = state.sellOffers();
-        notice = state.notice();
-        successful = state.successful();
         pendingOfferId = "";
+        showShopNotice(state.notice(), state.successful());
         rebuildWidgets();
     }
 
@@ -113,13 +108,13 @@ public final class SellerShopScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.renderBackground(graphics, mouseX, mouseY, partialTick);
-        graphics.blit(PANEL_TEXTURE, left, top, 0.0F, 0.0F, PANEL_WIDTH, PANEL_HEIGHT, 420, 260);
+        graphics.blit(PANEL_TEXTURE, left, top, 0.0F, 0.0F, PANEL_WIDTH, PANEL_HEIGHT, PANEL_WIDTH, PANEL_HEIGHT);
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawString(font, title, left + (PANEL_WIDTH - font.width(title)) / 2, top + 48, TEXT_DARK, true);
+        graphics.drawString(font, title, left + (PANEL_WIDTH - font.width(title)) / 2, top + 48, TEXT_DARK, false);
         graphics.drawString(font, Component.translatable("screen.kingdoms.trader.sell_section"), left + 35, top + 60, TEXT_MUTED, false);
         ItemStack hovered = null;
         for (SellCell cell : sellCells) {
@@ -129,7 +124,6 @@ public final class SellerShopScreen extends Screen {
                 hovered = new ItemStack(cell.item());
             }
         }
-        renderNotice(graphics);
         if (hovered != null) {
             graphics.renderTooltip(font, hovered, mouseX, mouseY);
         }
@@ -137,13 +131,13 @@ public final class SellerShopScreen extends Screen {
 
     private void renderSellCell(GuiGraphics graphics, SellCell cell, boolean hover) {
         int owned = ownedCount(cell.item());
-        int background = hover && owned > 0 ? 0x663FAE9E : 0x3315171D;
+        int background = hover && owned > 0 ? 0x66C9A24C : 0x24A8783D;
         graphics.fill(cell.x(), cell.y(), cell.x() + SELL_CELL_WIDTH - 4, cell.y() + SELL_CELL_HEIGHT - 2, background);
         ItemStack stack = new ItemStack(cell.item());
         graphics.renderItem(stack, cell.x() + 3, cell.y() + 4);
         int textColor = owned > 0 ? TEXT_DARK : 0xFF8A7A66;
         graphics.drawString(font, TraderShopScreen.formatPrice(cell.offer().price()), cell.x() + 23, cell.y() + 3, textColor, false);
-        graphics.drawString(font, "x" + owned, cell.x() + 23, cell.y() + 13, TEXT_MUTED, false);
+        graphics.drawString(font, "x" + owned, cell.x() + 23, cell.y() + 13, owned > 0 ? 0xFFC9921F : TEXT_MUTED, false);
     }
 
     private int ownedCount(Item item) {
@@ -160,24 +154,13 @@ public final class SellerShopScreen extends Screen {
         return count;
     }
 
-    private void renderNotice(GuiGraphics graphics) {
-        if (notice == null || notice.getString().isBlank()) {
-            return;
-        }
-        String clipped = font.plainSubstrByWidth(notice.getString(), PANEL_WIDTH - 48);
-        graphics.drawString(
-                font,
-                clipped,
-                left + 24,
-                top + PANEL_HEIGHT - 20,
-                successful ? TEXT_SUCCESS : TEXT_FAILURE,
-                false
-        );
-    }
-
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    private static void showShopNotice(Component notice, boolean successful) {
+        KingdomsNoticeToast.show(notice, successful);
     }
 
     private record SellCell(TraderPayloads.OfferInfo offer, int x, int y) {
