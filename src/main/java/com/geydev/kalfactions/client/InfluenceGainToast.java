@@ -19,6 +19,8 @@ public final class InfluenceGainToast implements Toast {
     private static final ResourceLocation MILITARY =
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/gui/influence/military.png");
     private static final long DISPLAY_TIME = 4500L;
+    private static final int TOAST_WIDTH = 236;
+    private static final int TOAST_HEIGHT = 44;
 
     private final InfluenceType type;
     private final long amount;
@@ -31,13 +33,13 @@ public final class InfluenceGainToast implements Toast {
     @Override
     public Visibility render(GuiGraphics graphics, ToastComponent component, long timeSinceLastVisible) {
         Minecraft minecraft = Minecraft.getInstance();
-        graphics.blit(BACKGROUND, 0, 0, width(), height(), 0.0F, 0.0F, 256, 64, 256, 64);
-        graphics.blit(icon(), 15, 13, 20, 20, 0.0F, 0.0F, 16, 16, 16, 16);
+        graphics.blit(BACKGROUND, 0, 0, width(), height(), 0.0F, 0.0F, width(), height(), width(), height());
+        graphics.blit(icon(), 14, 12, 20, 20, 0.0F, 0.0F, 16, 16, 16, 16);
         graphics.drawString(
                 minecraft.font,
                 Component.translatable("screen.kingdoms.influence_gain", amount, Component.translatable(type.translationKey())),
-                44,
-                18,
+                42,
+                17,
                 color(),
                 true
         );
@@ -46,12 +48,12 @@ public final class InfluenceGainToast implements Toast {
 
     @Override
     public int width() {
-        return 200;
+        return TOAST_WIDTH;
     }
 
     @Override
     public int height() {
-        return 48;
+        return TOAST_HEIGHT;
     }
 
     private ResourceLocation icon() {

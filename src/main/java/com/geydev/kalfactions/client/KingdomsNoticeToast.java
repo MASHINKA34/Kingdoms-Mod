@@ -14,8 +14,8 @@ public final class KingdomsNoticeToast implements Toast {
     private static final ResourceLocation BACKGROUND =
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/gui/toast/influence.png");
     private static final long DISPLAY_TIME = 4200L;
-    private static final int TOAST_WIDTH = 200;
-    private static final int TOAST_HEIGHT = 48;
+    private static final int TOAST_WIDTH = 236;
+    private static final int TOAST_HEIGHT = 44;
 
     private final Component message;
     private final boolean successful;
@@ -36,7 +36,7 @@ public final class KingdomsNoticeToast implements Toast {
     @Override
     public Visibility render(GuiGraphics graphics, ToastComponent component, long timeSinceLastVisible) {
         Minecraft minecraft = Minecraft.getInstance();
-        graphics.blit(BACKGROUND, 0, 0, width(), height(), 0.0F, 0.0F, 256, 64, 256, 64);
+        graphics.blit(BACKGROUND, 0, 0, width(), height(), 0.0F, 0.0F, width(), height(), width(), height());
         graphics.fill(8, 8, 11, height() - 8, successful ? 0xFF5AFF8A : 0xFFFF5A5A);
         List<FormattedCharSequence> lines = minecraft.font.split(message, width() - 28);
         int color = successful ? 0xFFE8D6A0 : 0xFFFFD9D9;

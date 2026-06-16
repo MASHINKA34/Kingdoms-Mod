@@ -13,11 +13,11 @@ import net.minecraft.world.item.ItemStack;
 
 public final class DrillMenu extends AbstractContainerMenu {
     private static final int SLOTS = 18;
-    private static final int DRILL_SLOT_X = 42;
-    private static final int DRILL_SLOT_Y = 88;
-    private static final int PLAYER_SLOT_X = 48;
-    private static final int PLAYER_SLOT_Y = 140;
-    private static final int HOTBAR_SLOT_Y = 200;
+    private static final int DRILL_COLUMNS = 6;
+    private static final int DRILL_SLOT_X = 123;
+    private static final int DRILL_SLOT_Y = 90;
+    private static final int DRILL_SLOT_STEP_X = 28;
+    private static final int DRILL_SLOT_STEP_Y = 30;
     private final Container container;
     private final ContainerData data;
 
@@ -32,18 +32,15 @@ public final class DrillMenu extends AbstractContainerMenu {
         this.container = container;
         this.data = data;
         container.startOpen(playerInventory.player);
-        for (int row = 0; row < 2; row++) {
-            for (int column = 0; column < 9; column++) {
-                addSlot(new Slot(container, column + row * 9, DRILL_SLOT_X + column * 18, DRILL_SLOT_Y + row * 18));
-            }
-        }
-        for (int row = 0; row < 3; row++) {
-            for (int column = 0; column < 9; column++) {
-                addSlot(new Slot(playerInventory, column + row * 9 + 9, PLAYER_SLOT_X + column * 18, PLAYER_SLOT_Y + row * 18));
-            }
-        }
-        for (int column = 0; column < 9; column++) {
-            addSlot(new Slot(playerInventory, column, PLAYER_SLOT_X + column * 18, HOTBAR_SLOT_Y));
+        for (int slot = 0; slot < SLOTS; slot++) {
+            int row = slot / DRILL_COLUMNS;
+            int column = slot % DRILL_COLUMNS;
+            addSlot(new Slot(
+                    container,
+                    slot,
+                    DRILL_SLOT_X + column * DRILL_SLOT_STEP_X,
+                    DRILL_SLOT_Y + row * DRILL_SLOT_STEP_Y
+            ));
         }
         addDataSlots(data);
     }
@@ -60,11 +57,7 @@ public final class DrillMenu extends AbstractContainerMenu {
         if (slot != null && slot.hasItem()) {
             ItemStack source = slot.getItem();
             result = source.copy();
-            if (index < SLOTS) {
-                if (!moveItemStackTo(source, SLOTS, slots.size(), true)) {
-                    return ItemStack.EMPTY;
-                }
-            } else if (!moveItemStackTo(source, 0, SLOTS, false)) {
+            if (index >= SLOTS || !moveItemStackTo(source, SLOTS, slots.size(), true)) {
                 return ItemStack.EMPTY;
             }
             if (source.isEmpty()) {

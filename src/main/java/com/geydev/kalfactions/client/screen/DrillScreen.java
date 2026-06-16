@@ -13,13 +13,17 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/gui/drill/drill_gui.png");
     private static final ResourceLocation PROGRESS =
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/gui/drill/progress.png");
+    private static final int BACKGROUND_WIDTH = 370;
+    private static final int BACKGROUND_HEIGHT = 188;
+    private static final int PROGRESS_WIDTH = 162;
+    private static final int PROGRESS_HEIGHT = 20;
 
     public DrillScreen(DrillMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
-        imageWidth = 256;
-        imageHeight = 228;
-        inventoryLabelX = 48;
-        inventoryLabelY = 128;
+        imageWidth = BACKGROUND_WIDTH;
+        imageHeight = BACKGROUND_HEIGHT;
+        inventoryLabelX = 0;
+        inventoryLabelY = 0;
         titleLabelX = 0;
         titleLabelY = 0;
     }
@@ -34,17 +38,28 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
         graphics.blit(BACKGROUND, leftPos, topPos, 0.0F, 0.0F, imageWidth, imageHeight, imageWidth, imageHeight);
-        int progressWidth = 112;
-        int width = Math.max(0, (int) (progressWidth * menu.progressFraction()));
+        int width = Math.max(0, (int) (PROGRESS_WIDTH * menu.progressFraction()));
         if (width > 0) {
-            graphics.blit(PROGRESS, leftPos + 110, topPos + 49, width, 10, 0.0F, 0.0F, width, 16, 128, 16);
+            graphics.blit(
+                    PROGRESS,
+                    leftPos + 114,
+                    topPos + 30,
+                    width,
+                    PROGRESS_HEIGHT,
+                    0.0F,
+                    0.0F,
+                    width,
+                    PROGRESS_HEIGHT,
+                    PROGRESS_WIDTH,
+                    PROGRESS_HEIGHT
+            );
         }
         Component timer = Component.translatable("screen.kingdoms.drill.remaining", formatTicks(menu.remainingTicks()));
         graphics.drawString(
                 font,
                 timer,
-                leftPos + 166 - font.width(timer) / 2,
-                topPos + 64,
+                leftPos + 230 - font.width(timer) / 2,
+                topPos + 66,
                 0xFFE8D6A0,
                 true
         );
@@ -52,9 +67,6 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
 
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
-        graphics.drawString(font, title, (imageWidth - font.width(title)) / 2, 19, 0xFFFFE8AA, true);
-        graphics.drawString(font, Component.translatable("screen.kingdoms.drill.storage"), 42, 77, 0xFFE8D6A0, true);
-        graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, 0xFFE8D6A0, true);
     }
 
     private static String formatTicks(int ticks) {
