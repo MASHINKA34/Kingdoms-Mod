@@ -178,7 +178,7 @@ public final class ModConfigSpec {
         builder.push("chunkloader");
         FORCE_LOAD_SLOTS = builder
             .comment("Base number of chunks a faction may force-load (research adds more).")
-            .defineInRange("forceLoadSlots", 1, 0, 4096);
+            .defineInRange("forceLoadSlots", 15, 0, 4096);
         builder.pop();
 
         builder.push("integration");

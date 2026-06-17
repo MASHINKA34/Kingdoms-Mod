@@ -37,8 +37,8 @@ public final class KingdomsNoticeToast implements Toast {
     public Visibility render(GuiGraphics graphics, ToastComponent component, long timeSinceLastVisible) {
         Minecraft minecraft = Minecraft.getInstance();
         graphics.blit(BACKGROUND, 0, 0, width(), height(), 0.0F, 0.0F, width(), height(), width(), height());
-        graphics.fill(13, 11, 35, 33, 0xFF2A1C0E);
-        graphics.fill(15, 13, 33, 31, successful ? 0xFF3FB85B : 0xFFC8463C);
+        graphics.fill(14, 12, 34, 32, 0xFF2A1C0E);
+        graphics.fill(16, 14, 32, 30, successful ? 0xFF3FB85B : 0xFFC8463C);
         int textLeft = 42;
         List<FormattedCharSequence> lines = minecraft.font.split(message, width() - textLeft - 10);
         int lineCount = Math.min(3, lines.size());

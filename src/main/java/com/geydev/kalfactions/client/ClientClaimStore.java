@@ -118,6 +118,8 @@ public final class ClientClaimStore {
             ClaimInfo claim = entry.getValue();
             int claimHash = Long.hashCode(chunkKey) * 31 + claim.color();
             claimHash = claimHash * 31 + claim.factionId().hashCode();
+            claimHash = claimHash * 31 + (claim.forceLoaded() ? 1 : 0);
+            claimHash = claimHash * 31 + (claim.outpost() ? 1 : 0);
             touchedRegions.clear();
             for (int dx = -1; dx <= 1; dx++) {
                 for (int dz = -1; dz <= 1; dz++) {
