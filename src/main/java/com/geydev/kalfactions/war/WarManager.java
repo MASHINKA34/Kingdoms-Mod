@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.war;
 
 import com.geydev.kalfactions.claim.ClaimKey;
+import com.geydev.kalfactions.command.NumismaticsEconomy;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
@@ -21,6 +22,7 @@ import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -293,7 +295,7 @@ public final class WarManager extends SavedData {
 
         boolean transferred = true;
         if (choice.moneyPercent() > 0) {
-            transferred = transferMoney(factions, spoils.winnerId(), loser, choice.moneyPercent());
+            transferred = transferMoney(server, factions, spoils.winnerId(), loser, choice.moneyPercent());
         }
         if (transferred && choice.resourcePercent() > 0) {
             transferred = transferResources(server, rewardReceiver, loser, choice.resourcePercent());
@@ -315,19 +317,54 @@ public final class WarManager extends SavedData {
         return ClaimSpoilsResult.SUCCESS;
     }
 
-    private boolean transferMoney(FactionManager factions, UUID winnerId, Faction loser, int percent) {
-        long amount = percent(loser.treasuryBalance(), percent);
+    private boolean transferMoney(MinecraftServer server, FactionManager factions, UUID winnerId, Faction loser, int percent) {
+        long amount = percent(totalMoney(server, loser), percent);
         if (amount <= 0L) {
             return true;
         }
-        if (!factions.withdraw(loser.id(), amount).successful()) {
+        long collected = 0L;
+        long fromTreasury = Math.min(amount, loser.treasuryBalance());
+        if (fromTreasury > 0L && factions.withdraw(loser.id(), fromTreasury).successful()) {
+            collected += fromTreasury;
+        }
+        long remaining = amount - collected;
+        for (UUID memberId : loser.members().keySet()) {
+            if (remaining <= 0L) {
+                break;
+            }
+            ServerPlayer member = server.getPlayerList().getPlayer(memberId);
+            if (member == null) {
+                continue;
+            }
+            long take = Math.min(remaining, NumismaticsEconomy.balance(member));
+            if (take <= 0L) {
+                continue;
+            }
+            NumismaticsEconomy.Payment payment = NumismaticsEconomy.preparePayment(member, take);
+            if (payment.ready() && NumismaticsEconomy.commitPayment(member, payment)) {
+                collected += take;
+                remaining -= take;
+            }
+        }
+        if (collected <= 0L) {
             return false;
         }
-        if (factions.deposit(winnerId, amount).successful()) {
+        if (factions.deposit(winnerId, collected).successful()) {
             return true;
         }
-        factions.deposit(loser.id(), amount);
+        factions.deposit(loser.id(), collected);
         return false;
+    }
+
+    private long totalMoney(MinecraftServer server, Faction loser) {
+        long total = Math.max(0L, loser.treasuryBalance());
+        for (UUID memberId : loser.members().keySet()) {
+            ServerPlayer member = server.getPlayerList().getPlayer(memberId);
+            if (member != null) {
+                total += NumismaticsEconomy.balance(member);
+            }
+        }
+        return total;
     }
 
     private Optional<PendingSpoilsView> spoilsView(MinecraftServer server, PendingSpoils spoils) {
@@ -335,16 +372,30 @@ public final class WarManager extends SavedData {
         if (loser == null || FactionManager.get(server).getFactionById(spoils.winnerId()).isEmpty()) {
             return Optional.empty();
         }
-        ResourcePreview preview = resourcePreview(server, loser, 30);
+        List<ResourceBucket> buckets = selectedResourceBuckets(server, loser);
         return Optional.of(new PendingSpoilsView(
                 spoils.spoilsId(),
                 spoils.loserId(),
                 loser.name(),
-                percent(loser.treasuryBalance(), 30),
-                preview.first(),
-                preview.second(),
-                preview.third()
+                percent(totalMoney(server, loser), 30),
+                bucketCount(buckets, 0, 30),
+                bucketItemId(buckets, 0),
+                bucketCount(buckets, 1, 30),
+                bucketItemId(buckets, 1),
+                bucketCount(buckets, 2, 30),
+                bucketItemId(buckets, 2)
         ));
+    }
+
+    private long bucketCount(List<ResourceBucket> buckets, int index, int percent) {
+        return index < buckets.size() ? percent(buckets.get(index).count(), percent) : 0L;
+    }
+
+    private static String bucketItemId(List<ResourceBucket> buckets, int index) {
+        if (index >= buckets.size()) {
+            return "";
+        }
+        return BuiltInRegistries.ITEM.getKey(buckets.get(index).item()).toString();
     }
 
     private static long percent(long value, int percent) {
@@ -380,14 +431,6 @@ public final class WarManager extends SavedData {
         receiver.getInventory().setChanged();
         receiver.inventoryMenu.broadcastChanges();
         return true;
-    }
-
-    private ResourcePreview resourcePreview(MinecraftServer server, Faction loser, int percent) {
-        List<ResourceBucket> buckets = selectedResourceBuckets(server, loser);
-        long first = buckets.size() > 0 ? percent(buckets.get(0).count(), percent) : 0L;
-        long second = buckets.size() > 1 ? percent(buckets.get(1).count(), percent) : 0L;
-        long third = buckets.size() > 2 ? percent(buckets.get(2).count(), percent) : 0L;
-        return new ResourcePreview(first, second, third);
     }
 
     private List<ResourceBucket> selectedResourceBuckets(MinecraftServer server, Faction loser) {
@@ -897,12 +940,12 @@ public final class WarManager extends SavedData {
             String loserName,
             long money,
             long resourceOne,
+            String resourceOneItem,
             long resourceTwo,
-            long resourceThree
+            String resourceTwoItem,
+            long resourceThree,
+            String resourceThreeItem
     ) {
-    }
-
-    private record ResourcePreview(long first, long second, long third) {
     }
 
     private interface ResourceSource {

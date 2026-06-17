@@ -98,8 +98,11 @@ final class FactionManagerService implements FactionServerHooks.Service {
                         spoils.loserName(),
                         spoils.money(),
                         spoils.resourceOne(),
+                        spoils.resourceOneItem(),
                         spoils.resourceTwo(),
-                        spoils.resourceThree()
+                        spoils.resourceTwoItem(),
+                        spoils.resourceThree(),
+                        spoils.resourceThreeItem()
                 ))
                 .orElse(FactionSnapshot.WarSpoils.EMPTY);
     }

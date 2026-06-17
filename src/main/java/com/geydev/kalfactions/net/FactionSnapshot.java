@@ -299,10 +299,13 @@ public record FactionSnapshot(
             String loserName,
             long money,
             long resourceOne,
+            String resourceOneItem,
             long resourceTwo,
-            long resourceThree
+            String resourceTwoItem,
+            long resourceThree,
+            String resourceThreeItem
     ) {
-        public static final WarSpoils EMPTY = new WarSpoils(NO_FACTION, "", 0L, 0L, 0L, 0L);
+        public static final WarSpoils EMPTY = new WarSpoils(NO_FACTION, "", 0L, 0L, "", 0L, "", 0L, "");
 
         public WarSpoils {
             spoilsId = spoilsId == null ? NO_FACTION : spoilsId;
@@ -311,6 +314,9 @@ public record FactionSnapshot(
             resourceOne = Math.max(0L, resourceOne);
             resourceTwo = Math.max(0L, resourceTwo);
             resourceThree = Math.max(0L, resourceThree);
+            resourceOneItem = limit(resourceOneItem, 128);
+            resourceTwoItem = limit(resourceTwoItem, 128);
+            resourceThreeItem = limit(resourceThreeItem, 128);
         }
 
         public boolean hasSpoils() {
@@ -322,8 +328,11 @@ public record FactionSnapshot(
             buffer.writeUtf(loserName, 32);
             buffer.writeLong(money);
             buffer.writeLong(resourceOne);
+            buffer.writeUtf(resourceOneItem, 128);
             buffer.writeLong(resourceTwo);
+            buffer.writeUtf(resourceTwoItem, 128);
             buffer.writeLong(resourceThree);
+            buffer.writeUtf(resourceThreeItem, 128);
         }
 
         private static WarSpoils decode(RegistryFriendlyByteBuf buffer) {
@@ -332,8 +341,11 @@ public record FactionSnapshot(
                     buffer.readUtf(32),
                     buffer.readLong(),
                     buffer.readLong(),
+                    buffer.readUtf(128),
                     buffer.readLong(),
-                    buffer.readLong()
+                    buffer.readUtf(128),
+                    buffer.readLong(),
+                    buffer.readUtf(128)
             );
         }
     }
