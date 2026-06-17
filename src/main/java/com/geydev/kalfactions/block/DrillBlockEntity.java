@@ -28,11 +28,12 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 public final class DrillBlockEntity extends BlockEntity implements Container, MenuProvider {
-    private static final String TAG_PROGRESS = "Progress";
+    private static final String TAG_LAST = "LastProduceMillis";
     private static final int SLOTS = 18;
     private static final int BASE_OUTPUT = 32;
     private static final int HOUR_TICKS = 3600 * 20;
     private static final int INTERVAL_FLOOR_TICKS = 4 * HOUR_TICKS;
+    private static final int CHECK_INTERVAL_TICKS = 20;
 
     private final NonNullList<ItemStack> items = NonNullList.withSize(SLOTS, ItemStack.EMPTY);
     private final ContainerData dataAccess = new ContainerData() {
@@ -59,6 +60,8 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
     };
     private int progress;
     private int interval = baseIntervalTicks();
+    private long lastProduceMillis;
+    private int sinceCheck;
 
     public DrillBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.DRILL.get(), pos, state);
@@ -68,33 +71,82 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         if (!(level instanceof ServerLevel serverLevel)) {
             return;
         }
-        drill.recomputeInterval(serverLevel, pos);
-        if (++drill.progress < drill.interval) {
+        if (++drill.sinceCheck < CHECK_INTERVAL_TICKS) {
             return;
         }
-        drill.progress = 0;
-        drill.produce(serverLevel, pos);
+        drill.sinceCheck = 0;
+        drill.recomputeInterval(serverLevel, pos);
+        long now = System.currentTimeMillis();
+        if (drill.lastProduceMillis == 0L) {
+            drill.lastProduceMillis = now;
+            drill.setChanged();
+        }
+        long intervalMillis = Math.max(1L, (long) drill.interval * 50L);
+        int batches = 0;
+        while (now - drill.lastProduceMillis >= intervalMillis && batches < SLOTS) {
+            ProduceResult result = drill.produce(serverLevel, pos);
+            if (result == ProduceResult.PRODUCED) {
+                drill.lastProduceMillis += intervalMillis;
+                batches++;
+                continue;
+            }
+            if (result == ProduceResult.FULL) {
+                drill.lastProduceMillis = now - intervalMillis;
+            } else {
+                drill.lastProduceMillis = now;
+            }
+            break;
+        }
+        long elapsedTicks = (now - drill.lastProduceMillis) / 50L;
+        drill.progress = (int) Math.clamp(elapsedTicks, 0L, (long) drill.interval);
+        if (batches > 0) {
+            drill.setChanged();
+        }
     }
 
-    private void produce(ServerLevel level, BlockPos pos) {
+    private ProduceResult produce(ServerLevel level, BlockPos pos) {
         ChunkPos chunk = new ChunkPos(pos);
         ClaimKey key = ClaimKey.of(level, chunk);
         FactionManager manager = FactionManager.get(level);
         Faction faction = manager.getFactionAt(key).orElse(null);
         if (faction == null) {
-            return;
+            return ProduceResult.INVALID;
         }
         ResourceClusterManager clusters = ResourceClusterManager.get(level);
         ResourceClusterManager.ClusterView cluster = clusters.clusterAt(chunk).orElse(null);
         if (cluster == null) {
-            return;
+            return ProduceResult.INVALID;
         }
         if (!clusters.isBoundDrill(chunk, pos) && !clusters.bindDrill(chunk, pos)) {
-            return;
+            return ProduceResult.INVALID;
         }
         int amount = BASE_OUTPUT + 8 * faction.researchBonusCount("DRILL_OUTPUT");
-        insert(new ItemStack(cluster.type().displayItem(), amount));
+        ItemStack output = new ItemStack(cluster.type().displayItem(), amount);
+        if (!canFit(output)) {
+            return ProduceResult.FULL;
+        }
+        insert(output);
         setChanged();
+        return ProduceResult.PRODUCED;
+    }
+
+    private boolean canFit(ItemStack stack) {
+        int remaining = stack.getCount();
+        for (int slot = 0; slot < SLOTS && remaining > 0; slot++) {
+            ItemStack existing = items.get(slot);
+            if (existing.isEmpty()) {
+                remaining -= stack.getMaxStackSize();
+            } else if (ItemStack.isSameItemSameComponents(existing, stack)) {
+                remaining -= existing.getMaxStackSize() - existing.getCount();
+            }
+        }
+        return remaining <= 0;
+    }
+
+    private enum ProduceResult {
+        PRODUCED,
+        FULL,
+        INVALID
     }
 
     private void insert(ItemStack stack) {
@@ -197,13 +249,13 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         super.loadAdditional(tag, registries);
         items.clear();
         ContainerHelper.loadAllItems(tag, items, registries);
-        progress = tag.getInt(TAG_PROGRESS);
+        lastProduceMillis = tag.getLong(TAG_LAST);
     }
 
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
         ContainerHelper.saveAllItems(tag, items, registries);
-        tag.putInt(TAG_PROGRESS, progress);
+        tag.putLong(TAG_LAST, lastProduceMillis);
     }
 }

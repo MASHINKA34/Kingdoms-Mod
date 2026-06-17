@@ -205,11 +205,11 @@ public final class ResearchScreen extends FactionScreen {
             float fraction = Math.clamp((duration - remaining) / (float) duration, 0.0F, 1.0F);
             int barWidth = 42;
             int barX = screenX(node) - barWidth / 2;
-            int barY = y + size + 3;
-            graphics.blit(BAR_EMPTY, barX, barY, 0.0F, 0.0F, barWidth, 5, 182, 5);
+            int barY = y + size + 6;
+            graphics.blit(BAR_EMPTY, barX, barY, barWidth, 5, 0.0F, 0.0F, 182, 5, 182, 5);
             int fullWidth = Math.max(0, (int) (barWidth * fraction));
             if (fullWidth > 0) {
-                graphics.blit(BAR_FULL, barX, barY, 0.0F, 0.0F, fullWidth, 5, 182, 5);
+                graphics.blit(BAR_FULL, barX, barY, fullWidth, 5, 0.0F, 0.0F, 182, 5, 182, 5);
             }
         }
     }
@@ -245,40 +245,43 @@ public final class ResearchScreen extends FactionScreen {
     }
 
     private void renderNodeTooltip(GuiGraphics graphics, ResearchNode node, int mouseX, int mouseY) {
-        int boxWidth = 228;
-        List<FormattedCharSequence> desc = font.split(text(node.descriptionKey()), boxWidth - 18);
+        int boxWidth = 232;
+        List<FormattedCharSequence> desc = font.split(text(node.descriptionKey()), boxWidth - 20);
         List<FormattedCharSequence> effect = font.split(
                 text("screen.kingdoms.research_effect", bonusText(node.bonusTag())),
-                boxWidth - 18
+                boxWidth - 20
         );
-        int boxHeight = 68 + desc.size() * 10 + effect.size() * 10;
+        int descBlock = desc.size() * 11;
+        int effectBlock = effect.size() * 11;
+        int boxHeight = 74 + descBlock + effectBlock;
         int x = Math.min(mouseX + 14, width - boxWidth - 6);
         int y = mouseY + 12;
-        int bottomLimit = top + WINDOW_HEIGHT - 34;
+        int bottomLimit = top + TREE_TOP + TREE_HEIGHT;
         if (y + boxHeight > bottomLimit) {
             y = mouseY - boxHeight - 12;
         }
         y = Math.clamp(y, top + 44, Math.max(top + 44, bottomLimit - boxHeight));
+        graphics.fill(x - 1, y - 1, x + boxWidth + 1, y + boxHeight + 1, 0xFF0B0D12);
         graphics.fill(x, y, x + boxWidth, y + boxHeight, 0xFC15171D);
         graphics.fill(x + 1, y + 1, x + boxWidth - 1, y + 2, 0xFFC9A24C);
         graphics.fill(x + 1, y + boxHeight - 2, x + boxWidth - 1, y + boxHeight - 1, 0xFF3A3D47);
-        graphics.drawString(font, text(node.translationKey()), x + 8, y + 7, colorFor(node.type()), false);
+        graphics.drawString(font, text(node.translationKey()), x + 10, y + 8, colorFor(node.type()), true);
         for (int i = 0; i < desc.size(); i++) {
-            graphics.drawString(font, desc.get(i), x + 8, y + 20 + i * 10, 0xFFE8D6A0, false);
+            graphics.drawString(font, desc.get(i), x + 10, y + 23 + i * 11, 0xFFEFE0B4, true);
         }
-        int lineY = y + 24 + desc.size() * 10;
-        graphics.blit(iconFor(node.type()), x + 8, lineY - 2, 12, 12, 0.0F, 0.0F, 16, 16, 16, 16);
+        int lineY = y + 28 + descBlock;
+        graphics.blit(iconFor(node.type()), x + 10, lineY - 2, 12, 12, 0.0F, 0.0F, 16, 16, 16, 16);
         graphics.drawString(
                 font,
                 text("screen.kingdoms.research_cost_short", node.cost(), node.durationHours()),
-                x + 24,
+                x + 26,
                 lineY,
-                0xFFD7C57C,
-                false
+                0xFFE6CE7E,
+                true
         );
-        graphics.drawString(font, statusText(node), x + 8, lineY + 14, statusColor(node), false);
+        graphics.drawString(font, statusText(node), x + 10, lineY + 15, statusColor(node), true);
         for (int i = 0; i < effect.size(); i++) {
-            graphics.drawString(font, effect.get(i), x + 8, lineY + 28 + i * 10, 0xFF9CA2B2, false);
+            graphics.drawString(font, effect.get(i), x + 10, lineY + 30 + i * 11, 0xFFCBD6F0, true);
         }
     }
 

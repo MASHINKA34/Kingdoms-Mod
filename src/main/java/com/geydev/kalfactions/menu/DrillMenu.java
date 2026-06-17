@@ -13,11 +13,14 @@ import net.minecraft.world.item.ItemStack;
 
 public final class DrillMenu extends AbstractContainerMenu {
     private static final int SLOTS = 18;
-    private static final int DRILL_COLUMNS = 6;
-    private static final int DRILL_SLOT_X = 123;
-    private static final int DRILL_SLOT_Y = 90;
-    private static final int DRILL_SLOT_STEP_X = 28;
-    private static final int DRILL_SLOT_STEP_Y = 30;
+    public static final int DRILL_COLUMNS = 6;
+    public static final int DRILL_SLOT_X = 92;
+    public static final int DRILL_SLOT_Y = 69;
+    public static final int DRILL_SLOT_STEP_X = 31;
+    public static final int DRILL_SLOT_STEP_Y = 27;
+    public static final int PLAYER_INVENTORY_X = 104;
+    public static final int PLAYER_INVENTORY_Y = 172;
+    public static final int PLAYER_HOTBAR_Y = 226;
     private final Container container;
     private final ContainerData data;
 
@@ -42,6 +45,24 @@ public final class DrillMenu extends AbstractContainerMenu {
                     DRILL_SLOT_Y + row * DRILL_SLOT_STEP_Y
             ));
         }
+        for (int row = 0; row < 3; row++) {
+            for (int column = 0; column < 9; column++) {
+                addSlot(new Slot(
+                        playerInventory,
+                        column + row * 9 + 9,
+                        PLAYER_INVENTORY_X + column * 18,
+                        PLAYER_INVENTORY_Y + row * 18
+                ));
+            }
+        }
+        for (int column = 0; column < 9; column++) {
+            addSlot(new Slot(
+                    playerInventory,
+                    column,
+                    PLAYER_INVENTORY_X + column * 18,
+                    PLAYER_HOTBAR_Y
+            ));
+        }
         addDataSlots(data);
     }
 
@@ -57,7 +78,11 @@ public final class DrillMenu extends AbstractContainerMenu {
         if (slot != null && slot.hasItem()) {
             ItemStack source = slot.getItem();
             result = source.copy();
-            if (index >= SLOTS || !moveItemStackTo(source, SLOTS, slots.size(), true)) {
+            if (index < SLOTS) {
+                if (!moveItemStackTo(source, SLOTS, slots.size(), true)) {
+                    return ItemStack.EMPTY;
+                }
+            } else if (!moveItemStackTo(source, 0, SLOTS, false)) {
                 return ItemStack.EMPTY;
             }
             if (source.isEmpty()) {

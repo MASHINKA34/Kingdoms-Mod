@@ -120,6 +120,14 @@ public final class FactionManageScreen extends FactionScreen {
                 rightColumn, row0 + rowStep * 3, columnWidth, 20
         ));
 
+        if (snapshot.hasPendingWarSpoils()) {
+            KingdomsButton spoils = addRenderableWidget(KingdomsButton.create(
+                    text("screen.kingdoms.war_spoils"),
+                    button -> FactionScreens.openWarSpoils(snapshot.pendingWarSpoils()),
+                    leftColumn, row0 + rowStep * 4, columnWidth, 20
+            ));
+            spoils.active = snapshot.canManage();
+        }
     }
 
     private int[] unboxedEmblem() {
