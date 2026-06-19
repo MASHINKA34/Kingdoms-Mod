@@ -14,7 +14,7 @@ import net.minecraft.resources.ResourceLocation;
 
 public final class TraderPayloads {
     public static final int MAX_OFFERS = 8;
-    public static final int MAX_SELL_OFFERS = 16;
+    public static final int MAX_SELL_OFFERS = 9;
     public static final int MAX_OFFER_ID_LENGTH = 32;
 
     public record C2SBuy(UUID traderId, String offerId) implements CustomPacketPayload {
@@ -55,12 +55,26 @@ public final class TraderPayloads {
         }
     }
 
+    public record C2SRefreshSeller(UUID traderId) implements CustomPacketPayload {
+        public static final Type<C2SRefreshSeller> TYPE = payloadType("trader_seller_refresh");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SRefreshSeller> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> buffer.writeUUID(payload.traderId),
+                buffer -> new C2SRefreshSeller(buffer.readUUID())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record S2CShopState(
             UUID traderId,
             List<OfferInfo> offers,
             List<OfferInfo> sellOffers,
             Component notice,
-            boolean successful
+            boolean successful,
+            long nextSellRefreshEpochMillis
     ) implements CustomPacketPayload {
         public static final Type<S2CShopState> TYPE = payloadType("trader_shop_state");
         public static final StreamCodec<RegistryFriendlyByteBuf, S2CShopState> STREAM_CODEC = StreamCodec.of(
@@ -78,6 +92,7 @@ public final class TraderPayloads {
                     }
                     ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buffer, payload.notice);
                     buffer.writeBoolean(payload.successful);
+                    buffer.writeLong(payload.nextSellRefreshEpochMillis);
                 },
                 buffer -> {
                     UUID traderId = buffer.readUUID();
@@ -102,7 +117,8 @@ public final class TraderPayloads {
                             List.copyOf(offers),
                             List.copyOf(sellOffers),
                             ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer),
-                            buffer.readBoolean()
+                            buffer.readBoolean(),
+                            buffer.readLong()
                     );
                 }
         );

@@ -417,6 +417,7 @@
   "screen.kingdoms.drill.remaining": "До добычи: %s",
   "screen.kingdoms.influence_gain": "+%1$s %2$s",
   "screen.kingdoms.seller.title": "Скупка ресурсов",
+  "screen.kingdoms.seller.refresh_timer": "Обновление через: %s",
   "item.kingdoms.seller_spawn_egg": "Яйцо призыва скупщика",
   "entity.kingdoms.seller_trader": "Скупщик Королевств",
   "kingdoms.xaero_map.forceload.enable": "Грузить чанк всегда",

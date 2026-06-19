@@ -6,6 +6,7 @@ import com.geydev.kalfactions.outpost.trader.SellOffer;
 import com.geydev.kalfactions.outpost.trader.TraderPayloads;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -30,6 +31,8 @@ public final class SellerShopScreen extends Screen {
 
     private final UUID traderId;
     private List<TraderPayloads.OfferInfo> sellOffers;
+    private long nextRefreshEpochMillis;
+    private long lastRefreshRequestEpochMillis;
     private String pendingOfferId = "";
     private int left;
     private int top;
@@ -39,6 +42,7 @@ public final class SellerShopScreen extends Screen {
         super(Component.translatable("screen.kingdoms.seller.title"));
         traderId = state.traderId();
         sellOffers = state.sellOffers();
+        nextRefreshEpochMillis = state.nextSellRefreshEpochMillis();
     }
 
     public static void handle(TraderPayloads.S2CShopState state) {
@@ -56,6 +60,7 @@ public final class SellerShopScreen extends Screen {
 
     private void acceptState(TraderPayloads.S2CShopState state) {
         sellOffers = state.sellOffers();
+        nextRefreshEpochMillis = state.nextSellRefreshEpochMillis();
         pendingOfferId = "";
         showShopNotice(state.notice(), state.successful());
         rebuildWidgets();
@@ -71,7 +76,7 @@ public final class SellerShopScreen extends Screen {
             int col = i % SELL_COLUMNS;
             int rowIndex = i / SELL_COLUMNS;
             int cellX = sellLeft + col * SELL_CELL_WIDTH;
-            int cellY = top + 72 + rowIndex * SELL_CELL_HEIGHT;
+            int cellY = top + 84 + rowIndex * SELL_CELL_HEIGHT;
             sellCells.add(new SellCell(sellOffers.get(i), cellX, cellY));
         }
         addRenderableWidget(KingdomsButton.create(
@@ -90,6 +95,17 @@ public final class SellerShopScreen extends Screen {
         }
         pendingOfferId = offerId;
         PacketDistributor.sendToServer(new TraderPayloads.C2SSell(traderId, offerId));
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (nextRefreshEpochMillis > 0L
+                && remainingRefreshSeconds() <= 0L
+                && lastRefreshRequestEpochMillis != nextRefreshEpochMillis) {
+            lastRefreshRequestEpochMillis = nextRefreshEpochMillis;
+            PacketDistributor.sendToServer(new TraderPayloads.C2SRefreshSeller(traderId));
+        }
     }
 
     @Override
@@ -114,8 +130,13 @@ public final class SellerShopScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawString(font, title, left + (PANEL_WIDTH - font.width(title)) / 2, top + 48, TEXT_DARK, false);
-        graphics.drawString(font, Component.translatable("screen.kingdoms.trader.sell_section"), left + 35, top + 60, TEXT_MUTED, false);
+        graphics.drawString(font, title, left + (PANEL_WIDTH - font.width(title)) / 2, top + 42, TEXT_DARK, false);
+        Component timer = Component.translatable(
+                "screen.kingdoms.seller.refresh_timer",
+                formatDuration(remainingRefreshSeconds())
+        );
+        graphics.drawString(font, timer, left + (PANEL_WIDTH - font.width(timer)) / 2, top + 57, TEXT_MUTED, false);
+        graphics.drawString(font, Component.translatable("screen.kingdoms.trader.sell_section"), left + 35, top + 71, TEXT_MUTED, false);
         ItemStack hovered = null;
         for (SellCell cell : sellCells) {
             boolean hover = cell.contains(mouseX, mouseY);
@@ -127,6 +148,20 @@ public final class SellerShopScreen extends Screen {
         if (hovered != null) {
             graphics.renderTooltip(font, hovered, mouseX, mouseY);
         }
+    }
+
+    private long remainingRefreshSeconds() {
+        if (nextRefreshEpochMillis <= 0L) {
+            return 0L;
+        }
+        return Math.max(0L, (nextRefreshEpochMillis - System.currentTimeMillis() + 999L) / 1_000L);
+    }
+
+    private static String formatDuration(long seconds) {
+        long hours = seconds / 3_600L;
+        long minutes = seconds % 3_600L / 60L;
+        long remainingSeconds = seconds % 60L;
+        return String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, remainingSeconds);
     }
 
     private void renderSellCell(GuiGraphics graphics, SellCell cell, boolean hover) {

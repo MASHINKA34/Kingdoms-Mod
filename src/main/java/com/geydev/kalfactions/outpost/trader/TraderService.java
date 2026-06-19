@@ -13,6 +13,7 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -99,6 +100,20 @@ public final class TraderService {
             return;
         }
         sendSellState(player, trader.getUUID(), Component.empty(), true);
+    }
+
+    public static void refreshSeller(ServerPlayer player, UUID traderId) {
+        Entity entity = player.serverLevel().getEntity(traderId);
+        if (!(entity instanceof SellerTraderEntity trader) || !isAvailable(player, trader)) {
+            sendSellState(
+                    player,
+                    traderId,
+                    Component.translatable("screen.kingdoms.trader.notice.too_far"),
+                    false
+            );
+            return;
+        }
+        sendSellState(player, traderId, Component.empty(), true);
     }
 
     public static void buy(ServerPlayer player, UUID traderId, String offerId) {
@@ -211,7 +226,9 @@ public final class TraderService {
             return;
         }
 
-        SellOffer offer = SellOffer.byId(offerId).orElse(null);
+        MinecraftServer server = player.serverLevel().getServer();
+        SellerOfferRotation.Window window = SellerOfferRotation.get(server).current(server);
+        SellOffer offer = window.offer(offerId).orElse(null);
         if (offer == null) {
             sendSellState(
                     player,
@@ -303,12 +320,9 @@ public final class TraderService {
         List<TraderPayloads.OfferInfo> offers = Arrays.stream(TraderOffer.values())
                 .map(offer -> new TraderPayloads.OfferInfo(offer.id(), offer.price()))
                 .toList();
-        List<TraderPayloads.OfferInfo> sellOffers = Arrays.stream(SellOffer.values())
-                .map(offer -> new TraderPayloads.OfferInfo(offer.id(), offer.price()))
-                .toList();
         PacketDistributor.sendToPlayer(
                 player,
-                new TraderPayloads.S2CShopState(traderId, offers, List.of(), notice, successful)
+                new TraderPayloads.S2CShopState(traderId, offers, List.of(), notice, successful, 0L)
         );
     }
 
@@ -318,12 +332,21 @@ public final class TraderService {
             Component notice,
             boolean successful
     ) {
-        List<TraderPayloads.OfferInfo> sellOffers = Arrays.stream(SellOffer.values())
+        MinecraftServer server = player.serverLevel().getServer();
+        SellerOfferRotation.Window window = SellerOfferRotation.get(server).current(server);
+        List<TraderPayloads.OfferInfo> sellOffers = window.offers().stream()
                 .map(offer -> new TraderPayloads.OfferInfo(offer.id(), offer.price()))
                 .toList();
         PacketDistributor.sendToPlayer(
                 player,
-                new TraderPayloads.S2CShopState(traderId, List.of(), sellOffers, notice, successful)
+                new TraderPayloads.S2CShopState(
+                        traderId,
+                        List.of(),
+                        sellOffers,
+                        notice,
+                        successful,
+                        window.nextRefreshEpochMillis()
+                )
         );
     }
 

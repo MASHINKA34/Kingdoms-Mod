@@ -13,7 +13,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class TraderNetwork {
-    private static final String PROTOCOL_VERSION = "2";
+    private static final String PROTOCOL_VERSION = "3";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -27,6 +27,11 @@ public final class TraderNetwork {
                 TraderPayloads.C2SSell.TYPE,
                 TraderPayloads.C2SSell.STREAM_CODEC,
                 TraderNetwork::handleSell
+        );
+        registrar.playToServer(
+                TraderPayloads.C2SRefreshSeller.TYPE,
+                TraderPayloads.C2SRefreshSeller.STREAM_CODEC,
+                TraderNetwork::handleRefreshSeller
         );
         registrar.playToClient(
                 TraderPayloads.S2CShopState.TYPE,
@@ -44,6 +49,12 @@ public final class TraderNetwork {
     private static void handleSell(TraderPayloads.C2SSell payload, IPayloadContext context) {
         if (context.player() instanceof ServerPlayer player) {
             TraderService.sell(player, payload.traderId(), payload.offerId());
+        }
+    }
+
+    private static void handleRefreshSeller(TraderPayloads.C2SRefreshSeller payload, IPayloadContext context) {
+        if (context.player() instanceof ServerPlayer player) {
+            TraderService.refreshSeller(player, payload.traderId());
         }
     }
 

@@ -417,6 +417,7 @@
   "screen.kingdoms.drill.remaining": "Until extraction: %s",
   "screen.kingdoms.influence_gain": "+%1$s %2$s",
   "screen.kingdoms.seller.title": "Resource Buyback",
+  "screen.kingdoms.seller.refresh_timer": "Refresh in: %s",
   "item.kingdoms.seller_spawn_egg": "Seller Spawn Egg",
   "entity.kingdoms.seller_trader": "Kingdoms Seller",
   "kingdoms.xaero_map.forceload.enable": "Keep chunk loaded",
