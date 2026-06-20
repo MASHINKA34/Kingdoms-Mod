@@ -46,3 +46,6 @@ repo/
 ### Runtime artifacts ###
 /logs/
 *.log
+
+### Local generated artifacts ###
+/outputs/

@@ -4,6 +4,7 @@ import com.geydev.kalfactions.command.NumismaticsEconomy;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.entity.OutpostTraderEntity;
 import com.geydev.kalfactions.entity.SellerTraderEntity;
+import com.geydev.kalfactions.economy.PriceMath;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.registry.ModEntities;
@@ -227,7 +228,8 @@ public final class TraderService {
         }
 
         MinecraftServer server = player.serverLevel().getServer();
-        SellerOfferRotation.Window window = SellerOfferRotation.get(server).current(server);
+        SellerOfferRotation rotation = SellerOfferRotation.get(server);
+        SellerOfferRotation.Window window = rotation.current(server);
         SellOffer offer = window.offer(offerId).orElse(null);
         if (offer == null) {
             sendSellState(
@@ -239,8 +241,8 @@ public final class TraderService {
             return;
         }
 
-        int count = removeAll(player, offer.item());
-        if (count <= 0) {
+        int owned = countItems(player, offer.item());
+        if (owned <= 0) {
             sendSellState(
                     player,
                     traderId,
@@ -249,10 +251,33 @@ public final class TraderService {
             );
             return;
         }
+        int remainingLimit = rotation.remainingLimit(server, player.getUUID(), offer);
+        if (remainingLimit <= 0) {
+            sendSellState(
+                    player,
+                    traderId,
+                    Component.translatable("screen.kingdoms.trader.notice.sell_limit_reached"),
+                    false
+            );
+            return;
+        }
+
+        int count = Math.min(owned, remainingLimit);
+        int removed = removeUpTo(player, offer.item(), count);
+        if (removed <= 0) {
+            sendSellState(
+                    player,
+                    traderId,
+                    Component.translatable("screen.kingdoms.trader.notice.nothing_to_sell"),
+                    false
+            );
+            return;
+        }
+        count = removed;
 
         FactionManager manager = FactionManager.get(player.serverLevel());
         UUID factionId = manager.getFactionIdForMember(player.getUUID()).orElse(null);
-        long base = offer.price() * count;
+        long base = PriceMath.saturatedMultiply(offer.price(), count);
         long spurs = base;
         if (factionId != null) {
             Faction faction = manager.getFactionById(factionId).orElse(null);
@@ -262,6 +287,7 @@ public final class TraderService {
             }
         }
         NumismaticsEconomy.give(player, spurs);
+        rotation.recordSale(server, player.getUUID(), offer, count);
         player.inventoryMenu.broadcastChanges();
 
         long influenceGained = 0L;
@@ -299,13 +325,31 @@ public final class TraderService {
         sendSellState(player, traderId, notice, true);
     }
 
-    private static int removeAll(ServerPlayer player, net.minecraft.world.item.Item item) {
-        int removed = 0;
+    private static int countItems(ServerPlayer player, net.minecraft.world.item.Item item) {
+        int count = 0;
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
             if (!stack.isEmpty() && stack.is(item)) {
-                removed += stack.getCount();
-                player.getInventory().setItem(slot, ItemStack.EMPTY);
+                count += stack.getCount();
+            }
+        }
+        return count;
+    }
+
+    private static int removeUpTo(ServerPlayer player, net.minecraft.world.item.Item item, int limit) {
+        int removed = 0;
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            if (removed >= limit) {
+                break;
+            }
+            ItemStack stack = player.getInventory().getItem(slot);
+            if (!stack.isEmpty() && stack.is(item)) {
+                int taken = Math.min(stack.getCount(), limit - removed);
+                removed += taken;
+                stack.shrink(taken);
+                if (stack.isEmpty()) {
+                    player.getInventory().setItem(slot, ItemStack.EMPTY);
+                }
             }
         }
         return removed;

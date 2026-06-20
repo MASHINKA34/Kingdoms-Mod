@@ -356,6 +356,7 @@
   "screen.kingdoms.trader.buy_section": "Покупка",
   "screen.kingdoms.trader.sell_section": "Продажа",
   "screen.kingdoms.trader.notice.nothing_to_sell": "У вас нет этого для продажи.",
+  "screen.kingdoms.trader.notice.sell_limit_reached": "Дневной лимит продажи этого товара исчерпан.",
   "screen.kingdoms.trader.notice.sold": "Продано %1$s × %2$s за %3$s.",
   "screen.kingdoms.trader.notice.sold_influence": "Продано %1$s × %2$s за %3$s, +%4$s эконом. влияния.",
   "kingdoms.influence.science": "Наука",

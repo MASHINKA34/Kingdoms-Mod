@@ -6,12 +6,15 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -29,10 +32,16 @@ public final class SellerOfferRotation extends SavedData {
     private static final ZoneId REFRESH_ZONE = ZoneId.systemDefault();
     private static final String TAG_EPOCH_DAY = "epochDay";
     private static final String TAG_OFFERS = "offers";
+    private static final String TAG_PLAYER_SALES = "playerSales";
+    private static final String TAG_PLAYER = "player";
+    private static final String TAG_SALES = "sales";
+    private static final String TAG_OFFER = "offer";
+    private static final String TAG_COUNT = "count";
     private static final long GOLDEN_GAMMA = 0x9E3779B97F4A7C15L;
 
     private long activeEpochDay = Long.MIN_VALUE;
     private List<String> activeOfferIds = List.of();
+    private final Map<UUID, Map<String, Integer>> soldByPlayer = new HashMap<>();
 
     public static SellerOfferRotation get(MinecraftServer server) {
         Objects.requireNonNull(server, "server");
@@ -47,6 +56,24 @@ public final class SellerOfferRotation extends SavedData {
 
     public synchronized boolean refreshIfNeeded(MinecraftServer server, long nowEpochMillis) {
         return ensureFresh(server, nowEpochMillis);
+    }
+
+    public synchronized int remainingLimit(MinecraftServer server, UUID playerId, SellOffer offer) {
+        ensureFresh(server, System.currentTimeMillis());
+        int sold = soldByPlayer.getOrDefault(playerId, Map.of()).getOrDefault(offer.id(), 0);
+        return Math.max(0, offer.dailyLimit() - sold);
+    }
+
+    public synchronized void recordSale(MinecraftServer server, UUID playerId, SellOffer offer, int count) {
+        if (count <= 0) {
+            return;
+        }
+        ensureFresh(server, System.currentTimeMillis());
+        Map<String, Integer> playerSales = soldByPlayer.computeIfAbsent(playerId, ignored -> new HashMap<>());
+        int previous = playerSales.getOrDefault(offer.id(), 0);
+        int updated = Integer.MAX_VALUE - previous < count ? Integer.MAX_VALUE : previous + count;
+        playerSales.put(offer.id(), updated);
+        setDirty();
     }
 
     private boolean ensureFresh(MinecraftServer server, long nowEpochMillis) {
@@ -69,6 +96,7 @@ public final class SellerOfferRotation extends SavedData {
                 .map(SellOffer::id)
                 .toList();
         activeEpochDay = epochDay;
+        soldByPlayer.clear();
         setDirty();
     }
 
@@ -119,6 +147,28 @@ public final class SellerOfferRotation extends SavedData {
             offers.add(StringTag.valueOf(id));
         }
         tag.put(TAG_OFFERS, offers);
+
+        ListTag playerSales = new ListTag();
+        for (Map.Entry<UUID, Map<String, Integer>> playerEntry : soldByPlayer.entrySet()) {
+            CompoundTag playerTag = new CompoundTag();
+            playerTag.putUUID(TAG_PLAYER, playerEntry.getKey());
+            ListTag sales = new ListTag();
+            for (Map.Entry<String, Integer> saleEntry : playerEntry.getValue().entrySet()) {
+                int count = saleEntry.getValue();
+                if (count <= 0 || SellOffer.byId(saleEntry.getKey()).isEmpty()) {
+                    continue;
+                }
+                CompoundTag saleTag = new CompoundTag();
+                saleTag.putString(TAG_OFFER, saleEntry.getKey());
+                saleTag.putInt(TAG_COUNT, count);
+                sales.add(saleTag);
+            }
+            if (!sales.isEmpty()) {
+                playerTag.put(TAG_SALES, sales);
+                playerSales.add(playerTag);
+            }
+        }
+        tag.put(TAG_PLAYER_SALES, playerSales);
         return tag;
     }
 
@@ -141,10 +191,38 @@ public final class SellerOfferRotation extends SavedData {
             ids.add(id);
         }
         rotation.activeOfferIds = List.copyOf(ids);
+
+        ListTag playerSales = tag.getList(TAG_PLAYER_SALES, Tag.TAG_COMPOUND);
+        for (int index = 0; index < playerSales.size(); index++) {
+            CompoundTag playerTag = playerSales.getCompound(index);
+            if (!playerTag.hasUUID(TAG_PLAYER)) {
+                repaired = true;
+                continue;
+            }
+            Map<String, Integer> sales = new HashMap<>();
+            ListTag salesTag = playerTag.getList(TAG_SALES, Tag.TAG_COMPOUND);
+            for (int saleIndex = 0; saleIndex < salesTag.size(); saleIndex++) {
+                CompoundTag saleTag = salesTag.getCompound(saleIndex);
+                String offerId = saleTag.getString(TAG_OFFER);
+                int count = saleTag.getInt(TAG_COUNT);
+                if (count <= 0 || SellOffer.byId(offerId).isEmpty()) {
+                    repaired = true;
+                    continue;
+                }
+                sales.merge(offerId, count, SellerOfferRotation::saturatedIntAdd);
+            }
+            if (!sales.isEmpty()) {
+                rotation.soldByPlayer.put(playerTag.getUUID(TAG_PLAYER), sales);
+            }
+        }
         if (repaired || !rotation.hasValidOffers()) {
             rotation.setDirty();
         }
         return rotation;
+    }
+
+    private static int saturatedIntAdd(int left, int right) {
+        return Integer.MAX_VALUE - left < right ? Integer.MAX_VALUE : left + right;
     }
 
     public record Window(List<SellOffer> offers, long nextRefreshEpochMillis) {

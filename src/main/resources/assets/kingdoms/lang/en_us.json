@@ -356,6 +356,7 @@
   "screen.kingdoms.trader.buy_section": "Buy",
   "screen.kingdoms.trader.sell_section": "Sell",
   "screen.kingdoms.trader.notice.nothing_to_sell": "You have none of that to sell.",
+  "screen.kingdoms.trader.notice.sell_limit_reached": "Daily sell limit for this item has been reached.",
   "screen.kingdoms.trader.notice.sold": "Sold %1$s x %2$s for %3$s.",
   "screen.kingdoms.trader.notice.sold_influence": "Sold %1$s x %2$s for %3$s, +%4$s economic influence.",
   "kingdoms.influence.science": "Science",
