@@ -735,15 +735,21 @@ public final class RaidManager extends SavedData {
                 break;
             }
             long amount = Math.min(remaining, NumismaticsEconomy.balance(player));
-            if (amount <= 0L) {
-                continue;
+            if (amount > 0L) {
+                NumismaticsEconomy.Payment payment = NumismaticsEconomy.preparePayment(player, amount);
+                if (payment.ready() && NumismaticsEconomy.commitPayment(player, payment)) {
+                    collected = saturatedAdd(collected, amount);
+                    remaining -= amount;
+                }
             }
-            NumismaticsEconomy.Payment payment = NumismaticsEconomy.preparePayment(player, amount);
-            if (!payment.ready() || !NumismaticsEconomy.commitPayment(player, payment)) {
-                continue;
+            if (remaining <= 0L) {
+                break;
             }
-            collected = saturatedAdd(collected, amount);
-            remaining -= amount;
+            long fromBank = NumismaticsEconomy.deductBank(player, remaining);
+            if (fromBank > 0L) {
+                collected = saturatedAdd(collected, fromBank);
+                remaining -= fromBank;
+            }
         }
         return collected;
     }

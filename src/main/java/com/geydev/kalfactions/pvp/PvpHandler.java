@@ -68,7 +68,7 @@ public final class PvpHandler {
                 .map(faction -> faction.researchBonusCount("ARMOR_BOOST"))
                 .orElse(0);
         if (armorLevels > 0) {
-            float reduction = Math.min(0.10F, 0.02F * armorLevels);
+            float reduction = Math.min(0.50F, 0.05F * armorLevels);
             event.setAmount(event.getAmount() * (1.0F - reduction));
         }
     }

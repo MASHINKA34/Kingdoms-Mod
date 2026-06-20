@@ -196,7 +196,7 @@ public final class ProtectionHandler {
                 }
                 wars.onChunkModified(level, new ChunkPos(pos)); // snapshot before the blast
                 double surviveChance = factions.getFactionById(owner)
-                        .map(faction -> Math.min(0.30D, 0.10D * faction.researchBonusCount("TNT_RESIST")))
+                        .map(faction -> Math.min(0.30D, 0.30D * faction.researchBonusCount("TNT_RESIST")))
                         .orElse(0.0D);
                 if (surviveChance > 0.0D && level.getRandom().nextFloat() < surviveChance) {
                     return true; // research-hardened claim block survives the blast

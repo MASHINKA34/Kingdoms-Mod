@@ -408,6 +408,7 @@
   "kingdoms.command.faction.forceload.not_own": "You can only force-load your own claims.",
   "kingdoms.xaero.forceload_label": "Force-loaded chunk",
   "screen.kingdoms.total_influence": "Total influence: %s",
+  "screen.kingdoms.total_influence_chunks": "Influence: %1$s · Chunks: %2$s",
   "screen.kingdoms.war_surrender": "Surrender in war",
   "screen.kingdoms.war_surrender_confirm": "Really surrender? You will lose resources",
   "screen.kingdoms.research_cost_short": "%1$s influence ? %2$sh",

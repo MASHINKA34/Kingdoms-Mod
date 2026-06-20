@@ -408,6 +408,7 @@
   "kingdoms.command.faction.forceload.not_own": "Загружать можно только свои чанки.",
   "kingdoms.xaero.forceload_label": "Загруженный чанк",
   "screen.kingdoms.total_influence": "Общее влияние: %s",
+  "screen.kingdoms.total_influence_chunks": "Влияние: %1$s · Чанки: %2$s",
   "screen.kingdoms.war_surrender": "Сдаться в войне",
   "screen.kingdoms.war_surrender_confirm": "Точно сдаться? Вы потеряете ресурсы",
   "screen.kingdoms.research_cost_short": "%1$s влияния · %2$sч",

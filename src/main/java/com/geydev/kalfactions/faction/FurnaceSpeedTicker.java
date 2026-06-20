@@ -24,7 +24,6 @@ public final class FurnaceSpeedTicker {
             if (levels <= 0) {
                 continue;
             }
-            double chance = Math.min(0.95D, 0.15D * levels);
             for (ClaimKey claim : faction.claims()) {
                 ServerLevel level = server.getLevel(claim.dimension());
                 if (level == null) {
@@ -39,13 +38,13 @@ public final class FurnaceSpeedTicker {
                     continue;
                 }
                 for (BlockEntity blockEntity : loaded.getBlockEntities().values()) {
-                    boost(level, blockEntity, chance);
+                    boost(blockEntity);
                 }
             }
         }
     }
 
-    private static void boost(ServerLevel level, BlockEntity blockEntity, double chance) {
+    private static void boost(BlockEntity blockEntity) {
         if (!(blockEntity instanceof AbstractFurnaceBlockEntity furnace)) {
             return;
         }
@@ -56,9 +55,7 @@ public final class FurnaceSpeedTicker {
         if (furnace.cookingProgress <= 0 || furnace.cookingProgress >= furnace.cookingTotalTime - 1) {
             return;
         }
-        if (level.getRandom().nextDouble() < chance) {
-            furnace.cookingProgress = furnace.cookingProgress + 1;
-        }
+        furnace.cookingProgress = furnace.cookingProgress + 1;
     }
 
     private FurnaceSpeedTicker() {

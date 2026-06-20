@@ -155,7 +155,7 @@ public final class TraderService {
                 .map(faction -> faction.researchBonusCount("OUTPOST_DISCOUNT"))
                 .orElse(0);
         if (outpostDiscountLevels > 0 && price > 0L) {
-            double factor = 1.0D - Math.min(0.50D, 0.05D * outpostDiscountLevels);
+            double factor = 1.0D - Math.min(0.90D, 0.10D * outpostDiscountLevels);
             price = (long) Math.ceil(price * factor);
         }
         ItemStack product = new ItemStack(offer.item());

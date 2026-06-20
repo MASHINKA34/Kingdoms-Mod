@@ -192,12 +192,24 @@ public final class FactionManageScreen extends FactionScreen {
         );
         graphics.drawString(
                 font,
-                text("screen.kingdoms.total_influence", snapshot.influence()),
+                text("screen.kingdoms.total_influence_chunks", snapshot.influence(), chunkSlotLimit()),
                 rightColumn,
                 top + 71,
                 TEXT_MUTED,
                 false
         );
+    }
+
+    private int chunkSlotLimit() {
+        int chunkNodes = 0;
+        for (String name : snapshot.completedResearch()) {
+            com.geydev.kalfactions.faction.ResearchNode node =
+                    com.geydev.kalfactions.faction.ResearchNode.parse(name).orElse(null);
+            if (node != null && node.bonusTag().contains("CHUNK_SLOT")) {
+                chunkNodes++;
+            }
+        }
+        return com.geydev.kalfactions.config.ModConfigSpec.FORCE_LOAD_SLOTS.getAsInt() + 5 * chunkNodes;
     }
 
     static Component currency(long amount) {

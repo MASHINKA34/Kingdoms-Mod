@@ -120,7 +120,7 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         if (!clusters.isBoundDrill(chunk, pos) && !clusters.bindDrill(chunk, pos)) {
             return ProduceResult.INVALID;
         }
-        int amount = BASE_OUTPUT + 8 * faction.researchBonusCount("DRILL_OUTPUT");
+        int amount = BASE_OUTPUT + 16 * faction.researchBonusCount("DRILL_OUTPUT");
         ItemStack output = new ItemStack(cluster.type().displayItem(), amount);
         if (!canFit(output)) {
             return ProduceResult.FULL;

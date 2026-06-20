@@ -1,5 +1,7 @@
 package com.geydev.kalfactions.command;
 
+import dev.ithundxr.createnumismatics.Numismatics;
+import dev.ithundxr.createnumismatics.content.backend.BankAccount;
 import dev.ithundxr.createnumismatics.content.backend.Coin;
 import dev.ithundxr.createnumismatics.content.coins.CoinItem;
 import java.util.Arrays;
@@ -34,6 +36,27 @@ public final class NumismaticsEconomy {
             }
         }
         return total;
+    }
+
+    public static long bankBalance(ServerPlayer player) {
+        BankAccount account = Numismatics.BANK.getAccount(player.getUUID());
+        return account == null ? 0L : Math.max(0L, account.getBalance());
+    }
+
+    public static long deductBank(ServerPlayer player, long amount) {
+        if (amount <= 0L) {
+            return 0L;
+        }
+        BankAccount account = Numismatics.BANK.getAccount(player.getUUID());
+        if (account == null) {
+            return 0L;
+        }
+        long take = Math.min(amount, Math.max(0L, account.getBalance()));
+        if (take <= 0L) {
+            return 0L;
+        }
+        account.setBalance(account.getBalance() - (int) take);
+        return take;
     }
 
     public static Payment preparePayment(ServerPlayer player, long amount) {

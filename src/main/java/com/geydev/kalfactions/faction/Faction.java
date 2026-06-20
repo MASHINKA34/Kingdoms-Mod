@@ -200,7 +200,7 @@ public final class Faction {
         }
         int researchLevels = researchBonusCount("CLAIM_DISCOUNT");
         if (researchLevels > 0) {
-            discount = Math.max(discount, Math.min(0.50D, 0.05D * researchLevels));
+            discount = Math.max(discount, Math.min(0.90D, 0.10D * researchLevels));
         }
         return discount;
     }
