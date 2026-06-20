@@ -12,19 +12,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.tags.BlockTags;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.SingleRecipeInput;
-import net.minecraft.world.item.crafting.SmeltingRecipe;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -52,15 +46,6 @@ public final class BonusHandler {
         Faction faction = FactionManager.get(player.serverLevel())
                 .getFactionForMember(player.getUUID())
                 .orElse(null);
-        if (isOre && faction != null && faction.researchBonusCount("AUTO_SMELT") > 0) {
-            ServerLevel level = player.serverLevel();
-            for (ItemEntity drop : event.getDrops()) {
-                ItemStack smelted = smelt(drop.getItem(), level);
-                if (!smelted.isEmpty()) {
-                    drop.setItem(smelted);
-                }
-            }
-        }
         double chance;
         if (isOre
                 && (FactionAccess.hasAnyBonus(player, FactionBonus.MINERS)
@@ -191,24 +176,6 @@ public final class BonusHandler {
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         PENDING_DURABILITY.remove(event.getEntity().getUUID());
-    }
-
-    private static ItemStack smelt(ItemStack input, ServerLevel level) {
-        if (input.isEmpty()) {
-            return ItemStack.EMPTY;
-        }
-        Optional<RecipeHolder<SmeltingRecipe>> recipe = level.getRecipeManager()
-                .getRecipeFor(RecipeType.SMELTING, new SingleRecipeInput(input), level);
-        if (recipe.isEmpty()) {
-            return ItemStack.EMPTY;
-        }
-        ItemStack result = recipe.get().value().getResultItem(level.registryAccess());
-        if (result.isEmpty()) {
-            return ItemStack.EMPTY;
-        }
-        ItemStack output = result.copy();
-        output.setCount(result.getCount() * input.getCount());
-        return output;
     }
 
     public static void installDurabilityPolicy(DurabilityPolicy policy) {

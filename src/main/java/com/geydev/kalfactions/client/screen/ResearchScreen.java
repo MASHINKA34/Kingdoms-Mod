@@ -44,7 +44,7 @@ public final class ResearchScreen extends FactionScreen {
     private static final int ROOT_SIZE = 46;
 
     private InfluenceType selectedType = InfluenceType.SCIENCE;
-    private ResearchNode selectedNode = ResearchNode.SCI_ROOT;
+    private ResearchNode selectedNode = ResearchNode.SCI_SMELT;
     private Button startButton;
     private float panX;
     private float panY;

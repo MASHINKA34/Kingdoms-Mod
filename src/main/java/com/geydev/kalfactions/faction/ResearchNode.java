@@ -6,44 +6,42 @@ import java.util.Locale;
 import java.util.Optional;
 
 public enum ResearchNode {
-    SCI_ROOT(InfluenceType.SCIENCE, null, 40L, 2, ResearchBonus.MINING_SPEED, -320, 0),
-    SCI_MINE_1(InfluenceType.SCIENCE, "SCI_ROOT", 80L, 3, ResearchBonus.MINING_SPEED, -190, -110),
-    SCI_SMELT(InfluenceType.SCIENCE, "SCI_ROOT", 100L, 4, ResearchBonus.SMELT_SPEED, -200, 10),
-    SCI_DRILL_1(InfluenceType.SCIENCE, "SCI_ROOT", 80L, 3, ResearchBonus.DRILL_OUTPUT, -190, 120),
-    SCI_MINE_2(InfluenceType.SCIENCE, "SCI_MINE_1", 120L, 4, ResearchBonus.ORE_DROP, -55, -130),
-    SCI_LAB(InfluenceType.SCIENCE, "SCI_SMELT", 180L, 6, ResearchBonus.SCIENCE_INFLUENCE, -60, -10),
-    SCI_DRILL_2(InfluenceType.SCIENCE, "SCI_DRILL_1", 120L, 4, ResearchBonus.DRILL_INTERVAL, -50, 120),
-    SCI_MINE_3(InfluenceType.SCIENCE, "SCI_MINE_2,SCI_DRILL_2", 160L, 5, ResearchBonus.MINING_SPEED, 85, -90),
-    SCI_DRILL_3(InfluenceType.SCIENCE, "SCI_DRILL_2,SCI_SMELT", 160L, 5, ResearchBonus.DRILL_OUTPUT, 90, 70),
-    SCI_MINE_CAP(InfluenceType.SCIENCE, "SCI_MINE_3", 300L, 8, ResearchBonus.AUTO_SMELT, 225, -130),
-    SCI_ACADEMY(InfluenceType.SCIENCE, "SCI_LAB,SCI_MINE_3", 320L, 12, ResearchBonus.CHUNK_SLOT, "SCIENCE_INFLUENCE+CHUNK_SLOT", 225, -15),
-    SCI_DRILL_CAP(InfluenceType.SCIENCE, "SCI_DRILL_3,SCI_LAB", 300L, 8, ResearchBonus.DRILL_INTERVAL, 225, 100),
+    SCI_SMELT(InfluenceType.SCIENCE, null, 40L, 2, ResearchBonus.SMELT_SPEED, -330, 10),
+    SCI_MINE_1(InfluenceType.SCIENCE, "SCI_SMELT", 80L, 3, ResearchBonus.MINING_SPEED, -210, -70),
+    SCI_DRILL_SPD_1(InfluenceType.SCIENCE, "SCI_SMELT", 80L, 3, ResearchBonus.DRILL_INTERVAL, -205, 90),
+    SCI_MINE_2(InfluenceType.SCIENCE, "SCI_MINE_1", 120L, 4, ResearchBonus.MINING_SPEED, -90, -70),
+    SCI_DRILL_OUT_1(InfluenceType.SCIENCE, "SCI_DRILL_SPD_1", 120L, 4, ResearchBonus.DRILL_OUTPUT, -80, 90),
+    SCI_MINE_3(InfluenceType.SCIENCE, "SCI_MINE_2", 160L, 5, ResearchBonus.MINING_SPEED, 10, -130),
+    SCI_CHUNK(InfluenceType.SCIENCE, "SCI_MINE_2,SCI_DRILL_OUT_1", 160L, 5, ResearchBonus.CHUNK_SLOT, 30, -30),
+    SCI_DRILL_SPD_2(InfluenceType.SCIENCE, "SCI_DRILL_OUT_1", 160L, 5, ResearchBonus.DRILL_INTERVAL, 60, 90),
+    SCI_ORE(InfluenceType.SCIENCE, "SCI_CHUNK", 220L, 6, ResearchBonus.ORE_DROP, 150, -110),
+    SCI_ENCHANT(InfluenceType.SCIENCE, "SCI_CHUNK,SCI_DRILL_SPD_2", 220L, 6, ResearchBonus.ENCHANT_BOOST, 160, 0),
+    SCI_DRILL_OUT_2(InfluenceType.SCIENCE, "SCI_DRILL_SPD_2", 220L, 6, ResearchBonus.DRILL_OUTPUT, 190, 90),
+    SCI_CRAFT(InfluenceType.SCIENCE, "SCI_ORE,SCI_ENCHANT", 280L, 8, ResearchBonus.CRAFT_EXTRA, 300, -60),
 
-    ECO_ROOT(InfluenceType.ECONOMIC, null, 40L, 2, ResearchBonus.BUY_RATE, -320, 0),
-    ECO_TRADE_1(InfluenceType.ECONOMIC, "ECO_ROOT", 80L, 3, ResearchBonus.BUY_RATE, -190, -110),
-    ECO_TAX(InfluenceType.ECONOMIC, "ECO_ROOT", 100L, 4, ResearchBonus.TREASURY_INCOME, -200, 10),
-    ECO_LAND_1(InfluenceType.ECONOMIC, "ECO_ROOT", 80L, 3, ResearchBonus.CLAIM_DISCOUNT, -190, 120),
-    ECO_TRADE_2(InfluenceType.ECONOMIC, "ECO_TRADE_1", 120L, 4, ResearchBonus.BUY_RATE, -55, -130),
-    ECO_BANK(InfluenceType.ECONOMIC, "ECO_TAX", 180L, 6, ResearchBonus.ECONOMIC_INFLUENCE, -60, -10),
-    ECO_LAND_2(InfluenceType.ECONOMIC, "ECO_LAND_1", 120L, 4, ResearchBonus.CLAIM_DISCOUNT, -50, 120),
-    ECO_TRADE_CAP(InfluenceType.ECONOMIC, "ECO_TRADE_2,ECO_BANK", 300L, 8, ResearchBonus.ECONOMIC_INFLUENCE, 90, -120),
-    ECO_VAULT(InfluenceType.ECONOMIC, "ECO_BANK,ECO_TAX", 240L, 8, ResearchBonus.TREASURY_INCOME, 85, -10),
-    ECO_LAND_3(InfluenceType.ECONOMIC, "ECO_LAND_2,ECO_TRADE_2", 160L, 5, ResearchBonus.CHUNK_SLOT, 95, 110),
-    ECO_TREASURY(InfluenceType.ECONOMIC, "ECO_VAULT,ECO_LAND_3", 320L, 12, ResearchBonus.ECONOMIC_INFLUENCE, 235, -50),
-    ECO_LAND_CAP(InfluenceType.ECONOMIC, "ECO_LAND_3", 300L, 8, ResearchBonus.CLAIM_DISCOUNT, 235, 90),
+    ECO_BUY_1(InfluenceType.ECONOMIC, null, 40L, 2, ResearchBonus.BUY_RATE, -330, 0),
+    ECO_BUY_2(InfluenceType.ECONOMIC, "ECO_BUY_1", 80L, 3, ResearchBonus.BUY_RATE, -200, -60),
+    ECO_STEAL_1(InfluenceType.ECONOMIC, "ECO_BUY_1", 80L, 3, ResearchBonus.RAID_STEAL_RESIST, -205, 80),
+    ECO_BUY_3(InfluenceType.ECONOMIC, "ECO_BUY_2", 120L, 4, ResearchBonus.BUY_RATE, -40, -60),
+    ECO_OUTPOST(InfluenceType.ECONOMIC, "ECO_BUY_2,ECO_STEAL_1", 120L, 4, ResearchBonus.OUTPOST_DISCOUNT, -50, 20),
+    ECO_STEAL_2(InfluenceType.ECONOMIC, "ECO_STEAL_1", 120L, 4, ResearchBonus.RAID_STEAL_RESIST, -30, 90),
+    ECO_CHUNK(InfluenceType.ECONOMIC, "ECO_BUY_3", 160L, 5, ResearchBonus.CHUNK_SLOT, 110, -90),
+    ECO_CLAIM(InfluenceType.ECONOMIC, "ECO_BUY_3", 160L, 5, ResearchBonus.CLAIM_DISCOUNT, 120, -20),
+    ECO_STEAL_3(InfluenceType.ECONOMIC, "ECO_STEAL_2,ECO_OUTPOST", 160L, 5, ResearchBonus.RAID_STEAL_RESIST, 130, 90),
+    ECO_VILL_DISC(InfluenceType.ECONOMIC, "ECO_CHUNK,ECO_CLAIM", 220L, 6, ResearchBonus.VILLAGER_DISCOUNT, 290, -55),
+    ECO_VILL_EXTRA(InfluenceType.ECONOMIC, "ECO_STEAL_3", 220L, 6, ResearchBonus.VILLAGER_EXTRA, 290, 60),
 
-    WAR_ROOT(InfluenceType.MILITARY, null, 40L, 2, ResearchBonus.RAID_WARNING, -330, 0),
-    WAR_DEF_1(InfluenceType.MILITARY, "WAR_ROOT", 80L, 3, ResearchBonus.RAID_WARNING, -210, -110),
-    WAR_WALL_1(InfluenceType.MILITARY, "WAR_ROOT", 80L, 3, ResearchBonus.TNT_RESIST, -215, 10),
-    WAR_OFF_1(InfluenceType.MILITARY, "WAR_ROOT", 100L, 4, ResearchBonus.WARRIOR_DAMAGE, -205, 120),
-    WAR_DEF_2(InfluenceType.MILITARY, "WAR_DEF_1", 120L, 4, ResearchBonus.FEWER_RAIDERS, -90, -120),
-    WAR_WALL_2(InfluenceType.MILITARY, "WAR_WALL_1", 120L, 4, ResearchBonus.TNT_RESIST, -95, 0),
-    WAR_OFF_2(InfluenceType.MILITARY, "WAR_OFF_1", 160L, 5, ResearchBonus.WAR_KILL_POINTS, -85, 120),
-    WAR_DEF_CAP(InfluenceType.MILITARY, "WAR_DEF_2,WAR_WALL_2", 300L, 8, ResearchBonus.FEWER_RAIDERS, 40, -110),
-    WAR_WALL_CAP(InfluenceType.MILITARY, "WAR_WALL_2,WAR_OFF_2", 300L, 8, ResearchBonus.TNT_RESIST, 45, -10),
-    WAR_OFF_3(InfluenceType.MILITARY, "WAR_OFF_2", 200L, 6, ResearchBonus.WARRIOR_DAMAGE, 45, 120),
-    WAR_OFF_4(InfluenceType.MILITARY, "WAR_OFF_3,WAR_WALL_2", 240L, 8, ResearchBonus.MILITARY_INFLUENCE_RESPAWN, "MILITARY_INFLUENCE", 180, 60),
-    WAR_OFF_CAP(InfluenceType.MILITARY, "WAR_OFF_4,WAR_DEF_CAP", 320L, 12, ResearchBonus.MILITARY_INFLUENCE_RESPAWN, "MILITARY_INFLUENCE", 315, -20);
+    WAR_WARN_1(InfluenceType.MILITARY, null, 40L, 2, ResearchBonus.RAID_WARNING, -340, 0),
+    WAR_REWARD_1(InfluenceType.MILITARY, "WAR_WARN_1", 80L, 3, ResearchBonus.RAID_REWARD, -215, -65),
+    WAR_MOB_1(InfluenceType.MILITARY, "WAR_WARN_1", 80L, 3, ResearchBonus.WARRIOR_DAMAGE, -210, 70),
+    WAR_FEWER(InfluenceType.MILITARY, "WAR_REWARD_1,WAR_MOB_1", 120L, 4, ResearchBonus.FEWER_RAIDERS, -90, -75),
+    WAR_MOB_2(InfluenceType.MILITARY, "WAR_MOB_1", 120L, 4, ResearchBonus.WARRIOR_DAMAGE, -80, 70),
+    WAR_ARMOR(InfluenceType.MILITARY, "WAR_FEWER,WAR_MOB_2", 160L, 5, ResearchBonus.ARMOR_BOOST, 20, -10),
+    WAR_CHUNK(InfluenceType.MILITARY, "WAR_MOB_2", 160L, 5, ResearchBonus.CHUNK_SLOT, 40, 90),
+    WAR_TNT(InfluenceType.MILITARY, "WAR_ARMOR", 220L, 6, ResearchBonus.TNT_RESIST, 140, -85),
+    WAR_WARN_2(InfluenceType.MILITARY, "WAR_ARMOR", 220L, 6, ResearchBonus.RAID_WARNING, 150, 60),
+    WAR_REWARD_2(InfluenceType.MILITARY, "WAR_TNT", 280L, 8, ResearchBonus.RAID_REWARD, 260, -75),
+    WAR_MOB_3(InfluenceType.MILITARY, "WAR_REWARD_2,WAR_WARN_2", 340L, 10, ResearchBonus.WARRIOR_DAMAGE, 320, -5);
 
     public static final int MAX_NODES_PER_BRANCH = 13;
 
@@ -176,28 +174,7 @@ public enum ResearchNode {
         try {
             return Optional.of(valueOf(value.toUpperCase(Locale.ROOT)));
         } catch (IllegalArgumentException exception) {
-            return legacy(value);
+            return Optional.empty();
         }
-    }
-
-    private static Optional<ResearchNode> legacy(String value) {
-        return switch (value.toUpperCase(Locale.ROOT)) {
-            case "SCIENCE_1" -> Optional.of(SCI_ROOT);
-            case "SCIENCE_2" -> Optional.of(SCI_DRILL_1);
-            case "SCIENCE_3" -> Optional.of(SCI_SMELT);
-            case "SCIENCE_4" -> Optional.of(SCI_ACADEMY);
-            case "SCIENCE_5" -> Optional.of(SCI_LAB);
-            case "ECONOMIC_1" -> Optional.of(ECO_ROOT);
-            case "ECONOMIC_2" -> Optional.of(ECO_LAND_1);
-            case "ECONOMIC_3" -> Optional.of(ECO_LAND_3);
-            case "ECONOMIC_4" -> Optional.of(ECO_TAX);
-            case "ECONOMIC_5" -> Optional.of(ECO_BANK);
-            case "MILITARY_1" -> Optional.of(WAR_ROOT);
-            case "MILITARY_2" -> Optional.of(WAR_WALL_1);
-            case "MILITARY_3" -> Optional.of(WAR_DEF_2);
-            case "MILITARY_4" -> Optional.of(WAR_OFF_2);
-            case "MILITARY_5" -> Optional.of(WAR_OFF_4);
-            default -> Optional.empty();
-        };
     }
 }

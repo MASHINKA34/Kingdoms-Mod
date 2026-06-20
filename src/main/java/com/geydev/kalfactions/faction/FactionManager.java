@@ -854,6 +854,26 @@ public final class FactionManager extends SavedData {
         return StartResearchResult.STARTED;
     }
 
+    public synchronized boolean grantResearch(UUID factionId, ResearchNode node) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return false;
+        }
+        boolean changed = faction.grantResearch(node);
+        if (changed) {
+            setDirty();
+        }
+        return changed;
+    }
+
+    public synchronized void clearAllResearch(UUID factionId) {
+        Faction faction = factions.get(factionId);
+        if (faction != null) {
+            faction.clearAllResearch();
+            setDirty();
+        }
+    }
+
     public synchronized int completeFinishedResearch(long nowMillis, long baselinePerNode) {
         int completed = 0;
         for (Faction faction : factions.values()) {

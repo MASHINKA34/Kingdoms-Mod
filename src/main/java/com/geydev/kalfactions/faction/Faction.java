@@ -375,7 +375,7 @@ public final class Faction {
     }
 
     public int researchChunkSlots() {
-        return researchBonusCount("CHUNK_SLOT");
+        return 5 * researchBonusCount("CHUNK_SLOT");
     }
 
     public double miningSpeedMultiplier() {
@@ -602,6 +602,18 @@ public final class Faction {
 
     void completeResearch(ResearchNode node) {
         completedResearch.add(node);
+    }
+
+    boolean grantResearch(ResearchNode node) {
+        if (node.equals(activeResearchNode)) {
+            clearActiveResearch();
+        }
+        return completedResearch.add(node);
+    }
+
+    void clearAllResearch() {
+        completedResearch.clear();
+        clearActiveResearch();
     }
 
     CompoundTag save() {

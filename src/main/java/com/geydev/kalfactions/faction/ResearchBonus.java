@@ -5,7 +5,6 @@ import java.util.Locale;
 public enum ResearchBonus {
     MINING_SPEED(InfluenceType.SCIENCE),
     ORE_DROP(InfluenceType.SCIENCE),
-    AUTO_SMELT(InfluenceType.SCIENCE),
     DRILL_OUTPUT(InfluenceType.SCIENCE),
     DRILL_INTERVAL(InfluenceType.SCIENCE),
     SMELT_SPEED(InfluenceType.SCIENCE),
