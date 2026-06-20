@@ -215,13 +215,22 @@ public final class TraderService {
                 || player.getInventory().getFreeSlot() >= 0;
     }
 
-    public static void sell(ServerPlayer player, UUID traderId, String offerId) {
+    public static void sell(ServerPlayer player, UUID traderId, String offerId, int requestedCount) {
         Entity entity = player.serverLevel().getEntity(traderId);
         if (!(entity instanceof SellerTraderEntity trader) || !isAvailable(player, trader)) {
             sendSellState(
                     player,
                     traderId,
                     Component.translatable("screen.kingdoms.trader.notice.too_far"),
+                    false
+            );
+            return;
+        }
+        if (requestedCount <= 0) {
+            sendSellState(
+                    player,
+                    traderId,
+                    Component.translatable("screen.kingdoms.trader.notice.invalid_offer"),
                     false
             );
             return;
@@ -262,7 +271,7 @@ public final class TraderService {
             return;
         }
 
-        int count = Math.min(owned, remainingLimit);
+        int count = Math.min(Math.min(owned, remainingLimit), requestedCount);
         int removed = removeUpTo(player, offer.item(), count);
         if (removed <= 0) {
             sendSellState(
@@ -362,7 +371,7 @@ public final class TraderService {
             boolean successful
     ) {
         List<TraderPayloads.OfferInfo> offers = Arrays.stream(TraderOffer.values())
-                .map(offer -> new TraderPayloads.OfferInfo(offer.id(), offer.price()))
+                .map(offer -> new TraderPayloads.OfferInfo(offer.id(), offer.price(), 0))
                 .toList();
         PacketDistributor.sendToPlayer(
                 player,
@@ -377,9 +386,14 @@ public final class TraderService {
             boolean successful
     ) {
         MinecraftServer server = player.serverLevel().getServer();
-        SellerOfferRotation.Window window = SellerOfferRotation.get(server).current(server);
+        SellerOfferRotation rotation = SellerOfferRotation.get(server);
+        SellerOfferRotation.Window window = rotation.current(server);
         List<TraderPayloads.OfferInfo> sellOffers = window.offers().stream()
-                .map(offer -> new TraderPayloads.OfferInfo(offer.id(), offer.price()))
+                .map(offer -> new TraderPayloads.OfferInfo(
+                        offer.id(),
+                        offer.price(),
+                        rotation.remainingLimit(server, player.getUUID(), offer)
+                ))
                 .toList();
         PacketDistributor.sendToPlayer(
                 player,

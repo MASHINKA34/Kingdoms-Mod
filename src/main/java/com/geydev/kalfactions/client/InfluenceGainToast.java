@@ -18,9 +18,14 @@ public final class InfluenceGainToast implements Toast {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/gui/influence/economic.png");
     private static final ResourceLocation MILITARY =
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/gui/influence/military.png");
-    private static final long DISPLAY_TIME = 4500L;
-    private static final int TOAST_WIDTH = 236;
-    private static final int TOAST_HEIGHT = 44;
+    private static final long DISPLAY_TIME = 2800L;
+    private static final int TOAST_WIDTH = 186;
+    private static final int TOAST_HEIGHT = 34;
+    private static final int TEXTURE_WIDTH = 236;
+    private static final int TEXTURE_HEIGHT = 44;
+
+    private static String lastToastKey = "";
+    private static long lastToastShownAt;
 
     private final InfluenceType type;
     private final long amount;
@@ -30,16 +35,42 @@ public final class InfluenceGainToast implements Toast {
         this.amount = Math.max(0L, amount);
     }
 
+    public static void show(InfluenceType type, long amount) {
+        if (type == null || amount <= 0L) {
+            return;
+        }
+        String toastKey = type.id() + ":" + amount;
+        long now = System.currentTimeMillis();
+        if (toastKey.equals(lastToastKey) && now - lastToastShownAt < DISPLAY_TIME) {
+            return;
+        }
+        lastToastKey = toastKey;
+        lastToastShownAt = now;
+        Minecraft.getInstance().getToasts().addToast(new InfluenceGainToast(type, amount));
+    }
+
     @Override
     public Visibility render(GuiGraphics graphics, ToastComponent component, long timeSinceLastVisible) {
         Minecraft minecraft = Minecraft.getInstance();
-        graphics.blit(BACKGROUND, 0, 0, width(), height(), 0.0F, 0.0F, width(), height(), width(), height());
-        graphics.blit(icon(), 14, 12, 20, 20, 0.0F, 0.0F, 16, 16, 16, 16);
+        graphics.blit(
+                BACKGROUND,
+                0,
+                0,
+                width(),
+                height(),
+                0.0F,
+                0.0F,
+                TEXTURE_WIDTH,
+                TEXTURE_HEIGHT,
+                TEXTURE_WIDTH,
+                TEXTURE_HEIGHT
+        );
+        graphics.blit(icon(), 11, 9, 16, 16, 0.0F, 0.0F, 16, 16, 16, 16);
         graphics.drawString(
                 minecraft.font,
                 Component.translatable("screen.kingdoms.influence_gain", amount, Component.translatable(type.translationKey())),
-                42,
-                17,
+                33,
+                13,
                 color(),
                 true
         );

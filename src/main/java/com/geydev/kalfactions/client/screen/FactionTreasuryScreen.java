@@ -2,11 +2,15 @@ package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
+import dev.ithundxr.createnumismatics.content.coins.CoinItem;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class FactionTreasuryScreen extends FactionScreen {
+    private static final long MAX_TYPED_AMOUNT = 999_999_999_999L;
+
     private EditBox amountBox;
 
     public FactionTreasuryScreen(FactionSnapshot snapshot, boolean successful, String message) {
@@ -19,7 +23,7 @@ public final class FactionTreasuryScreen extends FactionScreen {
                 font,
                 left + CONTENT_LEFT,
                 top + 82,
-                140,
+                150,
                 20,
                 text("screen.kingdoms.amount")
         );
@@ -28,16 +32,22 @@ public final class FactionTreasuryScreen extends FactionScreen {
         amountBox.setFilter(value -> value.matches("\\d{0,12}"));
         addRenderableWidget(amountBox);
 
+        KingdomsButton depositAll = addRenderableWidget(KingdomsButton.create(
+                text("screen.kingdoms.deposit_all"),
+                button -> fillInventoryBalance(),
+                left + CONTENT_LEFT + 156, top + 82, 92, 20
+        ));
+
         KingdomsButton deposit = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.deposit"),
                 button -> send(true),
-                left + 174, top + 82, 60, 20
+                left + CONTENT_LEFT, top + 106, 82, 20
         ));
 
         KingdomsButton withdraw = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.withdraw"),
                 button -> send(false),
-                left + 238, top + 82, 60, 20
+                left + CONTENT_LEFT + 88, top + 106, 82, 20
         ));
 
         amountBox.setResponder(value -> {
@@ -47,6 +57,7 @@ public final class FactionTreasuryScreen extends FactionScreen {
         });
         deposit.active = false;
         withdraw.active = false;
+        depositAll.active = inventoryCoinBalance() > 0L;
 
         addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.back"),
@@ -78,6 +89,25 @@ public final class FactionTreasuryScreen extends FactionScreen {
         }
     }
 
+    private void fillInventoryBalance() {
+        long balance = Math.min(inventoryCoinBalance(), MAX_TYPED_AMOUNT);
+        amountBox.setValue(balance > 0L ? Long.toString(balance) : "");
+    }
+
+    private long inventoryCoinBalance() {
+        if (minecraft == null || minecraft.player == null) {
+            return 0L;
+        }
+        long total = 0L;
+        for (ItemStack stack : minecraft.player.getInventory().items) {
+            if (stack.getItem() instanceof CoinItem coinItem) {
+                long value = (long) coinItem.coin.value * stack.getCount();
+                total = Long.MAX_VALUE - total < value ? Long.MAX_VALUE : total + value;
+            }
+        }
+        return total;
+    }
+
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
@@ -102,7 +132,7 @@ public final class FactionTreasuryScreen extends FactionScreen {
                     font,
                     text("screen.kingdoms.withdraw_hint"),
                     left + CONTENT_LEFT,
-                    top + 110,
+                    top + 132,
                     TEXT_HINT,
                     false
             );

@@ -43,7 +43,7 @@ public final class ClientFactionPayloadHandler {
     public static void handleInfluenceGain(FactionPayloads.S2CInfluenceGain payload) {
         InfluenceType.parse(payload.influenceType()).ifPresent(type -> {
             Minecraft minecraft = Minecraft.getInstance();
-            minecraft.execute(() -> minecraft.getToasts().addToast(new InfluenceGainToast(type, payload.amount())));
+            minecraft.execute(() -> InfluenceGainToast.show(type, payload.amount()));
         });
     }
 

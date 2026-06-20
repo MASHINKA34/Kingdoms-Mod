@@ -2,6 +2,7 @@ package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.KingdomsNoticeToast;
+import com.geydev.kalfactions.economy.PriceMath;
 import com.geydev.kalfactions.outpost.trader.SellOffer;
 import com.geydev.kalfactions.outpost.trader.TraderPayloads;
 import java.util.ArrayList;
@@ -10,6 +11,7 @@ import java.util.Locale;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -27,7 +29,7 @@ public final class SellerShopScreen extends Screen {
     private static final int TEXT_MUTED = 0xFF5B452E;
     private static final int SELL_COLUMNS = 3;
     private static final int SELL_CELL_WIDTH = 82;
-    private static final int SELL_CELL_HEIGHT = 25;
+    private static final int SELL_CELL_HEIGHT = 24;
 
     private final UUID traderId;
     private List<TraderPayloads.OfferInfo> sellOffers;
@@ -37,6 +39,11 @@ public final class SellerShopScreen extends Screen {
     private int left;
     private int top;
     private final List<SellCell> sellCells = new ArrayList<>();
+    private String selectedOfferId = "";
+    private SellCell selectedCell;
+    private EditBox amountBox;
+    private KingdomsButton maxButton;
+    private KingdomsButton sellButton;
 
     public SellerShopScreen(TraderPayloads.S2CShopState state) {
         super(Component.translatable("screen.kingdoms.seller.title"));
@@ -62,6 +69,8 @@ public final class SellerShopScreen extends Screen {
         sellOffers = state.sellOffers();
         nextRefreshEpochMillis = state.nextSellRefreshEpochMillis();
         pendingOfferId = "";
+        selectedOfferId = "";
+        selectedCell = null;
         showShopNotice(state.notice(), state.successful());
         rebuildWidgets();
     }
@@ -76,9 +85,44 @@ public final class SellerShopScreen extends Screen {
             int col = i % SELL_COLUMNS;
             int rowIndex = i / SELL_COLUMNS;
             int cellX = sellLeft + col * SELL_CELL_WIDTH;
-            int cellY = top + 84 + rowIndex * SELL_CELL_HEIGHT;
+            int cellY = top + 80 + rowIndex * SELL_CELL_HEIGHT;
             sellCells.add(new SellCell(sellOffers.get(i), cellX, cellY));
         }
+        selectedCell = findSelectedCell();
+        amountBox = new EditBox(
+                font,
+                left + 35,
+                top + 166,
+                58,
+                20,
+                Component.translatable("screen.kingdoms.seller.amount")
+        );
+        amountBox.setMaxLength(6);
+        amountBox.setHint(Component.translatable("screen.kingdoms.seller.amount"));
+        amountBox.setFilter(value -> value.matches("\\d{0,6}"));
+        amountBox.setResponder(value -> updateSellControls());
+        if (selectedCell != null) {
+            int amount = Math.min(maxSellable(selectedCell), Math.max(1, requestedAmount()));
+            amountBox.setValue(amount > 0 ? Integer.toString(amount) : "");
+        }
+        addRenderableWidget(amountBox);
+        maxButton = addRenderableWidget(KingdomsButton.create(
+                Component.translatable("screen.kingdoms.seller.max"),
+                button -> fillMaxAmount(),
+                left + 98,
+                top + 166,
+                46,
+                20
+        ));
+        sellButton = addRenderableWidget(KingdomsButton.create(
+                Component.translatable("screen.kingdoms.seller.sell"),
+                button -> sellSelected(),
+                left + 149,
+                top + 166,
+                70,
+                20
+        ));
+        updateSellControls();
         addRenderableWidget(KingdomsButton.create(
                 Component.translatable("gui.done"),
                 button -> onClose(),
@@ -89,12 +133,13 @@ public final class SellerShopScreen extends Screen {
         ));
     }
 
-    private void sell(String offerId) {
+    private void sell(String offerId, int amount) {
         if (!pendingOfferId.isBlank()) {
             return;
         }
         pendingOfferId = offerId;
-        PacketDistributor.sendToServer(new TraderPayloads.C2SSell(traderId, offerId));
+        updateSellControls();
+        PacketDistributor.sendToServer(new TraderPayloads.C2SSell(traderId, offerId, amount));
     }
 
     @Override
@@ -112,8 +157,8 @@ public final class SellerShopScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0 && pendingOfferId.isBlank()) {
             for (SellCell cell : sellCells) {
-                if (cell.contains(mouseX, mouseY) && ownedCount(cell.item()) > 0) {
-                    sell(cell.offer().id());
+                if (cell.contains(mouseX, mouseY)) {
+                    selectCell(cell);
                     return true;
                 }
             }
@@ -136,7 +181,7 @@ public final class SellerShopScreen extends Screen {
                 formatDuration(remainingRefreshSeconds())
         );
         graphics.drawString(font, timer, left + (PANEL_WIDTH - font.width(timer)) / 2, top + 57, TEXT_MUTED, false);
-        graphics.drawString(font, Component.translatable("screen.kingdoms.trader.sell_section"), left + 35, top + 71, TEXT_MUTED, false);
+        graphics.drawString(font, Component.translatable("screen.kingdoms.trader.sell_section"), left + 35, top + 69, TEXT_MUTED, false);
         ItemStack hovered = null;
         for (SellCell cell : sellCells) {
             boolean hover = cell.contains(mouseX, mouseY);
@@ -145,6 +190,7 @@ public final class SellerShopScreen extends Screen {
                 hovered = new ItemStack(cell.item());
             }
         }
+        renderSelectionInfo(graphics);
         if (hovered != null) {
             graphics.renderTooltip(font, hovered, mouseX, mouseY);
         }
@@ -166,13 +212,61 @@ public final class SellerShopScreen extends Screen {
 
     private void renderSellCell(GuiGraphics graphics, SellCell cell, boolean hover) {
         int owned = ownedCount(cell.item());
-        int background = hover && owned > 0 ? 0x66C9A24C : 0x24A8783D;
+        int available = maxSellable(cell);
+        boolean selected = cell.offer().id().equals(selectedOfferId);
+        int background = selected ? 0x88D1A43D : hover && available > 0 ? 0x66C9A24C : 0x24A8783D;
         graphics.fill(cell.x(), cell.y(), cell.x() + SELL_CELL_WIDTH - 4, cell.y() + SELL_CELL_HEIGHT - 2, background);
+        if (selected) {
+            graphics.renderOutline(cell.x(), cell.y(), SELL_CELL_WIDTH - 4, SELL_CELL_HEIGHT - 2, 0xFFD8B25A);
+        }
         ItemStack stack = new ItemStack(cell.item());
         graphics.renderItem(stack, cell.x() + 3, cell.y() + 4);
-        int textColor = owned > 0 ? TEXT_DARK : 0xFF8A7A66;
+        int textColor = available > 0 ? TEXT_DARK : 0xFF8A7A66;
         graphics.drawString(font, TraderShopScreen.formatPrice(cell.offer().price()), cell.x() + 23, cell.y() + 3, textColor, false);
-        graphics.drawString(font, "x" + owned, cell.x() + 23, cell.y() + 13, owned > 0 ? 0xFFC9921F : TEXT_MUTED, false);
+        graphics.drawString(font, "x" + owned, cell.x() + 23, cell.y() + 13, available > 0 ? 0xFFC9921F : TEXT_MUTED, false);
+    }
+
+    private void renderSelectionInfo(GuiGraphics graphics) {
+        graphics.drawString(
+                font,
+                Component.translatable("screen.kingdoms.seller.amount"),
+                left + 35,
+                top + 156,
+                TEXT_MUTED,
+                false
+        );
+        if (selectedCell == null) {
+            graphics.drawString(
+                    font,
+                    Component.translatable("screen.kingdoms.seller.pick"),
+                    left + 224,
+                    top + 171,
+                    TEXT_MUTED,
+                    false
+            );
+            return;
+        }
+        int available = maxSellable(selectedCell);
+        graphics.drawString(
+                font,
+                Component.translatable("screen.kingdoms.seller.available", available),
+                left + 224,
+                top + 171,
+                available > 0 ? TEXT_MUTED : 0xFF8A5A45,
+                false
+        );
+        int amount = requestedAmount();
+        if (amount > 0 && amount <= available) {
+            long payout = PriceMath.saturatedMultiply(selectedCell.offer().price(), amount);
+            graphics.drawString(
+                    font,
+                    Component.translatable("screen.kingdoms.seller.payout", TraderShopScreen.formatPrice(payout)),
+                    left + 35,
+                    top + 189,
+                    TEXT_DARK,
+                    false
+            );
+        }
     }
 
     private int ownedCount(Item item) {
@@ -187,6 +281,76 @@ public final class SellerShopScreen extends Screen {
             }
         }
         return count;
+    }
+
+    private int maxSellable(SellCell cell) {
+        return Math.min(ownedCount(cell.item()), Math.max(0, cell.offer().remainingLimit()));
+    }
+
+    private void selectCell(SellCell cell) {
+        selectedOfferId = cell.offer().id();
+        selectedCell = cell;
+        fillMaxAmount();
+        updateSellControls();
+    }
+
+    private SellCell findSelectedCell() {
+        if (selectedOfferId.isBlank()) {
+            return null;
+        }
+        for (SellCell cell : sellCells) {
+            if (cell.offer().id().equals(selectedOfferId)) {
+                return cell;
+            }
+        }
+        selectedOfferId = "";
+        return null;
+    }
+
+    private void fillMaxAmount() {
+        if (amountBox == null || selectedCell == null) {
+            return;
+        }
+        int amount = maxSellable(selectedCell);
+        amountBox.setValue(amount > 0 ? Integer.toString(amount) : "");
+    }
+
+    private void sellSelected() {
+        if (selectedCell == null) {
+            return;
+        }
+        int amount = requestedAmount();
+        if (amount <= 0 || amount > maxSellable(selectedCell)) {
+            updateSellControls();
+            return;
+        }
+        sell(selectedCell.offer().id(), amount);
+    }
+
+    private int requestedAmount() {
+        if (amountBox == null || amountBox.getValue().isEmpty()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(amountBox.getValue());
+        } catch (NumberFormatException exception) {
+            return 0;
+        }
+    }
+
+    private void updateSellControls() {
+        int max = selectedCell == null ? 0 : maxSellable(selectedCell);
+        int amount = requestedAmount();
+        boolean canEdit = selectedCell != null && pendingOfferId.isBlank() && max > 0;
+        if (amountBox != null) {
+            amountBox.active = canEdit;
+        }
+        if (maxButton != null) {
+            maxButton.active = canEdit;
+        }
+        if (sellButton != null) {
+            sellButton.active = canEdit && amount > 0 && amount <= max;
+        }
     }
 
     @Override
