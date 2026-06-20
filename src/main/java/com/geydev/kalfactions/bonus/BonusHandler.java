@@ -112,6 +112,33 @@ public final class BonusHandler {
         }
     }
 
+    @SubscribeEvent
+    public static void onItemCrafted(PlayerEvent.ItemCraftedEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        ItemStack crafted = event.getCrafting();
+        if (crafted.isEmpty()) {
+            return;
+        }
+        int levels = FactionManager.get(player.serverLevel())
+                .getFactionForMember(player.getUUID())
+                .map(faction -> faction.researchBonusCount("CRAFT_EXTRA"))
+                .orElse(0);
+        if (levels <= 0) {
+            return;
+        }
+        double chance = Math.min(0.5D, 0.1D * levels);
+        if (player.serverLevel().getRandom().nextDouble() >= chance) {
+            return;
+        }
+        ItemStack bonus = crafted.copy();
+        bonus.setCount(1);
+        if (!player.getInventory().add(bonus)) {
+            player.drop(bonus, false);
+        }
+    }
+
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void beforeBlockBreak(BlockEvent.BreakEvent event) {
         if (!event.isCanceled() && event.getPlayer() instanceof ServerPlayer player) {

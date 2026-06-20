@@ -223,7 +223,7 @@ public final class RaidManager extends SavedData {
         long nowEpochMillis
     ) {
         int warningSeconds = ModConfigSpec.RAID_WARNING_SECONDS.getAsInt()
-            + 60 * faction.researchBonusCount("RAID_WARNING");
+            + 120 * faction.researchBonusCount("RAID_WARNING");
         long warningEndsAt = saturatedAdd(
             nowEpochMillis,
             secondsToMillis(warningSeconds)
@@ -273,7 +273,7 @@ public final class RaidManager extends SavedData {
         if (level == null) {
             return false;
         }
-        int requestedRaiders = Math.min(15, 3 + faction.claimCount() / 3);
+        int requestedRaiders = Math.min(30, 3 + faction.claimCount() / 3);
         requestedRaiders = Math.max(1, requestedRaiders - faction.researchBonusCount("FEWER_RAIDERS"));
         List<ClaimKey> boundary;
         if (raid.targetType() == Raid.TargetType.OUTPOST) {
@@ -338,9 +338,13 @@ public final class RaidManager extends SavedData {
             if (spawnPos == null) {
                 continue;
             }
-            Raider raider = index % 3 == 2
-                ? createRaider(EntityType.VINDICATOR, level, raid, spawnPos)
-                : createRaider(EntityType.PILLAGER, level, raid, spawnPos);
+            Raider raider = switch (randomRaiderKind(random)) {
+                case VINDICATOR -> createRaider(EntityType.VINDICATOR, level, raid, spawnPos);
+                case WITCH -> createRaider(EntityType.WITCH, level, raid, spawnPos);
+                case EVOKER -> createRaider(EntityType.EVOKER, level, raid, spawnPos);
+                case RAVAGER -> createRaider(EntityType.RAVAGER, level, raid, spawnPos);
+                default -> createRaider(EntityType.PILLAGER, level, raid, spawnPos);
+            };
             if (raider == null) {
                 continue;
             }
@@ -365,6 +369,23 @@ public final class RaidManager extends SavedData {
             return raider;
         }
         return null;
+    }
+
+    private static RaiderKind randomRaiderKind(RandomSource random) {
+        int roll = random.nextInt(100);
+        if (roll < 50) {
+            return RaiderKind.PILLAGER;
+        }
+        if (roll < 75) {
+            return RaiderKind.VINDICATOR;
+        }
+        if (roll < 87) {
+            return RaiderKind.WITCH;
+        }
+        if (roll < 95) {
+            return RaiderKind.EVOKER;
+        }
+        return RaiderKind.RAVAGER;
     }
 
     private static <T extends Raider> T createRaider(
@@ -516,6 +537,11 @@ public final class RaidManager extends SavedData {
         for (int index = 0; index < raid.originalRaiderCount(); index++) {
             reward = saturatedAdd(reward, randomInclusive(random, minimum, maximum));
         }
+        int rewardLevels = faction.researchBonusCount("RAID_REWARD");
+        if (rewardLevels > 0) {
+            double scaled = reward * (1.0D + 0.10D * rewardLevels);
+            reward = scaled >= (double) Long.MAX_VALUE ? Long.MAX_VALUE : (long) Math.ceil(scaled);
+        }
         long room = Long.MAX_VALUE - faction.treasuryBalance();
         long deposited = Math.min(reward, room);
         if (deposited > 0L) {
@@ -551,12 +577,20 @@ public final class RaidManager extends SavedData {
             ModConfigSpec.RAID_TREASURY_STEAL_MIN.getAsLong(),
             percentLoss
         );
+        int stealResist = currentFaction.researchBonusCount("RAID_STEAL_RESIST");
+        double stealFactor = stealResist > 0 ? Math.max(0.0D, 1.0D - 0.10D * stealResist) : 1.0D;
+        if (stealResist > 0) {
+            desiredTreasuryLoss = (long) Math.floor(desiredTreasuryLoss * stealFactor);
+        }
         long treasuryStolen = Math.min(balance, desiredTreasuryLoss);
         if (treasuryStolen > 0L) {
             manager.withdraw(faction.id(), treasuryStolen);
         }
+        long inventoryLimit = (long) Math.floor(
+            ModConfigSpec.RAID_INVENTORY_STEAL_MAX.getAsLong() * stealFactor
+        );
         long inventoryStolen = balance == 0L
-            ? collectOnlineCoins(server, currentFaction, ModConfigSpec.RAID_TREASURY_STEAL_MIN.getAsLong())
+            ? collectOnlineCoins(server, currentFaction, inventoryLimit)
             : 0L;
         if (lostClaims > 0) {
             IntegrationManager.refreshFromServer(server);
@@ -986,5 +1020,13 @@ public final class RaidManager extends SavedData {
     }
 
     private record TargetSelection(Raid.TargetType type, ClaimKey claim, BlockPos position, UUID outpostId) {
+    }
+
+    private enum RaiderKind {
+        PILLAGER,
+        VINDICATOR,
+        WITCH,
+        EVOKER,
+        RAVAGER
     }
 }

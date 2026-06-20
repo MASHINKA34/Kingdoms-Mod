@@ -150,6 +150,14 @@ public final class TraderService {
         }
 
         long price = offer.price();
+        int outpostDiscountLevels = FactionManager.get(player.serverLevel())
+                .getFactionForMember(player.getUUID())
+                .map(faction -> faction.researchBonusCount("OUTPOST_DISCOUNT"))
+                .orElse(0);
+        if (outpostDiscountLevels > 0 && price > 0L) {
+            double factor = 1.0D - Math.min(0.50D, 0.05D * outpostDiscountLevels);
+            price = (long) Math.ceil(price * factor);
+        }
         ItemStack product = new ItemStack(offer.item());
         if (!hasInventorySpace(player, product)) {
             sendBuyState(
@@ -292,7 +300,7 @@ public final class TraderService {
             Faction faction = manager.getFactionById(factionId).orElse(null);
             int buyRateLevels = faction == null ? 0 : faction.researchBonusCount("BUY_RATE");
             if (buyRateLevels > 0) {
-                spurs = base + Math.round(base * 0.10D * buyRateLevels);
+                spurs = base + (long) Math.ceil(base * 0.10D * buyRateLevels);
             }
         }
         NumismaticsEconomy.give(player, spurs);

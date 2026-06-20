@@ -3,12 +3,14 @@ package com.geydev.kalfactions.pvp;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionBonus;
+import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.protection.FactionAccess;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.monster.Enemy;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -21,7 +23,11 @@ public final class PvpHandler {
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
-        if (event.isCanceled() || !(event.getSource().getEntity() instanceof ServerPlayer attacker)) {
+        if (event.isCanceled()) {
+            return;
+        }
+        applyArmorReduction(event);
+        if (!(event.getSource().getEntity() instanceof ServerPlayer attacker)) {
             return;
         }
 
@@ -35,17 +41,35 @@ public final class PvpHandler {
             return;
         }
 
+        if (!(event.getEntity() instanceof Enemy)) {
+            return;
+        }
+
         if (FactionAccess.hasAnyBonus(attacker, FactionBonus.WARRIORS)) {
             float multiplier = ModConfigSpec.WARRIOR_DAMAGE_MULTIPLIER.get().floatValue();
             event.setAmount(event.getAmount() * multiplier);
         }
 
-        int warriorLevels = com.geydev.kalfactions.faction.FactionManager.get(attacker.serverLevel())
+        int warriorLevels = FactionManager.get(attacker.serverLevel())
                 .getFactionForMember(attacker.getUUID())
                 .map(faction -> faction.researchBonusCount("WARRIOR_DAMAGE"))
                 .orElse(0);
         if (warriorLevels > 0) {
             event.setAmount(event.getAmount() * (1.0F + 0.05F * warriorLevels));
+        }
+    }
+
+    private static void applyArmorReduction(LivingIncomingDamageEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer victim)) {
+            return;
+        }
+        int armorLevels = FactionManager.get(victim.serverLevel())
+                .getFactionForMember(victim.getUUID())
+                .map(faction -> faction.researchBonusCount("ARMOR_BOOST"))
+                .orElse(0);
+        if (armorLevels > 0) {
+            float reduction = Math.min(0.10F, 0.02F * armorLevels);
+            event.setAmount(event.getAmount() * (1.0F - reduction));
         }
     }
 

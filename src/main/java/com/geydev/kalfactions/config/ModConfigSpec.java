@@ -35,6 +35,7 @@ public final class ModConfigSpec {
     public static final LongValue RAID_REWARD_PER_RAIDER_MAX;
     public static final DoubleValue RAID_TREASURY_STEAL_PERCENT;
     public static final LongValue RAID_TREASURY_STEAL_MIN;
+    public static final LongValue RAID_INVENTORY_STEAL_MAX;
     public static final LongValue OUTPOST_CHARTER_COST;
     public static final LongValue OUTPOST_DRILL_COST;
     public static final IntValue OUTPOST_DRILL_INTERVAL_SECONDS;
@@ -94,16 +95,19 @@ public final class ModConfigSpec {
             .defineInRange("combatMinutes", 10, 1, 240);
         RAID_REWARD_PER_RAIDER_MIN = builder
             .comment("Minimum treasury reward per slain raider on victory.")
-            .defineInRange("rewardPerRaiderMin", 50L, 0L, Long.MAX_VALUE);
+            .defineInRange("rewardPerRaiderMin", 25L, 0L, Long.MAX_VALUE);
         RAID_REWARD_PER_RAIDER_MAX = builder
             .comment("Maximum treasury reward per slain raider on victory.")
-            .defineInRange("rewardPerRaiderMax", 150L, 0L, Long.MAX_VALUE);
+            .defineInRange("rewardPerRaiderMax", 100L, 0L, Long.MAX_VALUE);
         RAID_TREASURY_STEAL_PERCENT = builder
             .comment("Fraction of the treasury stolen when a raid on the main territory is lost.")
             .defineInRange("treasuryStealPercent", 0.10D, 0D, 1D);
         RAID_TREASURY_STEAL_MIN = builder
             .comment("Minimum spurs stolen when a raid on the main territory is lost.")
             .defineInRange("treasuryStealMin", 100L, 0L, Long.MAX_VALUE);
+        RAID_INVENTORY_STEAL_MAX = builder
+            .comment("Maximum spurs taken from online members' inventories when the treasury is empty.")
+            .defineInRange("inventoryStealMax", 500L, 0L, Long.MAX_VALUE);
         builder.pop();
 
         builder.push("outposts");
