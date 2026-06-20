@@ -399,7 +399,7 @@ public final class Faction {
         if (completedResearch.contains(node)) {
             return false;
         }
-        return node.prerequisite().map(completedResearch::contains).orElse(true);
+        return node.prerequisites().stream().allMatch(completedResearch::contains);
     }
 
     public Optional<ActiveResearch> activeResearch() {

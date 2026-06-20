@@ -155,7 +155,9 @@ public final class ResearchScreen extends FactionScreen {
         int clipBottom = clipTop + TREE_HEIGHT;
         graphics.enableScissor(clipLeft, clipTop, clipRight, clipBottom);
         for (ResearchNode node : ResearchNode.branch(selectedType)) {
-            node.prerequisite().ifPresent(parent -> renderConnection(graphics, parent, node));
+            for (ResearchNode parent : node.prerequisites()) {
+                renderConnection(graphics, parent, node);
+            }
         }
         for (ResearchNode node : ResearchNode.branch(selectedType)) {
             renderNode(graphics, node, node == hoveredNode(mouseX, mouseY));
@@ -480,9 +482,8 @@ public final class ResearchScreen extends FactionScreen {
         if (node.name().equals(snapshot.activeResearchNode())) {
             return NodeState.ACTIVE;
         }
-        boolean prereqDone = node.prerequisite()
-                .map(prereq -> snapshot.completedResearch().contains(prereq.name()))
-                .orElse(true);
+        boolean prereqDone = node.prerequisites().stream()
+                .allMatch(prereq -> snapshot.completedResearch().contains(prereq.name()));
         return prereqDone ? NodeState.AVAILABLE : NodeState.LOCKED;
     }
 
