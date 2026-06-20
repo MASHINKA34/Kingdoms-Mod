@@ -239,14 +239,26 @@ public final class SellerShopScreen extends Screen {
             graphics.drawString(
                     font,
                     Component.translatable("screen.kingdoms.seller.pick"),
-                    left + 224,
-                    top + 171,
+                    left + 149,
+                    top + 156,
                     TEXT_MUTED,
                     false
             );
             return;
         }
         int available = maxSellable(selectedCell);
+        int amount = requestedAmount();
+        if (amount > 0 && amount <= available) {
+            long payout = PriceMath.saturatedMultiply(selectedCell.offer().price(), amount);
+            graphics.drawString(
+                    font,
+                    Component.translatable("screen.kingdoms.seller.payout", TraderShopScreen.formatPrice(payout)),
+                    left + 149,
+                    top + 156,
+                    TEXT_DARK,
+                    false
+            );
+        }
         graphics.drawString(
                 font,
                 Component.translatable("screen.kingdoms.seller.available", available),
@@ -255,18 +267,6 @@ public final class SellerShopScreen extends Screen {
                 available > 0 ? TEXT_MUTED : 0xFF8A5A45,
                 false
         );
-        int amount = requestedAmount();
-        if (amount > 0 && amount <= available) {
-            long payout = PriceMath.saturatedMultiply(selectedCell.offer().price(), amount);
-            graphics.drawString(
-                    font,
-                    Component.translatable("screen.kingdoms.seller.payout", TraderShopScreen.formatPrice(payout)),
-                    left + 35,
-                    top + 189,
-                    TEXT_DARK,
-                    false
-            );
-        }
     }
 
     private int ownedCount(Item item) {

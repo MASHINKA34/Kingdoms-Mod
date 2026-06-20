@@ -61,6 +61,7 @@ public final class KingdomsNoticeToast implements Toast {
                 TEXTURE_WIDTH,
                 TEXTURE_HEIGHT
         );
+        graphics.blit(BACKGROUND, 6, 5, 38, height() - 10, 52, 8, 48, 30, TEXTURE_WIDTH, TEXTURE_HEIGHT);
         graphics.fill(7, 7, 10, height() - 7, successful ? 0xFF3FB85B : 0xFFC8463C);
         int textLeft = 16;
         List<FormattedCharSequence> lines = minecraft.font.split(message, width() - textLeft - 8);
