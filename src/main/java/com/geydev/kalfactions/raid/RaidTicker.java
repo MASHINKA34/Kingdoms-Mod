@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.raid;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.outpost.RogueOutpostManager;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -10,6 +11,7 @@ public final class RaidTicker {
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
         RaidManager.get(event.getServer()).tick(event.getServer(), System.currentTimeMillis());
+        RogueOutpostManager.get(event.getServer()).tickGarrison(event.getServer());
     }
 
     private RaidTicker() {

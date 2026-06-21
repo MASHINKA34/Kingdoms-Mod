@@ -10,9 +10,27 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class RaidEvents {
+    @SubscribeEvent
+    public static void onIncomingDamage(LivingIncomingDamageEvent event) {
+        if (event.isCanceled() || !isRaider(event.getEntity())) {
+            return;
+        }
+        Entity attacker = event.getSource().getEntity();
+        if (attacker != null && isRaider(attacker)) {
+            event.setCanceled(true);
+        }
+    }
+
+    private static boolean isRaider(Entity entity) {
+        return entity != null
+            && (entity.getTags().contains(RaidManager.RAIDER_TAG)
+                || entity.getTags().contains(RogueOutpostManager.GARRISON_TAG));
+    }
+
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onLivingDeath(LivingDeathEvent event) {
         Entity entity = event.getEntity();

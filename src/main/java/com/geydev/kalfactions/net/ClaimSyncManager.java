@@ -6,6 +6,7 @@ import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.integration.IntegrationManager;
 import com.geydev.kalfactions.integration.IntegrationManager.FactionMapData;
+import com.geydev.kalfactions.outpost.RogueOutpostManager;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,6 +26,8 @@ import net.neoforged.neoforge.network.PacketDistributor;
 public final class ClaimSyncManager {
     private static final int CHECK_INTERVAL_TICKS = 20;
     private static final int RESEND_MOVE_CHUNKS = 8;
+    private static final int ROGUE_COLOR = 0x111111;
+    private static final String ROGUE_NAME = "Форпост захвачен рейдерами";
 
     private static final Map<UUID, SyncState> STATES = new HashMap<>();
     private static int ticksUntilCheck;
@@ -101,6 +104,27 @@ public final class ClaimSyncManager {
                 if (entries.size() >= FactionPayloads.S2CSyncClaims.MAX_ENTRIES) {
                     break outer;
                 }
+            }
+        }
+
+        rogue:
+        for (RogueOutpostManager.RogueOutpost rogueOutpost : RogueOutpostManager.get(player.serverLevel()).all()) {
+            for (ClaimKey chunk : rogueOutpost.chunks()) {
+                if (!chunk.dimension().equals(dimension)) {
+                    continue;
+                }
+                if (entries.size() >= FactionPayloads.S2CSyncClaims.MAX_ENTRIES) {
+                    break rogue;
+                }
+                entries.add(new FactionPayloads.ClaimEntry(
+                        chunk.x(),
+                        chunk.z(),
+                        ROGUE_COLOR,
+                        ROGUE_NAME,
+                        RogueOutpostManager.ROGUE_FACTION_ID,
+                        false,
+                        false
+                ));
             }
         }
 

@@ -20,6 +20,10 @@ import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.saveddata.SavedData;
 import org.slf4j.Logger;
 
@@ -27,15 +31,19 @@ public final class RogueOutpostManager extends SavedData {
     public static final String DATA_NAME = "kingdoms_rogue_outposts";
     public static final String GARRISON_TAG = "kingdoms_rogue_garrison";
     public static final String OUTPOST_ID_DATA = "kingdoms_rogue_outpost";
+    public static final UUID ROGUE_FACTION_ID = new UUID(0xC0FFEE00C0FFEE00L, 0x5AD0B055EDL);
     public static final Factory<RogueOutpostManager> FACTORY =
         new Factory<>(RogueOutpostManager::new, RogueOutpostManager::load);
 
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String TAG_OUTPOSTS = "outposts";
+    private static final int GARRISON_PATROL_INTERVAL_TICKS = 60;
+    private static final double GARRISON_PATROL_SPEED = 0.85D;
 
     private final Map<UUID, RogueOutpost> outposts = new LinkedHashMap<>();
     private final Map<ClaimKey, UUID> chunkIndex = new HashMap<>();
     private final Map<UUID, UUID> garrisonIndex = new HashMap<>();
+    private int garrisonPatrolCounter;
 
     public static RogueOutpostManager get(MinecraftServer server) {
         Objects.requireNonNull(server, "server");
@@ -48,6 +56,44 @@ public final class RogueOutpostManager extends SavedData {
 
     public synchronized boolean isRogueChunk(ClaimKey key) {
         return chunkIndex.containsKey(key);
+    }
+
+    public synchronized void tickGarrison(MinecraftServer server) {
+        if (outposts.isEmpty() || ++garrisonPatrolCounter < GARRISON_PATROL_INTERVAL_TICKS) {
+            return;
+        }
+        garrisonPatrolCounter = 0;
+        for (RogueOutpost outpost : outposts.values()) {
+            ServerLevel level = levelFor(server, outpost);
+            if (level == null) {
+                continue;
+            }
+            BlockPos core = outpost.corePos();
+            RandomSource random = level.getRandom();
+            for (UUID garrisonId : outpost.garrison()) {
+                if (!(level.getEntity(garrisonId) instanceof Mob mob) || !mob.isAlive()) {
+                    continue;
+                }
+                if (mob.getTarget() != null || !mob.getNavigation().isDone()) {
+                    continue;
+                }
+                double angle = random.nextDouble() * Math.PI * 2.0D;
+                double radius = 2.5D + random.nextDouble() * 4.0D;
+                double x = core.getX() + 0.5D + Math.cos(angle) * radius;
+                double z = core.getZ() + 0.5D + Math.sin(angle) * radius;
+                int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mth.floor(x), Mth.floor(z));
+                mob.getNavigation().moveTo(x, y, z, GARRISON_PATROL_SPEED);
+            }
+        }
+    }
+
+    private static ServerLevel levelFor(MinecraftServer server, RogueOutpost outpost) {
+        for (ServerLevel level : server.getAllLevels()) {
+            if (level.dimension().location().toString().equals(outpost.dimension())) {
+                return level;
+            }
+        }
+        return null;
     }
 
     public synchronized List<RogueOutpost> all() {

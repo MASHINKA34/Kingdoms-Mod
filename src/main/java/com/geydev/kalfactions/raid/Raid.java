@@ -21,11 +21,10 @@ public final class Raid {
     private static final String TAG_TARGET_POS = "targetPos";
     private static final String TAG_OUTPOST_ID = "outpostId";
     private static final String TAG_STATE = "state";
-    private static final String TAG_WARNING_ENDS_AT = "warningEndsAt";
-    private static final String TAG_ACTIVE_ENDS_AT = "activeEndsAt";
+    private static final String TAG_WARNING_REMAINING = "warningRemaining";
+    private static final String TAG_ACTIVE_REMAINING = "activeRemaining";
     private static final String TAG_ORIGINAL_RAIDERS = "originalRaiders";
     private static final String TAG_RAIDERS = "raiders";
-    private static final String TAG_LAST_NOTICE = "lastNotice";
 
     private final UUID id;
     private final UUID factionId;
@@ -35,10 +34,9 @@ public final class Raid {
     private final UUID outpostId;
     private final Set<UUID> raiderIds;
     private State state;
-    private long warningEndsAtEpochMillis;
-    private long activeEndsAtEpochMillis;
+    private long warningRemainingMillis;
+    private long activeRemainingMillis;
     private int originalRaiderCount;
-    private int lastNotifiedRemainingSeconds;
 
     Raid(
         UUID id,
@@ -48,11 +46,10 @@ public final class Raid {
         BlockPos targetPos,
         UUID outpostId,
         State state,
-        long warningEndsAtEpochMillis,
-        long activeEndsAtEpochMillis,
+        long warningRemainingMillis,
+        long activeRemainingMillis,
         int originalRaiderCount,
-        Set<UUID> raiderIds,
-        int lastNotifiedRemainingSeconds
+        Set<UUID> raiderIds
     ) {
         this.id = Objects.requireNonNull(id, "id");
         this.factionId = Objects.requireNonNull(factionId, "factionId");
@@ -61,11 +58,10 @@ public final class Raid {
         this.targetPos = Objects.requireNonNull(targetPos, "targetPos").immutable();
         this.outpostId = outpostId;
         this.state = Objects.requireNonNull(state, "state");
-        this.warningEndsAtEpochMillis = Math.max(0L, warningEndsAtEpochMillis);
-        this.activeEndsAtEpochMillis = Math.max(0L, activeEndsAtEpochMillis);
+        this.warningRemainingMillis = Math.max(0L, warningRemainingMillis);
+        this.activeRemainingMillis = Math.max(0L, activeRemainingMillis);
         this.originalRaiderCount = Math.max(0, originalRaiderCount);
         this.raiderIds = new LinkedHashSet<>(Objects.requireNonNull(raiderIds, "raiderIds"));
-        this.lastNotifiedRemainingSeconds = lastNotifiedRemainingSeconds;
     }
 
     static Raid warning(
@@ -75,7 +71,7 @@ public final class Raid {
         ClaimKey targetClaim,
         BlockPos targetPos,
         UUID outpostId,
-        long warningEndsAtEpochMillis
+        long warningRemainingMillis
     ) {
         return new Raid(
             id,
@@ -85,11 +81,10 @@ public final class Raid {
             targetPos,
             outpostId,
             State.WARNING,
-            warningEndsAtEpochMillis,
+            warningRemainingMillis,
             0L,
             0,
-            Set.of(),
-            -1
+            Set.of()
         );
     }
 
@@ -121,12 +116,12 @@ public final class Raid {
         return state;
     }
 
-    public long warningEndsAtEpochMillis() {
-        return warningEndsAtEpochMillis;
+    public long warningRemainingMillis() {
+        return warningRemainingMillis;
     }
 
-    public long activeEndsAtEpochMillis() {
-        return activeEndsAtEpochMillis;
+    public long activeRemainingMillis() {
+        return activeRemainingMillis;
     }
 
     public int originalRaiderCount() {
@@ -141,10 +136,6 @@ public final class Raid {
         return raiderIds.size();
     }
 
-    public int lastNotifiedRemainingSeconds() {
-        return lastNotifiedRemainingSeconds;
-    }
-
     void addRaider(UUID entityId) {
         raiderIds.add(Objects.requireNonNull(entityId, "entityId"));
     }
@@ -157,24 +148,34 @@ public final class Raid {
         return raiderIds.contains(entityId);
     }
 
-    void activate(long activeEndsAtEpochMillis, int originalRaiderCount, long nowEpochMillis) {
+    void activate(long activeDurationMillis, int originalRaiderCount) {
         state = State.ACTIVE;
-        warningEndsAtEpochMillis = 0L;
-        this.activeEndsAtEpochMillis = Math.max(0L, activeEndsAtEpochMillis);
+        warningRemainingMillis = 0L;
+        this.activeRemainingMillis = Math.max(0L, activeDurationMillis);
         this.originalRaiderCount = Math.max(0, originalRaiderCount);
-        lastNotifiedRemainingSeconds = secondsRemaining(nowEpochMillis);
     }
 
-    void setLastNotifiedRemainingSeconds(int seconds) {
-        lastNotifiedRemainingSeconds = seconds;
+    void tickWarning(long deltaMillis) {
+        if (deltaMillis > 0L) {
+            warningRemainingMillis = Math.max(0L, warningRemainingMillis - deltaMillis);
+        }
     }
 
-    int secondsRemaining(long nowEpochMillis) {
-        if (state != State.ACTIVE || activeEndsAtEpochMillis <= nowEpochMillis) {
+    void tickActive(long deltaMillis) {
+        if (deltaMillis > 0L) {
+            activeRemainingMillis = Math.max(0L, activeRemainingMillis - deltaMillis);
+        }
+    }
+
+    int warningSecondsRemaining() {
+        return (int) Math.min(Integer.MAX_VALUE, (warningRemainingMillis + 999L) / 1000L);
+    }
+
+    int activeSecondsRemaining() {
+        if (state != State.ACTIVE) {
             return 0;
         }
-        long remainingMillis = activeEndsAtEpochMillis - nowEpochMillis;
-        return (int) Math.min(Integer.MAX_VALUE, (remainingMillis + 999L) / 1000L);
+        return (int) Math.min(Integer.MAX_VALUE, (activeRemainingMillis + 999L) / 1000L);
     }
 
     CompoundTag save() {
@@ -188,10 +189,9 @@ public final class Raid {
             tag.putUUID(TAG_OUTPOST_ID, outpostId);
         }
         tag.putString(TAG_STATE, state.name());
-        tag.putLong(TAG_WARNING_ENDS_AT, warningEndsAtEpochMillis);
-        tag.putLong(TAG_ACTIVE_ENDS_AT, activeEndsAtEpochMillis);
+        tag.putLong(TAG_WARNING_REMAINING, warningRemainingMillis);
+        tag.putLong(TAG_ACTIVE_REMAINING, activeRemainingMillis);
         tag.putInt(TAG_ORIGINAL_RAIDERS, originalRaiderCount);
-        tag.putInt(TAG_LAST_NOTICE, lastNotifiedRemainingSeconds);
         ListTag raidersTag = new ListTag();
         for (UUID raiderId : raiderIds) {
             raidersTag.add(NbtUtils.createUUID(raiderId));
@@ -232,11 +232,10 @@ public final class Raid {
             BlockPos.of(tag.getLong(TAG_TARGET_POS)),
             tag.hasUUID(TAG_OUTPOST_ID) ? tag.getUUID(TAG_OUTPOST_ID) : null,
             state,
-            tag.getLong(TAG_WARNING_ENDS_AT),
-            tag.getLong(TAG_ACTIVE_ENDS_AT),
+            tag.getLong(TAG_WARNING_REMAINING),
+            tag.getLong(TAG_ACTIVE_REMAINING),
             tag.getInt(TAG_ORIGINAL_RAIDERS),
-            raiders,
-            tag.contains(TAG_LAST_NOTICE, Tag.TAG_INT) ? tag.getInt(TAG_LAST_NOTICE) : -1
+            raiders
         ));
     }
 

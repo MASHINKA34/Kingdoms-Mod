@@ -27,6 +27,7 @@ import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -62,12 +63,14 @@ public final class RaidManager extends SavedData {
     private static final int DATA_VERSION = 1;
     private static final long TICK_INTERVAL_MILLIS = 1_000L;
     private static final double RAIDER_SPEED = 1.1D;
+    private static final int GARRISON_LEASH_RADIUS = 12;
 
     private final Map<UUID, Raid> raids = new LinkedHashMap<>();
     private final Map<UUID, UUID> factionToRaid = new HashMap<>();
     private final Map<UUID, Long> nextRollAtEpochMillis = new HashMap<>();
     private final Map<UUID, net.minecraft.server.level.ServerBossEvent> bossBars = new HashMap<>();
     private long nextTickAtEpochMillis;
+    private long lastTickEpochMillis;
 
     public static RaidManager get(MinecraftServer server) {
         Objects.requireNonNull(server, "server");
@@ -94,6 +97,10 @@ public final class RaidManager extends SavedData {
             return;
         }
         nextTickAtEpochMillis = saturatedAdd(nowEpochMillis, TICK_INTERVAL_MILLIS);
+        long delta = lastTickEpochMillis <= 0L
+            ? 0L
+            : Math.min(TICK_INTERVAL_MILLIS * 2L, Math.max(0L, nowEpochMillis - lastTickEpochMillis));
+        lastTickEpochMillis = nowEpochMillis;
 
         FactionManager factions = FactionManager.get(server);
         boolean dirty = nextRollAtEpochMillis.keySet().removeIf(id -> factions.getFactionById(id).isEmpty());
@@ -105,24 +112,37 @@ public final class RaidManager extends SavedData {
                 dirty = true;
                 continue;
             }
-            if (raid.state() == Raid.State.WARNING && nowEpochMillis >= raid.warningEndsAtEpochMillis()) {
-                if (!faction.hasClaim(raid.targetClaim()) || !activateRaid(server, raid, faction, nowEpochMillis)) {
-                    notifyFaction(
-                        server,
-                        faction.id(),
-                        Component.literal("Рейд отменён: не удалось подготовить точку появления."),
-                        false
-                    );
-                    removeRaid(server, raid, nowEpochMillis);
+            // Raid timers only advance while at least one member can defend; otherwise they freeze.
+            boolean defendersOnline = !onlineMembers(server, faction).isEmpty();
+            if (raid.state() == Raid.State.WARNING) {
+                if (defendersOnline && delta > 0L) {
+                    raid.tickWarning(delta);
+                    dirty = true;
                 }
-                dirty = true;
-                continue;
+                if (raid.warningRemainingMillis() <= 0L) {
+                    if (!faction.hasClaim(raid.targetClaim()) || !activateRaid(server, raid, faction, nowEpochMillis)) {
+                        notifyFaction(
+                            server,
+                            faction.id(),
+                            Component.literal("Рейд отменён: не удалось подготовить точку появления."),
+                            false
+                        );
+                        removeRaid(server, raid, nowEpochMillis);
+                    }
+                    dirty = true;
+                    continue;
+                }
+                updateWarningBossBar(server, raid, faction);
+                spawnWarningParticles(server, raid);
             }
             if (raid.state() == Raid.State.ACTIVE) {
                 driveRaiders(server, raid, faction);
-                sendRemainingNotice(server, raid, nowEpochMillis);
-                updateBossBar(server, raid, faction, nowEpochMillis);
-                if (nowEpochMillis >= raid.activeEndsAtEpochMillis()) {
+                if (defendersOnline && delta > 0L) {
+                    raid.tickActive(delta);
+                    dirty = true;
+                }
+                updateBossBar(server, raid, faction);
+                if (raid.activeRemainingMillis() <= 0L) {
                     resolveDefeat(server, raid, faction, nowEpochMillis);
                 }
             }
@@ -182,7 +202,64 @@ public final class RaidManager extends SavedData {
             target.claim(),
             target.position(),
             target.outpostId(),
-            now
+            0L
+        );
+        raids.put(raid.id(), raid);
+        factionToRaid.put(faction.id(), raid.id());
+        nextRollAtEpochMillis.put(
+            faction.id(),
+            saturatedAdd(now, hoursToMillis(ModConfigSpec.RAID_ROLL_INTERVAL_HOURS.getAsInt()))
+        );
+        setDirty();
+        if (!activateRaid(server, raid, faction, now)) {
+            removeRaid(server, raid, now);
+            return new ForceOutcome(ForceStatus.SPAWN_FAILED, null);
+        }
+        return new ForceOutcome(ForceStatus.STARTED, raid);
+    }
+
+    public synchronized ForceOutcome forceWarning(MinecraftServer server, UUID factionId) {
+        Faction faction = FactionManager.get(server).getFactionById(factionId).orElse(null);
+        if (faction == null) {
+            return new ForceOutcome(ForceStatus.FACTION_NOT_FOUND, null);
+        }
+        if (factionToRaid.containsKey(factionId)) {
+            return new ForceOutcome(ForceStatus.ALREADY_ACTIVE, raidForFaction(factionId).orElse(null));
+        }
+        TargetSelection target = selectMainTarget(server, faction).orElse(null);
+        if (target == null) {
+            return new ForceOutcome(ForceStatus.NO_TARGET, null);
+        }
+        long now = System.currentTimeMillis();
+        nextRollAtEpochMillis.put(
+            faction.id(),
+            saturatedAdd(now, hoursToMillis(ModConfigSpec.RAID_ROLL_INTERVAL_HOURS.getAsInt()))
+        );
+        startWarning(server, faction, target, now);
+        return new ForceOutcome(ForceStatus.STARTED, raidForFaction(factionId).orElse(null));
+    }
+
+    public synchronized ForceOutcome forceOutpostRaid(MinecraftServer server, UUID factionId) {
+        Faction faction = FactionManager.get(server).getFactionById(factionId).orElse(null);
+        if (faction == null) {
+            return new ForceOutcome(ForceStatus.FACTION_NOT_FOUND, null);
+        }
+        if (factionToRaid.containsKey(factionId)) {
+            return new ForceOutcome(ForceStatus.ALREADY_ACTIVE, raidForFaction(factionId).orElse(null));
+        }
+        TargetSelection target = selectOutpostTarget(server, faction).orElse(null);
+        if (target == null) {
+            return new ForceOutcome(ForceStatus.NO_TARGET, null);
+        }
+        long now = System.currentTimeMillis();
+        Raid raid = Raid.warning(
+            uniqueRaidId(),
+            faction.id(),
+            target.type(),
+            target.claim(),
+            target.position(),
+            target.outpostId(),
+            0L
         );
         raids.put(raid.id(), raid);
         factionToRaid.put(faction.id(), raid.id());
@@ -224,10 +301,6 @@ public final class RaidManager extends SavedData {
     ) {
         int warningSeconds = ModConfigSpec.RAID_WARNING_SECONDS.getAsInt()
             + 120 * faction.researchBonusCount("RAID_WARNING");
-        long warningEndsAt = saturatedAdd(
-            nowEpochMillis,
-            secondsToMillis(warningSeconds)
-        );
         Raid raid = Raid.warning(
             uniqueRaidId(),
             faction.id(),
@@ -235,7 +308,7 @@ public final class RaidManager extends SavedData {
             target.claim(),
             target.position(),
             target.outpostId(),
-            warningEndsAt
+            secondsToMillis(warningSeconds)
         );
         raids.put(raid.id(), raid);
         factionToRaid.put(faction.id(), raid.id());
@@ -300,11 +373,7 @@ public final class RaidManager extends SavedData {
             }
             return false;
         }
-        long activeEndsAt = saturatedAdd(
-            nowEpochMillis,
-            minutesToMillis(ModConfigSpec.RAID_COMBAT_MINUTES.getAsInt())
-        );
-        raid.activate(activeEndsAt, spawned, nowEpochMillis);
+        raid.activate(minutesToMillis(ModConfigSpec.RAID_COMBAT_MINUTES.getAsInt()), spawned);
         setDirty();
         driveRaiders(server, raid, faction);
         notifyFaction(
@@ -314,7 +383,7 @@ public final class RaidManager extends SavedData {
                 "Рейд начался. Рейдеров: "
                     + spawned
                     + ". На защиту: "
-                    + formatDuration(raid.secondsRemaining(nowEpochMillis))
+                    + formatDuration(raid.activeSecondsRemaining())
                     + "."
             ),
             false
@@ -417,16 +486,71 @@ public final class RaidManager extends SavedData {
             int z = chunk.getMinBlockZ() + 1 + random.nextInt(14);
             int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
             BlockPos pos = new BlockPos(x, y, z);
-            if (!level.getWorldBorder().isWithinBounds(pos)
-                || !level.getBlockState(pos).isAir()
-                || !level.getBlockState(pos.above()).isAir()
-                || !level.getFluidState(pos).isEmpty()
-                || !level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), Direction.UP)) {
-                continue;
+            if (canStandAt(level, pos)) {
+                return pos;
             }
-            return pos;
         }
         return null;
+    }
+
+    private static boolean canStandAt(ServerLevel level, BlockPos pos) {
+        return level.getWorldBorder().isWithinBounds(pos)
+            && level.getBlockState(pos).isAir()
+            && level.getBlockState(pos.above()).isAir()
+            && level.getFluidState(pos).isEmpty()
+            && level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), Direction.UP);
+    }
+
+    private Raider spawnGarrisonRaider(ServerLevel level, UUID outpostId, BlockPos core) {
+        RandomSource random = level.getRandom();
+        for (int attempt = 0; attempt < 32; attempt++) {
+            int x = core.getX() + random.nextInt(11) - 5;
+            int z = core.getZ() + random.nextInt(11) - 5;
+            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+            BlockPos pos = new BlockPos(x, y, z);
+            if (!canStandAt(level, pos)) {
+                continue;
+            }
+            Raider raider = switch (randomRaiderKind(random)) {
+                case VINDICATOR -> createGarrisonRaider(EntityType.VINDICATOR, level, outpostId, core, pos);
+                case WITCH -> createGarrisonRaider(EntityType.WITCH, level, outpostId, core, pos);
+                case EVOKER -> createGarrisonRaider(EntityType.EVOKER, level, outpostId, core, pos);
+                case RAVAGER -> createGarrisonRaider(EntityType.RAVAGER, level, outpostId, core, pos);
+                default -> createGarrisonRaider(EntityType.PILLAGER, level, outpostId, core, pos);
+            };
+            if (raider == null) {
+                continue;
+            }
+            if (!level.addFreshEntity(raider)) {
+                continue;
+            }
+            return raider;
+        }
+        return null;
+    }
+
+    private static <T extends Raider> T createGarrisonRaider(
+        EntityType<T> type,
+        ServerLevel level,
+        UUID outpostId,
+        BlockPos core,
+        BlockPos spawnPos
+    ) {
+        return type.create(
+            level,
+            raider -> {
+                raider.addTag(RogueOutpostManager.GARRISON_TAG);
+                raider.getPersistentData().putUUID(RogueOutpostManager.OUTPOST_ID_DATA, outpostId);
+                raider.setPersistenceRequired();
+                raider.setCanJoinRaid(false);
+                raider.setCurrentRaid(null);
+                raider.restrictTo(core, GARRISON_LEASH_RADIUS);
+            },
+            spawnPos,
+            MobSpawnType.EVENT,
+            false,
+            false
+        );
     }
 
     private void driveRaiders(MinecraftServer server, Raid raid, Faction faction) {
@@ -460,29 +584,32 @@ public final class RaidManager extends SavedData {
         }
     }
 
-    private void sendRemainingNotice(MinecraftServer server, Raid raid, long nowEpochMillis) {
-        int seconds = raid.secondsRemaining(nowEpochMillis);
-        if (!crossedNoticeThreshold(raid.lastNotifiedRemainingSeconds(), seconds)) {
-            return;
-        }
-        raid.setLastNotifiedRemainingSeconds(seconds);
-        setDirty();
-        notifyFaction(
-            server,
-            raid.factionId(),
-            Component.literal(
-                "До поражения: "
-                    + formatDuration(seconds)
-                    + ". Осталось рейдеров: "
-                    + raid.remainingRaiderCount()
-                    + "."
-            ),
-            false
+    private void updateWarningBossBar(MinecraftServer server, Raid raid, Faction faction) {
+        int total = Math.max(1, ModConfigSpec.RAID_WARNING_SECONDS.getAsInt()
+            + 120 * faction.researchBonusCount("RAID_WARNING"));
+        int remaining = raid.warningSecondsRemaining();
+        net.minecraft.server.level.ServerBossEvent bar = bossBars.computeIfAbsent(
+            raid.id(),
+            id -> new net.minecraft.server.level.ServerBossEvent(
+                Component.empty(),
+                net.minecraft.world.BossEvent.BossBarColor.YELLOW,
+                net.minecraft.world.BossEvent.BossBarOverlay.PROGRESS
+            )
         );
+        bar.setColor(net.minecraft.world.BossEvent.BossBarColor.YELLOW);
+        bar.setOverlay(net.minecraft.world.BossEvent.BossBarOverlay.PROGRESS);
+        BlockPos pos = raid.targetPos();
+        String where = raid.targetType() == Raid.TargetType.OUTPOST ? "форпост" : "город";
+        bar.setName(Component.literal(
+            "Нападение на " + where + " через " + formatDuration(remaining)
+                + " | Цель: " + pos.getX() + ", " + pos.getY() + ", " + pos.getZ()
+        ));
+        bar.setProgress(Math.clamp((float) remaining / total, 0.0F, 1.0F));
+        syncBossBarPlayers(bar, onlineMembers(server, faction));
     }
 
-    private void updateBossBar(MinecraftServer server, Raid raid, Faction faction, long nowEpochMillis) {
-        int remaining = raid.secondsRemaining(nowEpochMillis);
+    private void updateBossBar(MinecraftServer server, Raid raid, Faction faction) {
+        int remaining = raid.activeSecondsRemaining();
         int total = Math.max(1, ModConfigSpec.RAID_COMBAT_MINUTES.getAsInt() * 60);
         net.minecraft.server.level.ServerBossEvent bar = bossBars.computeIfAbsent(
             raid.id(),
@@ -492,13 +619,21 @@ public final class RaidManager extends SavedData {
                 net.minecraft.world.BossEvent.BossBarOverlay.NOTCHED_10
             )
         );
+        bar.setColor(net.minecraft.world.BossEvent.BossBarColor.RED);
+        bar.setOverlay(net.minecraft.world.BossEvent.BossBarOverlay.NOTCHED_10);
         String where = raid.targetType() == Raid.TargetType.OUTPOST ? "форпост" : "город";
         bar.setName(Component.literal(
             "Рейд на " + where + ": рейдеров " + raid.remainingRaiderCount()
                 + " | до поражения " + formatDuration(remaining)
         ));
         bar.setProgress(Math.clamp((float) remaining / total, 0.0F, 1.0F));
-        List<ServerPlayer> desired = onlineMembers(server, faction);
+        syncBossBarPlayers(bar, onlineMembers(server, faction));
+    }
+
+    private static void syncBossBarPlayers(
+        net.minecraft.server.level.ServerBossEvent bar,
+        List<ServerPlayer> desired
+    ) {
         for (ServerPlayer player : List.copyOf(bar.getPlayers())) {
             if (!desired.contains(player)) {
                 bar.removePlayer(player);
@@ -509,6 +644,21 @@ public final class RaidManager extends SavedData {
                 bar.addPlayer(player);
             }
         }
+    }
+
+    private void spawnWarningParticles(MinecraftServer server, Raid raid) {
+        ServerLevel level = server.getLevel(raid.targetClaim().dimension());
+        if (level == null) {
+            return;
+        }
+        BlockPos pos = raid.targetPos();
+        double x = pos.getX() + 0.5D;
+        double z = pos.getZ() + 0.5D;
+        for (int dy = 0; dy <= 30; dy += 2) {
+            level.sendParticles(ParticleTypes.FLAME, x, pos.getY() + dy, z, 2, 0.12D, 0.5D, 0.12D, 0.0D);
+            level.sendParticles(ParticleTypes.LARGE_SMOKE, x, pos.getY() + dy, z, 1, 0.12D, 0.5D, 0.12D, 0.0D);
+        }
+        level.sendParticles(ParticleTypes.ANGRY_VILLAGER, x, pos.getY() + 1.5D, z, 6, 0.6D, 0.6D, 0.6D, 0.0D);
     }
 
     private void clearBossBar(UUID raidId) {
@@ -629,15 +779,28 @@ public final class RaidManager extends SavedData {
         ServerLevel level = server.getLevel(raid.targetClaim().dimension());
         List<UUID> garrison = new ArrayList<>();
         if (level != null) {
+            BlockPos corePos = outpost.core();
             for (UUID raiderId : raid.raiderIds()) {
                 Entity entity = level.getEntity(raiderId);
                 if (entity instanceof Raider raider && raider.isAlive()) {
+                    raider.removeTag(RAIDER_TAG);
                     raider.getPersistentData().remove(RAID_ID_DATA);
                     raider.getPersistentData().putUUID(RogueOutpostManager.OUTPOST_ID_DATA, outpost.id());
                     raider.addTag(RogueOutpostManager.GARRISON_TAG);
                     raider.setPersistenceRequired();
+                    raider.setHealth(raider.getMaxHealth());
+                    raider.setTarget(null);
+                    raider.restrictTo(corePos, GARRISON_LEASH_RADIUS);
                     garrison.add(raiderId);
                 }
+            }
+            int targetSize = Math.max(garrison.size(), raid.originalRaiderCount());
+            while (garrison.size() < targetSize) {
+                Raider reinforcement = spawnGarrisonRaider(level, outpost.id(), corePos);
+                if (reinforcement == null) {
+                    break;
+                }
+                garrison.add(reinforcement.getUUID());
             }
         }
         RogueOutpostManager.get(server).add(new RogueOutpostManager.RogueOutpost(
@@ -836,6 +999,23 @@ public final class RaidManager extends SavedData {
         return selectMainTarget(server, faction);
     }
 
+    private static Optional<TargetSelection> selectOutpostTarget(MinecraftServer server, Faction faction) {
+        Faction.Outpost outpost = faction.outposts().stream()
+            .filter(candidate -> server.getLevel(candidate.dimension()) != null)
+            .min(Comparator.comparing(candidate -> candidate.id().toString()))
+            .orElse(null);
+        if (outpost == null) {
+            return Optional.empty();
+        }
+        ClaimKey claim = new ClaimKey(outpost.dimension(), new ChunkPos(outpost.core()));
+        return Optional.of(new TargetSelection(
+            Raid.TargetType.OUTPOST,
+            claim,
+            outpost.core(),
+            outpost.id()
+        ));
+    }
+
     private static List<ClaimKey> boundaryClaims(Faction faction, ResourceKey<Level> dimension) {
         Set<ClaimKey> claims = new LinkedHashSet<>();
         for (ClaimKey claim : faction.claims()) {
@@ -887,23 +1067,6 @@ public final class RaidManager extends SavedData {
                 }
             }
         });
-    }
-
-    private static boolean crossedNoticeThreshold(int previousSeconds, int currentSeconds) {
-        if (currentSeconds <= 0 || previousSeconds <= currentSeconds) {
-            return false;
-        }
-        int nextMinuteThreshold = ((previousSeconds - 1) / 60) * 60;
-        if (nextMinuteThreshold >= 60 && currentSeconds <= nextMinuteThreshold) {
-            return true;
-        }
-        int[] shortThresholds = {30, 20, 10, 5, 4, 3, 2, 1};
-        for (int threshold : shortThresholds) {
-            if (previousSeconds > threshold && currentSeconds <= threshold) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static String formatDuration(int seconds) {

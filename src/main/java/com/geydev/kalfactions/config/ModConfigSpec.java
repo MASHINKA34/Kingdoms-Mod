@@ -30,6 +30,7 @@ public final class ModConfigSpec {
     public static final IntValue RAID_CHANCE_PERCENT;
     public static final IntValue RAID_ROLL_INTERVAL_HOURS;
     public static final IntValue RAID_WARNING_SECONDS;
+    public static final IntValue RAID_TOAST_SECONDS;
     public static final IntValue RAID_COMBAT_MINUTES;
     public static final LongValue RAID_REWARD_PER_RAIDER_MIN;
     public static final LongValue RAID_REWARD_PER_RAIDER_MAX;
@@ -90,6 +91,9 @@ public final class ModConfigSpec {
         RAID_WARNING_SECONDS = builder
             .comment("Seconds of warning before raiders spawn.")
             .defineInRange("warningSeconds", 300, 5, 7200);
+        RAID_TOAST_SECONDS = builder
+            .comment("Seconds a faction notice toast (raid warning, alliance, etc.) stays on screen.")
+            .defineInRange("toastSeconds", 6, 1, 60);
         RAID_COMBAT_MINUTES = builder
             .comment("Minutes the defenders have to kill every raider before the raid is lost.")
             .defineInRange("combatMinutes", 10, 1, 240);

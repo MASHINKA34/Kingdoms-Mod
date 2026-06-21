@@ -5,11 +5,14 @@ import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -21,44 +24,44 @@ public final class RaidCommands {
         event.getDispatcher().register(
             Commands.literal("kingdoms")
                 .then(Commands.literal("raid")
-                    .then(Commands.literal("force")
-                        .requires(source -> source.hasPermission(2))
-                        .then(Commands.argument("faction", StringArgumentType.greedyString())
-                            .suggests((context, builder) -> SharedSuggestionProvider.suggest(
-                                FactionManager.get(context.getSource().getServer()).factions().stream()
-                                    .map(Faction::name),
-                                builder
-                            ))
-                            .executes(RaidCommands::forceRaid))))
+                    .then(raidSub("force", RaidManager::forceRaid, "Рейд принудительно запущен для "))
+                    .then(raidSub("warn", RaidManager::forceWarning, "Предупреждение о рейде запущено для "))
+                    .then(raidSub("outpost", RaidManager::forceOutpostRaid, "Рейд на форпост запущен для ")))
         );
     }
 
-    private static int forceRaid(CommandContext<CommandSourceStack> context) {
+    private static ArgumentBuilder<CommandSourceStack, ?> raidSub(String name, RaidAction action, String successPrefix) {
+        return Commands.literal(name)
+            .requires(source -> source.hasPermission(2))
+            .then(Commands.argument("faction", StringArgumentType.greedyString())
+                .suggests((context, builder) -> SharedSuggestionProvider.suggest(
+                    FactionManager.get(context.getSource().getServer()).factions().stream()
+                        .map(Faction::name),
+                    builder
+                ))
+                .executes(context -> runRaid(context, action, successPrefix)));
+    }
+
+    private static int runRaid(CommandContext<CommandSourceStack> context, RaidAction action, String successPrefix) {
+        MinecraftServer server = context.getSource().getServer();
         String factionName = StringArgumentType.getString(context, "faction").trim();
-        Faction faction = FactionManager.get(context.getSource().getServer())
-            .getFactionByName(factionName)
-            .orElse(null);
+        Faction faction = FactionManager.get(server).getFactionByName(factionName).orElse(null);
         if (faction == null) {
             context.getSource().sendFailure(Component.literal("Фракция не найдена."));
             return 0;
         }
-        RaidManager.ForceOutcome outcome = RaidManager.get(context.getSource().getServer())
-            .forceRaid(context.getSource().getServer(), faction.id());
+        RaidManager.ForceOutcome outcome = action.run(RaidManager.get(server), server, faction.id());
         return switch (outcome.status()) {
             case STARTED -> {
                 Raid raid = outcome.raid();
+                String where = "";
+                if (raid != null) {
+                    BlockPos pos = raid.targetPos();
+                    where = " у " + pos.getX() + " " + pos.getY() + " " + pos.getZ();
+                }
+                String location = where;
                 context.getSource().sendSuccess(
-                    () -> Component.literal(
-                        "Рейд принудительно запущен для "
-                            + faction.name()
-                            + " у "
-                            + raid.targetPos().getX()
-                            + " "
-                            + raid.targetPos().getY()
-                            + " "
-                            + raid.targetPos().getZ()
-                            + "."
-                    ),
+                    () -> Component.literal(successPrefix + faction.name() + location + "."),
                     true
                 );
                 yield Command.SINGLE_SUCCESS;
@@ -68,7 +71,7 @@ public final class RaidCommands {
                 yield 0;
             }
             case NO_TARGET -> {
-                context.getSource().sendFailure(Component.literal("У фракции нет доступной MAIN-территории."));
+                context.getSource().sendFailure(Component.literal("У фракции нет доступной цели (территории или форпоста)."));
                 yield 0;
             }
             case SPAWN_FAILED -> {
@@ -80,6 +83,11 @@ public final class RaidCommands {
                 yield 0;
             }
         };
+    }
+
+    @FunctionalInterface
+    private interface RaidAction {
+        RaidManager.ForceOutcome run(RaidManager manager, MinecraftServer server, java.util.UUID factionId);
     }
 
     private RaidCommands() {

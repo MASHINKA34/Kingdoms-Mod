@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.client;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.config.ModConfigSpec;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -13,7 +14,7 @@ import net.minecraft.util.FormattedCharSequence;
 public final class KingdomsNoticeToast implements Toast {
     private static final ResourceLocation BACKGROUND =
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/gui/toast/influence.png");
-    private static final long DISPLAY_TIME = 2800L;
+    private static final long DEFAULT_DISPLAY_TIME = 6000L;
     private static final int TOAST_WIDTH = 186;
     private static final int TOAST_HEIGHT = 34;
     private static final int TEXTURE_WIDTH = 236;
@@ -24,10 +25,20 @@ public final class KingdomsNoticeToast implements Toast {
 
     private final Component message;
     private final boolean successful;
+    private final long displayTime;
 
     public KingdomsNoticeToast(Component message, boolean successful) {
         this.message = message;
         this.successful = successful;
+        this.displayTime = displayTimeMillis();
+    }
+
+    private static long displayTimeMillis() {
+        try {
+            return ModConfigSpec.RAID_TOAST_SECONDS.getAsInt() * 1000L;
+        } catch (IllegalStateException configNotLoaded) {
+            return DEFAULT_DISPLAY_TIME;
+        }
     }
 
     public static void show(Component message, boolean successful) {
@@ -36,7 +47,7 @@ public final class KingdomsNoticeToast implements Toast {
         }
         String noticeKey = successful + ":" + message.getString();
         long now = System.currentTimeMillis();
-        if (noticeKey.equals(lastNoticeKey) && now - lastNoticeShownAt < DISPLAY_TIME) {
+        if (noticeKey.equals(lastNoticeKey) && now - lastNoticeShownAt < displayTimeMillis()) {
             return;
         }
         lastNoticeKey = noticeKey;
@@ -70,7 +81,7 @@ public final class KingdomsNoticeToast implements Toast {
         for (int i = 0; i < lineCount; i++) {
             graphics.drawString(minecraft.font, lines.get(i), textLeft, startY + i * 10, 0xFF3A2A18, false);
         }
-        return timeSinceLastVisible >= DISPLAY_TIME ? Visibility.HIDE : Visibility.SHOW;
+        return timeSinceLastVisible >= displayTime ? Visibility.HIDE : Visibility.SHOW;
     }
 
     @Override
