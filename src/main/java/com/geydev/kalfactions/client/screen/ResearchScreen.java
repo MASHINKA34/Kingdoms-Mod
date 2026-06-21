@@ -1,16 +1,19 @@
 package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.InfluenceType;
 import com.geydev.kalfactions.faction.ResearchNode;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -42,6 +45,12 @@ public final class ResearchScreen extends FactionScreen {
     private static final int TAB_STEP = 52;
     private static final int NODE_SIZE = 30;
     private static final int ROOT_SIZE = 46;
+    private static final int FORCE_LOAD_SLOTS_PER_LEVEL = 5;
+    private static final int MINING_SPEED_PERCENT_PER_LEVEL = 5;
+    private static final int DRILL_BASE_OUTPUT = 32;
+    private static final int DRILL_OUTPUT_PER_LEVEL = 16;
+    private static final int DRILL_INTERVAL_REDUCTION_SECONDS = 2 * 60 * 60;
+    private static final int DRILL_INTERVAL_FLOOR_SECONDS = 4 * 60 * 60;
 
     private InfluenceType selectedType = InfluenceType.SCIENCE;
     private ResearchNode selectedNode = ResearchNode.SCI_SMELT;
@@ -250,7 +259,7 @@ public final class ResearchScreen extends FactionScreen {
         int boxWidth = 232;
         List<FormattedCharSequence> desc = font.split(text(node.descriptionKey()), boxWidth - 20);
         List<FormattedCharSequence> effect = font.split(
-                text("screen.kingdoms.research_effect", bonusText(node.bonusTag())),
+                text("screen.kingdoms.research_effect", bonusText(node)),
                 boxWidth - 20
         );
         int descBlock = desc.size() * 11;
@@ -287,17 +296,178 @@ public final class ResearchScreen extends FactionScreen {
         }
     }
 
-    private static Component bonusText(String bonusTag) {
-        String[] parts = bonusTag.split("\\+");
-        net.minecraft.network.chat.MutableComponent result = Component.empty();
+    private Component bonusText(ResearchNode node) {
+        String[] parts = node.bonusTag().split("\\+");
+        MutableComponent result = Component.empty();
         for (int i = 0; i < parts.length; i++) {
             if (i > 0) {
                 result.append(", ");
             }
-            String normalized = parts[i].trim().toLowerCase(java.util.Locale.ROOT);
-            result.append(Component.translatable("kingdoms.research.effect." + normalized));
+            result.append(effectText(parts[i].trim(), node));
         }
         return result;
+    }
+
+    private Component effectText(String tag, ResearchNode node) {
+        String normalized = canonicalTag(tag.toUpperCase(Locale.ROOT));
+        int level = displayLevel(normalized, node);
+        return switch (normalized) {
+            case "MINING_SPEED" -> effectProgress(normalized, node,
+                    percent(MINING_SPEED_PERCENT_PER_LEVEL),
+                    signedPercent(MINING_SPEED_PERCENT_PER_LEVEL * level));
+            case "CHUNK_SLOT", "SCIENCE_CHUNK_SLOT", "ECONOMIC_CHUNK_SLOT" -> effectProgress(normalized, node,
+                    text("kingdoms.research.effect.chunk_slot.per_level", FORCE_LOAD_SLOTS_PER_LEVEL),
+                    text("kingdoms.research.effect.chunk_slot.total", forceLoadLimit(level)));
+            case "DRILL_OUTPUT" -> effectProgress(normalized, node,
+                    text("kingdoms.research.effect.drill_output.per_level", DRILL_OUTPUT_PER_LEVEL),
+                    text("kingdoms.research.effect.drill_output.total", DRILL_BASE_OUTPUT + DRILL_OUTPUT_PER_LEVEL * level));
+            case "DRILL_INTERVAL" -> effectProgress(normalized, node,
+                    text("kingdoms.research.effect.drill_interval.per_level", durationText(DRILL_INTERVAL_REDUCTION_SECONDS)),
+                    text(
+                            "kingdoms.research.effect.drill_interval.total",
+                            durationText(drillIntervalSeconds(level)),
+                            durationText(drillIntervalFloorSeconds())
+                    ));
+            case "SMELT_SPEED" -> effectSingle(normalized, text("kingdoms.research.effect.smelt_speed.detail"));
+            case "ORE_DROP" -> effectSingle(normalized, text(
+                    "kingdoms.research.effect.ore_drop.detail",
+                    unsignedPercent(ModConfigSpec.ORE_BONUS_CHANCE.getAsDouble())
+            ));
+            case "CRAFT_EXTRA" -> effectProgress(normalized, node,
+                    signedPercent(10),
+                    signedPercent(Math.min(50, 10 * level)));
+            case "ENCHANT_BOOST" -> effectSingle(normalized, text("kingdoms.research.effect.enchant_boost.detail"));
+            case "BUY_RATE" -> effectProgress(normalized, node,
+                    signedPercent(10),
+                    signedPercent(10 * level));
+            case "CLAIM_DISCOUNT", "OUTPOST_DISCOUNT", "VILLAGER_DISCOUNT" -> effectProgress(normalized, node,
+                    signedPercent(-10),
+                    signedPercent(-Math.min(90, 10 * level)));
+            case "VILLAGER_EXTRA" -> effectProgress(normalized, node,
+                    signedPercent(25),
+                    signedPercent(Math.min(60, 25 * level)));
+            case "RAID_STEAL_RESIST" -> effectProgress(normalized, node,
+                    signedPercent(-10),
+                    signedPercent(-Math.min(100, 10 * level)));
+            case "RAID_WARNING" -> effectProgress(normalized, node,
+                    text("kingdoms.research.effect.raid_warning.per_level", durationText(120)),
+                    text("kingdoms.research.effect.raid_warning.total", durationText(raidWarningSeconds(level))));
+            case "FEWER_RAIDERS" -> effectProgress(normalized, node,
+                    text("kingdoms.research.effect.fewer_raiders.per_level", 1),
+                    text("kingdoms.research.effect.fewer_raiders.total", level));
+            case "WARRIOR_DAMAGE" -> effectProgress(normalized, node,
+                    signedPercent(5),
+                    signedPercent(5 * level));
+            case "ARMOR_BOOST" -> effectProgress(normalized, node,
+                    signedPercent(-5),
+                    signedPercent(-Math.min(50, 5 * level)));
+            case "TNT_RESIST", "CLAIM_TNT_RESIST" -> effectProgress(normalized, node,
+                    signedPercent(30),
+                    text("kingdoms.research.effect.tnt_resist.total", unsignedPercent(Math.min(0.30D, 0.30D * level))));
+            case "RAID_REWARD" -> effectProgress(normalized, node,
+                    signedPercent(10),
+                    signedPercent(10 * level));
+            default -> effectSingle(normalized, effectName(normalized));
+        };
+    }
+
+    private Component effectProgress(String tag, ResearchNode node, Object perLevel, Object total) {
+        return text(
+                state(node) == NodeState.DONE
+                        ? "screen.kingdoms.research_effect.current"
+                        : "screen.kingdoms.research_effect.after",
+                effectName(tag),
+                text("screen.kingdoms.research_effect.per_level", perLevel),
+                total
+        );
+    }
+
+    private static Component effectSingle(String tag, Object detail) {
+        return text("screen.kingdoms.research_effect.single", effectName(tag), detail);
+    }
+
+    private int displayLevel(String tag, ResearchNode node) {
+        int completed = completedBonusLevel(tag);
+        return state(node) == NodeState.DONE ? completed : completed + 1;
+    }
+
+    private int completedBonusLevel(String tag) {
+        int count = 0;
+        for (String nodeName : snapshot.completedResearch()) {
+            ResearchNode completed = ResearchNode.parse(nodeName).orElse(null);
+            if (completed != null && bonusTagContains(completed.bonusTag(), tag)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static boolean bonusTagContains(String bonusTag, String tag) {
+        for (String part : bonusTag.split("\\+")) {
+            if (canonicalTag(part.trim().toUpperCase(Locale.ROOT)).equals(tag)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String canonicalTag(String tag) {
+        return switch (tag) {
+            case "SCIENCE_CHUNK_SLOT", "ECONOMIC_CHUNK_SLOT" -> "CHUNK_SLOT";
+            case "CLAIM_TNT_RESIST" -> "TNT_RESIST";
+            default -> tag;
+        };
+    }
+
+    private static Component effectName(String tag) {
+        return text("kingdoms.research.effect." + tag.toLowerCase(Locale.ROOT));
+    }
+
+    private static Component durationText(int seconds) {
+        int safeSeconds = Math.max(0, seconds);
+        int hours = safeSeconds / 3600;
+        int minutes = (safeSeconds % 3600) / 60;
+        int remainingSeconds = safeSeconds % 60;
+        if (hours > 0 && minutes > 0) {
+            return text("screen.kingdoms.research_duration.hours_minutes", hours, minutes);
+        }
+        if (hours > 0) {
+            return text("screen.kingdoms.research_duration.hours", hours);
+        }
+        if (minutes > 0) {
+            return text("screen.kingdoms.research_duration.minutes", minutes);
+        }
+        return text("screen.kingdoms.research_duration.seconds", remainingSeconds);
+    }
+
+    private static String signedPercent(int value) {
+        return (value > 0 ? "+" : "") + value + "%";
+    }
+
+    private static String percent(int value) {
+        return value + "%";
+    }
+
+    private static String unsignedPercent(double fraction) {
+        return Math.round(Math.max(0.0D, fraction) * 100.0D) + "%";
+    }
+
+    private static int forceLoadLimit(int level) {
+        return ModConfigSpec.FORCE_LOAD_SLOTS.getAsInt() + FORCE_LOAD_SLOTS_PER_LEVEL * level;
+    }
+
+    private static int drillIntervalSeconds(int level) {
+        int base = Math.max(1, ModConfigSpec.OUTPOST_DRILL_INTERVAL_SECONDS.getAsInt());
+        int floor = drillIntervalFloorSeconds();
+        return Math.max(floor, base - DRILL_INTERVAL_REDUCTION_SECONDS * level);
+    }
+
+    private static int drillIntervalFloorSeconds() {
+        return Math.min(Math.max(1, ModConfigSpec.OUTPOST_DRILL_INTERVAL_SECONDS.getAsInt()), DRILL_INTERVAL_FLOOR_SECONDS);
+    }
+
+    private static int raidWarningSeconds(int level) {
+        return Math.max(0, ModConfigSpec.RAID_WARNING_SECONDS.getAsInt()) + 120 * level;
     }
 
     private Component statusText(ResearchNode node) {
