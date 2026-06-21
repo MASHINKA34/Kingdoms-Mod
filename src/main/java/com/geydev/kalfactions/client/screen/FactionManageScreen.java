@@ -34,8 +34,8 @@ public final class FactionManageScreen extends FactionScreen {
         int leftColumn = left + CONTENT_LEFT;
         int rightColumn = left + 172;
         int columnWidth = 126;
-        int row0 = top + 84;
-        int rowStep = 22;
+        int row0 = top + 92;
+        int rowStep = 21;
 
         nameBox = new EditBox(
                 font,
@@ -192,9 +192,22 @@ public final class FactionManageScreen extends FactionScreen {
         );
         graphics.drawString(
                 font,
-                text("screen.kingdoms.total_influence_chunks", snapshot.influence(), chunkSlotLimit()),
+                text("screen.kingdoms.total_influence", snapshot.influence()),
                 rightColumn,
                 top + 71,
+                TEXT_MUTED,
+                false
+        );
+        graphics.drawString(
+                font,
+                text(
+                        "screen.kingdoms.manage_chunks",
+                        snapshot.claimCount(),
+                        snapshot.forceLoadUsed(),
+                        chunkSlotLimit()
+                ),
+                leftColumn,
+                top + 82,
                 TEXT_MUTED,
                 false
         );

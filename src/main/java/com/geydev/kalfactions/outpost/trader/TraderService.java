@@ -5,7 +5,6 @@ import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.entity.OutpostTraderEntity;
 import com.geydev.kalfactions.entity.SellerTraderEntity;
 import com.geydev.kalfactions.economy.PriceMath;
-import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.registry.ModEntities;
 import java.util.Arrays;
@@ -149,15 +148,7 @@ public final class TraderService {
             return;
         }
 
-        long price = offer.price();
-        int outpostDiscountLevels = FactionManager.get(player.serverLevel())
-                .getFactionForMember(player.getUUID())
-                .map(faction -> faction.researchBonusCount("OUTPOST_DISCOUNT"))
-                .orElse(0);
-        if (outpostDiscountLevels > 0 && price > 0L) {
-            double factor = 1.0D - Math.min(0.90D, 0.10D * outpostDiscountLevels);
-            price = (long) Math.ceil(price * factor);
-        }
+        long price = buyUnitPrice(player, offer.price());
         ItemStack product = new ItemStack(offer.item());
         if (!hasInventorySpace(player, product)) {
             sendBuyState(
@@ -294,15 +285,7 @@ public final class TraderService {
 
         FactionManager manager = FactionManager.get(player.serverLevel());
         UUID factionId = manager.getFactionIdForMember(player.getUUID()).orElse(null);
-        long base = PriceMath.saturatedMultiply(offer.price(), count);
-        long spurs = base;
-        if (factionId != null) {
-            Faction faction = manager.getFactionById(factionId).orElse(null);
-            int buyRateLevels = faction == null ? 0 : faction.researchBonusCount("BUY_RATE");
-            if (buyRateLevels > 0) {
-                spurs = base + (long) Math.ceil(base * 0.10D * buyRateLevels);
-            }
-        }
+        long spurs = PriceMath.saturatedMultiply(sellUnitPrice(player, offer.price()), count);
         NumismaticsEconomy.give(player, spurs);
         rotation.recordSale(server, player.getUUID(), offer, count);
         player.inventoryMenu.broadcastChanges();
@@ -372,6 +355,30 @@ public final class TraderService {
         return removed;
     }
 
+    private static int researchLevels(ServerPlayer player, String tag) {
+        return FactionManager.get(player.serverLevel())
+                .getFactionForMember(player.getUUID())
+                .map(faction -> faction.researchBonusCount(tag))
+                .orElse(0);
+    }
+
+    static long sellUnitPrice(ServerPlayer player, long basePrice) {
+        int levels = researchLevels(player, "BUY_RATE");
+        if (levels <= 0 || basePrice <= 0L) {
+            return basePrice;
+        }
+        return basePrice + (long) Math.ceil(basePrice * 0.10D * levels);
+    }
+
+    static long buyUnitPrice(ServerPlayer player, long basePrice) {
+        int levels = researchLevels(player, "OUTPOST_DISCOUNT");
+        if (levels <= 0 || basePrice <= 0L) {
+            return basePrice;
+        }
+        double factor = 1.0D - Math.min(0.90D, 0.10D * levels);
+        return (long) Math.ceil(basePrice * factor);
+    }
+
     private static void sendBuyState(
             ServerPlayer player,
             UUID traderId,
@@ -379,7 +386,7 @@ public final class TraderService {
             boolean successful
     ) {
         List<TraderPayloads.OfferInfo> offers = Arrays.stream(TraderOffer.values())
-                .map(offer -> new TraderPayloads.OfferInfo(offer.id(), offer.price(), 0))
+                .map(offer -> new TraderPayloads.OfferInfo(offer.id(), buyUnitPrice(player, offer.price()), 0))
                 .toList();
         PacketDistributor.sendToPlayer(
                 player,
@@ -399,7 +406,7 @@ public final class TraderService {
         List<TraderPayloads.OfferInfo> sellOffers = window.offers().stream()
                 .map(offer -> new TraderPayloads.OfferInfo(
                         offer.id(),
-                        offer.price(),
+                        sellUnitPrice(player, offer.price()),
                         rotation.remainingLimit(server, player.getUUID(), offer)
                 ))
                 .toList();

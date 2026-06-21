@@ -40,7 +40,9 @@ public record FactionSnapshot(
         List<String> completedResearch,
         String activeResearchNode,
         long activeResearchEndMillis,
-        WarSpoils pendingWarSpoils
+        WarSpoils pendingWarSpoils,
+        int claimCount,
+        int forceLoadUsed
 ) {
     public static final UUID NO_FACTION = new UUID(0L, 0L);
     public static final int MAX_RESEARCH_NODES = 64;
@@ -89,6 +91,8 @@ public record FactionSnapshot(
         activeResearchNode = activeResearchNode == null ? "" : limit(activeResearchNode, 32);
         activeResearchEndMillis = Math.max(0L, activeResearchEndMillis);
         pendingWarSpoils = pendingWarSpoils == null ? WarSpoils.EMPTY : pendingWarSpoils;
+        claimCount = Math.max(0, claimCount);
+        forceLoadUsed = Math.max(0, forceLoadUsed);
     }
 
     public static FactionSnapshot empty(BlockPos tablePos, int centerChunkX, int centerChunkZ, long creationCost) {
@@ -97,7 +101,7 @@ public record FactionSnapshot(
                 centerChunkX, centerChunkZ, 6, List.of(), List.of(),
                 0L, 0L, 0L, 0L, 0L, false, creationCost, NO_FACTION, false,
                 "", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), "",
-                List.of(), "", 0L, WarSpoils.EMPTY
+                List.of(), "", 0L, WarSpoils.EMPTY, 0, 0
         );
     }
 
@@ -183,6 +187,8 @@ public record FactionSnapshot(
         buffer.writeUtf(snapshot.activeResearchNode, 32);
         buffer.writeLong(snapshot.activeResearchEndMillis);
         snapshot.pendingWarSpoils.encode(buffer);
+        buffer.writeVarInt(snapshot.claimCount);
+        buffer.writeVarInt(snapshot.forceLoadUsed);
     }
 
     private static FactionSnapshot decode(RegistryFriendlyByteBuf buffer) {
@@ -231,13 +237,16 @@ public record FactionSnapshot(
         String activeResearchNode = buffer.readUtf(32);
         long activeResearchEndMillis = buffer.readLong();
         WarSpoils pendingWarSpoils = WarSpoils.decode(buffer);
+        int claimCount = buffer.readVarInt();
+        int forceLoadUsed = buffer.readVarInt();
         return new FactionSnapshot(
                 tablePos, factionId, name, ownerName, color, canManage, canClaim,
                 centerChunkX, centerChunkZ, mapRadius, members, claims,
                 treasury, influence, influenceScience, influenceEconomic, influenceMilitary,
                 internalPvp, creationCost, viewerId, isOfficer,
                 warWith, knownFactions, allianceCandidates, allies, onlinePlayers, bonuses, emblem, emblemUrl,
-                completedResearch, activeResearchNode, activeResearchEndMillis, pendingWarSpoils
+                completedResearch, activeResearchNode, activeResearchEndMillis, pendingWarSpoils,
+                claimCount, forceLoadUsed
         );
     }
 

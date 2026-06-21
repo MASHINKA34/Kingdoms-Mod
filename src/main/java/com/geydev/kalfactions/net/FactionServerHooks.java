@@ -878,7 +878,9 @@ public final class FactionServerHooks {
                 snapshot.completedResearch(),
                 snapshot.activeResearchNode(),
                 snapshot.activeResearchEndMillis(),
-                snapshot.pendingWarSpoils()
+                snapshot.pendingWarSpoils(),
+                snapshot.claimCount(),
+                snapshot.forceLoadUsed()
         );
     }
 
