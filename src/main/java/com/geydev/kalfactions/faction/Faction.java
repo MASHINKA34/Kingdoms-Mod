@@ -382,19 +382,6 @@ public final class Faction {
         return 1.0D + 0.05D * researchBonusCount("MINING_SPEED");
     }
 
-    public long researchTreasuryIncome() {
-        long income = 0L;
-        for (ResearchNode node : completedResearch) {
-            for (String part : node.bonusTag().split("\\+")) {
-                if (part.equalsIgnoreCase("TREASURY_INCOME")) {
-                    income += node.tier();
-                    break;
-                }
-            }
-        }
-        return income;
-    }
-
     public boolean isResearchAvailable(ResearchNode node) {
         if (completedResearch.contains(node)) {
             return false;
@@ -572,22 +559,6 @@ public final class Faction {
 
     void setSellAccumulator(long value) {
         sellAccumulator = Math.max(0L, value);
-    }
-
-    public long applyInfluenceBonus(InfluenceType type, long base) {
-        if (base <= 0L) {
-            return base;
-        }
-        String tag = switch (type) {
-            case SCIENCE -> "SCIENCE_INFLUENCE";
-            case ECONOMIC -> "ECONOMIC_INFLUENCE";
-            case MILITARY -> "MILITARY_INFLUENCE";
-        };
-        int levels = researchBonusCount(tag);
-        if (levels <= 0) {
-            return base;
-        }
-        return PriceMath.saturatedAdd(base, Math.round(base * 0.15D * levels));
     }
 
     void startResearch(ResearchNode node, long startMillis) {

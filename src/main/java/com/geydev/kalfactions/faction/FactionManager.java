@@ -41,7 +41,6 @@ public final class FactionManager extends SavedData {
     public static final int DEFAULT_STARTER_SIZE = 3;
     public static final int MAX_NAME_LENGTH = 32;
     public static final int MAX_RGB_COLOR = 0xFFFFFF;
-    public static final long TICKS_PER_INFLUENCE_DAY = 24_000L;
     public static final int DEFAULT_COLOR = 0xFFFFFF;
     public static final ResourceLocation DEFAULT_ICON = ResourceLocation.fromNamespaceAndPath("kingdoms", "default");
     public static final Set<FactionBonus> DEFAULT_BONUSES = Set.of(FactionBonus.TRADERS);
@@ -52,7 +51,6 @@ public final class FactionManager extends SavedData {
     private static final String TAG_VERSION = "version";
     private static final String TAG_FACTIONS = "factions";
     private static final String TAG_CHESTS = "chests";
-    private static final String TAG_LAST_INFLUENCE_TICK = "lastInfluenceTick";
     private static final String TAG_LAST_INFLUENCE_DECAY = "lastInfluenceDecay";
 
     private final Map<UUID, Faction> factions = new LinkedHashMap<>();
@@ -60,7 +58,6 @@ public final class FactionManager extends SavedData {
     private final Map<UUID, UUID> memberIndex = new HashMap<>();
     private final Map<ClaimKey, UUID> claimIndex = new HashMap<>();
     private final Map<ChestAccess.Key, ChestAccess> chestAccess = new LinkedHashMap<>();
-    private long lastInfluenceTick = -1L;
     private long lastInfluenceDecayMillis = -1L;
     private final transient Set<ClaimKey> appliedForceLoads = new HashSet<>();
 
@@ -740,12 +737,11 @@ public final class FactionManager extends SavedData {
         if (faction == null) {
             return OperationResult.failure(Status.FACTION_NOT_FOUND);
         }
-        long amount = faction.applyInfluenceBonus(type, baseAmount);
-        faction.addInfluence(type, amount);
-        if (amount > 0L) {
+        faction.addInfluence(type, baseAmount);
+        if (baseAmount > 0L) {
             setDirty();
         }
-        return OperationResult.success(factionId, amount);
+        return OperationResult.success(factionId, baseAmount);
     }
 
     public enum StartResearchResult {
@@ -893,30 +889,17 @@ public final class FactionManager extends SavedData {
         return completed;
     }
 
-    public synchronized void applyTreasuryIncome() {
-        boolean changed = false;
-        for (Faction faction : factions.values()) {
-            long income = faction.researchTreasuryIncome();
-            if (income > 0L && faction.deposit(income)) {
-                changed = true;
-            }
-        }
-        if (changed) {
-            setDirty();
-        }
-    }
-
     public synchronized long recordSellEarnings(UUID factionId, long spurs, long threshold) {
         Faction faction = factions.get(factionId);
         if (faction == null || spurs <= 0L || threshold <= 0L) {
             return 0L;
         }
         long total = faction.sellAccumulator() + spurs;
-        long influenceGained = total / threshold;
+        long units = total / threshold;
         faction.setSellAccumulator(total % threshold);
+        long influenceGained = units * ModConfigSpec.INFLUENCE_SELL_PER_THRESHOLD.getAsLong();
         if (influenceGained > 0L) {
-            long awarded = faction.applyInfluenceBonus(InfluenceType.ECONOMIC, influenceGained);
-            faction.addInfluence(InfluenceType.ECONOMIC, awarded);
+            faction.addInfluence(InfluenceType.ECONOMIC, influenceGained);
         }
         setDirty();
         return influenceGained;
@@ -955,40 +938,6 @@ public final class FactionManager extends SavedData {
         return changed;
     }
 
-    public synchronized long tickInfluence(long gameTime) {
-        return tickInfluence(gameTime, ModConfigSpec.INFLUENCE_PER_CHUNK_PER_DAY.getAsLong());
-    }
-
-    public synchronized long tickInfluence(long gameTime, long influencePerChunkPerDay) {
-        if (gameTime < 0L || influencePerChunkPerDay < 0L) {
-            throw new IllegalArgumentException("Influence tick inputs cannot be negative");
-        }
-        if (lastInfluenceTick < 0L || gameTime < lastInfluenceTick) {
-            lastInfluenceTick = gameTime;
-            setDirty();
-            return 0L;
-        }
-
-        long elapsedDays = (gameTime - lastInfluenceTick) / TICKS_PER_INFLUENCE_DAY;
-        if (elapsedDays <= 0L) {
-            return 0L;
-        }
-
-        long totalAwarded = 0L;
-        for (Faction faction : factions.values()) {
-            long perDay = PriceMath.saturatedMultiply(faction.claimCount(), influencePerChunkPerDay);
-            long award = PriceMath.saturatedMultiply(perDay, elapsedDays);
-            long previous = faction.influence();
-            faction.addInfluence(award);
-            totalAwarded = PriceMath.saturatedAdd(totalAwarded, faction.influence() - previous);
-        }
-        long processedTicks = elapsedDays * TICKS_PER_INFLUENCE_DAY;
-        lastInfluenceTick = Long.MAX_VALUE - lastInfluenceTick < processedTicks
-            ? gameTime
-            : lastInfluenceTick + processedTicks;
-        setDirty();
-        return totalAwarded;
-    }
 
     public synchronized Optional<ChestAccess> getChestAccess(ChestAccess.Key key) {
         return Optional.ofNullable(chestAccess.get(key));
@@ -1075,7 +1024,6 @@ public final class FactionManager extends SavedData {
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putInt(TAG_VERSION, DATA_VERSION);
-        tag.putLong(TAG_LAST_INFLUENCE_TICK, lastInfluenceTick);
         tag.putLong(TAG_LAST_INFLUENCE_DECAY, lastInfluenceDecayMillis);
 
         ListTag factionsTag = new ListTag();
@@ -1096,9 +1044,6 @@ public final class FactionManager extends SavedData {
 
     private static FactionManager load(CompoundTag tag, HolderLookup.Provider registries) {
         FactionManager manager = new FactionManager();
-        manager.lastInfluenceTick = tag.contains(TAG_LAST_INFLUENCE_TICK)
-            ? tag.getLong(TAG_LAST_INFLUENCE_TICK)
-            : -1L;
         manager.lastInfluenceDecayMillis = tag.contains(TAG_LAST_INFLUENCE_DECAY)
             ? tag.getLong(TAG_LAST_INFLUENCE_DECAY)
             : -1L;

@@ -1,9 +1,6 @@
 package com.geydev.kalfactions.mixin;
 
-import com.geydev.kalfactions.faction.Faction;
-import com.geydev.kalfactions.faction.FactionManager;
-import com.geydev.kalfactions.faction.InfluenceType;
-import java.util.Optional;
+import com.geydev.kalfactions.faction.VillagerTradeRewards;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
@@ -25,25 +22,8 @@ public abstract class MerchantResultSlotMixin {
 
     @Inject(method = "onTake", at = @At("TAIL"))
     private void kingdoms$onVillagerTrade(Player player, ItemStack stack, CallbackInfo ci) {
-        if (!(player instanceof ServerPlayer serverPlayer) || !(this.merchant instanceof Villager)) {
-            return;
-        }
-        FactionManager manager = FactionManager.get(serverPlayer.serverLevel());
-        Optional<Faction> factionOpt = manager.getFactionForMember(serverPlayer.getUUID());
-        if (factionOpt.isEmpty()) {
-            return;
-        }
-        Faction faction = factionOpt.get();
-        manager.addInfluence(faction.id(), InfluenceType.ECONOMIC, 1L);
-        int extra = faction.researchBonusCount("VILLAGER_EXTRA");
-        if (extra > 0 && !stack.isEmpty()) {
-            double chance = Math.min(0.60D, 0.25D * extra);
-            if (serverPlayer.serverLevel().getRandom().nextDouble() < chance) {
-                ItemStack bonus = stack.copy();
-                if (!serverPlayer.getInventory().add(bonus)) {
-                    serverPlayer.drop(bonus, false);
-                }
-            }
+        if (player instanceof ServerPlayer serverPlayer && this.merchant instanceof Villager) {
+            VillagerTradeRewards.onVillagerTrade(serverPlayer, stack);
         }
     }
 }

@@ -221,7 +221,23 @@ public final class WarManager extends SavedData {
 
     private void prepareSpoils(MinecraftServer server, UUID spoilsId, UUID winnerId, UUID loserId) {
         FactionManager factions = FactionManager.get(server);
-        factions.grantInfluence(winnerId, InfluenceType.MILITARY, ModConfigSpec.INFLUENCE_WAR_WIN_INFLUENCE.getAsLong());
+        long winInfluence = ModConfigSpec.INFLUENCE_WAR_WIN_INFLUENCE.getAsLong();
+        factions.grantInfluence(winnerId, InfluenceType.MILITARY, winInfluence);
+        if (winInfluence > 0L) {
+            factions.getFactionById(winnerId).ifPresent(winner -> {
+                for (UUID memberId : winner.members().keySet()) {
+                    net.minecraft.server.level.ServerPlayer member = server.getPlayerList().getPlayer(memberId);
+                    if (member != null) {
+                        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
+                                member,
+                                new com.geydev.kalfactions.net.FactionPayloads.S2CInfluenceGain(
+                                        InfluenceType.MILITARY.id(), winInfluence
+                                )
+                        );
+                    }
+                }
+            });
+        }
         if (factions.getFactionById(winnerId).isEmpty() || factions.getFactionById(loserId).isEmpty()) {
             return;
         }

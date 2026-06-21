@@ -511,6 +511,10 @@ final class FactionManagerService implements FactionServerHooks.Service {
             }
             long gain = (long) count * rate;
             manager.grantInfluence(faction.id(), type, gain);
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
+                    player,
+                    new com.geydev.kalfactions.net.FactionPayloads.S2CInfluenceGain(type.id(), gain)
+            );
             totalCrystals += count;
             totalInfluence += gain;
         }

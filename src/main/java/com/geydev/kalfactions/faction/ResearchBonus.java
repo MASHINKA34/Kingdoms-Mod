@@ -12,7 +12,6 @@ public enum ResearchBonus {
     ENCHANT_BOOST(InfluenceType.SCIENCE),
     CHUNK_SLOT(InfluenceType.SCIENCE),
     SCIENCE_CHUNK_SLOT(InfluenceType.SCIENCE),
-    SCIENCE_INFLUENCE(InfluenceType.SCIENCE),
     BUY_RATE(InfluenceType.ECONOMIC),
     CLAIM_DISCOUNT(InfluenceType.ECONOMIC),
     VILLAGER_DISCOUNT(InfluenceType.ECONOMIC),
@@ -20,17 +19,13 @@ public enum ResearchBonus {
     OUTPOST_DISCOUNT(InfluenceType.ECONOMIC),
     RAID_STEAL_RESIST(InfluenceType.ECONOMIC),
     ECONOMIC_CHUNK_SLOT(InfluenceType.ECONOMIC),
-    TREASURY_INCOME(InfluenceType.ECONOMIC),
-    ECONOMIC_INFLUENCE(InfluenceType.ECONOMIC),
     RAID_WARNING(InfluenceType.MILITARY),
     TNT_RESIST(InfluenceType.MILITARY),
     CLAIM_TNT_RESIST(InfluenceType.MILITARY),
     FEWER_RAIDERS(InfluenceType.MILITARY),
     WARRIOR_DAMAGE(InfluenceType.MILITARY),
     ARMOR_BOOST(InfluenceType.MILITARY),
-    RAID_REWARD(InfluenceType.MILITARY),
-    WAR_KILL_POINTS(InfluenceType.MILITARY),
-    MILITARY_INFLUENCE_RESPAWN(InfluenceType.MILITARY);
+    RAID_REWARD(InfluenceType.MILITARY);
 
     private final InfluenceType type;
 

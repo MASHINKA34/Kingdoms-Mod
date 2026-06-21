@@ -21,7 +21,6 @@ public final class ModConfigSpec {
     public static final DoubleValue HARVEST_BONUS_CHANCE;
     public static final DoubleValue CRAFT_BONUS_CHANCE;
     public static final DoubleValue BUILDER_DISCOUNT;
-    public static final LongValue INFLUENCE_PER_CHUNK_PER_DAY;
     public static final LongValue CREATION_COST;
     public static final IntValue WAR_ROLLBACK_CHUNKS_PER_TICK;
     public static final LongValue WAR_AUTO_END_TICKS;
@@ -48,8 +47,14 @@ public final class ModConfigSpec {
     public static final IntValue INFLUENCE_KILL_CAP_PER_VICTIM;
     public static final IntValue INFLUENCE_KILL_CAP_HOURS;
     public static final LongValue INFLUENCE_WAR_WIN_INFLUENCE;
-    public static final DoubleValue INFLUENCE_CRAFT_CHANCE;
-    public static final LongValue INFLUENCE_FURNACE_TICK;
+    public static final LongValue INFLUENCE_CRAFT_PER_ITEM;
+    public static final IntValue INFLUENCE_CRAFT_CAP_PER_ITEM;
+    public static final IntValue INFLUENCE_CRAFT_CAP_HOURS;
+    public static final LongValue INFLUENCE_VILLAGER_TRADE;
+    public static final LongValue INFLUENCE_SELL_PER_THRESHOLD;
+    public static final IntValue INFLUENCE_MOB_KILLS_PER_AWARD;
+    public static final LongValue INFLUENCE_MOB_KILL_INFLUENCE;
+    public static final LongValue INFLUENCE_MOB_DAILY_CAP;
     public static final LongValue INFLUENCE_SPURS_PER_ECON;
     public static final LongValue WAR_POINTS_GOAL;
     public static final IntValue WAR_BLOCK_BREAK_POINTS;
@@ -72,7 +77,6 @@ public final class ModConfigSpec {
         HARVEST_BONUS_CHANCE = builder.defineInRange("harvestBonusChance", 0.15D, 0D, 1D);
         CRAFT_BONUS_CHANCE = builder.defineInRange("craftBonusChance", 0.2D, 0D, 1D);
         BUILDER_DISCOUNT = builder.defineInRange("builderDiscount", 0.2D, 0D, 1D);
-        INFLUENCE_PER_CHUNK_PER_DAY = builder.defineInRange("influencePerChunkPerDay", 1L, 0L, Long.MAX_VALUE);
         CREATION_COST = builder
             .comment("Spurs charged from a player's inventory when founding a faction.")
             .defineInRange("creationCost", 500L, 0L, Long.MAX_VALUE);
@@ -150,15 +154,33 @@ public final class ModConfigSpec {
             .defineInRange("killCapHours", 24, 1, 8760);
         INFLUENCE_WAR_WIN_INFLUENCE = builder
             .comment("Military influence awarded to a faction that wins a war.")
-            .defineInRange("warWinInfluence", 100L, 0L, Long.MAX_VALUE);
-        INFLUENCE_CRAFT_CHANCE = builder
-            .comment("Chance a member crafting on faction territory grants 1 science influence.")
-            .defineInRange("craftInfluenceChance", 0.1D, 0D, 1D);
-        INFLUENCE_FURNACE_TICK = builder
-            .comment("Science influence per minute for each lit furnace inside faction claims.")
-            .defineInRange("furnaceTickInfluence", 1L, 0L, Long.MAX_VALUE);
+            .defineInRange("warWinInfluence", 200L, 0L, Long.MAX_VALUE);
+        INFLUENCE_CRAFT_PER_ITEM = builder
+            .comment("Science influence granted per crafted modded (non-vanilla) item.")
+            .defineInRange("craftInfluencePerItem", 5L, 0L, Long.MAX_VALUE);
+        INFLUENCE_CRAFT_CAP_PER_ITEM = builder
+            .comment("Per-player crafts of one item type that grant influence within the cap window; further crafts give nothing.")
+            .defineInRange("craftInfluenceCapPerItem", 64, 0, Integer.MAX_VALUE);
+        INFLUENCE_CRAFT_CAP_HOURS = builder
+            .comment("Real-time hours of the per-item craft-influence anti-farm window (wall-clock, runs while offline).")
+            .defineInRange("craftInfluenceCapHours", 24, 1, 8760);
+        INFLUENCE_VILLAGER_TRADE = builder
+            .comment("Economic influence granted per trade with an ordinary villager.")
+            .defineInRange("villagerTradeInfluence", 2L, 0L, Long.MAX_VALUE);
+        INFLUENCE_SELL_PER_THRESHOLD = builder
+            .comment("Economic influence granted for each full spursPerEconInfluence chunk of trader earnings.")
+            .defineInRange("sellInfluencePerThreshold", 5L, 0L, Long.MAX_VALUE);
+        INFLUENCE_MOB_KILLS_PER_AWARD = builder
+            .comment("Hostile mobs a member must kill to earn one military influence award.")
+            .defineInRange("mobKillsPerAward", 5, 1, Integer.MAX_VALUE);
+        INFLUENCE_MOB_KILL_INFLUENCE = builder
+            .comment("Military influence per mob-kill award.")
+            .defineInRange("mobKillInfluence", 7L, 0L, Long.MAX_VALUE);
+        INFLUENCE_MOB_DAILY_CAP = builder
+            .comment("Maximum military influence a member can earn from mob kills per 24 real-time hours.")
+            .defineInRange("mobKillDailyCap", 210L, 0L, Long.MAX_VALUE);
         INFLUENCE_SPURS_PER_ECON = builder
-            .comment("Spurs a member must earn selling to the trader to grant 1 economic influence.")
+            .comment("Spurs a member must earn selling to the trader to grant one sell-influence award.")
             .defineInRange("spursPerEconInfluence", 50L, 1L, Long.MAX_VALUE);
         builder.pop();
 
