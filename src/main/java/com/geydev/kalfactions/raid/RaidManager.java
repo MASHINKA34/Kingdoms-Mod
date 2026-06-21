@@ -64,6 +64,11 @@ public final class RaidManager extends SavedData {
     private static final long TICK_INTERVAL_MILLIS = 1_000L;
     private static final double RAIDER_SPEED = 1.1D;
     private static final int GARRISON_LEASH_RADIUS = 12;
+    private static final int RAID_BASE_RAIDERS = 3;
+    private static final int RAID_STARTER_CLAIMS = 9;
+    private static final int RAID_CLAIMS_PER_EXTRA_RAIDER = 4;
+    private static final int RAIDER_CASTER_CLAIMS = 15;
+    private static final int RAIDER_RAVAGER_CLAIMS = 25;
 
     private final Map<UUID, Raid> raids = new LinkedHashMap<>();
     private final Map<UUID, UUID> factionToRaid = new HashMap<>();
@@ -346,7 +351,8 @@ public final class RaidManager extends SavedData {
         if (level == null) {
             return false;
         }
-        int requestedRaiders = Math.min(30, 3 + faction.claimCount() / 3);
+        int requestedRaiders = RAID_BASE_RAIDERS
+            + Math.max(0, faction.claimCount() - RAID_STARTER_CLAIMS) / RAID_CLAIMS_PER_EXTRA_RAIDER;
         requestedRaiders = Math.max(1, requestedRaiders - faction.researchBonusCount("FEWER_RAIDERS"));
         List<ClaimKey> boundary;
         if (raid.targetType() == Raid.TargetType.OUTPOST) {
@@ -366,7 +372,7 @@ public final class RaidManager extends SavedData {
                 spawned++;
             }
         }
-        if (spawned != requestedRaiders) {
+        if (spawned == 0) {
             cleanupLoadedRaiders(server, raid);
             for (UUID raiderId : raid.raiderIds()) {
                 raid.removeRaider(raiderId);
@@ -407,7 +413,7 @@ public final class RaidManager extends SavedData {
             if (spawnPos == null) {
                 continue;
             }
-            Raider raider = switch (randomRaiderKind(random)) {
+            Raider raider = switch (randomRaiderKind(random, faction.claimCount())) {
                 case VINDICATOR -> createRaider(EntityType.VINDICATOR, level, raid, spawnPos);
                 case WITCH -> createRaider(EntityType.WITCH, level, raid, spawnPos);
                 case EVOKER -> createRaider(EntityType.EVOKER, level, raid, spawnPos);
@@ -440,18 +446,25 @@ public final class RaidManager extends SavedData {
         return null;
     }
 
-    private static RaiderKind randomRaiderKind(RandomSource random) {
-        int roll = random.nextInt(100);
-        if (roll < 50) {
+    private static RaiderKind randomRaiderKind(RandomSource random, int claimCount) {
+        boolean allowCasters = claimCount >= RAIDER_CASTER_CLAIMS;
+        boolean allowRavager = claimCount >= RAIDER_RAVAGER_CLAIMS;
+        int pillager = 50;
+        int vindicator = 25;
+        int witch = allowCasters ? 12 : 0;
+        int evoker = allowCasters ? 8 : 0;
+        int ravager = allowRavager ? 5 : 0;
+        int roll = random.nextInt(pillager + vindicator + witch + evoker + ravager);
+        if ((roll -= pillager) < 0) {
             return RaiderKind.PILLAGER;
         }
-        if (roll < 75) {
+        if ((roll -= vindicator) < 0) {
             return RaiderKind.VINDICATOR;
         }
-        if (roll < 87) {
+        if ((roll -= witch) < 0) {
             return RaiderKind.WITCH;
         }
-        if (roll < 95) {
+        if ((roll -= evoker) < 0) {
             return RaiderKind.EVOKER;
         }
         return RaiderKind.RAVAGER;
@@ -501,7 +514,7 @@ public final class RaidManager extends SavedData {
             && level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), Direction.UP);
     }
 
-    private Raider spawnGarrisonRaider(ServerLevel level, UUID outpostId, BlockPos core) {
+    private Raider spawnGarrisonRaider(ServerLevel level, UUID outpostId, BlockPos core, int claimCount) {
         RandomSource random = level.getRandom();
         for (int attempt = 0; attempt < 32; attempt++) {
             int x = core.getX() + random.nextInt(11) - 5;
@@ -511,7 +524,7 @@ public final class RaidManager extends SavedData {
             if (!canStandAt(level, pos)) {
                 continue;
             }
-            Raider raider = switch (randomRaiderKind(random)) {
+            Raider raider = switch (randomRaiderKind(random, claimCount)) {
                 case VINDICATOR -> createGarrisonRaider(EntityType.VINDICATOR, level, outpostId, core, pos);
                 case WITCH -> createGarrisonRaider(EntityType.WITCH, level, outpostId, core, pos);
                 case EVOKER -> createGarrisonRaider(EntityType.EVOKER, level, outpostId, core, pos);
@@ -795,8 +808,9 @@ public final class RaidManager extends SavedData {
                 }
             }
             int targetSize = Math.max(garrison.size(), raid.originalRaiderCount());
+            int tierClaims = faction.claimCount();
             while (garrison.size() < targetSize) {
-                Raider reinforcement = spawnGarrisonRaider(level, outpost.id(), corePos);
+                Raider reinforcement = spawnGarrisonRaider(level, outpost.id(), corePos, tierClaims);
                 if (reinforcement == null) {
                     break;
                 }

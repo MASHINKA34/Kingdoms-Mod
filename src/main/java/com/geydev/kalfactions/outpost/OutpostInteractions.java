@@ -127,7 +127,7 @@ public final class OutpostInteractions {
         ClaimSyncManager.resync(player);
         FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.outpost.recaptured"), true);
         UUID previousOwner = outpost.previousOwnerId();
-        if (previousOwner != null) {
+        if (previousOwner != null && !previousOwner.equals(player.getUUID())) {
             ServerPlayer previous = player.getServer().getPlayerList().getPlayer(previousOwner);
             if (previous != null) {
                 FactionServerHooks.sendNotice(
