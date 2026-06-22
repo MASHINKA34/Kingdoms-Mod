@@ -1144,6 +1144,49 @@ final class FactionManagerService implements FactionServerHooks.Service {
     }
 
     @Override
+    public FactionServerHooks.Result joinWar(ServerPlayer player, BlockPos tablePos, String allyFactionName) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return notInFaction(player, tablePos);
+        }
+        if (!faction.ownerId().equals(player.getUUID())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.leader_settings_only"),
+                    view(player, tablePos)
+            );
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return otherFactionTable(player, tablePos);
+        }
+        Faction ally = manager.getFactionByName(allyFactionName.trim()).orElse(null);
+        if (ally == null) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.faction_not_found"),
+                    view(player, tablePos)
+            );
+        }
+        WarManager.JoinResult result = WarManager.get(player.getServer()).joinWar(
+                player.getServer(),
+                faction.id(),
+                ally.id()
+        );
+        Component message = switch (result) {
+            case SUCCESS -> Component.translatable("kingdoms.command.faction.war.joined", ally.name());
+            case SAME_FACTION -> Component.translatable("kingdoms.command.faction.war.same_faction");
+            case NOT_ALLIED -> Component.translatable("kingdoms.error.war_join_not_allied", ally.name());
+            case ALLY_NOT_DEFENDING -> Component.translatable("kingdoms.error.war_join_not_defending", ally.name());
+            case ALLIED_WITH_ENEMY -> Component.translatable("kingdoms.error.war_join_allied_enemy");
+            case JOINER_BUSY -> Component.translatable("kingdoms.error.war_join_busy");
+        };
+        return new FactionServerHooks.Result(
+                result == WarManager.JoinResult.SUCCESS,
+                message,
+                view(player, tablePos)
+        );
+    }
+
+    @Override
     public FactionServerHooks.Result endWar(ServerPlayer player, BlockPos tablePos) {
         FactionManager manager = FactionManager.get(player.serverLevel());
         Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);

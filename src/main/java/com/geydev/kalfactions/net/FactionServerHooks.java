@@ -330,6 +330,15 @@ public final class FactionServerHooks {
         perform(player, tablePos, () -> service.declareWar(player, tablePos, targetFactionName));
     }
 
+    public static void joinWar(ServerPlayer player, BlockPos tablePos, String allyFactionName) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.joinWar(player, tablePos, allyFactionName));
+    }
+
     public static void endWar(ServerPlayer player, BlockPos tablePos) {
         Validation validation = validateTable(player, tablePos, true);
         if (!validation.allowed) {
@@ -953,6 +962,8 @@ public final class FactionServerHooks {
 
         Result declareWar(ServerPlayer player, BlockPos tablePos, String targetFactionName);
 
+        Result joinWar(ServerPlayer player, BlockPos tablePos, String allyFactionName);
+
         Result endWar(ServerPlayer player, BlockPos tablePos);
 
         Result surrenderWar(ServerPlayer player, BlockPos tablePos);
@@ -1087,6 +1098,11 @@ public final class FactionServerHooks {
 
         @Override
         public Result declareWar(ServerPlayer player, BlockPos tablePos, String targetFactionName) {
+            return managementUnavailable(player, tablePos);
+        }
+
+        @Override
+        public Result joinWar(ServerPlayer player, BlockPos tablePos, String allyFactionName) {
             return managementUnavailable(player, tablePos);
         }
 

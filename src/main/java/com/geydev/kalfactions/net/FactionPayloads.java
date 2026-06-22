@@ -428,6 +428,25 @@ public final class FactionPayloads {
         }
     }
 
+    public record C2SJoinWar(BlockPos tablePos, String allyFactionName) implements CustomPacketPayload {
+        public static final Type<C2SJoinWar> TYPE = FactionPayloads.payloadType("join_war");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SJoinWar> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBlockPos(payload.tablePos);
+                    buffer.writeUtf(payload.allyFactionName, FactionServerHooks.MAX_NAME_LENGTH);
+                },
+                buffer -> new C2SJoinWar(
+                        buffer.readBlockPos(),
+                        buffer.readUtf(FactionServerHooks.MAX_NAME_LENGTH)
+                )
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record C2SEndWar(BlockPos tablePos) implements CustomPacketPayload {
         public static final Type<C2SEndWar> TYPE = FactionPayloads.payloadType("end_war");
         public static final StreamCodec<RegistryFriendlyByteBuf, C2SEndWar> STREAM_CODEC = StreamCodec.of(

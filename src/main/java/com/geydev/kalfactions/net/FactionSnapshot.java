@@ -33,6 +33,7 @@ public record FactionSnapshot(
         List<String> knownFactions,
         List<String> allianceCandidates,
         List<String> allies,
+        List<String> joinableAllies,
         List<OnlinePlayer> onlinePlayers,
         List<String> bonuses,
         List<Integer> emblem,
@@ -83,6 +84,7 @@ public record FactionSnapshot(
         knownFactions = knownFactions == null ? List.of() : List.copyOf(knownFactions);
         allianceCandidates = allianceCandidates == null ? List.of() : List.copyOf(allianceCandidates);
         allies = allies == null ? List.of() : List.copyOf(allies);
+        joinableAllies = joinableAllies == null ? List.of() : List.copyOf(joinableAllies);
         onlinePlayers = onlinePlayers == null ? List.of() : List.copyOf(onlinePlayers);
         bonuses = bonuses == null ? List.of() : List.copyOf(bonuses);
         emblem = emblem == null || !isValidEmblemSize(emblem.size()) ? List.of() : List.copyOf(emblem);
@@ -100,7 +102,7 @@ public record FactionSnapshot(
                 tablePos, NO_FACTION, "", "", 0x4E7A42, false, false,
                 centerChunkX, centerChunkZ, 6, List.of(), List.of(),
                 0L, 0L, 0L, 0L, 0L, false, creationCost, NO_FACTION, false,
-                "", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), "",
+                "", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), "",
                 List.of(), "", 0L, WarSpoils.EMPTY, 0, 0
         );
     }
@@ -166,6 +168,12 @@ public record FactionSnapshot(
         writeBoundedList(
                 buffer,
                 snapshot.allies,
+                MAX_KNOWN_FACTIONS,
+                (target, value) -> target.writeUtf(value, 32)
+        );
+        writeBoundedList(
+                buffer,
+                snapshot.joinableAllies,
                 MAX_KNOWN_FACTIONS,
                 (target, value) -> target.writeUtf(value, 32)
         );

@@ -84,13 +84,16 @@ public final class WarManager extends SavedData {
         return warId == null ? Optional.empty() : Optional.ofNullable(wars.get(warId));
     }
 
-    /** True when both factions are in the same {@link War.State#ACTIVE} war (combat live). */
+    /**
+     * True when both factions are in the same {@link War.State#ACTIVE} war and sit on opposing sides,
+     * i.e. they are enemies. Two factions on the same side (a defender and a joined ally) are not at war.
+     */
     public synchronized boolean areAtWar(UUID factionA, UUID factionB) {
         if (wars.isEmpty() || factionA == null || factionB == null || factionA.equals(factionB)) {
             return false;
         }
         War war = warFor(factionA);
-        return war != null && war.isActive() && war.involves(factionB);
+        return war != null && war.isActive() && war.opposingSides(factionA, factionB);
     }
 
     /**
@@ -125,14 +128,18 @@ public final class WarManager extends SavedData {
         if (war == null || !war.isActive()) {
             return;
         }
-        UUID opponent = war.opponentOf(scoringFactionId);
-        if (!hasOnlineMember(server, opponent)) {
+        War.Side scoringSide = war.sideOf(scoringFactionId);
+        if (scoringSide == null) {
+            return;
+        }
+        War.Side opposingSide = scoringSide == War.Side.ATTACKER ? War.Side.DEFENDER : War.Side.ATTACKER;
+        if (!hasOnlineMemberOnSide(server, war, opposingSide)) {
             return;
         }
         war.addPoints(scoringFactionId, amount);
         setDirty();
-        if (war.points(scoringFactionId) >= ModConfigSpec.WAR_POINTS_GOAL.getAsLong()) {
-            concludeWar(server, war, scoringFactionId);
+        if (war.pointsForSide(scoringSide) >= ModConfigSpec.WAR_POINTS_GOAL.getAsLong()) {
+            concludeWar(server, war, war.leadOf(scoringSide));
         }
     }
 
@@ -193,15 +200,99 @@ public final class WarManager extends SavedData {
         return false;
     }
 
-    /** A belligerent leader concedes the war; the opponent is declared the winner. */
+    private boolean hasOnlineMemberOnSide(MinecraftServer server, War war, War.Side side) {
+        Set<UUID> factionsOnSide = side == War.Side.ATTACKER ? war.attackerSide() : war.defenderSide();
+        for (UUID factionId : factionsOnSide) {
+            if (hasOnlineMember(server, factionId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * A faction leaves the war. A lead belligerent concedes (the opposing side wins); a joined ally
+     * merely withdraws its support, rolling back its own claims while the war continues.
+     */
     public synchronized Optional<UUID> surrender(MinecraftServer server, UUID factionId) {
         War war = warFor(factionId);
         if (war == null || !war.isActive()) {
             return Optional.empty();
         }
         UUID opponent = war.opponentOf(factionId);
-        concludeWar(server, war, opponent);
+        if (war.isLead(factionId)) {
+            concludeWar(server, war, opponent);
+        } else {
+            withdrawParticipant(server, war, factionId);
+        }
         return Optional.ofNullable(opponent);
+    }
+
+    /**
+     * An ally of the defender voluntarily joins the defending side. The joiner's claims become part of
+     * the war zone and its members can score war points like the original belligerents. Only the
+     * defender's allies may join (a defensive coalition); the attacker cannot recruit.
+     */
+    public synchronized JoinResult joinWar(MinecraftServer server, UUID joinerFactionId, UUID allyFactionId) {
+        Objects.requireNonNull(joinerFactionId, "joinerFactionId");
+        Objects.requireNonNull(allyFactionId, "allyFactionId");
+        if (joinerFactionId.equals(allyFactionId)) {
+            return JoinResult.SAME_FACTION;
+        }
+        if (factionToWar.containsKey(joinerFactionId)) {
+            return JoinResult.JOINER_BUSY;
+        }
+        FactionManager factions = FactionManager.get(server);
+        if (!factions.areAllied(joinerFactionId, allyFactionId)) {
+            return JoinResult.NOT_ALLIED;
+        }
+        War war = warFor(allyFactionId);
+        if (war == null || !war.isActive() || war.sideOf(allyFactionId) != War.Side.DEFENDER) {
+            return JoinResult.ALLY_NOT_DEFENDING;
+        }
+        if (factions.areAllied(joinerFactionId, war.attackerFactionId())) {
+            return JoinResult.ALLIED_WITH_ENEMY;
+        }
+        if (!war.joinDefenders(joinerFactionId)) {
+            return JoinResult.JOINER_BUSY;
+        }
+        factionToWar.put(joinerFactionId, war.id());
+        setDirty();
+
+        Component joiner = factionName(server, joinerFactionId);
+        Component defender = factionName(server, allyFactionId);
+        Component attacker = factionName(server, war.attackerFactionId());
+        LOGGER.info("Faction {} joined war {} on the defending side of {}",
+            joiner.getString(), war.id(), defender.getString());
+        broadcastToServer(server, Component.translatable("kingdoms.war.joined_broadcast", joiner, defender, attacker));
+        return JoinResult.SUCCESS;
+    }
+
+    /** Drops a joined ally from the war and restores its captured claims immediately. */
+    private void withdrawParticipant(MinecraftServer server, War war, UUID factionId) {
+        FactionManager factions = FactionManager.get(server);
+        for (ClaimKey key : war.snapshotKeys()) {
+            UUID owner = factions.getFactionIdAt(key).orElse(null);
+            if (!factionId.equals(owner)) {
+                continue;
+            }
+            WarChunkSnapshot snapshot = war.removeSnapshot(key);
+            if (snapshot == null) {
+                continue;
+            }
+            ServerLevel level = server.getLevel(key.dimension());
+            if (level != null) {
+                snapshot.restore(level, key.chunk(), level.registryAccess());
+            }
+        }
+        war.removeParticipant(factionId);
+        factionToWar.remove(factionId, war.id());
+        blockPointWindows.remove(factionId);
+        setDirty();
+
+        Component joiner = factionName(server, factionId);
+        broadcast(server, war.attackerFactionId(), Component.translatable("kingdoms.war.ally_withdrew", joiner));
+        broadcast(server, war.defenderFactionId(), Component.translatable("kingdoms.war.ally_withdrew", joiner));
     }
 
     private void concludeWar(MinecraftServer server, War war, UUID winnerId) {
@@ -209,22 +300,40 @@ public final class WarManager extends SavedData {
             beginRollback(server, war);
             return;
         }
-        UUID loserId = war.opponentOf(winnerId);
-        prepareSpoils(server, war.id(), winnerId, loserId);
+        War.Side winningSide = war.sideOf(winnerId);
+        if (winningSide == null) {
+            beginRollback(server, war);
+            return;
+        }
+        UUID winnerLead = war.leadOf(winningSide);
+        UUID loserLead = war.opponentOf(winnerLead);
+        Set<UUID> winningFactions = winningSide == War.Side.ATTACKER ? war.attackerSide() : war.defenderSide();
+        prepareSpoils(server, war.id(), winnerLead, loserLead, winningFactions);
         broadcastToServer(server, Component.translatable(
             "kingdoms.war.victory_broadcast",
-            factionName(server, winnerId),
-            factionName(server, loserId)
+            factionName(server, winnerLead),
+            factionName(server, loserLead)
         ));
         beginRollback(server, war);
     }
 
-    private void prepareSpoils(MinecraftServer server, UUID spoilsId, UUID winnerId, UUID loserId) {
+    private void prepareSpoils(
+            MinecraftServer server,
+            UUID spoilsId,
+            UUID winnerId,
+            UUID loserId,
+            Set<UUID> winningFactions
+    ) {
         FactionManager factions = FactionManager.get(server);
         long winInfluence = ModConfigSpec.INFLUENCE_WAR_WIN_INFLUENCE.getAsLong();
-        factions.grantInfluence(winnerId, InfluenceType.MILITARY, winInfluence);
-        if (winInfluence > 0L) {
-            factions.getFactionById(winnerId).ifPresent(winner -> {
+        // Every faction on the winning side (the lead belligerent and any joined allies) earns the
+        // military-influence reward; only the lead winner gets the lootable money/resource spoils.
+        for (UUID winningFactionId : winningFactions) {
+            factions.grantInfluence(winningFactionId, InfluenceType.MILITARY, winInfluence);
+            if (winInfluence <= 0L) {
+                continue;
+            }
+            factions.getFactionById(winningFactionId).ifPresent(winner -> {
                 for (UUID memberId : winner.members().keySet()) {
                     net.minecraft.server.level.ServerPlayer member = server.getPlayerList().getPlayer(memberId);
                     if (member != null) {
@@ -573,8 +682,9 @@ public final class WarManager extends SavedData {
 
     private void syncBossBarPlayers(MinecraftServer server, War war, ServerBossEvent bar) {
         List<ServerPlayer> desired = new ArrayList<>();
-        addOnlineMembers(server, war.attackerFactionId(), desired);
-        addOnlineMembers(server, war.defenderFactionId(), desired);
+        for (UUID participant : war.participants()) {
+            addOnlineMembers(server, participant, desired);
+        }
         for (ServerPlayer player : List.copyOf(bar.getPlayers())) {
             if (!desired.contains(player)) {
                 bar.removePlayer(player);
@@ -715,7 +825,11 @@ public final class WarManager extends SavedData {
             return Optional.empty();
         }
         UUID opponent = war.opponentOf(factionId);
-        beginRollback(server, war);
+        if (war.isLead(factionId)) {
+            beginRollback(server, war);
+        } else {
+            withdrawParticipant(server, war, factionId);
+        }
         return Optional.ofNullable(opponent);
     }
 
@@ -728,8 +842,9 @@ public final class WarManager extends SavedData {
         LOGGER.info("War {} ending; {} chunk snapshot(s) queued for rollback", war.id(), war.snapshotCount());
 
         Component message = Component.translatable("kingdoms.war.ended_restoring");
-        broadcast(server, war.attackerFactionId(), message);
-        broadcast(server, war.defenderFactionId(), message);
+        for (UUID participant : war.participants()) {
+            broadcast(server, participant, message);
+        }
 
         if (war.snapshotsEmpty()) {
             finalizeWar(server, war); // nothing was touched: complete immediately
@@ -787,11 +902,11 @@ public final class WarManager extends SavedData {
     private void finalizeWar(MinecraftServer server, War war) {
         war.setState(War.State.ENDED);
         wars.remove(war.id());
-        factionToWar.remove(war.attackerFactionId(), war.id());
-        factionToWar.remove(war.defenderFactionId(), war.id());
+        for (UUID participant : war.participants()) {
+            factionToWar.remove(participant, war.id());
+            blockPointWindows.remove(participant);
+        }
         clearBossBar(war.id());
-        blockPointWindows.remove(war.attackerFactionId());
-        blockPointWindows.remove(war.defenderFactionId());
         setDirty();
         LOGGER.info("War {} finished and removed", war.id());
 
@@ -874,15 +989,16 @@ public final class WarManager extends SavedData {
                 continue;
             }
             War war = loaded.get();
-            if (war.state() == War.State.ENDED
-                || manager.factionToWar.containsKey(war.attackerFactionId())
-                || manager.factionToWar.containsKey(war.defenderFactionId())) {
+            boolean participantBusy = war.participants().stream()
+                .anyMatch(manager.factionToWar::containsKey);
+            if (war.state() == War.State.ENDED || participantBusy) {
                 repaired = true;
                 continue;
             }
             manager.wars.put(war.id(), war);
-            manager.factionToWar.put(war.attackerFactionId(), war.id());
-            manager.factionToWar.put(war.defenderFactionId(), war.id());
+            for (UUID participant : war.participants()) {
+                manager.factionToWar.put(participant, war.id());
+            }
             if (war.state() == War.State.ENDING) {
                 for (ClaimKey key : war.snapshotKeys()) {
                     manager.rollbackQueue.add(new RollbackTask(war.id(), key));
@@ -908,6 +1024,15 @@ public final class WarManager extends SavedData {
         SAME_FACTION,
         ATTACKER_BUSY,
         DEFENDER_BUSY
+    }
+
+    public enum JoinResult {
+        SUCCESS,
+        SAME_FACTION,
+        NOT_ALLIED,
+        ALLY_NOT_DEFENDING,
+        ALLIED_WITH_ENEMY,
+        JOINER_BUSY
     }
 
     public enum ClaimSpoilsResult {

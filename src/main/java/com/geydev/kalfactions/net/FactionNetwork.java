@@ -109,6 +109,11 @@ public final class FactionNetwork {
                 FactionNetwork::handleDeclareWar
         );
         registrar.playToServer(
+                FactionPayloads.C2SJoinWar.TYPE,
+                FactionPayloads.C2SJoinWar.STREAM_CODEC,
+                FactionNetwork::handleJoinWar
+        );
+        registrar.playToServer(
                 FactionPayloads.C2SEndWar.TYPE,
                 FactionPayloads.C2SEndWar.STREAM_CODEC,
                 FactionNetwork::handleEndWar
@@ -301,6 +306,10 @@ public final class FactionNetwork {
 
     private static void handleDeclareWar(FactionPayloads.C2SDeclareWar payload, IPayloadContext context) {
         FactionServerHooks.declareWar(serverPlayer(context), payload.tablePos(), payload.targetFactionName());
+    }
+
+    private static void handleJoinWar(FactionPayloads.C2SJoinWar payload, IPayloadContext context) {
+        FactionServerHooks.joinWar(serverPlayer(context), payload.tablePos(), payload.allyFactionName());
     }
 
     private static void handleEndWar(FactionPayloads.C2SEndWar payload, IPayloadContext context) {

@@ -2,6 +2,7 @@ package com.geydev.kalfactions.war;
 
 import com.geydev.kalfactions.claim.ClaimKey;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -13,13 +14,17 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 
 /**
- * A single war between two factions plus the lazily captured chunk snapshots taken while it was
- * active. One faction may take part in at most one war at a time (v1).
+ * A single war between two sides plus the lazily captured chunk snapshots taken while it was active.
+ * Each side has a lead faction (the original belligerent) and may gain extra factions when the
+ * defender's allies voluntarily join the defending side. War points are tracked per side, not per
+ * faction. A faction may take part in at most one war at a time.
  */
 public final class War {
     private static final String TAG_ID = "id";
     private static final String TAG_ATTACKER = "attacker";
     private static final String TAG_DEFENDER = "defender";
+    private static final String TAG_ATTACKER_SIDE = "attackerSide";
+    private static final String TAG_DEFENDER_SIDE = "defenderSide";
     private static final String TAG_STATE = "state";
     private static final String TAG_START_TIME = "startGameTime";
     private static final String TAG_ATTACKER_POINTS = "attackerPoints";
@@ -31,6 +36,8 @@ public final class War {
     private final UUID id;
     private final UUID attackerFactionId;
     private final UUID defenderFactionId;
+    private final Set<UUID> attackerSide;
+    private final Set<UUID> defenderSide;
     private final long startGameTime;
     private final Map<ClaimKey, WarChunkSnapshot> snapshots;
     private State state;
@@ -38,13 +45,16 @@ public final class War {
     private long defenderPoints;
 
     public War(UUID id, UUID attackerFactionId, UUID defenderFactionId, State state, long startGameTime) {
-        this(id, attackerFactionId, defenderFactionId, state, startGameTime, new LinkedHashMap<>());
+        this(id, attackerFactionId, defenderFactionId, sideOf(attackerFactionId), sideOf(defenderFactionId),
+            state, startGameTime, new LinkedHashMap<>());
     }
 
     private War(
         UUID id,
         UUID attackerFactionId,
         UUID defenderFactionId,
+        Set<UUID> attackerSide,
+        Set<UUID> defenderSide,
         State state,
         long startGameTime,
         Map<ClaimKey, WarChunkSnapshot> snapshots
@@ -52,21 +62,48 @@ public final class War {
         this.id = Objects.requireNonNull(id, "id");
         this.attackerFactionId = Objects.requireNonNull(attackerFactionId, "attackerFactionId");
         this.defenderFactionId = Objects.requireNonNull(defenderFactionId, "defenderFactionId");
+        this.attackerSide = attackerSide;
+        this.defenderSide = defenderSide;
+        this.attackerSide.add(attackerFactionId);
+        this.defenderSide.add(defenderFactionId);
         this.state = Objects.requireNonNull(state, "state");
         this.startGameTime = startGameTime;
         this.snapshots = snapshots;
+    }
+
+    private static Set<UUID> sideOf(UUID lead) {
+        Set<UUID> side = new LinkedHashSet<>();
+        side.add(lead);
+        return side;
     }
 
     public UUID id() {
         return id;
     }
 
+    /** Lead faction of the attacking side (the faction that declared the war). */
     public UUID attackerFactionId() {
         return attackerFactionId;
     }
 
+    /** Lead faction of the defending side (the faction the war was declared on). */
     public UUID defenderFactionId() {
         return defenderFactionId;
+    }
+
+    public Set<UUID> attackerSide() {
+        return Set.copyOf(attackerSide);
+    }
+
+    public Set<UUID> defenderSide() {
+        return Set.copyOf(defenderSide);
+    }
+
+    /** Every faction taking part in the war, both sides combined. */
+    public Set<UUID> participants() {
+        Set<UUID> all = new LinkedHashSet<>(attackerSide);
+        all.addAll(defenderSide);
+        return all;
     }
 
     public State state() {
@@ -86,7 +123,51 @@ public final class War {
     }
 
     public boolean involves(UUID factionId) {
+        return factionId != null && (attackerSide.contains(factionId) || defenderSide.contains(factionId));
+    }
+
+    public boolean isLead(UUID factionId) {
         return attackerFactionId.equals(factionId) || defenderFactionId.equals(factionId);
+    }
+
+    public Side sideOf(UUID factionId) {
+        if (factionId == null) {
+            return null;
+        }
+        if (attackerSide.contains(factionId)) {
+            return Side.ATTACKER;
+        }
+        if (defenderSide.contains(factionId)) {
+            return Side.DEFENDER;
+        }
+        return null;
+    }
+
+    public UUID leadOf(Side side) {
+        return side == Side.ATTACKER ? attackerFactionId : defenderFactionId;
+    }
+
+    /** True when both factions take part and sit on opposing sides (i.e. they are enemies). */
+    public boolean opposingSides(UUID factionA, UUID factionB) {
+        Side a = sideOf(factionA);
+        Side b = sideOf(factionB);
+        return a != null && b != null && a != b;
+    }
+
+    /** Adds an ally to the defending side. */
+    public boolean joinDefenders(UUID factionId) {
+        if (factionId == null || attackerSide.contains(factionId)) {
+            return false;
+        }
+        return defenderSide.add(factionId);
+    }
+
+    /** Removes a non-lead participant from whichever side it joined. */
+    public boolean removeParticipant(UUID factionId) {
+        if (factionId == null || isLead(factionId)) {
+            return false;
+        }
+        return attackerSide.remove(factionId) || defenderSide.remove(factionId);
     }
 
     public long attackerPoints() {
@@ -97,23 +178,23 @@ public final class War {
         return defenderPoints;
     }
 
+    public long pointsForSide(Side side) {
+        return side == Side.ATTACKER ? attackerPoints : defenderPoints;
+    }
+
     public long points(UUID factionId) {
-        if (attackerFactionId.equals(factionId)) {
-            return attackerPoints;
-        }
-        if (defenderFactionId.equals(factionId)) {
-            return defenderPoints;
-        }
-        return 0L;
+        Side side = sideOf(factionId);
+        return side == null ? 0L : pointsForSide(side);
     }
 
     public void addPoints(UUID factionId, long amount) {
         if (amount <= 0L) {
             return;
         }
-        if (attackerFactionId.equals(factionId)) {
+        Side side = sideOf(factionId);
+        if (side == Side.ATTACKER) {
             attackerPoints += amount;
-        } else if (defenderFactionId.equals(factionId)) {
+        } else if (side == Side.DEFENDER) {
             defenderPoints += amount;
         }
     }
@@ -123,11 +204,13 @@ public final class War {
         defenderPoints = Math.max(0L, defender);
     }
 
+    /** Lead faction of the side opposing the given faction, for display and scoring. */
     public UUID opponentOf(UUID factionId) {
-        if (attackerFactionId.equals(factionId)) {
+        Side side = sideOf(factionId);
+        if (side == Side.ATTACKER) {
             return defenderFactionId;
         }
-        if (defenderFactionId.equals(factionId)) {
+        if (side == Side.DEFENDER) {
             return attackerFactionId;
         }
         return null;
@@ -163,6 +246,8 @@ public final class War {
         tag.putUUID(TAG_ID, id);
         tag.putUUID(TAG_ATTACKER, attackerFactionId);
         tag.putUUID(TAG_DEFENDER, defenderFactionId);
+        tag.put(TAG_ATTACKER_SIDE, saveSide(attackerSide));
+        tag.put(TAG_DEFENDER_SIDE, saveSide(defenderSide));
         tag.putString(TAG_STATE, state.name());
         tag.putLong(TAG_START_TIME, startGameTime);
         tag.putLong(TAG_ATTACKER_POINTS, attackerPoints);
@@ -177,6 +262,24 @@ public final class War {
         }
         tag.put(TAG_SNAPSHOTS, snapshotsTag);
         return tag;
+    }
+
+    private static ListTag saveSide(Set<UUID> side) {
+        ListTag list = new ListTag();
+        for (UUID factionId : side) {
+            list.add(net.minecraft.nbt.NbtUtils.createUUID(factionId));
+        }
+        return list;
+    }
+
+    private static Set<UUID> loadSide(CompoundTag tag, String key, UUID lead) {
+        Set<UUID> side = new LinkedHashSet<>();
+        side.add(lead);
+        ListTag list = tag.getList(key, Tag.TAG_INT_ARRAY);
+        for (int index = 0; index < list.size(); index++) {
+            side.add(net.minecraft.nbt.NbtUtils.loadUUID(list.get(index)));
+        }
+        return side;
     }
 
     public static Optional<War> load(CompoundTag tag) {
@@ -201,16 +304,26 @@ public final class War {
             snapshots.put(key.get(), WarChunkSnapshot.load(entryTag.getCompound(TAG_SNAPSHOT_DATA)));
         }
 
+        UUID attacker = tag.getUUID(TAG_ATTACKER);
+        UUID defender = tag.getUUID(TAG_DEFENDER);
         War war = new War(
             tag.getUUID(TAG_ID),
-            tag.getUUID(TAG_ATTACKER),
-            tag.getUUID(TAG_DEFENDER),
+            attacker,
+            defender,
+            loadSide(tag, TAG_ATTACKER_SIDE, attacker),
+            loadSide(tag, TAG_DEFENDER_SIDE, defender),
             state,
             tag.getLong(TAG_START_TIME),
             snapshots
         );
         war.setPointsRaw(tag.getLong(TAG_ATTACKER_POINTS), tag.getLong(TAG_DEFENDER_POINTS));
         return Optional.of(war);
+    }
+
+    /** Which side of a war a faction belongs to. */
+    public enum Side {
+        ATTACKER,
+        DEFENDER
     }
 
     public enum State {
