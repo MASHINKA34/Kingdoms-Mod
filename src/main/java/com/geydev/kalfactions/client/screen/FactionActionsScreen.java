@@ -170,8 +170,7 @@ public final class FactionActionsScreen extends FactionScreen {
                 text("screen.kingdoms.select_war_target"),
                 entries,
                 null,
-                entry -> PacketDistributor.sendToServer(
-                        new FactionPayloads.C2SDeclareWar(snapshot.tablePos(), entry.value()))
+                entry -> minecraft.setScreen(new DeclareWarScreen(this, snapshot.tablePos(), entry.value()))
         ));
     }
 

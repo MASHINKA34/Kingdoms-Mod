@@ -855,6 +855,8 @@ public final class WarManager extends SavedData {
         MinecraftServer server,
         UUID attackerFactionId,
         UUID defenderFactionId,
+        WarType warType,
+        String reason,
         long startGameTime
     ) {
         Objects.requireNonNull(attackerFactionId, "attackerFactionId");
@@ -877,7 +879,7 @@ public final class WarManager extends SavedData {
             warId = UUID.randomUUID();
         } while (wars.containsKey(warId));
 
-        War war = new War(warId, attackerFactionId, defenderFactionId, War.State.ACTIVE, startGameTime);
+        War war = new War(warId, attackerFactionId, defenderFactionId, warType, reason, War.State.ACTIVE, startGameTime);
         wars.put(warId, war);
         factionToWar.put(attackerFactionId, warId);
         factionToWar.put(defenderFactionId, warId);

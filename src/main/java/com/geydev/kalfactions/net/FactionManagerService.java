@@ -1091,7 +1091,13 @@ final class FactionManagerService implements FactionServerHooks.Service {
     }
 
     @Override
-    public FactionServerHooks.Result declareWar(ServerPlayer player, BlockPos tablePos, String targetFactionName) {
+    public FactionServerHooks.Result declareWar(
+            ServerPlayer player,
+            BlockPos tablePos,
+            String targetFactionName,
+            String warType,
+            String reason
+    ) {
         FactionManager manager = FactionManager.get(player.serverLevel());
         Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
         if (faction == null) {
@@ -1124,6 +1130,8 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 player.getServer(),
                 faction.id(),
                 target.id(),
+                com.geydev.kalfactions.war.WarType.fromIdOrDefault(warType),
+                reason,
                 player.getServer().overworld().getGameTime()
         );
         Component message = switch (result) {

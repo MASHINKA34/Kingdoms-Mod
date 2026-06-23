@@ -26,7 +26,10 @@ public final class War {
     private static final String TAG_ATTACKER_SIDE = "attackerSide";
     private static final String TAG_DEFENDER_SIDE = "defenderSide";
     private static final String TAG_STATE = "state";
+    private static final String TAG_TYPE = "type";
+    private static final String TAG_REASON = "reason";
     private static final String TAG_START_TIME = "startGameTime";
+    public static final int MAX_REASON_LENGTH = 120;
     private static final String TAG_ATTACKER_POINTS = "attackerPoints";
     private static final String TAG_DEFENDER_POINTS = "defenderPoints";
     private static final String TAG_SNAPSHOTS = "snapshots";
@@ -38,15 +41,25 @@ public final class War {
     private final UUID defenderFactionId;
     private final Set<UUID> attackerSide;
     private final Set<UUID> defenderSide;
+    private final WarType type;
+    private final String reason;
     private final long startGameTime;
     private final Map<ClaimKey, WarChunkSnapshot> snapshots;
     private State state;
     private long attackerPoints;
     private long defenderPoints;
 
-    public War(UUID id, UUID attackerFactionId, UUID defenderFactionId, State state, long startGameTime) {
+    public War(
+        UUID id,
+        UUID attackerFactionId,
+        UUID defenderFactionId,
+        WarType type,
+        String reason,
+        State state,
+        long startGameTime
+    ) {
         this(id, attackerFactionId, defenderFactionId, singletonSide(attackerFactionId), singletonSide(defenderFactionId),
-            state, startGameTime, new LinkedHashMap<>());
+            type, reason, state, startGameTime, new LinkedHashMap<>());
     }
 
     private War(
@@ -55,6 +68,8 @@ public final class War {
         UUID defenderFactionId,
         Set<UUID> attackerSide,
         Set<UUID> defenderSide,
+        WarType type,
+        String reason,
         State state,
         long startGameTime,
         Map<ClaimKey, WarChunkSnapshot> snapshots
@@ -66,9 +81,19 @@ public final class War {
         this.defenderSide = defenderSide;
         this.attackerSide.add(attackerFactionId);
         this.defenderSide.add(defenderFactionId);
+        this.type = type == null ? WarType.DEFAULT : type;
+        this.reason = sanitizeReason(reason);
         this.state = Objects.requireNonNull(state, "state");
         this.startGameTime = startGameTime;
         this.snapshots = snapshots;
+    }
+
+    private static String sanitizeReason(String reason) {
+        if (reason == null) {
+            return "";
+        }
+        String trimmed = reason.strip();
+        return trimmed.length() <= MAX_REASON_LENGTH ? trimmed : trimmed.substring(0, MAX_REASON_LENGTH);
     }
 
     private static Set<UUID> singletonSide(UUID lead) {
@@ -104,6 +129,14 @@ public final class War {
         Set<UUID> all = new LinkedHashSet<>(attackerSide);
         all.addAll(defenderSide);
         return all;
+    }
+
+    public WarType type() {
+        return type;
+    }
+
+    public String reason() {
+        return reason;
     }
 
     public State state() {
@@ -248,6 +281,8 @@ public final class War {
         tag.putUUID(TAG_DEFENDER, defenderFactionId);
         tag.put(TAG_ATTACKER_SIDE, saveSide(attackerSide));
         tag.put(TAG_DEFENDER_SIDE, saveSide(defenderSide));
+        tag.putString(TAG_TYPE, type.id());
+        tag.putString(TAG_REASON, reason);
         tag.putString(TAG_STATE, state.name());
         tag.putLong(TAG_START_TIME, startGameTime);
         tag.putLong(TAG_ATTACKER_POINTS, attackerPoints);
@@ -312,6 +347,8 @@ public final class War {
             defender,
             loadSide(tag, TAG_ATTACKER_SIDE, attacker),
             loadSide(tag, TAG_DEFENDER_SIDE, defender),
+            WarType.fromIdOrDefault(tag.getString(TAG_TYPE)),
+            tag.getString(TAG_REASON),
             state,
             tag.getLong(TAG_START_TIME),
             snapshots

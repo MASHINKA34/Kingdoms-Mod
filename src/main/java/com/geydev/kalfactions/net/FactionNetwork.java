@@ -305,7 +305,13 @@ public final class FactionNetwork {
     }
 
     private static void handleDeclareWar(FactionPayloads.C2SDeclareWar payload, IPayloadContext context) {
-        FactionServerHooks.declareWar(serverPlayer(context), payload.tablePos(), payload.targetFactionName());
+        FactionServerHooks.declareWar(
+                serverPlayer(context),
+                payload.tablePos(),
+                payload.targetFactionName(),
+                payload.warType(),
+                payload.reason()
+        );
     }
 
     private static void handleJoinWar(FactionPayloads.C2SJoinWar payload, IPayloadContext context) {

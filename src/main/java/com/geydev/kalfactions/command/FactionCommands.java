@@ -771,6 +771,8 @@ public final class FactionCommands {
             server,
             faction.id(),
             target.id(),
+            com.geydev.kalfactions.war.WarType.DEFAULT,
+            "",
             server.overworld().getGameTime()
         );
         switch (result) {

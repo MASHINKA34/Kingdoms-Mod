@@ -409,16 +409,25 @@ public final class FactionPayloads {
         }
     }
 
-    public record C2SDeclareWar(BlockPos tablePos, String targetFactionName) implements CustomPacketPayload {
+    public record C2SDeclareWar(
+            BlockPos tablePos,
+            String targetFactionName,
+            String warType,
+            String reason
+    ) implements CustomPacketPayload {
         public static final Type<C2SDeclareWar> TYPE = FactionPayloads.payloadType("declare_war");
         public static final StreamCodec<RegistryFriendlyByteBuf, C2SDeclareWar> STREAM_CODEC = StreamCodec.of(
                 (buffer, payload) -> {
                     buffer.writeBlockPos(payload.tablePos);
                     buffer.writeUtf(payload.targetFactionName, FactionServerHooks.MAX_NAME_LENGTH);
+                    buffer.writeUtf(payload.warType, 32);
+                    buffer.writeUtf(payload.reason, com.geydev.kalfactions.war.War.MAX_REASON_LENGTH);
                 },
                 buffer -> new C2SDeclareWar(
                         buffer.readBlockPos(),
-                        buffer.readUtf(FactionServerHooks.MAX_NAME_LENGTH)
+                        buffer.readUtf(FactionServerHooks.MAX_NAME_LENGTH),
+                        buffer.readUtf(32),
+                        buffer.readUtf(com.geydev.kalfactions.war.War.MAX_REASON_LENGTH)
                 )
         );
 
