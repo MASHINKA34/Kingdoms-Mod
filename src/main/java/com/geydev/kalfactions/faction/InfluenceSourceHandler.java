@@ -62,7 +62,7 @@ public final class InfluenceSourceHandler {
             com.geydev.kalfactions.war.WarManager wars =
                     com.geydev.kalfactions.war.WarManager.get(killer.serverLevel());
             if (wars.areAtWar(killerFaction, victimFaction)) {
-                wars.addWarPoints(killer.getServer(), killerFaction, ModConfigSpec.WAR_KILL_POINTS.getAsInt());
+                wars.recordWarKill(killer.getServer(), killerFaction);
             }
         }
         long amount = ModConfigSpec.INFLUENCE_KILL_INFLUENCE.getAsLong();

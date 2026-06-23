@@ -201,6 +201,8 @@ public final class ProtectionHandler {
                 if (surviveChance > 0.0D && level.getRandom().nextFloat() < surviveChance) {
                     return true; // research-hardened claim block survives the blast
                 }
+                // Score the destruction toward the war, same as a hand break of an enemy block.
+                wars.recordWarBreak(level.getServer(), exploderFaction, level.getBlockState(pos));
                 return false; // a belligerent's explosion may damage the enemy claim
             }
             return true; // protected claim

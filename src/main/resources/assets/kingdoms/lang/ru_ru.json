@@ -180,6 +180,7 @@
   "kingdoms.command.faction.war.joined": "Вы вступили в войну на стороне фракции %s.",
   "kingdoms.command.faction.war.same_faction": "Нельзя объявить войну самому себе.",
   "kingdoms.command.faction.war.attacker_busy": "Ваша фракция уже находится в состоянии войны.",
+  "kingdoms.command.faction.war.cooldown": "Ваша фракция сможет объявить новую войну только через %s ч.",
   "kingdoms.command.faction.war.defender_busy": "Фракция %s уже находится в состоянии войны.",
   "kingdoms.command.faction.war.ended": "Война окончена.",
   "kingdoms.command.faction.war.not_active": "Ваша фракция не находится в состоянии войны.",

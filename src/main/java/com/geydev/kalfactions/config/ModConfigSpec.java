@@ -62,6 +62,8 @@ public final class ModConfigSpec {
     public static final IntValue WAR_BLOCK_BREAK_POINTS;
     public static final IntValue WAR_KILL_POINTS;
     public static final IntValue WAR_BLOCK_POINT_CAP_PER_MINUTE;
+    public static final IntValue WAR_KILL_POINT_CAP_PER_MINUTE;
+    public static final IntValue WAR_DECLARE_COOLDOWN_HOURS;
     public static final IntValue FORCE_LOAD_SLOTS;
 
     static {
@@ -197,16 +199,22 @@ public final class ModConfigSpec {
             .defineInRange("autoEndTicks", 0L, 0L, Long.MAX_VALUE);
         WAR_POINTS_GOAL = builder
             .comment("War points a side needs to win the war outright.")
-            .defineInRange("warPointsGoal", 100L, 1L, Long.MAX_VALUE);
+            .defineInRange("warPointsGoal", 1000L, 1L, Long.MAX_VALUE);
         WAR_KILL_POINTS = builder
             .comment("War points awarded for killing an enemy faction player.")
-            .defineInRange("killPoints", 10, 0, Integer.MAX_VALUE);
+            .defineInRange("killPoints", 25, 0, Integer.MAX_VALUE);
         WAR_BLOCK_BREAK_POINTS = builder
-            .comment("War points awarded for breaking an enemy-placed block in their claims.")
-            .defineInRange("blockBreakPoints", 1, 0, Integer.MAX_VALUE);
+            .comment("War points awarded for destroying an enemy-placed block in their claims (by hand or explosion).")
+            .defineInRange("blockBreakPoints", 2, 0, Integer.MAX_VALUE);
         WAR_BLOCK_POINT_CAP_PER_MINUTE = builder
-            .comment("Maximum block-break war points a faction can earn per minute.")
-            .defineInRange("blockPointCapPerMinute", 30, 0, Integer.MAX_VALUE);
+            .comment("Maximum block/explosion war points a faction can earn per minute.")
+            .defineInRange("blockPointCapPerMinute", 40, 0, Integer.MAX_VALUE);
+        WAR_KILL_POINT_CAP_PER_MINUTE = builder
+            .comment("Maximum kill war points a faction can earn per minute (anti-snowball; 0 disables the cap).")
+            .defineInRange("killPointCapPerMinute", 100, 0, Integer.MAX_VALUE);
+        WAR_DECLARE_COOLDOWN_HOURS = builder
+            .comment("Real-time hours an attacker faction must wait after its war ends before it can declare a new war.")
+            .defineInRange("declareCooldownHours", 48, 0, 8760);
         builder.pop();
 
         builder.push("chunkloader");

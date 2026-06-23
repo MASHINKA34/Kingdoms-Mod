@@ -784,6 +784,13 @@ public final class FactionCommands {
             case ATTACKER_BUSY -> {
                 return failure(context, "kingdoms.command.faction.war.attacker_busy");
             }
+            case ATTACKER_COOLDOWN -> {
+                return failure(
+                    context,
+                    "kingdoms.command.faction.war.cooldown",
+                    WarManager.get(server).declareCooldownRemainingHours(faction.id())
+                );
+            }
             case DEFENDER_BUSY -> {
                 return failure(context, "kingdoms.command.faction.war.defender_busy", target.name());
             }

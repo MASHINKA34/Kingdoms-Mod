@@ -1130,6 +1130,9 @@ final class FactionManagerService implements FactionServerHooks.Service {
             case SUCCESS -> Component.translatable("kingdoms.command.faction.war.declared", target.name());
             case SAME_FACTION -> Component.translatable("kingdoms.command.faction.war.same_faction");
             case ATTACKER_BUSY -> Component.translatable("kingdoms.command.faction.war.attacker_busy");
+            case ATTACKER_COOLDOWN -> Component.translatable(
+                    "kingdoms.command.faction.war.cooldown",
+                    WarManager.get(player.getServer()).declareCooldownRemainingHours(faction.id()));
             case DEFENDER_BUSY -> Component.translatable("kingdoms.command.faction.war.defender_busy", target.name());
         };
         return new FactionServerHooks.Result(

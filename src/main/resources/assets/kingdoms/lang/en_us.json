@@ -180,6 +180,7 @@
   "kingdoms.command.faction.war.joined": "Joined the war defending %s.",
   "kingdoms.command.faction.war.same_faction": "You cannot declare war on yourself.",
   "kingdoms.command.faction.war.attacker_busy": "Your faction is already at war.",
+  "kingdoms.command.faction.war.cooldown": "Your faction must wait %s more hour(s) before declaring another war.",
   "kingdoms.command.faction.war.defender_busy": "%s is already at war.",
   "kingdoms.command.faction.war.ended": "The war has ended.",
   "kingdoms.command.faction.war.not_active": "Your faction is not at war.",

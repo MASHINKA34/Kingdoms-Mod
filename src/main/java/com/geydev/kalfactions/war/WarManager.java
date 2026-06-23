@@ -59,13 +59,18 @@ public final class WarManager extends SavedData {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String TAG_WARS = "wars";
     private static final String TAG_PENDING_SPOILS = "pendingSpoils";
+    private static final String TAG_COOLDOWNS = "declareCooldowns";
+    private static final String TAG_COOLDOWN_FACTION = "faction";
+    private static final String TAG_COOLDOWN_UNTIL = "until";
 
     private final Map<UUID, War> wars = new LinkedHashMap<>();
     private final Map<UUID, UUID> factionToWar = new HashMap<>();
     private final Map<UUID, PendingSpoils> pendingSpoils = new LinkedHashMap<>();
+    private final Map<UUID, Long> attackerCooldownUntil = new HashMap<>();
     private final Deque<RollbackTask> rollbackQueue = new ArrayDeque<>();
     private final transient Map<UUID, ServerBossEvent> bossBars = new HashMap<>();
     private final transient Map<UUID, long[]> blockPointWindows = new HashMap<>();
+    private final transient Map<UUID, long[]> killPointWindows = new HashMap<>();
     private transient int bossSyncCounter;
 
     public static WarManager get(MinecraftServer server) {
@@ -82,6 +87,22 @@ public final class WarManager extends SavedData {
     public synchronized Optional<War> warForFaction(UUID factionId) {
         UUID warId = factionToWar.get(factionId);
         return warId == null ? Optional.empty() : Optional.ofNullable(wars.get(warId));
+    }
+
+    /** Whether the faction is still serving the post-war cooldown before it may declare a new war. */
+    public synchronized boolean isAttackerOnCooldown(UUID factionId) {
+        Long until = attackerCooldownUntil.get(factionId);
+        return until != null && System.currentTimeMillis() < until;
+    }
+
+    /** Whole hours left on the declare-war cooldown (rounded up), or 0 if none. */
+    public synchronized long declareCooldownRemainingHours(UUID factionId) {
+        Long until = attackerCooldownUntil.get(factionId);
+        if (until == null) {
+            return 0L;
+        }
+        long remaining = until - System.currentTimeMillis();
+        return remaining <= 0L ? 0L : (remaining + 3_599_999L) / 3_600_000L;
     }
 
     /**
@@ -164,23 +185,45 @@ public final class WarManager extends SavedData {
     /** Block-break scoring entry point used by the protection layer; applies the per-minute cap. */
     public synchronized void recordWarBreak(ServerPlayer breaker, ServerLevel level, BlockState state) {
         UUID breakerFaction = FactionManager.get(level).getFactionIdForMember(breaker.getUUID()).orElse(null);
+        recordWarBreak(level.getServer(), breakerFaction, state);
+    }
+
+    /**
+     * Block/explosion scoring core: awards block-break war points to {@code breakerFaction} for a
+     * non-natural block, subject to the per-minute block budget. The caller must ensure the block sat
+     * in an enemy claim ({@link #addWarPoints} additionally requires the faction to be in an active war).
+     */
+    public synchronized void recordWarBreak(MinecraftServer server, UUID breakerFaction, BlockState state) {
         if (breakerFaction == null || isNaturalBlock(state)) {
             return;
         }
         int cap = ModConfigSpec.WAR_BLOCK_POINT_CAP_PER_MINUTE.getAsInt();
         int points = ModConfigSpec.WAR_BLOCK_BREAK_POINTS.getAsInt();
-        if (points <= 0 || !consumeBlockBudget(breakerFaction, points, cap)) {
+        if (points <= 0 || !consumeBudget(blockPointWindows, breakerFaction, points, cap)) {
             return;
         }
-        addWarPoints(level.getServer(), breakerFaction, points);
+        addWarPoints(server, breakerFaction, points);
     }
 
-    private boolean consumeBlockBudget(UUID factionId, int points, int cap) {
+    /** Kill scoring entry point; awards kill war points subject to the per-minute kill budget. */
+    public synchronized void recordWarKill(MinecraftServer server, UUID killerFaction) {
+        if (killerFaction == null) {
+            return;
+        }
+        int cap = ModConfigSpec.WAR_KILL_POINT_CAP_PER_MINUTE.getAsInt();
+        int points = ModConfigSpec.WAR_KILL_POINTS.getAsInt();
+        if (points <= 0 || !consumeBudget(killPointWindows, killerFaction, points, cap)) {
+            return;
+        }
+        addWarPoints(server, killerFaction, points);
+    }
+
+    private boolean consumeBudget(Map<UUID, long[]> windows, UUID factionId, int points, int cap) {
         if (cap <= 0) {
             return true;
         }
         long now = System.currentTimeMillis();
-        long[] window = blockPointWindows.computeIfAbsent(factionId, ignored -> new long[]{now, 0L});
+        long[] window = windows.computeIfAbsent(factionId, ignored -> new long[]{now, 0L});
         if (now - window[0] >= 60_000L) {
             window[0] = now;
             window[1] = 0L;
@@ -306,6 +349,7 @@ public final class WarManager extends SavedData {
         war.removeParticipant(factionId);
         factionToWar.remove(factionId, war.id());
         blockPointWindows.remove(factionId);
+        killPointWindows.remove(factionId);
         setDirty();
 
         Component joiner = factionName(server, factionId);
@@ -821,6 +865,9 @@ public final class WarManager extends SavedData {
         if (factionToWar.containsKey(attackerFactionId)) {
             return DeclareResult.ATTACKER_BUSY;
         }
+        if (isAttackerOnCooldown(attackerFactionId)) {
+            return DeclareResult.ATTACKER_COOLDOWN;
+        }
         if (factionToWar.containsKey(defenderFactionId)) {
             return DeclareResult.DEFENDER_BUSY;
         }
@@ -940,6 +987,14 @@ public final class WarManager extends SavedData {
         for (UUID participant : war.participants()) {
             factionToWar.remove(participant, war.id());
             blockPointWindows.remove(participant);
+            killPointWindows.remove(participant);
+        }
+        int cooldownHours = ModConfigSpec.WAR_DECLARE_COOLDOWN_HOURS.getAsInt();
+        if (cooldownHours > 0) {
+            attackerCooldownUntil.put(
+                war.attackerFactionId(),
+                System.currentTimeMillis() + cooldownHours * 3_600_000L
+            );
         }
         clearBossBar(war.id());
         setDirty();
@@ -1009,6 +1064,18 @@ public final class WarManager extends SavedData {
             pendingSpoilsTag.add(spoils.save());
         }
         tag.put(TAG_PENDING_SPOILS, pendingSpoilsTag);
+        ListTag cooldownsTag = new ListTag();
+        long now = System.currentTimeMillis();
+        for (Map.Entry<UUID, Long> entry : attackerCooldownUntil.entrySet()) {
+            if (entry.getValue() == null || entry.getValue() <= now) {
+                continue; // drop expired cooldowns on save
+            }
+            CompoundTag entryTag = new CompoundTag();
+            entryTag.putUUID(TAG_COOLDOWN_FACTION, entry.getKey());
+            entryTag.putLong(TAG_COOLDOWN_UNTIL, entry.getValue());
+            cooldownsTag.add(entryTag);
+        }
+        tag.put(TAG_COOLDOWNS, cooldownsTag);
         return tag;
     }
 
@@ -1048,6 +1115,18 @@ public final class WarManager extends SavedData {
                 LOGGER.warn("Skipped invalid pending war spoils entry at NBT index {}", index);
             }
         }
+        long now = System.currentTimeMillis();
+        ListTag cooldownsTag = tag.getList(TAG_COOLDOWNS, Tag.TAG_COMPOUND);
+        for (int index = 0; index < cooldownsTag.size(); index++) {
+            CompoundTag entryTag = cooldownsTag.getCompound(index);
+            if (!entryTag.hasUUID(TAG_COOLDOWN_FACTION)) {
+                continue;
+            }
+            long until = entryTag.getLong(TAG_COOLDOWN_UNTIL);
+            if (until > now) {
+                manager.attackerCooldownUntil.put(entryTag.getUUID(TAG_COOLDOWN_FACTION), until);
+            }
+        }
         if (repaired) {
             manager.setDirty();
         }
@@ -1058,6 +1137,7 @@ public final class WarManager extends SavedData {
         SUCCESS,
         SAME_FACTION,
         ATTACKER_BUSY,
+        ATTACKER_COOLDOWN,
         DEFENDER_BUSY
     }
 
