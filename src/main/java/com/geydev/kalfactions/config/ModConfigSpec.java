@@ -47,6 +47,7 @@ public final class ModConfigSpec {
     public static final IntValue INFLUENCE_KILL_CAP_PER_VICTIM;
     public static final IntValue INFLUENCE_KILL_CAP_HOURS;
     public static final LongValue INFLUENCE_WAR_WIN_INFLUENCE;
+    public static final LongValue INFLUENCE_WAR_JOIN_REWARD;
     public static final LongValue INFLUENCE_CRAFT_PER_ITEM;
     public static final IntValue INFLUENCE_CRAFT_CAP_PER_ITEM;
     public static final IntValue INFLUENCE_CRAFT_CAP_HOURS;
@@ -155,6 +156,9 @@ public final class ModConfigSpec {
         INFLUENCE_WAR_WIN_INFLUENCE = builder
             .comment("Military influence awarded to a faction that wins a war.")
             .defineInRange("warWinInfluence", 200L, 0L, Long.MAX_VALUE);
+        INFLUENCE_WAR_JOIN_REWARD = builder
+            .comment("Secondary influence awarded to an ally that joined the winning side; randomly economic or science.")
+            .defineInRange("warJoinReward", 100L, 0L, Long.MAX_VALUE);
         INFLUENCE_CRAFT_PER_ITEM = builder
             .comment("Science influence granted per crafted modded (non-vanilla) item.")
             .defineInRange("craftInfluencePerItem", 5L, 0L, Long.MAX_VALUE);

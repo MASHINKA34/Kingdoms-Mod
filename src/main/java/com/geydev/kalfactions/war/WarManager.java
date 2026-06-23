@@ -344,26 +344,18 @@ public final class WarManager extends SavedData {
     ) {
         FactionManager factions = FactionManager.get(server);
         long winInfluence = ModConfigSpec.INFLUENCE_WAR_WIN_INFLUENCE.getAsLong();
+        long joinReward = ModConfigSpec.INFLUENCE_WAR_JOIN_REWARD.getAsLong();
         // Every faction on the winning side (the lead belligerent and any joined allies) earns the
         // military-influence reward; only the lead winner gets the lootable money/resource spoils.
+        // Joined allies additionally get a secondary reward, randomly economic or science.
         for (UUID winningFactionId : winningFactions) {
-            factions.grantInfluence(winningFactionId, InfluenceType.MILITARY, winInfluence);
-            if (winInfluence <= 0L) {
-                continue;
+            grantInfluenceAndNotify(server, factions, winningFactionId, InfluenceType.MILITARY, winInfluence);
+            if (!winningFactionId.equals(winnerId)) {
+                InfluenceType bonusType = server.overworld().getRandom().nextBoolean()
+                        ? InfluenceType.ECONOMIC
+                        : InfluenceType.SCIENCE;
+                grantInfluenceAndNotify(server, factions, winningFactionId, bonusType, joinReward);
             }
-            factions.getFactionById(winningFactionId).ifPresent(winner -> {
-                for (UUID memberId : winner.members().keySet()) {
-                    net.minecraft.server.level.ServerPlayer member = server.getPlayerList().getPlayer(memberId);
-                    if (member != null) {
-                        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
-                                member,
-                                new com.geydev.kalfactions.net.FactionPayloads.S2CInfluenceGain(
-                                        InfluenceType.MILITARY.id(), winInfluence
-                                )
-                        );
-                    }
-                }
-            });
         }
         if (factions.getFactionById(winnerId).isEmpty() || factions.getFactionById(loserId).isEmpty()) {
             return;
@@ -376,6 +368,31 @@ public final class WarManager extends SavedData {
         );
         pendingSpoils.put(spoilsId, spoils);
         setDirty();
+    }
+
+    /** Grants influence to a faction and pushes the floating gain indicator to its online members. */
+    private void grantInfluenceAndNotify(
+            MinecraftServer server,
+            FactionManager factions,
+            UUID factionId,
+            InfluenceType type,
+            long amount
+    ) {
+        if (amount <= 0L) {
+            return;
+        }
+        factions.grantInfluence(factionId, type, amount);
+        factions.getFactionById(factionId).ifPresent(faction -> {
+            for (UUID memberId : faction.members().keySet()) {
+                ServerPlayer member = server.getPlayerList().getPlayer(memberId);
+                if (member != null) {
+                    net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
+                            member,
+                            new com.geydev.kalfactions.net.FactionPayloads.S2CInfluenceGain(type.id(), amount)
+                    );
+                }
+            }
+        });
     }
 
     public synchronized Optional<PendingSpoilsView> pendingSpoilsForWinner(MinecraftServer server, UUID winnerId) {
