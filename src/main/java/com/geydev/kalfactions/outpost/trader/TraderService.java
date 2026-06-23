@@ -5,7 +5,9 @@ import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.entity.OutpostTraderEntity;
 import com.geydev.kalfactions.entity.SellerTraderEntity;
 import com.geydev.kalfactions.economy.PriceMath;
+import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.protection.FactionAccess;
 import com.geydev.kalfactions.registry.ModEntities;
 import java.util.Arrays;
 import java.util.List;
@@ -363,11 +365,18 @@ public final class TraderService {
     }
 
     static long sellUnitPrice(ServerPlayer player, long basePrice) {
+        long price = basePrice;
         int levels = researchLevels(player, "BUY_RATE");
-        if (levels <= 0 || basePrice <= 0L) {
-            return basePrice;
+        if (levels > 0 && price > 0L) {
+            price = PriceMath.increaseByPercentCeil(price, 0.10D * levels);
         }
-        return basePrice + (long) Math.ceil(basePrice * 0.10D * levels);
+        if (FactionAccess.hasAnyBonus(player, FactionBonus.MERCHANTS) && price > 0L) {
+            price = PriceMath.increaseByPercentCeil(
+                    price,
+                    ModConfigSpec.MERCHANT_SELL_BONUS_PERCENT.getAsDouble()
+            );
+        }
+        return price;
     }
 
     static long buyUnitPrice(ServerPlayer player, long basePrice) {

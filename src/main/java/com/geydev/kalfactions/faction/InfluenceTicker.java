@@ -30,6 +30,11 @@ public final class InfluenceTicker {
             intervalMillis,
             ModConfigSpec.INFLUENCE_DECAY_PERCENT.get()
         );
+        manager.grantTreasuryIncome(
+            System.currentTimeMillis(),
+            ModConfigSpec.MERCHANT_TREASURY_INCOME_INTERVAL_HOURS.getAsInt() * 3_600_000L,
+            ModConfigSpec.MERCHANT_TREASURY_INCOME_PERCENT.get()
+        );
         ResearchManager.tick(manager);
         broadcastMiningBonus(server, manager);
     }

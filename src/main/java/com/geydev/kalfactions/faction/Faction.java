@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.faction;
 
 import com.geydev.kalfactions.claim.ClaimKey;
+import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.economy.PriceMath;
 import com.geydev.kalfactions.economy.Treasury;
 import java.util.ArrayList;
@@ -48,6 +49,7 @@ public final class Faction {
     private static final String TAG_ACTIVE_RESEARCH_NODE = "activeResearchNode";
     private static final String TAG_ACTIVE_RESEARCH_START = "activeResearchStart";
     private static final String TAG_SELL_ACCUMULATOR = "sellAccumulator";
+    private static final String TAG_LAST_TREASURY_INCOME = "lastTreasuryIncome";
     private static final String TAG_MEMBERS = "members";
     private static final String TAG_CLAIMS = "claims";
     private static final String TAG_CLAIM_KEY = "key";
@@ -85,6 +87,7 @@ public final class Faction {
     private ResearchNode activeResearchNode;
     private long activeResearchStartMillis;
     private long sellAccumulator;
+    private long lastTreasuryIncomeMillis;
 
     Faction(
         UUID id,
@@ -145,6 +148,7 @@ public final class Faction {
         this.activeResearchNode = null;
         this.activeResearchStartMillis = 0L;
         this.sellAccumulator = 0L;
+        this.lastTreasuryIncomeMillis = 0L;
         this.members = new LinkedHashMap<>(members);
         this.claims = new LinkedHashMap<>(claims);
         enforceLeadershipInvariant();
@@ -156,7 +160,7 @@ public final class Faction {
         copy.addAll(bonuses);
         copy.remove(null);
         if (copy.isEmpty()) {
-            copy.add(FactionBonus.TRADERS);
+            copy.add(FactionBonus.MERCHANTS);
         }
         return copy;
     }
@@ -379,7 +383,11 @@ public final class Faction {
     }
 
     public double miningSpeedMultiplier() {
-        return 1.0D + 0.05D * researchBonusCount("MINING_SPEED");
+        double multiplier = 1.0D + 0.05D * researchBonusCount("MINING_SPEED");
+        if (hasBonus(FactionBonus.MINERS)) {
+            multiplier += ModConfigSpec.MINER_MINING_SPEED_BONUS.getAsDouble();
+        }
+        return multiplier;
     }
 
     public boolean isResearchAvailable(ResearchNode node) {
@@ -561,6 +569,14 @@ public final class Faction {
         sellAccumulator = Math.max(0L, value);
     }
 
+    long lastTreasuryIncomeMillis() {
+        return lastTreasuryIncomeMillis;
+    }
+
+    void setLastTreasuryIncomeMillis(long value) {
+        lastTreasuryIncomeMillis = Math.max(0L, value);
+    }
+
     void startResearch(ResearchNode node, long startMillis) {
         activeResearchNode = node;
         activeResearchStartMillis = startMillis;
@@ -636,6 +652,7 @@ public final class Faction {
             tag.putLong(TAG_ACTIVE_RESEARCH_START, activeResearchStartMillis);
         }
         tag.putLong(TAG_SELL_ACCUMULATOR, sellAccumulator);
+        tag.putLong(TAG_LAST_TREASURY_INCOME, lastTreasuryIncomeMillis);
 
         ListTag membersTag = new ListTag();
         members.values().stream()
@@ -672,18 +689,18 @@ public final class Faction {
         ListTag bonusesTag = tag.getList(TAG_BONUSES, Tag.TAG_STRING);
         for (int index = 0; index < bonusesTag.size(); index++) {
             try {
-                bonuses.add(FactionBonus.valueOf(bonusesTag.getString(index).toUpperCase(java.util.Locale.ROOT)));
+                bonuses.add(FactionBonus.parse(bonusesTag.getString(index)));
             } catch (IllegalArgumentException ignored) {
             }
         }
         if (bonuses.isEmpty() && tag.contains(TAG_BONUS, Tag.TAG_STRING)) {
             try {
-                bonuses.add(FactionBonus.valueOf(tag.getString(TAG_BONUS).toUpperCase(java.util.Locale.ROOT)));
+                bonuses.add(FactionBonus.parse(tag.getString(TAG_BONUS)));
             } catch (IllegalArgumentException ignored) {
             }
         }
         if (bonuses.isEmpty()) {
-            bonuses.add(FactionBonus.TRADERS);
+            bonuses.add(FactionBonus.MERCHANTS);
         }
         Map<UUID, FactionMember> members = new LinkedHashMap<>();
         ListTag membersTag = tag.getList(TAG_MEMBERS, Tag.TAG_COMPOUND);
@@ -778,6 +795,7 @@ public final class Faction {
             });
         }
         sellAccumulator = Math.max(0L, tag.getLong(TAG_SELL_ACCUMULATOR));
+        lastTreasuryIncomeMillis = Math.max(0L, tag.getLong(TAG_LAST_TREASURY_INCOME));
     }
 
     private void enforceLeadershipInvariant() {

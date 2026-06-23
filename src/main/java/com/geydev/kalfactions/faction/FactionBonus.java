@@ -5,19 +5,25 @@ import java.util.List;
 import java.util.Locale;
 
 public enum FactionBonus {
-    WARRIORS,
     MINERS,
     FARMERS,
-    CRAFTERS,
-    HOOKAH,
     BUILDERS,
-    TRADERS;
+    ASSASSINS,
+    HOOKAH,
+    ENCHANTERS,
+    MERCHANTS,
+    NOMADS;
 
-    public static final List<FactionBonus> SELECTABLE = List.of(MINERS, FARMERS, BUILDERS, WARRIORS, HOOKAH);
-
-    public double damageMultiplier() {
-        return this == WARRIORS ? ModConfigSpec.WARRIOR_DAMAGE_MULTIPLIER.getAsDouble() : 1.0D;
-    }
+    public static final List<FactionBonus> SELECTABLE = List.of(
+            MINERS,
+            FARMERS,
+            BUILDERS,
+            ASSASSINS,
+            HOOKAH,
+            ENCHANTERS,
+            MERCHANTS,
+            NOMADS
+    );
 
     public double oreBonusChance() {
         return this == MINERS ? ModConfigSpec.ORE_BONUS_CHANCE.getAsDouble() : 0.0D;
@@ -27,12 +33,18 @@ public enum FactionBonus {
         return this == FARMERS ? ModConfigSpec.HARVEST_BONUS_CHANCE.getAsDouble() : 0.0D;
     }
 
-    public double craftBonusChance() {
-        return this == CRAFTERS ? ModConfigSpec.CRAFT_BONUS_CHANCE.getAsDouble() : 0.0D;
-    }
-
     public double claimDiscount() {
         return this == BUILDERS ? ModConfigSpec.BUILDER_DISCOUNT.getAsDouble() : 0.0D;
+    }
+
+    public static FactionBonus parse(String name) {
+        String normalized = name == null ? "" : name.toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "WARRIORS" -> ASSASSINS;
+            case "CRAFTERS" -> ENCHANTERS;
+            case "TRADERS" -> MERCHANTS;
+            default -> FactionBonus.valueOf(normalized);
+        };
     }
 
     public String translationKey() {

@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.client.screen;
 
+import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
@@ -10,6 +11,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class FactionCreateScreen extends FactionScreen {
@@ -130,7 +132,8 @@ public final class FactionCreateScreen extends FactionScreen {
                     null,
                     Component.translatable(bonus.descriptionKey()),
                     bonusColor(bonus),
-                    true
+                    true,
+                    bonusIcon(bonus)
             ));
         }
         minecraft.setScreen(new SelectEntryScreen(
@@ -152,11 +155,19 @@ public final class FactionCreateScreen extends FactionScreen {
             case MINERS -> 0x8A8A8A;
             case FARMERS -> 0x6FBF4A;
             case BUILDERS -> 0xC9A24C;
-            case WARRIORS -> 0xC05050;
+            case ASSASSINS -> 0xC05050;
             case HOOKAH -> 0x7A5AB5;
-            case CRAFTERS -> 0x4A90BF;
-            case TRADERS -> 0xD4B23C;
+            case ENCHANTERS -> 0x4A90BF;
+            case MERCHANTS -> 0xD4B23C;
+            case NOMADS -> 0xC77D3A;
         };
+    }
+
+    static ResourceLocation bonusIcon(FactionBonus bonus) {
+        return ResourceLocation.fromNamespaceAndPath(
+                KalFactions.MOD_ID,
+                "textures/gui/bonus/" + bonus.name().toLowerCase(java.util.Locale.ROOT) + ".png"
+        );
     }
 
     @Override

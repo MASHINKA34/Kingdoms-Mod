@@ -43,7 +43,7 @@ public final class FactionManager extends SavedData {
     public static final int MAX_RGB_COLOR = 0xFFFFFF;
     public static final int DEFAULT_COLOR = 0xFFFFFF;
     public static final ResourceLocation DEFAULT_ICON = ResourceLocation.fromNamespaceAndPath("kingdoms", "default");
-    public static final Set<FactionBonus> DEFAULT_BONUSES = Set.of(FactionBonus.TRADERS);
+    public static final Set<FactionBonus> DEFAULT_BONUSES = Set.of(FactionBonus.MERCHANTS);
     public static final Factory<FactionManager> FACTORY = new Factory<>(FactionManager::new, FactionManager::load);
 
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -498,8 +498,9 @@ public final class FactionManager extends SavedData {
             return OperationResult.failure(Status.FACTION_NOT_FOUND);
         }
         Set<ClaimKey> chunks = new LinkedHashSet<>();
-        for (int dx = 0; dx < 2; dx++) {
-            for (int dz = 0; dz < 2; dz++) {
+        int size = outpostSize(faction);
+        for (int dx = 0; dx < size; dx++) {
+            for (int dz = 0; dz < size; dz++) {
                 chunks.add(new ClaimKey(dimension, baseChunk.x + dx, baseChunk.z + dz));
             }
         }
@@ -799,6 +800,12 @@ public final class FactionManager extends SavedData {
         return ModConfigSpec.FORCE_LOAD_SLOTS.getAsInt() + faction.researchChunkSlots();
     }
 
+    private static int outpostSize(Faction faction) {
+        return faction.hasBonus(FactionBonus.BUILDERS)
+            ? ModConfigSpec.BUILDER_OUTPOST_SIZE.getAsInt()
+            : 2;
+    }
+
     public synchronized void reconcileForceLoads(MinecraftServer server) {
         Set<ClaimKey> desired = new HashSet<>();
         for (Faction faction : factions.values()) {
@@ -903,6 +910,51 @@ public final class FactionManager extends SavedData {
         }
         setDirty();
         return influenceGained;
+    }
+
+    public synchronized long grantTreasuryIncome(long nowMillis, long intervalMillis, double incomePercent) {
+        if (intervalMillis <= 0L || incomePercent <= 0.0D) {
+            return 0L;
+        }
+        boolean changed = false;
+        long totalIncome = 0L;
+        for (Faction faction : factions.values()) {
+            if (!faction.hasBonus(FactionBonus.MERCHANTS)) {
+                continue;
+            }
+            long last = faction.lastTreasuryIncomeMillis();
+            if (last <= 0L || nowMillis < last) {
+                faction.setLastTreasuryIncomeMillis(nowMillis);
+                changed = true;
+                continue;
+            }
+            long periods = (nowMillis - last) / intervalMillis;
+            if (periods <= 0L) {
+                continue;
+            }
+            for (long period = 0L; period < periods; period++) {
+                long balance = faction.treasuryBalance();
+                long income = PriceMath.percentageCeil(balance, incomePercent);
+                long available = Long.MAX_VALUE - balance;
+                long deposit = Math.min(income, available);
+                if (deposit <= 0L) {
+                    break;
+                }
+                if (faction.deposit(deposit)) {
+                    totalIncome = PriceMath.saturatedAdd(totalIncome, deposit);
+                    changed = true;
+                }
+                if (deposit < income) {
+                    break;
+                }
+            }
+            faction.setLastTreasuryIncomeMillis(last + periods * intervalMillis);
+            changed = true;
+        }
+        if (changed) {
+            setDirty();
+        }
+        return totalIncome;
     }
 
     public synchronized boolean decayInfluence(long nowMillis, long intervalMillis, double decayPercent) {

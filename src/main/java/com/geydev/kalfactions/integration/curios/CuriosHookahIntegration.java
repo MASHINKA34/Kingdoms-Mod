@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.integration.curios;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.protection.FactionAccess;
 import java.lang.reflect.Method;
@@ -12,6 +13,7 @@ import java.util.function.Predicate;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -44,9 +46,10 @@ public final class CuriosHookahIntegration {
     );
     public static final ResourceLocation HOOKAH_ARMOR_MODIFIER_ID =
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "hookah_armor_bonus");
+    public static final ResourceLocation HOOKAH_SPEED_MODIFIER_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "hookah_speed_bonus");
     private static volatile Predicate<ServerPlayer> bonusChecker =
             player -> FactionAccess.hasAnyBonus(player, FactionBonus.HOOKAH);
-    private static volatile double armorBonus = 2.0D;
     private static volatile Method inventoryGetter;
     private static volatile boolean apiResolved;
     private static volatile boolean resolutionFailureLogged;
@@ -77,12 +80,18 @@ public final class CuriosHookahIntegration {
         if (!isHookahModLoaded()) {
             return false;
         }
-        return player.getInventory().contains(CuriosHookahIntegration::isHookahStack)
+        return isHookahStack(player.getItemBySlot(EquipmentSlot.CHEST))
                 || isEquipped(player, CuriosHookahIntegration::isHookahStack);
     }
 
     public static boolean hasActiveHookahBonus(ServerPlayer player) {
         return bonusChecker.test(player) && isHookahEquipped(player);
+    }
+
+    public static float combatMultiplier(ServerPlayer player) {
+        return hasActiveHookahBonus(player)
+                ? ModConfigSpec.HOOKAH_DAMAGE_MULTIPLIER.get().floatValue()
+                : 1.0F;
     }
 
     public static boolean isEquipped(ServerPlayer player, Predicate<ItemStack> matcher) {
@@ -120,13 +129,6 @@ public final class CuriosHookahIntegration {
         bonusChecker = Objects.requireNonNull(checker, "checker");
     }
 
-    public static void setArmorBonus(double amount) {
-        if (!Double.isFinite(amount) || amount < 0.0D) {
-            throw new IllegalArgumentException("Hookah armor bonus must be finite and non-negative");
-        }
-        armorBonus = amount;
-    }
-
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
@@ -134,20 +136,40 @@ public final class CuriosHookahIntegration {
         }
 
         AttributeInstance armor = player.getAttribute(Attributes.ARMOR);
-        if (armor == null) {
-            return;
-        }
-        if (!hasActiveHookahBonus(player) || armorBonus == 0.0D) {
-            armor.removeModifier(HOOKAH_ARMOR_MODIFIER_ID);
+        AttributeInstance speed = player.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (!hasActiveHookahBonus(player)) {
+            removeModifier(armor, HOOKAH_ARMOR_MODIFIER_ID);
+            removeModifier(speed, HOOKAH_SPEED_MODIFIER_ID);
             return;
         }
 
-        AttributeModifier modifier = new AttributeModifier(
-                HOOKAH_ARMOR_MODIFIER_ID,
-                armorBonus,
-                AttributeModifier.Operation.ADD_VALUE
-        );
-        armor.addOrUpdateTransientModifier(modifier);
+        double armorAmount = Math.max(0.0D, ModConfigSpec.HOOKAH_ARMOR_BONUS.getAsDouble());
+        if (armor != null && armorAmount > 0.0D) {
+            armor.addOrUpdateTransientModifier(new AttributeModifier(
+                    HOOKAH_ARMOR_MODIFIER_ID,
+                    armorAmount,
+                    AttributeModifier.Operation.ADD_VALUE
+            ));
+        } else {
+            removeModifier(armor, HOOKAH_ARMOR_MODIFIER_ID);
+        }
+
+        double speedAmount = Math.max(0.0D, ModConfigSpec.HOOKAH_SPEED_BONUS.getAsDouble());
+        if (speed != null && speedAmount > 0.0D) {
+            speed.addOrUpdateTransientModifier(new AttributeModifier(
+                    HOOKAH_SPEED_MODIFIER_ID,
+                    speedAmount,
+                    AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
+            ));
+        } else {
+            removeModifier(speed, HOOKAH_SPEED_MODIFIER_ID);
+        }
+    }
+
+    private static void removeModifier(AttributeInstance attribute, ResourceLocation id) {
+        if (attribute != null) {
+            attribute.removeModifier(id);
+        }
     }
 
     private static Method resolveInventoryGetter() {

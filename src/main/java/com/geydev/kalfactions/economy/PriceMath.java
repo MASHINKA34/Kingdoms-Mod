@@ -62,6 +62,23 @@ public final class PriceMath {
         return Long.MAX_VALUE - left < right ? Long.MAX_VALUE : left + right;
     }
 
+    public static long percentageCeil(long amount, double percent) {
+        requireNonNegative(amount, "amount");
+        requireFiniteRange(percent, 0.0D, Double.MAX_VALUE, "percent");
+        if (amount == 0L || percent == 0.0D) {
+            return 0L;
+        }
+        BigDecimal value = BigDecimal.valueOf(amount).multiply(BigDecimal.valueOf(percent));
+        if (value.compareTo(LONG_MAX) >= 0) {
+            return Long.MAX_VALUE;
+        }
+        return value.setScale(0, RoundingMode.CEILING).longValueExact();
+    }
+
+    public static long increaseByPercentCeil(long amount, double percent) {
+        return saturatedAdd(amount, percentageCeil(amount, percent));
+    }
+
     private static void requireNonNegative(long value, String name) {
         if (value < 0L) {
             throw new IllegalArgumentException(name + " cannot be negative");

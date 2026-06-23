@@ -14,15 +14,24 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.tags.BlockTags;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.AgeableMob;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.Tags;
+import net.neoforged.neoforge.event.entity.EntityMountEvent;
+import net.neoforged.neoforge.event.entity.living.BabyEntitySpawnEvent;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -35,6 +44,8 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 public final class BonusHandler {
     private static final Map<UUID, EnumMap<InteractionHand, PendingDurability>> PENDING_DURABILITY =
             new HashMap<>();
+    private static final ResourceLocation NOMAD_MOUNT_SPEED_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "nomad_mount_speed");
     private static volatile DurabilityPolicy durabilityPolicy = BonusHandler::defaultDurabilityChance;
 
     @SubscribeEvent
@@ -94,6 +105,40 @@ public final class BonusHandler {
                 .orElse(1.0D);
         if (multiplier != 1.0D) {
             event.setNewSpeed((float) (event.getNewSpeed() * multiplier));
+        }
+    }
+
+    @SubscribeEvent
+    public static void onBabySpawn(BabyEntitySpawnEvent event) {
+        if (event.isCanceled()
+                || !(event.getCausedByPlayer() instanceof ServerPlayer player)
+                || !(event.getParentA() instanceof AgeableMob parentA)
+                || !(event.getParentB() instanceof AgeableMob parentB)
+                || event.getChild() == null
+                || !FactionAccess.hasAnyBonus(player, FactionBonus.FARMERS)
+                || player.getRandom().nextDouble() >= ModConfigSpec.FARMER_BREEDING_TWIN_CHANCE.getAsDouble()) {
+            return;
+        }
+        AgeableMob extraChild = parentA.getBreedOffspring(player.serverLevel(), parentB);
+        if (extraChild == null) {
+            return;
+        }
+        AgeableMob child = event.getChild();
+        extraChild.setBaby(true);
+        extraChild.moveTo(child.getX(), child.getY(), child.getZ(), child.getYRot(), child.getXRot());
+        player.serverLevel().addFreshEntity(extraChild);
+    }
+
+    @SubscribeEvent
+    public static void onMount(EntityMountEvent event) {
+        Entity entity = event.getEntityMounting();
+        Entity mount = event.getEntityBeingMounted();
+        if (event.isDismounting() && entity instanceof ServerPlayer && mount instanceof LivingEntity living) {
+            removeNomadMountSpeed(living);
+            return;
+        }
+        if (event.isMounting() && entity instanceof ServerPlayer player) {
+            updateNomadMountSpeed(player);
         }
     }
 
@@ -159,6 +204,7 @@ public final class BonusHandler {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
+        updateNomadMountSpeed(player);
         EnumMap<InteractionHand, PendingDurability> pendingByHand =
                 PENDING_DURABILITY.get(player.getUUID());
         if (pendingByHand == null) {
@@ -175,6 +221,9 @@ public final class BonusHandler {
 
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && player.getVehicle() instanceof LivingEntity living) {
+            removeNomadMountSpeed(living);
+        }
         PENDING_DURABILITY.remove(event.getEntity().getUUID());
     }
 
@@ -243,9 +292,34 @@ public final class BonusHandler {
     }
 
     private static double defaultDurabilityChance(ServerPlayer player, ItemStack stack) {
-        return FactionAccess.hasAnyBonus(player, FactionBonus.CRAFTERS)
-                ? ModConfigSpec.CRAFT_BONUS_CHANCE.get()
-                : 0.0D;
+        return 0.0D;
+    }
+
+    private static void updateNomadMountSpeed(ServerPlayer player) {
+        Entity vehicle = player.getVehicle();
+        if (!(vehicle instanceof LivingEntity living)) {
+            return;
+        }
+        AttributeInstance speed = living.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed == null) {
+            return;
+        }
+        if (!FactionAccess.hasAnyBonus(player, FactionBonus.NOMADS)) {
+            speed.removeModifier(NOMAD_MOUNT_SPEED_ID);
+            return;
+        }
+        speed.addOrUpdateTransientModifier(new AttributeModifier(
+                NOMAD_MOUNT_SPEED_ID,
+                ModConfigSpec.NOMAD_MOUNT_SPEED_BONUS.getAsDouble(),
+                AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
+        ));
+    }
+
+    private static void removeNomadMountSpeed(LivingEntity entity) {
+        AttributeInstance speed = entity.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed != null) {
+            speed.removeModifier(NOMAD_MOUNT_SPEED_ID);
+        }
     }
 
     private record PendingDurability(ItemStack before, int damageBefore, long createdGameTime) {

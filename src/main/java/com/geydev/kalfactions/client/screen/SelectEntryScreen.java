@@ -10,10 +10,15 @@ import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
 public final class SelectEntryScreen extends Screen {
-    public record Entry(String value, String skinName, Component subtitle, int swatchColor, boolean enabled) {
+    public record Entry(String value, String skinName, Component subtitle, int swatchColor, boolean enabled, ResourceLocation icon) {
+        public Entry(String value, String skinName, Component subtitle, int swatchColor, boolean enabled) {
+            this(value, skinName, subtitle, swatchColor, enabled, null);
+        }
+
         public static Entry player(String name, Component subtitle, boolean enabled) {
             return new Entry(name, name, subtitle, 0, enabled);
         }
@@ -21,10 +26,14 @@ public final class SelectEntryScreen extends Screen {
         public static Entry swatch(String name, int color) {
             return new Entry(name, null, null, color, true);
         }
+
+        public static Entry icon(String name, Component subtitle, ResourceLocation icon, boolean enabled) {
+            return new Entry(name, null, subtitle, 0, enabled, icon);
+        }
     }
 
     private static final int PANEL_WIDTH = 240;
-    private static final int ROW_HEIGHT = 26;
+    private static final int ROW_HEIGHT = 42;
     private static final int VISIBLE_ROWS = 5;
     private static final int LIST_TOP_OFFSET = 26;
 
@@ -110,15 +119,19 @@ public final class SelectEntryScreen extends Screen {
         if (entry.skinName() != null) {
             PlayerSkin skin = resolveSkin(entry.skinName());
             PlayerFaceRenderer.draw(graphics, skin, rowLeft + 4, rowTop + 4, 16);
+        } else if (entry.icon() != null) {
+            graphics.blit(entry.icon(), rowLeft + 4, rowTop + 4, 32, 32,
+                    0, 0, 64, 64, 64, 64);
         } else {
             graphics.fill(rowLeft + 4, rowTop + 4, rowLeft + 20, rowTop + 20, 0xFF1A140C);
             graphics.fill(rowLeft + 5, rowTop + 5, rowLeft + 19, rowTop + 19, 0xFF000000 | entry.swatchColor());
         }
 
         int nameColor = entry.enabled() ? 0xFFFFFFFF : 0xFF8E8B83;
-        graphics.drawString(font, entry.value(), rowLeft + 26, rowTop + 4, nameColor, true);
+        int textX = entry.icon() == null ? rowLeft + 26 : rowLeft + 42;
+        graphics.drawString(font, entry.value(), textX, rowTop + 6, nameColor, true);
         if (entry.subtitle() != null) {
-            graphics.drawString(font, entry.subtitle(), rowLeft + 26, rowTop + 14, 0xFF9A8F7A, true);
+            graphics.drawString(font, entry.subtitle(), textX, rowTop + 20, 0xFF9A8F7A, true);
         }
     }
 

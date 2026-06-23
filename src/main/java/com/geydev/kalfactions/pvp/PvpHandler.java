@@ -10,7 +10,9 @@ import java.util.Map;
 import java.util.UUID;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -41,13 +43,14 @@ public final class PvpHandler {
             return;
         }
 
-        if (!(event.getEntity() instanceof Enemy)) {
-            return;
+        if (event.getEntity() instanceof LivingEntity victim
+                && FactionAccess.hasAnyBonus(attacker, FactionBonus.ASSASSINS)
+                && isBehind(attacker, victim)) {
+            event.setAmount(event.getAmount() * ModConfigSpec.ASSASSIN_BACK_DAMAGE_MULTIPLIER.get().floatValue());
         }
 
-        if (FactionAccess.hasAnyBonus(attacker, FactionBonus.WARRIORS)) {
-            float multiplier = ModConfigSpec.WARRIOR_DAMAGE_MULTIPLIER.get().floatValue();
-            event.setAmount(event.getAmount() * multiplier);
+        if (!(event.getEntity() instanceof Enemy)) {
+            return;
         }
 
         int warriorLevels = FactionManager.get(attacker.serverLevel())
@@ -57,6 +60,18 @@ public final class PvpHandler {
         if (warriorLevels > 0) {
             event.setAmount(event.getAmount() * (1.0F + 0.05F * warriorLevels));
         }
+    }
+
+    private static boolean isBehind(ServerPlayer attacker, LivingEntity victim) {
+        Vec3 toAttacker = attacker.position().subtract(victim.position()).multiply(1.0D, 0.0D, 1.0D);
+        if (toAttacker.lengthSqr() < 1.0E-4D) {
+            return false;
+        }
+        Vec3 victimLook = victim.getLookAngle().multiply(1.0D, 0.0D, 1.0D);
+        if (victimLook.lengthSqr() < 1.0E-4D) {
+            return false;
+        }
+        return victimLook.normalize().dot(toAttacker.normalize()) < -0.5D;
     }
 
     private static void applyArmorReduction(LivingIncomingDamageEvent event) {

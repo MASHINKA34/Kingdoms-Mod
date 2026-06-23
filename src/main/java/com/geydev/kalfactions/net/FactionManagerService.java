@@ -293,7 +293,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
         for (String bonusName : bonusNames) {
             FactionBonus bonus;
             try {
-                bonus = FactionBonus.valueOf(bonusName.toUpperCase(Locale.ROOT));
+                bonus = FactionBonus.parse(bonusName);
             } catch (IllegalArgumentException exception) {
                 return null;
             }
