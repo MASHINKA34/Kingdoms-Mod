@@ -40,6 +40,7 @@ public final class SelectEntryScreen extends Screen {
     private static final int MIN_ICON_SIZE = 22;
     private static final int MAX_ICON_SIZE = 34;
     private static final int MAX_SUBTITLE_LINES = 3;
+    private static final int ICON_TEXT_OFFSET = 48;
     private static final int SCROLLBAR_WIDTH = 4;
 
     private final Screen parent;
@@ -74,7 +75,7 @@ public final class SelectEntryScreen extends Screen {
     protected void init() {
         rowHeight = computeRowHeight();
         int rows = Math.min(VISIBLE_ROWS, Math.max(1, entries.size()));
-        panelHeight = LIST_TOP_OFFSET + rows * rowHeight + 36;
+        panelHeight = LIST_TOP_OFFSET + rows * COMPACT_ROW_HEIGHT + 36;
         panelLeft = (width - PANEL_WIDTH) / 2;
         panelTop = (height - panelHeight) / 2;
         scrollOffset = Math.clamp(scrollOffset, 0, maxScroll());
@@ -93,10 +94,12 @@ public final class SelectEntryScreen extends Screen {
         int titleWidth = font.width(title);
         graphics.drawString(font, title, panelLeft + (PANEL_WIDTH - titleWidth) / 2, panelTop + 9, 0xFFF3D58B, true);
 
+        graphics.enableScissor(panelLeft + 6, listTop(), panelLeft + PANEL_WIDTH - 14, listBottom());
         int shown = visibleEntryCount();
         for (int index = 0; index < shown; index++) {
             renderRow(graphics, entries.get(scrollOffset + index), rowTop(index), mouseX, mouseY);
         }
+        graphics.disableScissor();
         if (entries.isEmpty()) {
             Component empty = Component.translatable("screen.kingdoms.no_players");
             graphics.drawString(font, empty, panelLeft + (PANEL_WIDTH - font.width(empty)) / 2,
@@ -127,7 +130,7 @@ public final class SelectEntryScreen extends Screen {
         } else if (entry.icon() != null) {
             int iconSize = iconSize();
             int iconY = rowTop + Math.max(2, (rowHeight - 2 - iconSize) / 2);
-            graphics.blit(entry.icon(), rowLeft + 3, iconY, iconSize, iconSize,
+            graphics.blit(entry.icon(), rowLeft + 5, iconY, iconSize, iconSize,
                     0, 0, 64, 64, 64, 64);
         } else {
             graphics.fill(rowLeft + 4, rowTop + 4, rowLeft + 20, rowTop + 20, 0xFF1A140C);
@@ -135,7 +138,7 @@ public final class SelectEntryScreen extends Screen {
         }
 
         int nameColor = entry.enabled() ? 0xFFFFFFFF : 0xFF8E8B83;
-        int textX = entry.icon() == null ? rowLeft + 26 : rowLeft + 32;
+        int textX = entry.icon() == null ? rowLeft + 26 : rowLeft + ICON_TEXT_OFFSET;
         int textWidth = Math.max(20, rowRight - textX - 4);
         int nameY = rowTop + (rowHeight > COMPACT_ROW_HEIGHT ? 5 : 3);
         graphics.drawString(font, font.plainSubstrByWidth(entry.value(), textWidth), textX, nameY, nameColor, true);
@@ -257,7 +260,7 @@ public final class SelectEntryScreen extends Screen {
     }
 
     private int listBottom() {
-        return listTop() + Math.min(VISIBLE_ROWS, Math.max(1, entries.size())) * rowHeight;
+        return listTop() + listViewportHeight();
     }
 
     private int listRight() {
@@ -265,16 +268,16 @@ public final class SelectEntryScreen extends Screen {
     }
 
     private int visibleEntryCount() {
-        return Math.min(VISIBLE_ROWS, Math.max(0, entries.size() - scrollOffset));
+        return Math.min(visibleRowsByHeight(), Math.max(0, entries.size() - scrollOffset));
     }
 
     private boolean hasScrollbar() {
-        return entries.size() > VISIBLE_ROWS;
+        return entries.size() > visibleRowsByHeight();
     }
 
     private int scrollbarThumbHeight() {
         int trackHeight = listBottom() - listTop() - 2;
-        return Math.max(16, trackHeight * VISIBLE_ROWS / entries.size());
+        return Math.max(16, trackHeight * visibleRowsByHeight() / entries.size());
     }
 
     private int scrollbarThumbTop() {
@@ -293,14 +296,14 @@ public final class SelectEntryScreen extends Screen {
     }
 
     private int maxScroll() {
-        return Math.max(0, entries.size() - VISIBLE_ROWS);
+        return Math.max(0, entries.size() - visibleRowsByHeight());
     }
 
     private int computeRowHeight() {
         if (entries.stream().noneMatch(entry -> entry.icon() != null)) {
             return COMPACT_ROW_HEIGHT;
         }
-        int textWidth = Math.max(20, PANEL_WIDTH - (entries.size() > VISIBLE_ROWS ? 18 : 8) - 8 - 32 - 4);
+        int textWidth = Math.max(20, PANEL_WIDTH - (entries.size() > VISIBLE_ROWS ? 18 : 8) - 8 - ICON_TEXT_OFFSET - 4);
         int lines = 1;
         for (Entry entry : entries) {
             if (entry.icon() != null && entry.subtitle() != null) {
@@ -308,7 +311,7 @@ public final class SelectEntryScreen extends Screen {
             }
         }
         int subtitleLines = Math.min(MAX_SUBTITLE_LINES, Math.max(1, lines));
-        return Math.max(COMPACT_ROW_HEIGHT, 24 + subtitleLines * 10);
+        return Math.max(COMPACT_ROW_HEIGHT, Math.min(42, 22 + subtitleLines * 10));
     }
 
     private int iconSize() {
@@ -317,5 +320,13 @@ public final class SelectEntryScreen extends Screen {
 
     private int subtitleLineLimit() {
         return Math.max(1, Math.min(MAX_SUBTITLE_LINES, (rowHeight - 20) / 10));
+    }
+
+    private int listViewportHeight() {
+        return Math.min(VISIBLE_ROWS, Math.max(1, entries.size())) * COMPACT_ROW_HEIGHT;
+    }
+
+    private int visibleRowsByHeight() {
+        return Math.max(1, listViewportHeight() / rowHeight);
     }
 }
