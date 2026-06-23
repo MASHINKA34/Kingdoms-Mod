@@ -21,7 +21,6 @@ public final class ModConfigSpec {
     public static final DoubleValue HARVEST_BONUS_CHANCE;
     public static final DoubleValue CRAFT_BONUS_CHANCE;
     public static final DoubleValue BUILDER_DISCOUNT;
-    public static final LongValue CREATION_COST;
     public static final IntValue WAR_ROLLBACK_CHUNKS_PER_TICK;
     public static final LongValue WAR_AUTO_END_TICKS;
     public static final IntValue CLAIM_SYNC_RADIUS_CHUNKS;
@@ -38,6 +37,8 @@ public final class ModConfigSpec {
     public static final LongValue RAID_INVENTORY_STEAL_MAX;
     public static final LongValue OUTPOST_CHARTER_COST;
     public static final LongValue OUTPOST_DRILL_COST;
+    public static final LongValue FACTION_TABLE_COST;
+    public static final LongValue ACCESS_TOOL_COST;
     public static final IntValue OUTPOST_DRILL_INTERVAL_SECONDS;
     public static final DoubleValue INFLUENCE_DECAY_PERCENT;
     public static final IntValue INFLUENCE_DECAY_INTERVAL_HOURS;
@@ -78,9 +79,6 @@ public final class ModConfigSpec {
         HARVEST_BONUS_CHANCE = builder.defineInRange("harvestBonusChance", 0.15D, 0D, 1D);
         CRAFT_BONUS_CHANCE = builder.defineInRange("craftBonusChance", 0.2D, 0D, 1D);
         BUILDER_DISCOUNT = builder.defineInRange("builderDiscount", 0.2D, 0D, 1D);
-        CREATION_COST = builder
-            .comment("Spurs charged from a player's inventory when founding a faction.")
-            .defineInRange("creationCost", 500L, 0L, Long.MAX_VALUE);
         builder.pop();
 
         builder.push("raids");
@@ -122,10 +120,12 @@ public final class ModConfigSpec {
         builder.push("outposts");
         OUTPOST_CHARTER_COST = builder
             .comment("Spurs charged by the spawn trader for an outpost charter.")
-            .defineInRange("charterCost", 2000L, 0L, Long.MAX_VALUE);
+            .defineInRange("charterCost", 6000L, 0L, Long.MAX_VALUE);
         OUTPOST_DRILL_COST = builder
             .comment("Spurs charged by the spawn trader for a drill.")
-            .defineInRange("drillCost", 1500L, 0L, Long.MAX_VALUE);
+            .defineInRange("drillCost", 3500L, 0L, Long.MAX_VALUE);
+        FACTION_TABLE_COST = builder.defineInRange("factionTableCost", 800L, 0L, Long.MAX_VALUE);
+        ACCESS_TOOL_COST = builder.defineInRange("accessToolCost", 400L, 0L, Long.MAX_VALUE);
         OUTPOST_DRILL_INTERVAL_SECONDS = builder
             .comment("Seconds between drill resource outputs (base production 12h = 43200).")
             .defineInRange("drillIntervalSeconds", 43200, 1, 86400);

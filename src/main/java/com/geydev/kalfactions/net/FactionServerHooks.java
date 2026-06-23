@@ -896,7 +896,7 @@ public final class FactionServerHooks {
 
     private static FactionSnapshot fallbackSnapshot(BlockPos tablePos) {
         ChunkPos center = new ChunkPos(tablePos);
-        return FactionSnapshot.empty(tablePos, center.x, center.z, ModConfigSpec.CREATION_COST.getAsLong());
+        return FactionSnapshot.empty(tablePos, center.x, center.z, 0L);
     }
 
     private static void reject(ServerPlayer player, BlockPos tablePos, Component message) {

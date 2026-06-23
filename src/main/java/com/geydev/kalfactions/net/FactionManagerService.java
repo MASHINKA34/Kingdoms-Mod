@@ -46,7 +46,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
                     tablePos,
                     center.x,
                     center.z,
-                    ModConfigSpec.CREATION_COST.getAsLong()
+                    0L
             );
         }
 
@@ -72,7 +72,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 faction.influence(com.geydev.kalfactions.faction.InfluenceType.ECONOMIC),
                 faction.influence(com.geydev.kalfactions.faction.InfluenceType.MILITARY),
                 faction.internalPvp(),
-                ModConfigSpec.CREATION_COST.getAsLong(),
+                0L,
                 player.getUUID(),
                 role.isAtLeast(FactionRole.OFFICER),
                 activeWarName(player, manager, faction),
@@ -237,35 +237,12 @@ final class FactionManagerService implements FactionServerHooks.Service {
                     view(player, tablePos)
             );
         }
-        long cost = ModConfigSpec.CREATION_COST.getAsLong();
-        NumismaticsEconomy.Payment payment = null;
-        if (cost > 0L) {
-            payment = NumismaticsEconomy.preparePayment(player, cost);
-            if (!payment.ready()) {
-                return FactionServerHooks.Result.denied(
-                        Component.translatable(
-                                "kingdoms.error.creation_cost",
-                                NumismaticsEconomy.format(cost),
-                                NumismaticsEconomy.format(payment.available())
-                        ),
-                        view(player, tablePos)
-                );
-            }
-        }
         FactionManager.OperationResult result = manager.createFaction(
                 player.getUUID(),
                 name,
                 ClaimKey.of(player.serverLevel(), new ChunkPos(tablePos))
         );
         if (result.successful()) {
-            if (payment != null && !NumismaticsEconomy.commitPayment(player, payment)) {
-                manager.disbandFaction(result.factionId());
-                IntegrationManager.refreshFromServer(player.getServer());
-                return FactionServerHooks.Result.denied(
-                        Component.translatable("kingdoms.error.coin_inventory_changed"),
-                        view(player, tablePos)
-                );
-            }
             manager.setFactionBonuses(result.factionId(), bonuses);
             manager.setFactionEmblem(result.factionId(), unboxEmblem(emblem), sanitizeEmblemUrl(emblemUrl));
             manager.setFactionColor(result.factionId(), color);

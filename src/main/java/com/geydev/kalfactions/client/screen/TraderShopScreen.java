@@ -21,6 +21,8 @@ public final class TraderShopScreen extends Screen {
     private static final int PANEL_HEIGHT = 220;
     private static final int TEXT_DARK = 0xFF3F2A19;
     private static final int TEXT_MUTED = 0xFF5B452E;
+    private static final int OFFER_TOP = 72;
+    private static final int OFFER_STEP = 30;
 
     private final UUID traderId;
     private List<TraderPayloads.OfferInfo> offers;
@@ -62,7 +64,7 @@ public final class TraderShopScreen extends Screen {
         top = (height - PANEL_HEIGHT) / 2;
         for (int i = 0; i < offers.size(); i++) {
             TraderPayloads.OfferInfo offer = offers.get(i);
-            int rowTop = top + 72 + i * 42;
+            int rowTop = top + OFFER_TOP + i * OFFER_STEP;
             KingdomsButton button = KingdomsButton.create(
                     Component.translatable("screen.kingdoms.trader.buy"),
                     pressed -> buy(offer.id()),
@@ -122,7 +124,7 @@ public final class TraderShopScreen extends Screen {
                 false
         );
         for (int i = 0; i < offers.size(); i++) {
-            renderOffer(graphics, offers.get(i), top + 72 + i * 42);
+            renderOffer(graphics, offers.get(i), top + OFFER_TOP + i * OFFER_STEP);
         }
     }
 

@@ -250,7 +250,6 @@
   "kingdoms.command.faction.emblem.saved": "Emblem updated.",
   "screen.kingdoms.save": "Save",
   "screen.kingdoms.create": "Create",
-  "screen.kingdoms.create_cost": "Create (%s)",
   "screen.kingdoms.create_hint": "The name must be at least 3 characters long.",
   "screen.kingdoms.members": "Members",
   "screen.kingdoms.members_count": "Members: %s",

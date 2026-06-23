@@ -157,19 +157,6 @@ public final class FactionCommands {
     private static int create(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
         FactionManager manager = manager(context);
-        long cost = ModConfigSpec.CREATION_COST.getAsLong();
-        NumismaticsEconomy.Payment payment = null;
-        if (cost > 0L) {
-            payment = NumismaticsEconomy.preparePayment(player, cost);
-            if (!payment.ready()) {
-                return failure(
-                    context,
-                    "kingdoms.error.creation_cost",
-                    NumismaticsEconomy.format(cost),
-                    NumismaticsEconomy.format(payment.available())
-                );
-            }
-        }
         OperationResult result = manager.createFaction(
             player.getUUID(),
             StringArgumentType.getString(context, "name"),
@@ -177,10 +164,6 @@ public final class FactionCommands {
         );
         if (!result.successful()) {
             return failure(context, result);
-        }
-        if (payment != null && !NumismaticsEconomy.commitPayment(player, payment)) {
-            manager.disbandFaction(result.factionId());
-            return failure(context, "kingdoms.error.coin_inventory_changed");
         }
         success(context, "kingdoms.command.faction.created");
         return Command.SINGLE_SUCCESS;

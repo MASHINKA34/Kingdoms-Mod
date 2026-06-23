@@ -18,6 +18,16 @@ public enum TraderOffer {
             "drill",
             ModItems.DRILL,
             ModConfigSpec.OUTPOST_DRILL_COST::get
+    ),
+    FACTION_TABLE(
+            "faction_table",
+            ModItems.FACTION_TABLE,
+            ModConfigSpec.FACTION_TABLE_COST::get
+    ),
+    ACCESS_TOOL(
+            "access_tool",
+            ModItems.ACCESS_TOOL,
+            ModConfigSpec.ACCESS_TOOL_COST::get
     );
 
     private final String id;

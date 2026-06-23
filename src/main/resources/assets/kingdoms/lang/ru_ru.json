@@ -250,7 +250,6 @@
   "kingdoms.command.faction.emblem.saved": "Герб обновлён.",
   "screen.kingdoms.save": "Сохранить",
   "screen.kingdoms.create": "Создать",
-  "screen.kingdoms.create_cost": "Создать (%s)",
   "screen.kingdoms.create_hint": "Название должно содержать не менее 3 символов.",
   "screen.kingdoms.members": "Участники",
   "screen.kingdoms.members_count": "Участников: %s",
