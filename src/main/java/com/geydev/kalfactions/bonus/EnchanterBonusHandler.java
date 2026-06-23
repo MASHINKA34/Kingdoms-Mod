@@ -22,15 +22,34 @@ import net.neoforged.neoforge.event.AnvilUpdateEvent;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class EnchanterBonusHandler {
+    private record AnvilOverride(ItemStack output, int cost, int materialCost, boolean cancelVanilla) {
+        static AnvilOverride pass() {
+            return new AnvilOverride(ItemStack.EMPTY, 0, 0, false);
+        }
+
+        static AnvilOverride empty() {
+            return new AnvilOverride(ItemStack.EMPTY, 0, 0, true);
+        }
+    }
+
     @SubscribeEvent
     public static void onAnvilUpdate(AnvilUpdateEvent event) {
-        if (!(event.getPlayer() instanceof ServerPlayer player)
-                || !FactionAccess.hasAnyBonus(player, FactionBonus.ENCHANTERS)) {
+        if (event.getPlayer() instanceof ServerPlayer player
+                && FactionAccess.hasAnyBonus(player, FactionBonus.ENCHANTERS)) {
+            ItemStack output = createOutput(event);
+            if (!output.isEmpty()) {
+                event.setOutput(output);
+            }
             return;
         }
-        ItemStack output = createOutput(event);
-        if (!output.isEmpty()) {
-            event.setOutput(output);
+
+        AnvilOverride override = createRegularPlayerOutput(event);
+        if (override.cancelVanilla()) {
+            event.setCanceled(true);
+        } else if (!override.output().isEmpty()) {
+            event.setOutput(override.output());
+            event.setCost(override.cost());
+            event.setMaterialCost(override.materialCost());
         }
     }
 
@@ -136,6 +155,80 @@ public final class EnchanterBonusHandler {
         return result;
     }
 
+    private static AnvilOverride createRegularPlayerOutput(AnvilUpdateEvent event) {
+        ItemStack left = event.getLeft();
+        ItemStack right = event.getRight();
+        if (left.isEmpty() || right.isEmpty() || !right.has(DataComponents.STORED_ENCHANTMENTS)
+                || !EnchantmentHelper.canStoreEnchantments(left)) {
+            return AnvilOverride.pass();
+        }
+
+        ItemEnchantments leftEnchantments = EnchantmentHelper.getEnchantmentsForCrafting(left);
+        ItemEnchantments rightEnchantments = EnchantmentHelper.getEnchantmentsForCrafting(right);
+        if (rightEnchantments.isEmpty() || !hasOverleveled(leftEnchantments) && !hasOverleveled(rightEnchantments)) {
+            return AnvilOverride.pass();
+        }
+
+        boolean storedBook = left.has(DataComponents.STORED_ENCHANTMENTS);
+        if (!storedBook && !left.isBookEnchantable(right)) {
+            return AnvilOverride.pass();
+        }
+
+        ItemStack result = left.copy();
+        ItemEnchantments.Mutable mutable = new ItemEnchantments.Mutable(leftEnchantments);
+        long operationCost = 0L;
+        boolean changed = false;
+
+        for (Object2IntMap.Entry<Holder<Enchantment>> entry : rightEnchantments.entrySet()) {
+            Holder<Enchantment> holder = entry.getKey();
+            if (!supportsRegularApplication(event, left, storedBook, holder) || !compatibleWithExisting(mutable, holder)) {
+                continue;
+            }
+
+            int currentLevel = mutable.getLevel(holder);
+            int rightLevel = entry.getIntValue();
+            int targetLevel = regularTargetLevel(storedBook, currentLevel, rightLevel, holder.value().getMaxLevel());
+            if (targetLevel != currentLevel) {
+                mutable.set(holder, targetLevel);
+                operationCost = Mth.clamp(
+                        operationCost + (long) Math.max(1, holder.value().getAnvilCost() / 2) * enchantLevelCost(targetLevel),
+                        0L,
+                        Integer.MAX_VALUE
+                );
+                changed = true;
+            }
+        }
+
+        if (storedBook) {
+            changed |= capStoredBookEnchantments(mutable);
+        }
+        if (!changed) {
+            return AnvilOverride.empty();
+        }
+
+        EnchantmentHelper.setEnchantments(result, mutable.toImmutable());
+        String name = event.getName();
+        if (name != null && !StringUtil.isBlank(name) && !name.equals(left.getHoverName().getString())) {
+            result.set(DataComponents.CUSTOM_NAME, Component.literal(name));
+            operationCost++;
+        } else if ((name == null || StringUtil.isBlank(name)) && left.has(DataComponents.CUSTOM_NAME)) {
+            result.remove(DataComponents.CUSTOM_NAME);
+            operationCost++;
+        }
+
+        int repairCost = Math.max(
+                left.getOrDefault(DataComponents.REPAIR_COST, 0),
+                right.getOrDefault(DataComponents.REPAIR_COST, 0)
+        );
+        result.set(DataComponents.REPAIR_COST, AnvilMenu.calculateIncreasedRepairCost(repairCost));
+        int cost = (int) Mth.clamp(
+                priorWorkCost(left) + priorWorkCost(right) + operationCost,
+                1L,
+                ModConfigSpec.ENCHANTER_ANVIL_MAX_COST.getAsInt()
+        );
+        return new AnvilOverride(result, cost, 1, false);
+    }
+
     private static int priorWorkCost(ItemStack stack) {
         int repairCost = Math.max(0, stack.getOrDefault(DataComponents.REPAIR_COST, 0));
         if (repairCost <= 0) {
@@ -147,6 +240,56 @@ public final class EnchanterBonusHandler {
 
     private static int enchantLevelCost(int level) {
         return Math.min(Math.max(1, level), ModConfigSpec.ENCHANTER_LEVEL_COST_CAP.getAsInt());
+    }
+
+    private static boolean hasOverleveled(ItemEnchantments enchantments) {
+        for (Object2IntMap.Entry<Holder<Enchantment>> entry : enchantments.entrySet()) {
+            if (entry.getIntValue() > entry.getKey().value().getMaxLevel()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean supportsRegularApplication(
+            AnvilUpdateEvent event,
+            ItemStack left,
+            boolean storedBook,
+            Holder<Enchantment> holder
+    ) {
+        return storedBook || left.supportsEnchantment(holder) || event.getPlayer().getAbilities().instabuild;
+    }
+
+    private static boolean compatibleWithExisting(ItemEnchantments.Mutable mutable, Holder<Enchantment> holder) {
+        for (Holder<Enchantment> current : mutable.keySet()) {
+            if (!current.equals(holder) && !Enchantment.areCompatible(holder, current)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static int regularTargetLevel(boolean storedBook, int currentLevel, int rightLevel, int maxLevel) {
+        int combinedLevel = currentLevel == rightLevel ? rightLevel + 1 : Math.max(currentLevel, rightLevel);
+        if (storedBook) {
+            return Math.min(combinedLevel, maxLevel);
+        }
+        return currentLevel > maxLevel || rightLevel > maxLevel
+                ? Math.max(currentLevel, rightLevel)
+                : Math.min(combinedLevel, maxLevel);
+    }
+
+    private static boolean capStoredBookEnchantments(ItemEnchantments.Mutable mutable) {
+        boolean changed = false;
+        for (Holder<Enchantment> holder : mutable.keySet()) {
+            int level = mutable.getLevel(holder);
+            int maxLevel = holder.value().getMaxLevel();
+            if (level > maxLevel) {
+                mutable.set(holder, maxLevel);
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     private EnchanterBonusHandler() {

@@ -15,6 +15,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class FactionCreateScreen extends FactionScreen {
+    private static final int FORM_Y_OFFSET = -10;
+
     private EditBox nameBox;
     private String nameValue = "";
     private int selectedColor;
@@ -37,7 +39,7 @@ public final class FactionCreateScreen extends FactionScreen {
         nameBox = new EditBox(
                 font,
                 controlsLeft,
-                top + 76,
+                top + 76 + FORM_Y_OFFSET,
                 controlsWidth,
                 20,
                 text("screen.kingdoms.faction_name")
@@ -49,7 +51,7 @@ public final class FactionCreateScreen extends FactionScreen {
         addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.color"),
                 button -> minecraft.setScreen(new ColorPickerScreen(this, selectedColor, picked -> selectedColor = picked)),
-                controlsLeft, top + 100, controlsWidth, 20
+                controlsLeft, top + 100 + FORM_Y_OFFSET, controlsWidth, 20
         ));
 
         addRenderableWidget(KingdomsButton.create(
@@ -58,7 +60,7 @@ public final class FactionCreateScreen extends FactionScreen {
                     firstBonus = picked;
                     rebuildWidgets();
                 }),
-                controlsLeft, top + 124, 87, 20
+                controlsLeft, top + 124 + FORM_Y_OFFSET, 87, 20
         ));
         addRenderableWidget(KingdomsButton.create(
                 bonusLabel(2, secondBonus),
@@ -66,7 +68,7 @@ public final class FactionCreateScreen extends FactionScreen {
                     secondBonus = picked;
                     rebuildWidgets();
                 }),
-                controlsLeft + 93, top + 124, 87, 20
+                controlsLeft + 93, top + 124 + FORM_Y_OFFSET, 87, 20
         ));
 
         addRenderableWidget(KingdomsButton.create(
@@ -75,7 +77,7 @@ public final class FactionCreateScreen extends FactionScreen {
                     emblemPixels = pixels;
                     emblemUrl = url;
                 })),
-                controlsLeft, top + 148, controlsWidth, 20
+                controlsLeft, top + 148 + FORM_Y_OFFSET, controlsWidth, 20
         ));
 
         createButton = addRenderableWidget(KingdomsButton.create(
@@ -88,7 +90,7 @@ public final class FactionCreateScreen extends FactionScreen {
                         boxedEmblem(),
                         emblemUrl
                 )),
-                controlsLeft, top + 172, controlsWidth, 20
+                controlsLeft, top + 172 + FORM_Y_OFFSET, controlsWidth, 20
         ));
         nameBox.setResponder(value -> {
             nameValue = value;
@@ -173,9 +175,9 @@ public final class FactionCreateScreen extends FactionScreen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawString(font, text("screen.kingdoms.faction_name"), left + CONTENT_LEFT, top + 64, TEXT_DARK, false);
-        graphics.fill(left + 56, top + 102, left + 74, top + 120, 0xFF1A140C);
-        graphics.fill(left + 58, top + 104, left + 72, top + 118, 0xFF000000 | selectedColor);
-        graphics.drawString(font, text("screen.kingdoms.bonuses"), left + CONTENT_LEFT, top + 130, TEXT_DARK, false);
+        graphics.drawString(font, text("screen.kingdoms.faction_name"), left + CONTENT_LEFT, top + 64 + FORM_Y_OFFSET, TEXT_DARK, false);
+        graphics.fill(left + 56, top + 102 + FORM_Y_OFFSET, left + 74, top + 120 + FORM_Y_OFFSET, 0xFF1A140C);
+        graphics.fill(left + 58, top + 104 + FORM_Y_OFFSET, left + 72, top + 118 + FORM_Y_OFFSET, 0xFF000000 | selectedColor);
+        graphics.drawString(font, text("screen.kingdoms.bonuses"), left + CONTENT_LEFT, top + 130 + FORM_Y_OFFSET, TEXT_DARK, false);
     }
 }

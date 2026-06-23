@@ -34,10 +34,12 @@ public final class SelectEntryScreen extends Screen {
     }
 
     private static final int PANEL_WIDTH = 240;
-    private static final int ROW_HEIGHT = 26;
+    private static final int COMPACT_ROW_HEIGHT = 26;
     private static final int VISIBLE_ROWS = 5;
     private static final int LIST_TOP_OFFSET = 26;
-    private static final int ICON_SIZE = 22;
+    private static final int MIN_ICON_SIZE = 22;
+    private static final int MAX_ICON_SIZE = 34;
+    private static final int MAX_SUBTITLE_LINES = 3;
     private static final int SCROLLBAR_WIDTH = 4;
 
     private final Screen parent;
@@ -49,6 +51,7 @@ public final class SelectEntryScreen extends Screen {
     private int panelTop;
     private int panelHeight;
     private int scrollOffset;
+    private int rowHeight = COMPACT_ROW_HEIGHT;
     private boolean scrollBarDragging;
     private String noticeText = "";
     private long noticeShownAt;
@@ -69,8 +72,9 @@ public final class SelectEntryScreen extends Screen {
 
     @Override
     protected void init() {
+        rowHeight = computeRowHeight();
         int rows = Math.min(VISIBLE_ROWS, Math.max(1, entries.size()));
-        panelHeight = LIST_TOP_OFFSET + rows * ROW_HEIGHT + 36;
+        panelHeight = LIST_TOP_OFFSET + rows * rowHeight + 36;
         panelLeft = (width - PANEL_WIDTH) / 2;
         panelTop = (height - panelHeight) / 2;
         scrollOffset = Math.clamp(scrollOffset, 0, maxScroll());
@@ -113,15 +117,17 @@ public final class SelectEntryScreen extends Screen {
         int rowRight = listRight();
         boolean hovered = entry.enabled()
                 && mouseX >= rowLeft && mouseX < rowRight
-                && mouseY >= rowTop && mouseY < rowTop + ROW_HEIGHT - 2;
+                && mouseY >= rowTop && mouseY < rowTop + rowHeight - 2;
         int background = hovered ? 0x50FFFFFF : 0x28000000;
-        graphics.fill(rowLeft, rowTop, rowRight, rowTop + ROW_HEIGHT - 2, background);
+        graphics.fill(rowLeft, rowTop, rowRight, rowTop + rowHeight - 2, background);
 
         if (entry.skinName() != null) {
             PlayerSkin skin = resolveSkin(entry.skinName());
             PlayerFaceRenderer.draw(graphics, skin, rowLeft + 4, rowTop + 4, 16);
         } else if (entry.icon() != null) {
-            graphics.blit(entry.icon(), rowLeft + 3, rowTop + 2, ICON_SIZE, ICON_SIZE,
+            int iconSize = iconSize();
+            int iconY = rowTop + Math.max(2, (rowHeight - 2 - iconSize) / 2);
+            graphics.blit(entry.icon(), rowLeft + 3, iconY, iconSize, iconSize,
                     0, 0, 64, 64, 64, 64);
         } else {
             graphics.fill(rowLeft + 4, rowTop + 4, rowLeft + 20, rowTop + 20, 0xFF1A140C);
@@ -131,11 +137,14 @@ public final class SelectEntryScreen extends Screen {
         int nameColor = entry.enabled() ? 0xFFFFFFFF : 0xFF8E8B83;
         int textX = entry.icon() == null ? rowLeft + 26 : rowLeft + 32;
         int textWidth = Math.max(20, rowRight - textX - 4);
-        graphics.drawString(font, font.plainSubstrByWidth(entry.value(), textWidth), textX, rowTop + 3, nameColor, true);
+        int nameY = rowTop + (rowHeight > COMPACT_ROW_HEIGHT ? 5 : 3);
+        graphics.drawString(font, font.plainSubstrByWidth(entry.value(), textWidth), textX, nameY, nameColor, true);
         if (entry.subtitle() != null) {
             List<FormattedCharSequence> lines = font.split(entry.subtitle(), textWidth);
-            if (!lines.isEmpty()) {
-                graphics.drawString(font, lines.get(0), textX, rowTop + 14, 0xFF9A8F7A, true);
+            int lineLimit = subtitleLineLimit();
+            int lineY = rowTop + (rowHeight > COMPACT_ROW_HEIGHT ? 18 : 14);
+            for (int index = 0; index < Math.min(lineLimit, lines.size()); index++) {
+                graphics.drawString(font, lines.get(index), textX, lineY + index * 10, 0xFF9A8F7A, true);
             }
         }
     }
@@ -178,7 +187,7 @@ public final class SelectEntryScreen extends Screen {
             for (int index = 0; index < shown; index++) {
                 int rowTop = rowTop(index);
                 if (mouseX >= panelLeft + 8 && mouseX < listRight()
-                        && mouseY >= rowTop && mouseY < rowTop + ROW_HEIGHT - 2) {
+                        && mouseY >= rowTop && mouseY < rowTop + rowHeight - 2) {
                     Entry entry = entries.get(scrollOffset + index);
                     if (!entry.enabled()) {
                         noticeText = disabledNotice == null ? "" : disabledNotice.getString();
@@ -240,7 +249,7 @@ public final class SelectEntryScreen extends Screen {
     }
 
     private int rowTop(int visibleIndex) {
-        return panelTop + LIST_TOP_OFFSET + visibleIndex * ROW_HEIGHT;
+        return panelTop + LIST_TOP_OFFSET + visibleIndex * rowHeight;
     }
 
     private int listTop() {
@@ -248,7 +257,7 @@ public final class SelectEntryScreen extends Screen {
     }
 
     private int listBottom() {
-        return listTop() + Math.min(VISIBLE_ROWS, Math.max(1, entries.size())) * ROW_HEIGHT;
+        return listTop() + Math.min(VISIBLE_ROWS, Math.max(1, entries.size())) * rowHeight;
     }
 
     private int listRight() {
@@ -285,5 +294,28 @@ public final class SelectEntryScreen extends Screen {
 
     private int maxScroll() {
         return Math.max(0, entries.size() - VISIBLE_ROWS);
+    }
+
+    private int computeRowHeight() {
+        if (entries.stream().noneMatch(entry -> entry.icon() != null)) {
+            return COMPACT_ROW_HEIGHT;
+        }
+        int textWidth = Math.max(20, PANEL_WIDTH - (entries.size() > VISIBLE_ROWS ? 18 : 8) - 8 - 32 - 4);
+        int lines = 1;
+        for (Entry entry : entries) {
+            if (entry.icon() != null && entry.subtitle() != null) {
+                lines = Math.max(lines, font.split(entry.subtitle(), textWidth).size());
+            }
+        }
+        int subtitleLines = Math.min(MAX_SUBTITLE_LINES, Math.max(1, lines));
+        return Math.max(COMPACT_ROW_HEIGHT, 24 + subtitleLines * 10);
+    }
+
+    private int iconSize() {
+        return Mth.clamp(rowHeight - 10, MIN_ICON_SIZE, MAX_ICON_SIZE);
+    }
+
+    private int subtitleLineLimit() {
+        return Math.max(1, Math.min(MAX_SUBTITLE_LINES, (rowHeight - 20) / 10));
     }
 }
