@@ -79,6 +79,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 warTargetNames(manager, faction),
                 allianceCandidateNames(player, manager, faction),
                 allies,
+                joinableAllyNames(player, manager, faction),
                 onlinePlayers(player, manager),
                 bonusNames(faction),
                 emblemPixels(faction),
@@ -188,6 +189,24 @@ final class FactionManagerService implements FactionServerHooks.Service {
         return faction.allies().stream()
                 .map(manager::getFactionById)
                 .flatMap(java.util.Optional::stream)
+                .map(Faction::name)
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+    }
+
+    /**
+     * Allies the viewing faction may join in war: an ally currently defending an active war it was
+     * attacked in, provided the viewer is free (not already in a war) and not allied with the attacker.
+     */
+    private static List<String> joinableAllyNames(ServerPlayer player, FactionManager manager, Faction faction) {
+        WarManager wars = WarManager.get(player.getServer());
+        if (wars.warForFaction(faction.id()).isPresent()) {
+            return List.of();
+        }
+        return faction.allies().stream()
+                .map(manager::getFactionById)
+                .flatMap(java.util.Optional::stream)
+                .filter(ally -> wars.canJoinDefense(faction.id(), ally.id()))
                 .map(Faction::name)
                 .sorted(String.CASE_INSENSITIVE_ORDER)
                 .toList();

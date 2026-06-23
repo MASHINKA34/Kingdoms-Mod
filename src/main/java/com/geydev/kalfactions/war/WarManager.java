@@ -97,6 +97,24 @@ public final class WarManager extends SavedData {
     }
 
     /**
+     * Read-only check for the UI: whether {@code joinerFactionId} could join the defense of
+     * {@code allyFactionId}. Mirrors {@link #joinWar} without mutating. Assumes the two are allied.
+     */
+    public synchronized boolean canJoinDefense(UUID joinerFactionId, UUID allyFactionId) {
+        if (joinerFactionId == null || allyFactionId == null || joinerFactionId.equals(allyFactionId)) {
+            return false;
+        }
+        if (factionToWar.containsKey(joinerFactionId)) {
+            return false;
+        }
+        War war = warFor(allyFactionId);
+        if (war == null || !war.isActive() || war.sideOf(allyFactionId) != War.Side.DEFENDER) {
+            return false;
+        }
+        return !war.involves(joinerFactionId);
+    }
+
+    /**
      * War-time build override: a belligerent may break and place in the enemy faction's claims while
      * the war is active. The protection layer ORs this with its normal {@code canBuild} check.
      */

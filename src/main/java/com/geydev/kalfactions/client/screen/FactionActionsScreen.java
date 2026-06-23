@@ -102,6 +102,16 @@ public final class FactionActionsScreen extends FactionScreen {
             nextDiplomacyY += 24;
         }
 
+        if (!snapshot.joinableAllies().isEmpty()) {
+            KingdomsButton joinWar = addRenderableWidget(KingdomsButton.create(
+                    text("screen.kingdoms.war_join"),
+                    button -> openJoinWarPicker(),
+                    rightColumn, nextDiplomacyY, columnWidth, 20
+            ));
+            joinWar.active = snapshot.canManage();
+            nextDiplomacyY += 24;
+        }
+
         KingdomsButton requestAlliance = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.alliance_request"),
                 button -> openAlliancePicker(),
@@ -162,6 +172,20 @@ public final class FactionActionsScreen extends FactionScreen {
                 null,
                 entry -> PacketDistributor.sendToServer(
                         new FactionPayloads.C2SDeclareWar(snapshot.tablePos(), entry.value()))
+        ));
+    }
+
+    private void openJoinWarPicker() {
+        List<SelectEntryScreen.Entry> entries = snapshot.joinableAllies().stream()
+                .map(name -> SelectEntryScreen.Entry.swatch(name, 0x3F7B33))
+                .toList();
+        minecraft.setScreen(new SelectEntryScreen(
+                this,
+                text("screen.kingdoms.select_join_war"),
+                entries,
+                null,
+                entry -> PacketDistributor.sendToServer(
+                        new FactionPayloads.C2SJoinWar(snapshot.tablePos(), entry.value()))
         ));
     }
 

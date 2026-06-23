@@ -237,6 +237,11 @@ public record FactionSnapshot(
                 MAX_KNOWN_FACTIONS,
                 target -> target.readUtf(32)
         );
+        List<String> joinableAllies = readBoundedList(
+                buffer,
+                MAX_KNOWN_FACTIONS,
+                target -> target.readUtf(32)
+        );
         List<OnlinePlayer> onlinePlayers = readBoundedList(buffer, MAX_ONLINE_PLAYERS, OnlinePlayer::decode);
         List<String> bonuses = readBoundedList(buffer, MAX_BONUSES, target -> target.readUtf(24));
         List<Integer> emblem = readBoundedList(buffer, MAX_EMBLEM_PIXELS, RegistryFriendlyByteBuf::readInt);
@@ -252,7 +257,8 @@ public record FactionSnapshot(
                 centerChunkX, centerChunkZ, mapRadius, members, claims,
                 treasury, influence, influenceScience, influenceEconomic, influenceMilitary,
                 internalPvp, creationCost, viewerId, isOfficer,
-                warWith, knownFactions, allianceCandidates, allies, onlinePlayers, bonuses, emblem, emblemUrl,
+                warWith, knownFactions, allianceCandidates, allies, joinableAllies,
+                onlinePlayers, bonuses, emblem, emblemUrl,
                 completedResearch, activeResearchNode, activeResearchEndMillis, pendingWarSpoils,
                 claimCount, forceLoadUsed
         );

@@ -45,7 +45,7 @@ public final class War {
     private long defenderPoints;
 
     public War(UUID id, UUID attackerFactionId, UUID defenderFactionId, State state, long startGameTime) {
-        this(id, attackerFactionId, defenderFactionId, sideOf(attackerFactionId), sideOf(defenderFactionId),
+        this(id, attackerFactionId, defenderFactionId, singletonSide(attackerFactionId), singletonSide(defenderFactionId),
             state, startGameTime, new LinkedHashMap<>());
     }
 
@@ -71,7 +71,7 @@ public final class War {
         this.snapshots = snapshots;
     }
 
-    private static Set<UUID> sideOf(UUID lead) {
+    private static Set<UUID> singletonSide(UUID lead) {
         Set<UUID> side = new LinkedHashSet<>();
         side.add(lead);
         return side;

@@ -880,6 +880,7 @@ public final class FactionServerHooks {
                 snapshot.knownFactions(),
                 snapshot.allianceCandidates(),
                 snapshot.allies(),
+                snapshot.joinableAllies(),
                 snapshot.onlinePlayers(),
                 snapshot.bonuses(),
                 snapshot.emblem(),
