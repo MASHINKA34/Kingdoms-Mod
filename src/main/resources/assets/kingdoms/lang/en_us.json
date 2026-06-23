@@ -249,6 +249,8 @@
   "kingdoms.bonus.merchants.desc": "Better seller prices and treasury income",
   "kingdoms.bonus.nomads": "Nomads",
   "kingdoms.bonus.nomads.desc": "Increased mount speed",
+  "kingdoms.bonus.researchers": "Researchers",
+  "kingdoms.bonus.researchers.desc": "Research progresses 20% faster",
   "kingdoms.error.bonus_selection": "Pick two different bonuses.",
   "kingdoms.command.faction.emblem.saved": "Emblem updated.",
   "screen.kingdoms.save": "Save",

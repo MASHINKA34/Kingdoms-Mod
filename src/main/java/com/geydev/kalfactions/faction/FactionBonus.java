@@ -12,7 +12,8 @@ public enum FactionBonus {
     HOOKAH,
     ENCHANTERS,
     MERCHANTS,
-    NOMADS;
+    NOMADS,
+    RESEARCHERS;
 
     public static final List<FactionBonus> SELECTABLE = List.of(
             MINERS,
@@ -22,7 +23,8 @@ public enum FactionBonus {
             HOOKAH,
             ENCHANTERS,
             MERCHANTS,
-            NOMADS
+            NOMADS,
+            RESEARCHERS
     );
 
     public double oreBonusChance() {

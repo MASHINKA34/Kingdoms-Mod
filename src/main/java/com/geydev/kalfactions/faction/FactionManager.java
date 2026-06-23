@@ -881,7 +881,7 @@ public final class FactionManager extends SavedData {
         int completed = 0;
         for (Faction faction : factions.values()) {
             Optional<Faction.ActiveResearch> active = faction.activeResearch();
-            if (active.isEmpty() || !active.get().isComplete(nowMillis)) {
+            if (active.isEmpty() || nowMillis < faction.researchEndMillis(active.get())) {
                 continue;
             }
             ResearchNode node = active.get().node();

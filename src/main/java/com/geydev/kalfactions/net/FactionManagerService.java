@@ -86,7 +86,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 faction.emblemUrl(),
                 researchNames(faction),
                 faction.activeResearch().map(active -> active.node().name()).orElse(""),
-                faction.activeResearch().map(Faction.ActiveResearch::endMillis).orElse(0L),
+                faction.activeResearch().map(faction::researchEndMillis).orElse(0L),
                 pendingWarSpoils(player, faction),
                 faction.claimCount(),
                 faction.forceLoadedCount()

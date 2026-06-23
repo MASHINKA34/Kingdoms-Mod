@@ -249,6 +249,8 @@
   "kingdoms.bonus.merchants.desc": "Лучшие цены скупщика и доход казны",
   "kingdoms.bonus.nomads": "Цыгане",
   "kingdoms.bonus.nomads.desc": "Повышенная скорость маунтов",
+  "kingdoms.bonus.researchers": "Исследователи",
+  "kingdoms.bonus.researchers.desc": "Исследования идут на 20% быстрее",
   "kingdoms.error.bonus_selection": "Выберите два разных бонуса.",
   "kingdoms.command.faction.emblem.saved": "Герб обновлён.",
   "screen.kingdoms.save": "Сохранить",

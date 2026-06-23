@@ -390,6 +390,19 @@ public final class Faction {
         return multiplier;
     }
 
+    public long researchDurationMillis(ResearchNode node) {
+        long duration = node.durationMillis();
+        if (!hasBonus(FactionBonus.RESEARCHERS)) {
+            return duration;
+        }
+        double speed = 1.0D + ModConfigSpec.RESEARCHER_RESEARCH_SPEED_BONUS.getAsDouble();
+        return Math.max(1L, (long) Math.ceil(duration / Math.max(0.0001D, speed)));
+    }
+
+    public long researchEndMillis(ActiveResearch active) {
+        return active.startMillis() + researchDurationMillis(active.node());
+    }
+
     public boolean isResearchAvailable(ResearchNode node) {
         if (completedResearch.contains(node)) {
             return false;
@@ -817,17 +830,6 @@ public final class Faction {
     }
 
     public record ActiveResearch(ResearchNode node, long startMillis) {
-        public long endMillis() {
-            return startMillis + node.durationMillis();
-        }
-
-        public boolean isComplete(long nowMillis) {
-            return nowMillis >= endMillis();
-        }
-
-        public long remainingMillis(long nowMillis) {
-            return Math.max(0L, endMillis() - nowMillis);
-        }
     }
 
     public record Outpost(UUID id, ResourceKey<Level> dimension, BlockPos core, Set<ClaimKey> chunks) {

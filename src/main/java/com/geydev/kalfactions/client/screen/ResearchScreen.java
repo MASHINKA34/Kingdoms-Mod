@@ -212,7 +212,7 @@ public final class ResearchScreen extends FactionScreen {
         graphics.blit(texture, x, y, size, size, 0.0F, 0.0F, sourceSize, sourceSize, sourceSize, sourceSize);
         if (nodeState == NodeState.ACTIVE) {
             long remaining = Math.max(0L, snapshot.activeResearchEndMillis() - System.currentTimeMillis());
-            long duration = Math.max(1L, node.durationMillis());
+            long duration = Math.max(1L, effectiveDurationMillis(node));
             float fraction = Math.clamp((duration - remaining) / (float) duration, 0.0F, 1.0F);
             int barWidth = 42;
             int barX = screenX(node) - barWidth / 2;
@@ -241,7 +241,7 @@ public final class ResearchScreen extends FactionScreen {
                 "screen.kingdoms.research_cost",
                 selectedNode.cost(),
                 text(selectedNode.type().translationKey()),
-                selectedNode.durationHours()
+                effectiveDurationHours(selectedNode)
         );
         graphics.drawString(font, name, left + TREE_LEFT, top + 218, 0xFFFFE8AA, true);
         graphics.drawString(font, cost, left + TREE_LEFT + 150, top + 218, 0xFFD7C57C, true);
@@ -284,7 +284,7 @@ public final class ResearchScreen extends FactionScreen {
         graphics.blit(iconFor(node.type()), x + 10, lineY - 2, 12, 12, 0.0F, 0.0F, 16, 16, 16, 16);
         graphics.drawString(
                 font,
-                text("screen.kingdoms.research_cost_short", node.cost(), node.durationHours()),
+                text("screen.kingdoms.research_cost_short", node.cost(), effectiveDurationHours(node)),
                 x + 26,
                 lineY,
                 0xFFE6CE7E,
@@ -438,6 +438,19 @@ public final class ResearchScreen extends FactionScreen {
             return text("screen.kingdoms.research_duration.minutes", minutes);
         }
         return text("screen.kingdoms.research_duration.seconds", remainingSeconds);
+    }
+
+    private long effectiveDurationMillis(ResearchNode node) {
+        long duration = node.durationMillis();
+        if (!snapshot.bonuses().contains("RESEARCHERS")) {
+            return duration;
+        }
+        double speed = 1.0D + ModConfigSpec.RESEARCHER_RESEARCH_SPEED_BONUS.getAsDouble();
+        return Math.max(1L, (long) Math.ceil(duration / Math.max(0.0001D, speed)));
+    }
+
+    private int effectiveDurationHours(ResearchNode node) {
+        return Math.max(1, (int) Math.ceil(effectiveDurationMillis(node) / 3_600_000.0D));
     }
 
     private static String signedPercent(int value) {

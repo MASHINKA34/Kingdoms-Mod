@@ -162,6 +162,7 @@ public final class FactionCreateScreen extends FactionScreen {
             case ENCHANTERS -> 0x4A90BF;
             case MERCHANTS -> 0xD4B23C;
             case NOMADS -> 0xC77D3A;
+            case RESEARCHERS -> 0x39C6C8;
         };
     }
 
