@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.bonus;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.protection.FactionAccess;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
@@ -41,9 +42,7 @@ public final class EnchanterBonusHandler {
         }
 
         ItemStack result = left.copy();
-        long baseCost = event.getCost()
-                + left.getOrDefault(DataComponents.REPAIR_COST, 0)
-                + right.getOrDefault(DataComponents.REPAIR_COST, 0);
+        long baseCost = priorWorkCost(left) + priorWorkCost(right);
         long operationCost = 0L;
         int materialCost = 0;
 
@@ -93,7 +92,7 @@ public final class EnchanterBonusHandler {
                         anvilCost = Math.max(1, anvilCost / 2);
                     }
                     operationCost = Mth.clamp(
-                            operationCost + (long) anvilCost * targetLevel,
+                            operationCost + (long) anvilCost * enchantLevelCost(targetLevel),
                             0L,
                             Integer.MAX_VALUE
                     );
@@ -132,9 +131,22 @@ public final class EnchanterBonusHandler {
             result.set(DataComponents.REPAIR_COST, AnvilMenu.calculateIncreasedRepairCost(repairCost));
         }
 
-        event.setCost(Mth.clamp(baseCost + operationCost, 1L, Integer.MAX_VALUE));
+        event.setCost(Mth.clamp(baseCost + operationCost, 1L, ModConfigSpec.ENCHANTER_ANVIL_MAX_COST.getAsInt()));
         event.setMaterialCost(materialCost);
         return result;
+    }
+
+    private static int priorWorkCost(ItemStack stack) {
+        int repairCost = Math.max(0, stack.getOrDefault(DataComponents.REPAIR_COST, 0));
+        if (repairCost <= 0) {
+            return 0;
+        }
+        int cost = Integer.SIZE - Integer.numberOfLeadingZeros(repairCost);
+        return Math.min(cost, ModConfigSpec.ENCHANTER_PRIOR_WORK_MAX_COST.getAsInt());
+    }
+
+    private static int enchantLevelCost(int level) {
+        return Math.min(Math.max(1, level), ModConfigSpec.ENCHANTER_LEVEL_COST_CAP.getAsInt());
     }
 
     private EnchanterBonusHandler() {

@@ -11,6 +11,7 @@ import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 
 public final class SelectEntryScreen extends Screen {
@@ -33,9 +34,11 @@ public final class SelectEntryScreen extends Screen {
     }
 
     private static final int PANEL_WIDTH = 240;
-    private static final int ROW_HEIGHT = 42;
+    private static final int ROW_HEIGHT = 26;
     private static final int VISIBLE_ROWS = 5;
     private static final int LIST_TOP_OFFSET = 26;
+    private static final int ICON_SIZE = 22;
+    private static final int SCROLLBAR_WIDTH = 4;
 
     private final Screen parent;
     private final List<Entry> entries;
@@ -46,6 +49,7 @@ public final class SelectEntryScreen extends Screen {
     private int panelTop;
     private int panelHeight;
     private int scrollOffset;
+    private boolean scrollBarDragging;
     private String noticeText = "";
     private long noticeShownAt;
 
@@ -85,7 +89,7 @@ public final class SelectEntryScreen extends Screen {
         int titleWidth = font.width(title);
         graphics.drawString(font, title, panelLeft + (PANEL_WIDTH - titleWidth) / 2, panelTop + 9, 0xFFF3D58B, true);
 
-        int shown = Math.min(VISIBLE_ROWS, entries.size() - scrollOffset);
+        int shown = visibleEntryCount();
         for (int index = 0; index < shown; index++) {
             renderRow(graphics, entries.get(scrollOffset + index), rowTop(index), mouseX, mouseY);
         }
@@ -94,22 +98,19 @@ public final class SelectEntryScreen extends Screen {
             graphics.drawString(font, empty, panelLeft + (PANEL_WIDTH - font.width(empty)) / 2,
                     panelTop + LIST_TOP_OFFSET + 8, 0xFF8E8B83, true);
         }
-        if (entries.size() > VISIBLE_ROWS) {
-            String pager = (scrollOffset + 1) + "–" + (scrollOffset + shown) + " / " + entries.size();
-            graphics.drawString(font, pager, panelLeft + PANEL_WIDTH - 12 - font.width(pager),
-                    panelTop + 10, 0xFF9A8F7A, true);
-        }
+        renderScrollbar(graphics);
 
         if (!noticeText.isEmpty() && System.currentTimeMillis() - noticeShownAt < 2200L) {
-            int textWidth = font.width(noticeText);
-            graphics.drawString(font, noticeText, panelLeft + (PANEL_WIDTH - textWidth) / 2,
+            String clipped = font.plainSubstrByWidth(noticeText, PANEL_WIDTH - 16);
+            int textWidth = font.width(clipped);
+            graphics.drawString(font, clipped, panelLeft + (PANEL_WIDTH - textWidth) / 2,
                     panelTop + panelHeight - 40, 0xFFE89090, true);
         }
     }
 
     private void renderRow(GuiGraphics graphics, Entry entry, int rowTop, int mouseX, int mouseY) {
         int rowLeft = panelLeft + 8;
-        int rowRight = panelLeft + PANEL_WIDTH - 8;
+        int rowRight = listRight();
         boolean hovered = entry.enabled()
                 && mouseX >= rowLeft && mouseX < rowRight
                 && mouseY >= rowTop && mouseY < rowTop + ROW_HEIGHT - 2;
@@ -120,7 +121,7 @@ public final class SelectEntryScreen extends Screen {
             PlayerSkin skin = resolveSkin(entry.skinName());
             PlayerFaceRenderer.draw(graphics, skin, rowLeft + 4, rowTop + 4, 16);
         } else if (entry.icon() != null) {
-            graphics.blit(entry.icon(), rowLeft + 4, rowTop + 4, 32, 32,
+            graphics.blit(entry.icon(), rowLeft + 3, rowTop + 2, ICON_SIZE, ICON_SIZE,
                     0, 0, 64, 64, 64, 64);
         } else {
             graphics.fill(rowLeft + 4, rowTop + 4, rowLeft + 20, rowTop + 20, 0xFF1A140C);
@@ -128,11 +129,29 @@ public final class SelectEntryScreen extends Screen {
         }
 
         int nameColor = entry.enabled() ? 0xFFFFFFFF : 0xFF8E8B83;
-        int textX = entry.icon() == null ? rowLeft + 26 : rowLeft + 42;
-        graphics.drawString(font, entry.value(), textX, rowTop + 6, nameColor, true);
+        int textX = entry.icon() == null ? rowLeft + 26 : rowLeft + 32;
+        int textWidth = Math.max(20, rowRight - textX - 4);
+        graphics.drawString(font, font.plainSubstrByWidth(entry.value(), textWidth), textX, rowTop + 3, nameColor, true);
         if (entry.subtitle() != null) {
-            graphics.drawString(font, entry.subtitle(), textX, rowTop + 20, 0xFF9A8F7A, true);
+            List<FormattedCharSequence> lines = font.split(entry.subtitle(), textWidth);
+            if (!lines.isEmpty()) {
+                graphics.drawString(font, lines.get(0), textX, rowTop + 14, 0xFF9A8F7A, true);
+            }
         }
+    }
+
+    private void renderScrollbar(GuiGraphics graphics) {
+        if (!hasScrollbar()) {
+            return;
+        }
+        int trackLeft = panelLeft + PANEL_WIDTH - 12;
+        int trackTop = listTop();
+        int trackBottom = listBottom() - 2;
+        int trackRight = trackLeft + SCROLLBAR_WIDTH;
+        graphics.fill(trackLeft, trackTop, trackRight, trackBottom, 0x44000000);
+        int thumbTop = scrollbarThumbTop();
+        int thumbHeight = scrollbarThumbHeight();
+        graphics.fill(trackLeft, thumbTop, trackRight, thumbTop + thumbHeight, 0xFFC9A24C);
     }
 
     private PlayerSkin resolveSkin(String playerName) {
@@ -148,10 +167,17 @@ public final class SelectEntryScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0) {
-            int shown = Math.min(VISIBLE_ROWS, entries.size() - scrollOffset);
+            if (hasScrollbar() && mouseX >= panelLeft + PANEL_WIDTH - 14 && mouseX <= panelLeft + PANEL_WIDTH - 6
+                    && mouseY >= listTop() && mouseY <= listBottom()) {
+                scrollBarDragging = true;
+                updateScrollFromMouse(mouseY);
+                return true;
+            }
+
+            int shown = visibleEntryCount();
             for (int index = 0; index < shown; index++) {
                 int rowTop = rowTop(index);
-                if (mouseX >= panelLeft + 8 && mouseX < panelLeft + PANEL_WIDTH - 8
+                if (mouseX >= panelLeft + 8 && mouseX < listRight()
                         && mouseY >= rowTop && mouseY < rowTop + ROW_HEIGHT - 2) {
                     Entry entry = entries.get(scrollOffset + index);
                     if (!entry.enabled()) {
@@ -166,6 +192,24 @@ public final class SelectEntryScreen extends Screen {
             }
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (button == 0 && scrollBarDragging) {
+            scrollBarDragging = false;
+            return true;
+        }
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        if (button == 0 && scrollBarDragging) {
+            updateScrollFromMouse(mouseY);
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
     }
 
     @Override
@@ -197,6 +241,46 @@ public final class SelectEntryScreen extends Screen {
 
     private int rowTop(int visibleIndex) {
         return panelTop + LIST_TOP_OFFSET + visibleIndex * ROW_HEIGHT;
+    }
+
+    private int listTop() {
+        return panelTop + LIST_TOP_OFFSET;
+    }
+
+    private int listBottom() {
+        return listTop() + Math.min(VISIBLE_ROWS, Math.max(1, entries.size())) * ROW_HEIGHT;
+    }
+
+    private int listRight() {
+        return panelLeft + PANEL_WIDTH - (hasScrollbar() ? 18 : 8);
+    }
+
+    private int visibleEntryCount() {
+        return Math.min(VISIBLE_ROWS, Math.max(0, entries.size() - scrollOffset));
+    }
+
+    private boolean hasScrollbar() {
+        return entries.size() > VISIBLE_ROWS;
+    }
+
+    private int scrollbarThumbHeight() {
+        int trackHeight = listBottom() - listTop() - 2;
+        return Math.max(16, trackHeight * VISIBLE_ROWS / entries.size());
+    }
+
+    private int scrollbarThumbTop() {
+        int trackTop = listTop();
+        int trackHeight = listBottom() - listTop() - 2;
+        int travel = Math.max(1, trackHeight - scrollbarThumbHeight());
+        return trackTop + Math.round(travel * (scrollOffset / (float) maxScroll()));
+    }
+
+    private void updateScrollFromMouse(double mouseY) {
+        int trackTop = listTop();
+        int trackHeight = listBottom() - listTop() - 2;
+        int travel = Math.max(1, trackHeight - scrollbarThumbHeight());
+        float progress = Mth.clamp((float) (mouseY - trackTop - scrollbarThumbHeight() / 2.0F) / travel, 0.0F, 1.0F);
+        scrollOffset = Math.clamp(Math.round(progress * maxScroll()), 0, maxScroll());
     }
 
     private int maxScroll() {

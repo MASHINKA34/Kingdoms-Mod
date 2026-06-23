@@ -30,6 +30,9 @@ public final class ModConfigSpec {
     public static final IntValue MERCHANT_TREASURY_INCOME_INTERVAL_HOURS;
     public static final DoubleValue MERCHANT_TREASURY_INCOME_PERCENT;
     public static final DoubleValue NOMAD_MOUNT_SPEED_BONUS;
+    public static final IntValue ENCHANTER_ANVIL_MAX_COST;
+    public static final IntValue ENCHANTER_PRIOR_WORK_MAX_COST;
+    public static final IntValue ENCHANTER_LEVEL_COST_CAP;
     public static final IntValue WAR_ROLLBACK_CHUNKS_PER_TICK;
     public static final LongValue WAR_AUTO_END_TICKS;
     public static final IntValue CLAIM_SYNC_RADIUS_CHUNKS;
@@ -99,6 +102,9 @@ public final class ModConfigSpec {
         MERCHANT_TREASURY_INCOME_INTERVAL_HOURS = builder.defineInRange("merchantTreasuryIncomeIntervalHours", 50, 1, 8760);
         MERCHANT_TREASURY_INCOME_PERCENT = builder.defineInRange("merchantTreasuryIncomePercent", 0.15D, 0D, 100D);
         NOMAD_MOUNT_SPEED_BONUS = builder.defineInRange("nomadMountSpeedBonus", 0.15D, 0D, 10D);
+        ENCHANTER_ANVIL_MAX_COST = builder.defineInRange("enchanterAnvilMaxCost", 60, 1, Integer.MAX_VALUE);
+        ENCHANTER_PRIOR_WORK_MAX_COST = builder.defineInRange("enchanterPriorWorkMaxCost", 12, 0, Integer.MAX_VALUE);
+        ENCHANTER_LEVEL_COST_CAP = builder.defineInRange("enchanterLevelCostCap", 12, 1, Integer.MAX_VALUE);
         builder.pop();
 
         builder.push("raids");
