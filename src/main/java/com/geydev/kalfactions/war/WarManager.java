@@ -97,12 +97,18 @@ public final class WarManager extends SavedData {
 
     /** Whole hours left on the declare-war cooldown (rounded up), or 0 if none. */
     public synchronized long declareCooldownRemainingHours(UUID factionId) {
+        long seconds = declareCooldownRemainingSeconds(factionId);
+        return seconds <= 0L ? 0L : (seconds + 3_599L) / 3_600L;
+    }
+
+    /** Seconds left on the declare-war cooldown, or 0 if none. */
+    public synchronized long declareCooldownRemainingSeconds(UUID factionId) {
         Long until = attackerCooldownUntil.get(factionId);
         if (until == null) {
             return 0L;
         }
         long remaining = until - System.currentTimeMillis();
-        return remaining <= 0L ? 0L : (remaining + 3_599_999L) / 3_600_000L;
+        return remaining <= 0L ? 0L : remaining / 1000L;
     }
 
     /**

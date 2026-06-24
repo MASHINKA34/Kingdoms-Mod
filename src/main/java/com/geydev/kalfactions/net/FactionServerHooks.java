@@ -883,6 +883,7 @@ public final class FactionServerHooks {
                 snapshot.viewerId(),
                 snapshot.isOfficer(),
                 snapshot.warWith(),
+                snapshot.warDeclareCooldownSeconds(),
                 snapshot.knownFactions(),
                 snapshot.allianceCandidates(),
                 snapshot.allies(),

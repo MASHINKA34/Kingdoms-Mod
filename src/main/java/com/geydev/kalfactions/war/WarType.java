@@ -14,7 +14,7 @@ public enum WarType {
     LIBERATION,
     PLUNDER,
     BORDER_DISPUTE,
-    VENGEANCE;
+    PROTECTORATE;
 
     public static final WarType DEFAULT = CONQUEST;
 

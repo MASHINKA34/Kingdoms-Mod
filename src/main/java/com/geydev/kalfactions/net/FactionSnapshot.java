@@ -30,6 +30,7 @@ public record FactionSnapshot(
         UUID viewerId,
         boolean isOfficer,
         String warWith,
+        long warDeclareCooldownSeconds,
         List<String> knownFactions,
         List<String> allianceCandidates,
         List<String> allies,
@@ -81,6 +82,7 @@ public record FactionSnapshot(
         creationCost = Math.max(0L, creationCost);
         viewerId = viewerId == null ? NO_FACTION : viewerId;
         warWith = limit(warWith, 32);
+        warDeclareCooldownSeconds = Math.max(0L, warDeclareCooldownSeconds);
         knownFactions = knownFactions == null ? List.of() : List.copyOf(knownFactions);
         allianceCandidates = allianceCandidates == null ? List.of() : List.copyOf(allianceCandidates);
         allies = allies == null ? List.of() : List.copyOf(allies);
@@ -102,7 +104,7 @@ public record FactionSnapshot(
                 tablePos, NO_FACTION, "", "", 0x4E7A42, false, false,
                 centerChunkX, centerChunkZ, 6, List.of(), List.of(),
                 0L, 0L, 0L, 0L, 0L, false, creationCost, NO_FACTION, false,
-                "", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), "",
+                "", 0L, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), "",
                 List.of(), "", 0L, WarSpoils.EMPTY, 0, 0
         );
     }
@@ -153,6 +155,7 @@ public record FactionSnapshot(
         buffer.writeUUID(snapshot.viewerId);
         buffer.writeBoolean(snapshot.isOfficer);
         buffer.writeUtf(snapshot.warWith, 32);
+        buffer.writeLong(snapshot.warDeclareCooldownSeconds);
         writeBoundedList(
                 buffer,
                 snapshot.knownFactions,
@@ -222,6 +225,7 @@ public record FactionSnapshot(
         UUID viewerId = buffer.readUUID();
         boolean isOfficer = buffer.readBoolean();
         String warWith = buffer.readUtf(32);
+        long warDeclareCooldownSeconds = buffer.readLong();
         List<String> knownFactions = readBoundedList(
                 buffer,
                 MAX_KNOWN_FACTIONS,
@@ -257,7 +261,7 @@ public record FactionSnapshot(
                 centerChunkX, centerChunkZ, mapRadius, members, claims,
                 treasury, influence, influenceScience, influenceEconomic, influenceMilitary,
                 internalPvp, creationCost, viewerId, isOfficer,
-                warWith, knownFactions, allianceCandidates, allies, joinableAllies,
+                warWith, warDeclareCooldownSeconds, knownFactions, allianceCandidates, allies, joinableAllies,
                 onlinePlayers, bonuses, emblem, emblemUrl,
                 completedResearch, activeResearchNode, activeResearchEndMillis, pendingWarSpoils,
                 claimCount, forceLoadUsed

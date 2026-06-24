@@ -76,6 +76,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 player.getUUID(),
                 role.isAtLeast(FactionRole.OFFICER),
                 activeWarName(player, manager, faction),
+                WarManager.get(player.getServer()).declareCooldownRemainingSeconds(faction.id()),
                 warTargetNames(manager, faction),
                 allianceCandidateNames(player, manager, faction),
                 allies,

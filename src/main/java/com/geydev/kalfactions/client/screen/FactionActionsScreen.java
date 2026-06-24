@@ -76,9 +76,14 @@ public final class FactionActionsScreen extends FactionScreen {
             nextDiplomacyY += 24;
         }
 
+        long warCooldown = snapshot.warDeclareCooldownSeconds();
+        Component declareLabel = warCooldown > 0L
+                ? Component.translatable("screen.kingdoms.war_declare_cooldown",
+                        CooldownNoticeScreen.compactRemaining(warCooldown))
+                : text("screen.kingdoms.war_declare");
         KingdomsButton declareWar = addRenderableWidget(KingdomsButton.create(
-                text("screen.kingdoms.war_declare"),
-                button -> openWarPicker(),
+                declareLabel,
+                button -> onDeclareWar(),
                 rightColumn, nextDiplomacyY, columnWidth, 20
         ));
         declareWar.active = snapshot.canManage() && !hasActiveWar && !snapshot.knownFactions().isEmpty();
@@ -159,6 +164,14 @@ public final class FactionActionsScreen extends FactionScreen {
                 entry -> PacketDistributor.sendToServer(
                         new FactionPayloads.C2STransferLeadership(snapshot.tablePos(), entry.value()))
         ));
+    }
+
+    private void onDeclareWar() {
+        if (snapshot.warDeclareCooldownSeconds() > 0L) {
+            minecraft.setScreen(new CooldownNoticeScreen(this, snapshot.warDeclareCooldownSeconds()));
+        } else {
+            openWarPicker();
+        }
     }
 
     private void openWarPicker() {
