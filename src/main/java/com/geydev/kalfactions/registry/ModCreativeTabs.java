@@ -21,6 +21,7 @@ public final class ModCreativeTabs {
                     .icon(() -> ModItems.ACCESS_TOOL.get().getDefaultInstance())
                     .displayItems((parameters, output) -> {
                         output.accept(ModItems.FACTION_TABLE.get());
+                        output.accept(ModItems.WAR_ARCHIVE.get());
                         output.accept(ModItems.ACCESS_TOOL.get());
                         output.accept(ModItems.OUTPOST_CHARTER.get());
                         output.accept(ModItems.DRILL.get());

@@ -29,6 +29,7 @@ public final class War {
     private static final String TAG_TYPE = "type";
     private static final String TAG_REASON = "reason";
     private static final String TAG_START_TIME = "startGameTime";
+    private static final String TAG_START_EPOCH = "startEpochMillis";
     public static final int MAX_REASON_LENGTH = 120;
     private static final String TAG_ATTACKER_POINTS = "attackerPoints";
     private static final String TAG_DEFENDER_POINTS = "defenderPoints";
@@ -44,6 +45,7 @@ public final class War {
     private final WarType type;
     private final String reason;
     private final long startGameTime;
+    private final long startEpochMillis;
     private final Map<ClaimKey, WarChunkSnapshot> snapshots;
     private State state;
     private long attackerPoints;
@@ -58,8 +60,21 @@ public final class War {
         State state,
         long startGameTime
     ) {
+        this(id, attackerFactionId, defenderFactionId, type, reason, state, startGameTime, System.currentTimeMillis());
+    }
+
+    public War(
+        UUID id,
+        UUID attackerFactionId,
+        UUID defenderFactionId,
+        WarType type,
+        String reason,
+        State state,
+        long startGameTime,
+        long startEpochMillis
+    ) {
         this(id, attackerFactionId, defenderFactionId, singletonSide(attackerFactionId), singletonSide(defenderFactionId),
-            type, reason, state, startGameTime, new LinkedHashMap<>());
+            type, reason, state, startGameTime, startEpochMillis, new LinkedHashMap<>());
     }
 
     private War(
@@ -72,6 +87,7 @@ public final class War {
         String reason,
         State state,
         long startGameTime,
+        long startEpochMillis,
         Map<ClaimKey, WarChunkSnapshot> snapshots
     ) {
         this.id = Objects.requireNonNull(id, "id");
@@ -85,6 +101,7 @@ public final class War {
         this.reason = sanitizeReason(reason);
         this.state = Objects.requireNonNull(state, "state");
         this.startGameTime = startGameTime;
+        this.startEpochMillis = Math.max(0L, startEpochMillis);
         this.snapshots = snapshots;
     }
 
@@ -149,6 +166,10 @@ public final class War {
 
     public long startGameTime() {
         return startGameTime;
+    }
+
+    public long startEpochMillis() {
+        return startEpochMillis;
     }
 
     public boolean isActive() {
@@ -285,6 +306,7 @@ public final class War {
         tag.putString(TAG_REASON, reason);
         tag.putString(TAG_STATE, state.name());
         tag.putLong(TAG_START_TIME, startGameTime);
+        tag.putLong(TAG_START_EPOCH, startEpochMillis);
         tag.putLong(TAG_ATTACKER_POINTS, attackerPoints);
         tag.putLong(TAG_DEFENDER_POINTS, defenderPoints);
 
@@ -351,6 +373,7 @@ public final class War {
             tag.getString(TAG_REASON),
             state,
             tag.getLong(TAG_START_TIME),
+            tag.contains(TAG_START_EPOCH, Tag.TAG_LONG) ? tag.getLong(TAG_START_EPOCH) : System.currentTimeMillis(),
             snapshots
         );
         war.setPointsRaw(tag.getLong(TAG_ATTACKER_POINTS), tag.getLong(TAG_DEFENDER_POINTS));

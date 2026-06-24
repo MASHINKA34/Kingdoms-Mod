@@ -11,8 +11,11 @@ import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.FactionMember;
 import com.geydev.kalfactions.integration.IntegrationManager;
+import com.geydev.kalfactions.registry.ModBlocks;
 import com.geydev.kalfactions.war.War;
+import com.geydev.kalfactions.war.WarHistory;
 import com.geydev.kalfactions.war.WarManager;
+import com.geydev.kalfactions.war.WarRecord;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -75,6 +78,19 @@ public final class FactionServerHooks {
                     Component.translatable("kingdoms.error.faction_data_unavailable")
             );
         }
+    }
+
+    public static void openWarArchive(ServerPlayer player, BlockPos archivePos) {
+        Validation validation = validateWarArchive(player, archivePos, true);
+        if (!validation.allowed) {
+            sendNotice(player, validation.message, false);
+            return;
+        }
+        List<FactionPayloads.WarRecordView> records = WarHistory.get(player.getServer()).records().stream()
+                .limit(FactionPayloads.S2CWarArchive.MAX_RECORDS)
+                .map(FactionServerHooks::warRecordView)
+                .toList();
+        PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CWarArchive(records));
     }
 
     public static void create(
@@ -843,6 +859,51 @@ public final class FactionServerHooks {
             }
         }
         return Validation.ALLOW;
+    }
+
+    private static Validation validateWarArchive(ServerPlayer player, BlockPos archivePos, boolean rateLimited) {
+        if (!player.isAlive() || player.isSpectator()) {
+            return Validation.deny(Component.translatable("kingdoms.error.table_unavailable_now"));
+        }
+        if (!player.level().isLoaded(archivePos)) {
+            return Validation.deny(Component.translatable("kingdoms.error.table_not_loaded"));
+        }
+        if (player.distanceToSqr(archivePos.getX() + 0.5D, archivePos.getY() + 0.5D, archivePos.getZ() + 0.5D)
+                > MAX_TABLE_DISTANCE_SQR) {
+            return Validation.deny(Component.translatable("kingdoms.error.table_too_far"));
+        }
+        if (!player.level().getBlockState(archivePos).is(ModBlocks.WAR_ARCHIVE.get())) {
+            return Validation.deny(Component.translatable("kingdoms.error.not_war_archive"));
+        }
+        if (rateLimited) {
+            long now = player.level().getGameTime();
+            Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+            if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
+                return Validation.deny(Component.translatable("kingdoms.error.action_rate_limited"));
+            }
+        }
+        return Validation.ALLOW;
+    }
+
+    private static FactionPayloads.WarRecordView warRecordView(WarRecord record) {
+        return new FactionPayloads.WarRecordView(
+                record.id(),
+                record.type().id(),
+                record.reason(),
+                record.attackerLeadName(),
+                record.attackerAllies(),
+                record.defenderLeadName(),
+                record.defenderAllies(),
+                record.outcome().name(),
+                record.winnerName(),
+                record.loserName(),
+                record.attackerPoints(),
+                record.defenderPoints(),
+                record.militaryInfluenceReward(),
+                record.lootSpoilsAvailable(),
+                record.startedAtMillis(),
+                record.endedAtMillis()
+        );
     }
 
     private static String normalizeName(String value) {

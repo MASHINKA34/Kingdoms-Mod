@@ -13,7 +13,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class FactionNetwork {
-    private static final String PROTOCOL_VERSION = "3";
+    private static final String PROTOCOL_VERSION = "4";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -22,6 +22,11 @@ public final class FactionNetwork {
                 FactionPayloads.C2SOpenTable.TYPE,
                 FactionPayloads.C2SOpenTable.STREAM_CODEC,
                 FactionNetwork::handleOpen
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SOpenWarArchive.TYPE,
+                FactionPayloads.C2SOpenWarArchive.STREAM_CODEC,
+                FactionNetwork::handleOpenWarArchive
         );
         registrar.playToServer(
                 FactionPayloads.C2SCreateFaction.TYPE,
@@ -174,6 +179,11 @@ public final class FactionNetwork {
                 FactionNetwork::handleFactionList
         );
         registrar.playToClient(
+                FactionPayloads.S2CWarArchive.TYPE,
+                FactionPayloads.S2CWarArchive.STREAM_CODEC,
+                FactionNetwork::handleWarArchive
+        );
+        registrar.playToClient(
                 FactionPayloads.S2CChestAccessState.TYPE,
                 FactionPayloads.S2CChestAccessState.STREAM_CODEC,
                 FactionNetwork::handleChestAccessState
@@ -207,6 +217,10 @@ public final class FactionNetwork {
 
     private static void handleOpen(FactionPayloads.C2SOpenTable payload, IPayloadContext context) {
         FactionServerHooks.openFor(serverPlayer(context), payload.tablePos(), payload.silent());
+    }
+
+    private static void handleOpenWarArchive(FactionPayloads.C2SOpenWarArchive payload, IPayloadContext context) {
+        FactionServerHooks.openWarArchive(serverPlayer(context), payload.archivePos());
     }
 
     private static void handleCreate(FactionPayloads.C2SCreateFaction payload, IPayloadContext context) {
@@ -373,6 +387,12 @@ public final class FactionNetwork {
     private static void handleFactionList(FactionPayloads.S2CFactionList payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientFactionPayloadHandler.handleFactionList(payload);
+        }
+    }
+
+    private static void handleWarArchive(FactionPayloads.S2CWarArchive payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientFactionPayloadHandler.handleWarArchive(payload);
         }
     }
 

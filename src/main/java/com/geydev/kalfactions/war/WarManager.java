@@ -364,19 +364,26 @@ public final class WarManager extends SavedData {
     }
 
     private void concludeWar(MinecraftServer server, War war, UUID winnerId) {
-        if (!war.isActive() || winnerId == null) {
+        if (!war.isActive()) {
+            beginRollback(server, war);
+            return;
+        }
+        if (winnerId == null) {
+            recordDraw(server, war);
             beginRollback(server, war);
             return;
         }
         War.Side winningSide = war.sideOf(winnerId);
         if (winningSide == null) {
+            recordDraw(server, war);
             beginRollback(server, war);
             return;
         }
         UUID winnerLead = war.leadOf(winningSide);
         UUID loserLead = war.opponentOf(winnerLead);
         Set<UUID> winningFactions = winningSide == War.Side.ATTACKER ? war.attackerSide() : war.defenderSide();
-        prepareSpoils(server, war.id(), winnerLead, loserLead, winningFactions);
+        boolean lootSpoilsAvailable = prepareSpoils(server, war.id(), winnerLead, loserLead, winningFactions);
+        recordVictory(server, war, winningSide, lootSpoilsAvailable);
         broadcastToServer(server, Component.translatable(
             "kingdoms.war.victory_broadcast",
             factionName(server, winnerLead),
@@ -385,7 +392,7 @@ public final class WarManager extends SavedData {
         beginRollback(server, war);
     }
 
-    private void prepareSpoils(
+    private boolean prepareSpoils(
             MinecraftServer server,
             UUID spoilsId,
             UUID winnerId,
@@ -408,7 +415,7 @@ public final class WarManager extends SavedData {
             }
         }
         if (factions.getFactionById(winnerId).isEmpty() || factions.getFactionById(loserId).isEmpty()) {
-            return;
+            return false;
         }
         PendingSpoils spoils = new PendingSpoils(
                 spoilsId,
@@ -418,6 +425,7 @@ public final class WarManager extends SavedData {
         );
         pendingSpoils.put(spoilsId, spoils);
         setDirty();
+        return true;
     }
 
     /** Grants influence to a faction and pushes the floating gain indicator to its online members. */
@@ -916,6 +924,7 @@ public final class WarManager extends SavedData {
         }
         UUID opponent = war.opponentOf(factionId);
         if (war.isLead(factionId)) {
+            recordDraw(server, war);
             beginRollback(server, war);
         } else {
             withdrawParticipant(server, war, factionId);
@@ -955,6 +964,7 @@ public final class WarManager extends SavedData {
                     || factions.getFactionById(war.defenderFactionId()).isEmpty();
                 boolean timedOut = autoEndTicks > 0L && now - war.startGameTime() >= autoEndTicks;
                 if (factionsGone) {
+                    recordDraw(server, war);
                     beginRollback(server, war);
                 } else if (timedOut) {
                     concludeWar(server, war, timeoutWinner(war));
@@ -1025,6 +1035,74 @@ public final class WarManager extends SavedData {
             return war.defenderFactionId();
         }
         return null;
+    }
+
+    private void recordVictory(MinecraftServer server, War war, War.Side winningSide, boolean lootSpoilsAvailable) {
+        UUID winnerLead = war.leadOf(winningSide);
+        UUID loserLead = war.opponentOf(winnerLead);
+        Set<UUID> winningFactions = winningSide == War.Side.ATTACKER ? war.attackerSide() : war.defenderSide();
+        addHistoryRecord(server, war, WarRecord.Outcome.VICTORY, winnerLead, loserLead,
+                safeMultiply(ModConfigSpec.INFLUENCE_WAR_WIN_INFLUENCE.getAsLong(), winningFactions.size()),
+                lootSpoilsAvailable);
+    }
+
+    private void recordDraw(MinecraftServer server, War war) {
+        addHistoryRecord(server, war, WarRecord.Outcome.DRAW, null, null, 0L, false);
+    }
+
+    private void addHistoryRecord(
+            MinecraftServer server,
+            War war,
+            WarRecord.Outcome outcome,
+            UUID winnerId,
+            UUID loserId,
+            long militaryInfluenceReward,
+            boolean lootSpoilsAvailable
+    ) {
+        WarHistory.get(server).add(new WarRecord(
+                war.id(),
+                war.type(),
+                war.reason(),
+                factionNameText(server, war.attackerFactionId()),
+                sideAllyNames(server, war.attackerSide(), war.attackerFactionId()),
+                factionNameText(server, war.defenderFactionId()),
+                sideAllyNames(server, war.defenderSide(), war.defenderFactionId()),
+                outcome,
+                factionNameText(server, winnerId),
+                factionNameText(server, loserId),
+                war.attackerPoints(),
+                war.defenderPoints(),
+                militaryInfluenceReward,
+                lootSpoilsAvailable,
+                war.startEpochMillis(),
+                System.currentTimeMillis()
+        ));
+    }
+
+    private static List<String> sideAllyNames(MinecraftServer server, Set<UUID> side, UUID leadId) {
+        List<String> names = new ArrayList<>();
+        for (UUID factionId : side) {
+            if (!factionId.equals(leadId)) {
+                names.add(factionNameText(server, factionId));
+            }
+        }
+        return List.copyOf(names);
+    }
+
+    private static String factionNameText(MinecraftServer server, UUID factionId) {
+        if (factionId == null) {
+            return "";
+        }
+        return FactionManager.get(server).getFactionById(factionId)
+                .map(Faction::name)
+                .orElse("Disbanded " + factionId.toString().substring(0, 8));
+    }
+
+    private static long safeMultiply(long value, int multiplier) {
+        if (value <= 0L || multiplier <= 0) {
+            return 0L;
+        }
+        return value > Long.MAX_VALUE / multiplier ? Long.MAX_VALUE : value * multiplier;
     }
 
     private War warFor(UUID factionId) {

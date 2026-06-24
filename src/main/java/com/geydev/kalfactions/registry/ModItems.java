@@ -18,6 +18,9 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> FACTION_TABLE =
             ITEMS.registerSimpleBlockItem(ModBlocks.FACTION_TABLE);
 
+    public static final DeferredItem<BlockItem> WAR_ARCHIVE =
+            ITEMS.registerSimpleBlockItem(ModBlocks.WAR_ARCHIVE);
+
     public static final DeferredItem<AccessTool> ACCESS_TOOL = ITEMS.register(
             "access_tool",
             () -> new AccessTool(new Item.Properties().stacksTo(1))

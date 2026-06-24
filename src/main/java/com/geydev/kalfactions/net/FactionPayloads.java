@@ -5,6 +5,7 @@ import io.netty.handler.codec.DecoderException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -22,6 +23,19 @@ public final class FactionPayloads {
                     buffer.writeBoolean(payload.silent);
                 },
                 buffer -> new C2SOpenTable(buffer.readBlockPos(), buffer.readBoolean())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SOpenWarArchive(BlockPos archivePos) implements CustomPacketPayload {
+        public static final Type<C2SOpenWarArchive> TYPE = FactionPayloads.payloadType("open_war_archive");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SOpenWarArchive> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> buffer.writeBlockPos(payload.archivePos),
+                buffer -> new C2SOpenWarArchive(buffer.readBlockPos())
         );
 
         @Override
@@ -706,6 +720,114 @@ public final class FactionPayloads {
         @Override
         public Type<? extends CustomPacketPayload> type() {
             return TYPE;
+        }
+    }
+
+    public record S2CWarArchive(List<WarRecordView> records) implements CustomPacketPayload {
+        public static final int MAX_RECORDS = 200;
+        public static final Type<S2CWarArchive> TYPE = FactionPayloads.payloadType("war_archive");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CWarArchive> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    int size = Math.min(payload.records.size(), MAX_RECORDS);
+                    buffer.writeVarInt(size);
+                    for (int i = 0; i < size; i++) {
+                        WarRecordView.encode(buffer, payload.records.get(i));
+                    }
+                },
+                buffer -> {
+                    int size = buffer.readVarInt();
+                    if (size < 0 || size > MAX_RECORDS) {
+                        throw new DecoderException("War archive size " + size + " exceeds " + MAX_RECORDS);
+                    }
+                    List<WarRecordView> records = new ArrayList<>(size);
+                    for (int i = 0; i < size; i++) {
+                        records.add(WarRecordView.decode(buffer));
+                    }
+                    return new S2CWarArchive(List.copyOf(records));
+                }
+        );
+
+        public S2CWarArchive {
+            records = records == null ? List.of() : List.copyOf(records);
+        }
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record WarRecordView(
+            UUID id,
+            String typeId,
+            String reason,
+            String attackerLead,
+            List<String> attackerAllies,
+            String defenderLead,
+            List<String> defenderAllies,
+            String outcome,
+            String winnerName,
+            String loserName,
+            long attackerPoints,
+            long defenderPoints,
+            long militaryInfluenceReward,
+            boolean lootSpoilsAvailable,
+            long startedAtMillis,
+            long endedAtMillis
+    ) {
+        public static final int MAX_SIDE_NAMES = 64;
+
+        public WarRecordView {
+            id = id == null ? Util.NIL_UUID : id;
+            typeId = typeId == null ? "" : typeId;
+            reason = reason == null ? "" : reason;
+            attackerLead = attackerLead == null ? "" : attackerLead;
+            attackerAllies = attackerAllies == null ? List.of() : List.copyOf(attackerAllies);
+            defenderLead = defenderLead == null ? "" : defenderLead;
+            defenderAllies = defenderAllies == null ? List.of() : List.copyOf(defenderAllies);
+            outcome = outcome == null ? "" : outcome;
+            winnerName = winnerName == null ? "" : winnerName;
+            loserName = loserName == null ? "" : loserName;
+        }
+
+        private static void encode(RegistryFriendlyByteBuf buffer, WarRecordView view) {
+            buffer.writeUUID(view.id);
+            buffer.writeUtf(view.typeId, 32);
+            buffer.writeUtf(view.reason, com.geydev.kalfactions.war.War.MAX_REASON_LENGTH);
+            buffer.writeUtf(view.attackerLead, FactionServerHooks.MAX_NAME_LENGTH);
+            writeNames(buffer, view.attackerAllies, MAX_SIDE_NAMES);
+            buffer.writeUtf(view.defenderLead, FactionServerHooks.MAX_NAME_LENGTH);
+            writeNames(buffer, view.defenderAllies, MAX_SIDE_NAMES);
+            buffer.writeUtf(view.outcome, 16);
+            buffer.writeUtf(view.winnerName, FactionServerHooks.MAX_NAME_LENGTH);
+            buffer.writeUtf(view.loserName, FactionServerHooks.MAX_NAME_LENGTH);
+            buffer.writeLong(view.attackerPoints);
+            buffer.writeLong(view.defenderPoints);
+            buffer.writeLong(view.militaryInfluenceReward);
+            buffer.writeBoolean(view.lootSpoilsAvailable);
+            buffer.writeLong(view.startedAtMillis);
+            buffer.writeLong(view.endedAtMillis);
+        }
+
+        private static WarRecordView decode(RegistryFriendlyByteBuf buffer) {
+            return new WarRecordView(
+                    buffer.readUUID(),
+                    buffer.readUtf(32),
+                    buffer.readUtf(com.geydev.kalfactions.war.War.MAX_REASON_LENGTH),
+                    buffer.readUtf(FactionServerHooks.MAX_NAME_LENGTH),
+                    readNames(buffer, MAX_SIDE_NAMES),
+                    buffer.readUtf(FactionServerHooks.MAX_NAME_LENGTH),
+                    readNames(buffer, MAX_SIDE_NAMES),
+                    buffer.readUtf(16),
+                    buffer.readUtf(FactionServerHooks.MAX_NAME_LENGTH),
+                    buffer.readUtf(FactionServerHooks.MAX_NAME_LENGTH),
+                    buffer.readLong(),
+                    buffer.readLong(),
+                    buffer.readLong(),
+                    buffer.readBoolean(),
+                    buffer.readLong(),
+                    buffer.readLong()
+            );
         }
     }
 

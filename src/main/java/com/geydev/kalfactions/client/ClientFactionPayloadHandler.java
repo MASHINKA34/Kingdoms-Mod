@@ -4,6 +4,7 @@ import com.geydev.kalfactions.client.screen.ChestAccessScreen;
 import com.geydev.kalfactions.client.screen.FactionListScreen;
 import com.geydev.kalfactions.client.screen.FactionScreen;
 import com.geydev.kalfactions.client.screen.FactionScreens;
+import com.geydev.kalfactions.client.screen.WarArchiveScreen;
 import com.geydev.kalfactions.faction.InfluenceType;
 import com.geydev.kalfactions.integration.xaero.XaeroMaps;
 import com.geydev.kalfactions.net.FactionPayloads;
@@ -56,6 +57,17 @@ public final class ClientFactionPayloadHandler {
         minecraft.execute(() -> {
             if (minecraft.screen instanceof FactionListScreen screen) {
                 screen.acceptData(payload);
+            }
+        });
+    }
+
+    public static void handleWarArchive(FactionPayloads.S2CWarArchive payload) {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.execute(() -> {
+            if (minecraft.screen instanceof WarArchiveScreen screen) {
+                screen.acceptData(payload.records());
+            } else {
+                minecraft.setScreen(new WarArchiveScreen(minecraft.screen, payload.records()));
             }
         });
     }

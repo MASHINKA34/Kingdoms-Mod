@@ -4,6 +4,7 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.DrillBlock;
 import com.geydev.kalfactions.block.FactionTableBlock;
 import com.geydev.kalfactions.block.OutpostCoreBlock;
+import com.geydev.kalfactions.block.WarArchiveBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -21,6 +22,15 @@ public final class ModBlocks {
                     .mapColor(MapColor.WOOD)
                     .strength(2.5F)
                     .sound(SoundType.WOOD)
+                    .noOcclusion())
+    );
+
+    public static final DeferredBlock<WarArchiveBlock> WAR_ARCHIVE = BLOCKS.register(
+            "war_archive",
+            () -> new WarArchiveBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .strength(2.5F)
+                    .sound(SoundType.STONE)
                     .noOcclusion())
     );
 
