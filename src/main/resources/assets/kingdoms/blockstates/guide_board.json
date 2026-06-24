@@ -1,7 +1,16 @@
 {
   "variants": {
-    "": {
-      "model": "kingdoms:block/guide_board"
-    }
+    "facing=north,part=center": { "model": "kingdoms:block/guide_board" },
+    "facing=east,part=center": { "model": "kingdoms:block/guide_board", "y": 90 },
+    "facing=south,part=center": { "model": "kingdoms:block/guide_board", "y": 180 },
+    "facing=west,part=center": { "model": "kingdoms:block/guide_board", "y": 270 },
+    "facing=north,part=left": { "model": "kingdoms:block/guide_board_empty" },
+    "facing=east,part=left": { "model": "kingdoms:block/guide_board_empty" },
+    "facing=south,part=left": { "model": "kingdoms:block/guide_board_empty" },
+    "facing=west,part=left": { "model": "kingdoms:block/guide_board_empty" },
+    "facing=north,part=right": { "model": "kingdoms:block/guide_board_empty" },
+    "facing=east,part=right": { "model": "kingdoms:block/guide_board_empty" },
+    "facing=south,part=right": { "model": "kingdoms:block/guide_board_empty" },
+    "facing=west,part=right": { "model": "kingdoms:block/guide_board_empty" }
   }
 }

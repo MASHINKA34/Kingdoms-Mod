@@ -5,6 +5,13 @@
       "bonus_rolls": 0.0,
       "conditions": [
         {
+          "condition": "minecraft:block_state_property",
+          "block": "kingdoms:guide_board",
+          "properties": {
+            "part": "center"
+          }
+        },
+        {
           "condition": "minecraft:survives_explosion"
         }
       ],

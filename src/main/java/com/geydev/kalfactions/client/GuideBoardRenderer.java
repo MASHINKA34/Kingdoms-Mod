@@ -36,7 +36,7 @@ public final class GuideBoardRenderer implements BlockEntityRenderer<GuideBoardB
     ) {
         Minecraft minecraft = Minecraft.getInstance();
         pose.pushPose();
-        pose.translate(0.5D, 2.35D, 0.5D);
+        pose.translate(0.5D, 2.15D, 0.5D);
         pose.mulPose(minecraft.getEntityRenderDispatcher().cameraOrientation());
         pose.scale(-0.025F, -0.025F, 0.025F);
         Matrix4f matrix = pose.last().pose();
