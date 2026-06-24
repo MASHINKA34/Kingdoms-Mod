@@ -4,7 +4,7 @@
     "particle": "kingdoms:block/war_archive_side",
     "top": "kingdoms:block/war_archive_top",
     "side": "kingdoms:block/war_archive_side",
-    "bottom": "kingdoms:block/war_archive_side",
+    "bottom": "kingdoms:block/war_archive_bottom",
     "leg": "kingdoms:block/war_archive_leg"
   },
   "elements": [
@@ -12,7 +12,7 @@
       "from": [0, 12, 0],
       "to": [16, 16, 16],
       "faces": {
-        "down": {"texture": "#bottom", "cullface": "down"},
+        "down": {"texture": "#bottom"},
         "up": {"texture": "#top", "cullface": "up"},
         "north": {"texture": "#side", "cullface": "north"},
         "south": {"texture": "#side", "cullface": "south"},

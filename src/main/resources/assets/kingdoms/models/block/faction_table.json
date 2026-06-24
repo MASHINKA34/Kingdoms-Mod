@@ -4,7 +4,7 @@
     "particle": "kingdoms:block/faction_table_side",
     "top": "kingdoms:block/faction_table_top",
     "side": "kingdoms:block/faction_table_side",
-    "bottom": "kingdoms:block/faction_table_side",
+    "bottom": "kingdoms:block/faction_table_bottom",
     "leg": "kingdoms:block/faction_table_leg"
   },
   "elements": [
@@ -12,7 +12,7 @@
       "from": [0, 12, 0],
       "to": [16, 16, 16],
       "faces": {
-        "down": {"texture": "#bottom", "cullface": "down"},
+        "down": {"texture": "#bottom"},
         "up": {"texture": "#top", "cullface": "up"},
         "north": {"texture": "#side", "cullface": "north"},
         "south": {"texture": "#side", "cullface": "south"},
