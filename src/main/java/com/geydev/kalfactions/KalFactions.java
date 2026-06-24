@@ -10,6 +10,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.loading.FMLEnvironment;
 import org.slf4j.Logger;
 
 @Mod(KalFactions.MOD_ID)
@@ -22,6 +23,16 @@ public final class KalFactions {
         ModItems.register(modBus);
         ModEntities.register(modBus);
         ModCreativeTabs.register(modBus);
+        if (FMLEnvironment.dist.isClient()) {
+            ClientOnly.register(modBus);
+        }
         container.registerConfig(ModConfig.Type.SERVER, ModConfigSpec.SPEC);
+    }
+
+    private static final class ClientOnly {
+        private static void register(IEventBus modBus) {
+            com.geydev.kalfactions.client.KingdomsClientRenderers.register(modBus);
+            com.geydev.kalfactions.client.KingdomsMenuScreens.register(modBus);
+        }
     }
 }
