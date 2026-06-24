@@ -13,6 +13,12 @@ public final class BlockShapes {
             Block.box(12.0D, 0.0D, 12.0D, 15.0D, 12.0D, 15.0D)
     );
 
+    public static final VoxelShape GUIDE_BOARD = Shapes.or(
+            Block.box(0.0D, 4.0D, 5.0D, 16.0D, 16.0D, 11.0D),
+            Block.box(0.0D, 0.0D, 6.0D, 4.0D, 5.0D, 10.0D),
+            Block.box(12.0D, 0.0D, 6.0D, 16.0D, 5.0D, 10.0D)
+    );
+
     private BlockShapes() {
     }
 }

@@ -144,6 +144,11 @@ public final class FactionNetwork {
                 FactionNetwork::handleSanctuarySetClaim
         );
         registrar.playToServer(
+                FactionPayloads.C2SSanctuaryMapSet.TYPE,
+                FactionPayloads.C2SSanctuaryMapSet.STREAM_CODEC,
+                FactionNetwork::handleSanctuaryMapSet
+        );
+        registrar.playToServer(
                 FactionPayloads.C2SToggleForceLoad.TYPE,
                 FactionPayloads.C2SToggleForceLoad.STREAM_CODEC,
                 FactionNetwork::handleToggleForceLoad
@@ -374,6 +379,13 @@ public final class FactionNetwork {
                 payload.chunkZ(),
                 payload.claimed()
         );
+    }
+
+    private static void handleSanctuaryMapSet(
+            FactionPayloads.C2SSanctuaryMapSet payload,
+            IPayloadContext context
+    ) {
+        FactionServerHooks.sanctuaryMapSet(serverPlayer(context), payload.claimed(), payload.chunks());
     }
 
     private static void handleToggleForceLoad(FactionPayloads.C2SToggleForceLoad payload, IPayloadContext context) {

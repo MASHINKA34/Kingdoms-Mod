@@ -16,6 +16,7 @@ import com.geydev.kalfactions.faction.ResearchManager;
 import com.geydev.kalfactions.faction.ResearchNode;
 import com.geydev.kalfactions.integration.IntegrationManager;
 import com.geydev.kalfactions.registry.ModItems;
+import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import com.geydev.kalfactions.war.WarManager;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -238,6 +239,12 @@ final class FactionManagerService implements FactionServerHooks.Service {
                     view(player, tablePos)
             );
         }
+        if (nearSanctuary(player, new ChunkPos(tablePos))) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.sanctuary.no_found_near"),
+                    view(player, tablePos)
+            );
+        }
         FactionManager.OperationResult result = manager.createFaction(
                 player.getUUID(),
                 name,
@@ -395,6 +402,12 @@ final class FactionManagerService implements FactionServerHooks.Service {
         }
 
         ClaimKey key = ClaimKey.of(player.serverLevel(), chunkPos);
+        if (claimed && SanctuaryManager.get(player.serverLevel()).isSanctuary(key)) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.sanctuary.no_claim"),
+                    view(player, tablePos)
+            );
+        }
         FactionManager.OperationResult result = claimed
                 ? manager.claim(faction.id(), key, player.getUUID())
                 : manager.unclaim(faction.id(), key);
@@ -1266,9 +1279,13 @@ final class FactionManagerService implements FactionServerHooks.Service {
 
         int radius = ModConfigSpec.CLAIM_SYNC_RADIUS_CHUNKS.get();
         ChunkPos center = player.chunkPosition();
+        SanctuaryManager sanctuary = SanctuaryManager.get(player.serverLevel());
         Set<ChunkPos> pending = new LinkedHashSet<>();
         for (Long packed : packedChunks) {
             ChunkPos pos = new ChunkPos(packed);
+            if (claimed && sanctuary.isSanctuary(ClaimKey.of(player.serverLevel(), pos))) {
+                continue;
+            }
             if (Math.abs(pos.x - center.x) <= radius && Math.abs(pos.z - center.z) <= radius) {
                 pending.add(pos);
             }
@@ -1419,6 +1436,20 @@ final class FactionManagerService implements FactionServerHooks.Service {
             }
         }
         return List.copyOf(claims);
+    }
+
+    private static boolean nearSanctuary(ServerPlayer player, ChunkPos center) {
+        SanctuaryManager sanctuary = SanctuaryManager.get(player.serverLevel());
+        var dimension = player.serverLevel().dimension();
+        int radius = ModConfigSpec.STARTER_CLAIM_SIZE.get() / 2 + 3;
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                if (sanctuary.isSanctuary(new ClaimKey(dimension, center.x + dx, center.z + dz))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean canUseBoundTable(ServerPlayer player, BlockPos tablePos, UUID factionId) {

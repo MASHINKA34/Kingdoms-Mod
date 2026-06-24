@@ -1234,6 +1234,38 @@ public final class FactionPayloads {
         }
     }
 
+    public record C2SSanctuaryMapSet(boolean claimed, List<Long> chunks) implements CustomPacketPayload {
+        public static final int MAX_CHUNKS = 512;
+        public static final Type<C2SSanctuaryMapSet> TYPE = FactionPayloads.payloadType("sanctuary_map_set");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SSanctuaryMapSet> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBoolean(payload.claimed);
+                    int size = Math.min(payload.chunks.size(), MAX_CHUNKS);
+                    buffer.writeVarInt(size);
+                    for (int i = 0; i < size; i++) {
+                        buffer.writeLong(payload.chunks.get(i));
+                    }
+                },
+                buffer -> {
+                    boolean claimed = buffer.readBoolean();
+                    int size = buffer.readVarInt();
+                    if (size < 0 || size > MAX_CHUNKS) {
+                        throw new DecoderException("Sanctuary map batch size " + size + " exceeds " + MAX_CHUNKS);
+                    }
+                    List<Long> chunks = new ArrayList<>(size);
+                    for (int i = 0; i < size; i++) {
+                        chunks.add(buffer.readLong());
+                    }
+                    return new C2SSanctuaryMapSet(claimed, List.copyOf(chunks));
+                }
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record S2COpenSanctuary(
             BlockPos corePos,
             int centerChunkX,

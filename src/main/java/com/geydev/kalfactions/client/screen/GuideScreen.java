@@ -21,8 +21,8 @@ public final class GuideScreen extends Screen {
             "outposts"
     };
 
-    private static final int PANEL_WIDTH = 444;
-    private static final int PANEL_HEIGHT = 252;
+    private static final int PANEL_WIDTH = 362;
+    private static final int PANEL_HEIGHT = 216;
     private static final int LINE_HEIGHT = 10;
     private static final int SCROLLBAR_WIDTH = 4;
     private static final int GOLD = 0xFFF3D58B;
@@ -47,24 +47,24 @@ public final class GuideScreen extends Screen {
         panelLeft = (width - PANEL_WIDTH) / 2;
         panelTop = (height - PANEL_HEIGHT) / 2;
 
-        int buttonTop = panelTop + 34;
+        int buttonTop = panelTop + 28;
         for (int index = 0; index < SECTIONS.length; index++) {
             int section = index;
             addRenderableWidget(KingdomsButton.create(
                     Component.translatable("kingdoms.guide.section." + SECTIONS[index]),
                     button -> select(section),
-                    panelLeft + 12,
-                    buttonTop + index * 21,
-                    150,
-                    19
+                    panelLeft + 10,
+                    buttonTop + index * 20,
+                    132,
+                    18
             ));
         }
         addRenderableWidget(KingdomsButton.create(
                 Component.translatable("gui.done"),
                 button -> onClose(),
-                panelLeft + PANEL_WIDTH - 78,
-                panelTop + PANEL_HEIGHT - 26,
-                66,
+                panelLeft + PANEL_WIDTH - 74,
+                panelTop + PANEL_HEIGHT - 24,
+                64,
                 20
         ));
         rebuildLines();
@@ -89,7 +89,7 @@ public final class GuideScreen extends Screen {
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.renderBackground(graphics, mouseX, mouseY, partialTick);
         KingdomsPanel.draw(graphics, panelLeft, panelTop, PANEL_WIDTH, PANEL_HEIGHT);
-        graphics.fill(textLeft() - 6, panelTop + 30, textLeft() - 5, panelTop + PANEL_HEIGHT - 12, 0x66C9A24C);
+        graphics.fill(textLeft() - 8, panelTop + 26, textLeft() - 7, panelTop + PANEL_HEIGHT - 10, 0x66C9A24C);
     }
 
     @Override
@@ -97,10 +97,10 @@ public final class GuideScreen extends Screen {
         super.render(graphics, mouseX, mouseY, partialTick);
 
         int titleWidth = font.width(title);
-        graphics.drawString(font, title, panelLeft + (PANEL_WIDTH - titleWidth) / 2, panelTop + 12, GOLD, true);
+        graphics.drawString(font, title, panelLeft + (PANEL_WIDTH - titleWidth) / 2, panelTop + 9, GOLD, true);
 
         Component heading = Component.translatable("kingdoms.guide.section." + SECTIONS[selected]);
-        graphics.drawString(font, heading, textLeft(), panelTop + 14, GOLD, true);
+        graphics.drawString(font, heading, textLeft(), panelTop + 28, GOLD, true);
 
         int top = contentTop();
         int bottom = contentBottom();
@@ -118,18 +118,13 @@ public final class GuideScreen extends Screen {
         }
         graphics.disableScissor();
         renderScrollbar(graphics);
-
-        if (maxScroll() > 0) {
-            Component hint = Component.translatable("screen.kingdoms.guide.scroll_hint");
-            graphics.drawString(font, hint, textLeft(), panelTop + PANEL_HEIGHT - 22, MUTED, false);
-        }
     }
 
     private void renderScrollbar(GuiGraphics graphics) {
         if (maxScroll() <= 0) {
             return;
         }
-        int trackLeft = panelLeft + PANEL_WIDTH - 12;
+        int trackLeft = panelLeft + PANEL_WIDTH - 11;
         int trackTop = contentTop();
         int trackBottom = contentBottom();
         graphics.fill(trackLeft, trackTop, trackLeft + SCROLLBAR_WIDTH, trackBottom, 0x44000000);
@@ -142,7 +137,7 @@ public final class GuideScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0 && maxScroll() > 0
-                && mouseX >= panelLeft + PANEL_WIDTH - 14 && mouseX <= panelLeft + PANEL_WIDTH - 6
+                && mouseX >= panelLeft + PANEL_WIDTH - 13 && mouseX <= panelLeft + PANEL_WIDTH - 5
                 && mouseY >= contentTop() && mouseY <= contentBottom()) {
             scrollBarDragging = true;
             updateScrollFromMouse(mouseY);
@@ -189,19 +184,19 @@ public final class GuideScreen extends Screen {
     }
 
     private int textLeft() {
-        return panelLeft + 178;
+        return panelLeft + 150;
     }
 
     private int textWidth() {
-        return PANEL_WIDTH - 178 - 22;
+        return PANEL_WIDTH - 150 - 20;
     }
 
     private int contentTop() {
-        return panelTop + 30;
+        return panelTop + 42;
     }
 
     private int contentBottom() {
-        return panelTop + PANEL_HEIGHT - 24;
+        return panelTop + PANEL_HEIGHT - 30;
     }
 
     private int visibleLines() {

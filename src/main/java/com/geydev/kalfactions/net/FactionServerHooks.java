@@ -68,6 +68,19 @@ public final class FactionServerHooks {
             return;
         }
 
+        if (player.level().getBlockEntity(tablePos) instanceof FactionTableBlockEntity table
+                && table.getFactionId() != null) {
+            FactionManager manager = FactionManager.get(player.serverLevel());
+            UUID boundFaction = table.getFactionId();
+            if (manager.getFaction(boundFaction).isPresent()
+                    && !boundFaction.equals(manager.getFactionIdForMember(player.getUUID()).orElse(null))) {
+                if (!silent) {
+                    sendNotice(player, Component.translatable("kingdoms.error.table_other_faction"), false);
+                }
+                return;
+            }
+        }
+
         try {
             FactionSnapshot snapshot = sanitizeSnapshot(tablePos, service.view(player, tablePos));
             send(player, snapshot, true, true, Component.empty());
@@ -139,6 +152,41 @@ public final class FactionServerHooks {
         Component message = Component.translatable(
                 claimed ? "kingdoms.sanctuary.claimed" : "kingdoms.sanctuary.unclaimed");
         sendSanctuary(player, corePos, message, true);
+    }
+
+    public static void sanctuaryMapSet(ServerPlayer player, boolean claimed, List<Long> packedChunks) {
+        if (!player.isAlive() || player.isSpectator() || packedChunks.isEmpty()) {
+            return;
+        }
+        if (!player.hasPermissions(2)) {
+            sendNotice(player, Component.translatable("kingdoms.sanctuary.not_operator"), false);
+            return;
+        }
+        long now = player.level().getGameTime();
+        Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+        if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
+            sendNotice(player, Component.translatable("kingdoms.error.action_rate_limited"), false);
+            return;
+        }
+        ServerLevel level = player.serverLevel();
+        SanctuaryManager manager = SanctuaryManager.get(level);
+        int changed = 0;
+        for (Long packed : packedChunks) {
+            ChunkPos pos = new ChunkPos(packed);
+            if (manager.setClaim(new ClaimKey(level.dimension(), pos), claimed)) {
+                changed++;
+            }
+        }
+        if (changed > 0) {
+            ClaimSyncManager.resyncAll(player.getServer());
+        }
+        sendNotice(
+                player,
+                Component.translatable(
+                        claimed ? "kingdoms.sanctuary.map_marked" : "kingdoms.sanctuary.map_unmarked",
+                        changed),
+                changed > 0
+        );
     }
 
     private static boolean validateSanctuary(ServerPlayer player, BlockPos corePos) {

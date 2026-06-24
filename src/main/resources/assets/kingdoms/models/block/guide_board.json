@@ -1,71 +1,45 @@
 {
-  "ambientocclusion": true,
+  "ambientocclusion": false,
   "textures": {
     "particle": "kingdoms:block/guide_board_side",
-    "top": "kingdoms:block/guide_board_top",
-    "side": "kingdoms:block/guide_board_side",
-    "bottom": "kingdoms:block/guide_board_bottom",
-    "leg": "kingdoms:block/guide_board_leg"
+    "front": "kingdoms:block/guide_board_front",
+    "wood": "kingdoms:block/guide_board_side"
   },
   "elements": [
     {
-      "from": [0, 12, 0],
-      "to": [16, 16, 16],
+      "from": [-8, 4, 5],
+      "to": [24, 32, 11],
       "faces": {
-        "down": {"texture": "#bottom"},
-        "up": {"texture": "#top", "cullface": "up"},
-        "north": {"texture": "#side", "cullface": "north"},
-        "south": {"texture": "#side", "cullface": "south"},
-        "west": {"texture": "#side", "cullface": "west"},
-        "east": {"texture": "#side", "cullface": "east"}
+        "down": {"texture": "#wood"},
+        "up": {"texture": "#wood"},
+        "north": {"texture": "#front", "uv": [0, 0, 16, 16]},
+        "south": {"texture": "#front", "uv": [16, 0, 0, 16]},
+        "west": {"texture": "#wood"},
+        "east": {"texture": "#wood"}
       }
     },
     {
-      "from": [1, 0, 1],
-      "to": [4, 12, 4],
+      "from": [0, 0, 6],
+      "to": [4, 5, 10],
       "faces": {
-        "down": {"texture": "#leg", "cullface": "down"},
-        "up": {"texture": "#leg"},
-        "north": {"texture": "#leg"},
-        "south": {"texture": "#leg"},
-        "west": {"texture": "#leg"},
-        "east": {"texture": "#leg"}
+        "down": {"texture": "#wood", "cullface": "down"},
+        "up": {"texture": "#wood"},
+        "north": {"texture": "#wood"},
+        "south": {"texture": "#wood"},
+        "west": {"texture": "#wood"},
+        "east": {"texture": "#wood"}
       }
     },
     {
-      "from": [12, 0, 1],
-      "to": [15, 12, 4],
+      "from": [12, 0, 6],
+      "to": [16, 5, 10],
       "faces": {
-        "down": {"texture": "#leg", "cullface": "down"},
-        "up": {"texture": "#leg"},
-        "north": {"texture": "#leg"},
-        "south": {"texture": "#leg"},
-        "west": {"texture": "#leg"},
-        "east": {"texture": "#leg"}
-      }
-    },
-    {
-      "from": [1, 0, 12],
-      "to": [4, 12, 15],
-      "faces": {
-        "down": {"texture": "#leg", "cullface": "down"},
-        "up": {"texture": "#leg"},
-        "north": {"texture": "#leg"},
-        "south": {"texture": "#leg"},
-        "west": {"texture": "#leg"},
-        "east": {"texture": "#leg"}
-      }
-    },
-    {
-      "from": [12, 0, 12],
-      "to": [15, 12, 15],
-      "faces": {
-        "down": {"texture": "#leg", "cullface": "down"},
-        "up": {"texture": "#leg"},
-        "north": {"texture": "#leg"},
-        "south": {"texture": "#leg"},
-        "west": {"texture": "#leg"},
-        "east": {"texture": "#leg"}
+        "down": {"texture": "#wood", "cullface": "down"},
+        "up": {"texture": "#wood"},
+        "north": {"texture": "#wood"},
+        "south": {"texture": "#wood"},
+        "west": {"texture": "#wood"},
+        "east": {"texture": "#wood"}
       }
     }
   ]

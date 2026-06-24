@@ -3,6 +3,7 @@ package com.geydev.kalfactions.registry;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.DrillBlockEntity;
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
+import com.geydev.kalfactions.block.GuideBoardBlockEntity;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
@@ -20,10 +21,14 @@ public final class ModBlockEntities {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "faction_table");
     public static final ResourceLocation DRILL_ID =
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "drill");
+    public static final ResourceLocation GUIDE_BOARD_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "guide_board");
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<FactionTableBlockEntity>> FACTION_TABLE =
             DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, FACTION_TABLE_ID);
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DrillBlockEntity>> DRILL =
             DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, DRILL_ID);
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GuideBoardBlockEntity>> GUIDE_BOARD =
+            DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, GUIDE_BOARD_ID);
 
     @SubscribeEvent
     public static void register(RegisterEvent event) {
@@ -44,6 +49,15 @@ public final class ModBlockEntities {
                 );
             }
             return BlockEntityType.Builder.of(DrillBlockEntity::new, block).build(null);
+        });
+        event.register(Registries.BLOCK_ENTITY_TYPE, GUIDE_BOARD_ID, () -> {
+            Block block = BuiltInRegistries.BLOCK.get(GUIDE_BOARD_ID);
+            if (block == Blocks.AIR) {
+                throw new IllegalStateException(
+                        "kingdoms:guide_board must be registered before its block entity type"
+                );
+            }
+            return BlockEntityType.Builder.of(GuideBoardBlockEntity::new, block).build(null);
         });
     }
 

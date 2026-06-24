@@ -85,9 +85,12 @@ public final class ClientFactionPayloadHandler {
             if (minecraft.screen instanceof SanctuaryMapScreen screen
                     && screen.corePos().equals(payload.corePos())) {
                 screen.acceptState(payload);
-            } else {
-                minecraft.setScreen(new SanctuaryMapScreen(payload));
+                return;
             }
+            if (XaeroMaps.openWorldMap()) {
+                return;
+            }
+            minecraft.setScreen(new SanctuaryMapScreen(payload));
         });
     }
 

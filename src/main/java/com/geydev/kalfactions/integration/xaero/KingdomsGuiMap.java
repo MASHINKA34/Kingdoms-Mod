@@ -104,10 +104,6 @@ final class KingdomsGuiMap extends GuiMap {
     public ArrayList<RightClickOption> getRightClickOptions() {
         ArrayList<RightClickOption> options = super.getRightClickOptions();
         try {
-            ViewerInfo viewer = ClientClaimStore.viewer();
-            if (!viewer.hasFaction()) {
-                return options;
-            }
             ResourceKey<Level> clickedDimension = clickedDimension();
             Minecraft minecraft = Minecraft.getInstance();
             boolean sameDimension = minecraft.level != null
@@ -115,6 +111,30 @@ final class KingdomsGuiMap extends GuiMap {
                     && minecraft.level.dimension().equals(clickedDimension);
             List<Long> selected = selectedChunks();
             if (selected.isEmpty()) {
+                return options;
+            }
+            boolean withinLimit = selected.size() <= FactionPayloads.C2SMapSetClaims.MAX_CHUNKS;
+
+            if (clickedDimension != null && minecraft.player != null && minecraft.player.hasPermissions(2)) {
+                List<Long> toMark = new ArrayList<>();
+                List<Long> toUnmark = new ArrayList<>();
+                for (Long packed : selected) {
+                    ChunkPos pos = new ChunkPos(packed);
+                    ClaimInfo claim = ClientClaimStore.get(clickedDimension, pos.x, pos.z);
+                    if (claim != null && claim.sanctuary()) {
+                        toUnmark.add(packed);
+                    } else if (claim == null) {
+                        toMark.add(packed);
+                    }
+                }
+                options.add(sanctuaryOption(
+                        options.size(), "kingdoms.xaero_map.sanctuary_mark", toMark, true, sameDimension && withinLimit));
+                options.add(sanctuaryOption(
+                        options.size(), "kingdoms.xaero_map.sanctuary_unmark", toUnmark, false, sameDimension && withinLimit));
+            }
+
+            ViewerInfo viewer = ClientClaimStore.viewer();
+            if (!viewer.hasFaction()) {
                 return options;
             }
 
@@ -132,7 +152,6 @@ final class KingdomsGuiMap extends GuiMap {
                 }
             }
 
-            boolean withinLimit = selected.size() <= FactionPayloads.C2SMapSetClaims.MAX_CHUNKS;
             options.add(claimOption(options.size(), viewer, claimable, sameDimension && withinLimit));
             options.add(unclaimOption(options.size(), ownClaims, sameDimension && withinLimit));
             if (selected.size() == 1 && clickedDimension != null) {
@@ -156,6 +175,26 @@ final class KingdomsGuiMap extends GuiMap {
             }
         }
         return options;
+    }
+
+    private RightClickOption sanctuaryOption(
+            int index,
+            String key,
+            List<Long> chunks,
+            boolean claimed,
+            boolean usable
+    ) {
+        RightClickOption option = new RightClickOption(key, index, this) {
+            @Override
+            public void onAction(Screen screen) {
+                if (!chunks.isEmpty()) {
+                    PacketDistributor.sendToServer(new FactionPayloads.C2SSanctuaryMapSet(claimed, chunks));
+                }
+            }
+        };
+        option.setNameFormatArgs(chunks.size());
+        option.setActive(usable && !chunks.isEmpty());
+        return option;
     }
 
     private RightClickOption claimOption(int index, ViewerInfo viewer, List<Long> chunks, boolean usable) {
