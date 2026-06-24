@@ -15,18 +15,9 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public final class WarArchiveBlock extends Block {
-    private static final VoxelShape SHAPE = Shapes.or(
-            box(0.0D, 12.0D, 0.0D, 16.0D, 16.0D, 16.0D),
-            box(1.0D, 0.0D, 1.0D, 4.0D, 12.0D, 4.0D),
-            box(12.0D, 0.0D, 1.0D, 15.0D, 12.0D, 4.0D),
-            box(1.0D, 0.0D, 12.0D, 4.0D, 12.0D, 15.0D),
-            box(12.0D, 0.0D, 12.0D, 15.0D, 12.0D, 15.0D)
-    );
-
     public WarArchiveBlock(BlockBehaviour.Properties properties) {
         super(properties);
     }
@@ -38,7 +29,7 @@ public final class WarArchiveBlock extends Block {
             BlockPos pos,
             CollisionContext context
     ) {
-        return SHAPE;
+        return BlockShapes.TABLE;
     }
 
     @Override

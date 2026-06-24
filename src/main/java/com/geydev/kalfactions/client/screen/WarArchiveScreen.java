@@ -19,8 +19,7 @@ public final class WarArchiveScreen extends Screen {
     private static final int BOTTOM_HEIGHT = 36;
     private static final int ROW_HEIGHT = 78;
     private static final int SCROLLBAR_WIDTH = 4;
-    private static final int BORDER = 0xFFC9A24C;
-    private static final int PANEL = 0xFF2B2E38;
+    private static final int BORDER = KingdomsPanel.BORDER;
     private static final int ROW = 0x33202028;
     private static final int ROW_HOVER = 0x44FFFFFF;
     private static final int TEXT = 0xFFF1EEE4;
@@ -74,8 +73,7 @@ public final class WarArchiveScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.renderBackground(graphics, mouseX, mouseY, partialTick);
-        graphics.fill(panelLeft - 1, panelTop - 1, panelLeft + panelWidth + 1, panelTop + panelHeight + 1, BORDER);
-        graphics.fill(panelLeft, panelTop, panelLeft + panelWidth, panelTop + panelHeight, PANEL);
+        KingdomsPanel.draw(graphics, panelLeft, panelTop, panelWidth, panelHeight);
     }
 
     @Override
