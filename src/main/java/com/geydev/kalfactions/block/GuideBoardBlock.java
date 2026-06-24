@@ -26,6 +26,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -34,18 +35,20 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 public final class GuideBoardBlock extends Block implements EntityBlock {
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final EnumProperty<GuideBoardPart> PART = EnumProperty.create("part", GuideBoardPart.class);
+    public static final EnumProperty<DoubleBlockHalf> HALF = BlockStateProperties.DOUBLE_BLOCK_HALF;
 
     public GuideBoardBlock(BlockBehaviour.Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any()
                 .setValue(FACING, Direction.NORTH)
-                .setValue(PART, GuideBoardPart.CENTER));
+                .setValue(PART, GuideBoardPart.CENTER)
+                .setValue(HALF, DoubleBlockHalf.LOWER));
     }
 
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return state.getValue(PART) == GuideBoardPart.CENTER
+        return isModelPart(state)
                 ? new GuideBoardBlockEntity(pos, state)
                 : null;
     }
@@ -55,13 +58,19 @@ public final class GuideBoardBlock extends Block implements EntityBlock {
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         Direction facing = context.getHorizontalDirection().getOpposite();
         BlockPos pos = context.getClickedPos();
-        Direction left = leftDirection(facing);
-        if (!canPlacePart(context, pos.relative(left)) || !canPlacePart(context, pos.relative(left.getOpposite()))) {
+        if (pos.getY() >= context.getLevel().getMaxBuildHeight() - 1) {
             return null;
+        }
+        for (GuideBoardPart part : GuideBoardPart.values()) {
+            BlockPos partPos = partPos(pos, facing, part);
+            if (!canPlacePart(context, partPos) || !canPlacePart(context, partPos.above())) {
+                return null;
+            }
         }
         return defaultBlockState()
                 .setValue(FACING, facing)
-                .setValue(PART, GuideBoardPart.CENTER);
+                .setValue(PART, GuideBoardPart.CENTER)
+                .setValue(HALF, DoubleBlockHalf.LOWER);
     }
 
     @Override
@@ -73,11 +82,17 @@ public final class GuideBoardBlock extends Block implements EntityBlock {
             ItemStack stack
     ) {
         super.setPlacedBy(level, pos, state, placer, stack);
-        if (!level.isClientSide() && state.getValue(PART) == GuideBoardPart.CENTER) {
+        if (!level.isClientSide() && isModelPart(state)) {
             Direction facing = state.getValue(FACING);
-            Direction left = leftDirection(facing);
-            level.setBlock(pos.relative(left), state.setValue(PART, GuideBoardPart.LEFT), UPDATE_ALL);
-            level.setBlock(pos.relative(left.getOpposite()), state.setValue(PART, GuideBoardPart.RIGHT), UPDATE_ALL);
+            for (GuideBoardPart part : GuideBoardPart.values()) {
+                BlockPos partPos = partPos(pos, facing, part);
+                BlockState lower = state.setValue(PART, part).setValue(HALF, DoubleBlockHalf.LOWER);
+                BlockState upper = lower.setValue(HALF, DoubleBlockHalf.UPPER);
+                if (part != GuideBoardPart.CENTER) {
+                    level.setBlock(partPos, lower, UPDATE_ALL);
+                }
+                level.setBlock(partPos.above(), upper, UPDATE_ALL);
+            }
         }
     }
 
@@ -88,15 +103,15 @@ public final class GuideBoardBlock extends Block implements EntityBlock {
             BlockPos pos,
             CollisionContext context
     ) {
-        return BlockShapes.guideBoard(state.getValue(FACING), state.getValue(PART));
+        return BlockShapes.guideBoard(state.getValue(FACING));
     }
 
     @Override
     public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
-        if (!level.isClientSide() && state.getValue(PART) != GuideBoardPart.CENTER) {
+        if (!level.isClientSide() && !isModelPart(state)) {
             BlockPos center = centerPos(pos, state);
             BlockState centerState = level.getBlockState(center);
-            if (isMatchingPart(centerState, state.getValue(FACING), GuideBoardPart.CENTER)) {
+            if (isMatchingPart(centerState, state.getValue(FACING), GuideBoardPart.CENTER, DoubleBlockHalf.LOWER)) {
                 level.destroyBlock(center, !player.isCreative(), player);
             }
         }
@@ -151,7 +166,7 @@ public final class GuideBoardBlock extends Block implements EntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, PART);
+        builder.add(FACING, PART, HALF);
     }
 
     private static InteractionResult open(Level level, BlockPos pos, Player player) {
@@ -171,11 +186,12 @@ public final class GuideBoardBlock extends Block implements EntityBlock {
     }
 
     private static BlockPos centerPos(BlockPos pos, BlockState state) {
+        BlockPos lowerPos = state.getValue(HALF) == DoubleBlockHalf.UPPER ? pos.below() : pos;
         Direction left = leftDirection(state.getValue(FACING));
         return switch (state.getValue(PART)) {
-            case CENTER -> pos;
-            case LEFT -> pos.relative(left.getOpposite());
-            case RIGHT -> pos.relative(left);
+            case CENTER -> lowerPos;
+            case LEFT -> lowerPos.relative(left.getOpposite());
+            case RIGHT -> lowerPos.relative(left);
         };
     }
 
@@ -193,14 +209,24 @@ public final class GuideBoardBlock extends Block implements EntityBlock {
         BlockPos center = centerPos(pos, state);
         for (GuideBoardPart part : GuideBoardPart.values()) {
             BlockPos partPos = partPos(center, facing, part);
-            if (!partPos.equals(pos) && isMatchingPart(level.getBlockState(partPos), facing, part)) {
-                level.setBlock(partPos, Blocks.AIR.defaultBlockState(), UPDATE_ALL | UPDATE_SUPPRESS_DROPS);
+            for (DoubleBlockHalf half : DoubleBlockHalf.values()) {
+                BlockPos removePos = half == DoubleBlockHalf.UPPER ? partPos.above() : partPos;
+                if (!removePos.equals(pos) && isMatchingPart(level.getBlockState(removePos), facing, part, half)) {
+                    level.setBlock(removePos, Blocks.AIR.defaultBlockState(), UPDATE_ALL | UPDATE_SUPPRESS_DROPS);
+                }
             }
         }
     }
 
-    private boolean isMatchingPart(BlockState state, Direction facing, GuideBoardPart part) {
-        return state.is(this) && state.getValue(FACING) == facing && state.getValue(PART) == part;
+    private static boolean isModelPart(BlockState state) {
+        return state.getValue(PART) == GuideBoardPart.CENTER && state.getValue(HALF) == DoubleBlockHalf.LOWER;
+    }
+
+    private boolean isMatchingPart(BlockState state, Direction facing, GuideBoardPart part, DoubleBlockHalf half) {
+        return state.is(this)
+                && state.getValue(FACING) == facing
+                && state.getValue(PART) == part
+                && state.getValue(HALF) == half;
     }
 
     public enum GuideBoardPart implements StringRepresentable {

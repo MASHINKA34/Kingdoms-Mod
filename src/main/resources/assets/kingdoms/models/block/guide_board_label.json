@@ -1,0 +1,18 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "kingdoms:block/guide_board_side",
+    "label": "kingdoms:block/guide_board_label"
+  },
+  "elements": [
+    {
+      "from": [-16, 18, 3.6],
+      "to": [32, 30, 3.8],
+      "shade": false,
+      "faces": {
+        "north": { "uv": [0, 0, 16, 16], "texture": "#label" },
+        "south": { "uv": [16, 0, 0, 16], "texture": "#label" }
+      }
+    }
+  ]
+}

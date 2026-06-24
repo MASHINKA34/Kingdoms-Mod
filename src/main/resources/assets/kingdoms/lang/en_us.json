@@ -685,6 +685,7 @@
   "screen.kingdoms.war_archive.duration_hours": "%sh %sm",
   "screen.kingdoms.war_archive.duration_minutes": "%sm",
   "block.kingdoms.guide_board": "Kingdoms Codex",
+  "block.kingdoms.guide_board.label": "Kingdoms Guide",
   "block.kingdoms.sanctuary_core": "Spawn Sanctuary Cornerstone",
   "kingdoms.sanctuary.not_operator": "Only an operator can manage the spawn sanctuary.",
   "kingdoms.sanctuary.not_core": "That is not a Spawn Sanctuary Cornerstone.",

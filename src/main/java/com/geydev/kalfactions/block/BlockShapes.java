@@ -1,6 +1,5 @@
 package com.geydev.kalfactions.block;
 
-import com.geydev.kalfactions.block.GuideBoardBlock.GuideBoardPart;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -15,31 +14,18 @@ public final class BlockShapes {
             Block.box(12.0D, 0.0D, 12.0D, 15.0D, 12.0D, 15.0D)
     );
 
-    private static final VoxelShape[][] GUIDE_BOARD = makeGuideBoardShapes();
+    private static final VoxelShape[] GUIDE_BOARD = makeGuideBoardShapes();
 
-    public static VoxelShape guideBoard(Direction facing, GuideBoardPart part) {
-        return GUIDE_BOARD[facing.get2DDataValue()][part.ordinal()];
+    public static VoxelShape guideBoard(Direction facing) {
+        return GUIDE_BOARD[facing.get2DDataValue()];
     }
 
-    private static VoxelShape[][] makeGuideBoardShapes() {
-        VoxelShape[][] shapes = new VoxelShape[4][GuideBoardPart.values().length];
+    private static VoxelShape[] makeGuideBoardShapes() {
+        VoxelShape[] shapes = new VoxelShape[4];
         for (Direction facing : Direction.Plane.HORIZONTAL) {
-            for (GuideBoardPart part : GuideBoardPart.values()) {
-                shapes[facing.get2DDataValue()][part.ordinal()] = guideBoardShape(facing, part);
-            }
+            shapes[facing.get2DDataValue()] = rotatedBox(facing, 0.0D, 0.0D, 4.0D, 16.0D, 16.0D, 13.0D);
         }
         return shapes;
-    }
-
-    private static VoxelShape guideBoardShape(Direction facing, GuideBoardPart part) {
-        VoxelShape shape = rotatedBox(facing, 0.0D, 5.0D, 4.0D, 16.0D, 35.0D, 13.0D);
-        if (part == GuideBoardPart.LEFT) {
-            return Shapes.or(shape, rotatedBox(facing, 5.0D, 0.0D, 6.0D, 10.0D, 7.0D, 12.0D));
-        }
-        if (part == GuideBoardPart.RIGHT) {
-            return Shapes.or(shape, rotatedBox(facing, 6.0D, 0.0D, 6.0D, 11.0D, 7.0D, 12.0D));
-        }
-        return shape;
     }
 
     private static VoxelShape rotatedBox(

@@ -8,6 +8,7 @@
           "condition": "minecraft:block_state_property",
           "block": "kingdoms:guide_board",
           "properties": {
+            "half": "lower",
             "part": "center"
           }
         },
