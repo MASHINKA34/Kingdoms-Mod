@@ -135,9 +135,7 @@ public final class ProtectionHandler {
         }
 
         BlockPos pos = event.getPos();
-        if (isSanctuaryProtected(player, level, pos)) {
-            cancelInteraction(event);
-            deny(player, event.getHand(), "kingdoms.protection.no_interact");
+        if (SanctuaryManager.get(level).isSanctuary(level, pos)) {
             return;
         }
 
@@ -196,8 +194,10 @@ public final class ProtectionHandler {
                 continue;
             }
             BlockPos containerPos = blockEntity.getBlockPos();
-            if ((isSanctuaryProtected(player, level, containerPos)
-                    || !canAccessContainer(player, level, containerPos))) {
+            if (SanctuaryManager.get(level).isSanctuary(level, containerPos)) {
+                continue;
+            }
+            if (!canAccessContainer(player, level, containerPos)) {
                 player.closeContainer();
                 deny(player, "kingdoms.protection.no_container");
                 return;

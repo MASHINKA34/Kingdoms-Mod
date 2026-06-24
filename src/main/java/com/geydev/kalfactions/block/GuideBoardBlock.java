@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.block;
 
 import com.geydev.kalfactions.net.FactionServerHooks;
+import com.geydev.kalfactions.registry.ModBlockEntities;
 import javax.annotation.Nullable;
 import net.minecraft.core.Direction;
 import net.minecraft.core.BlockPos;
@@ -21,6 +22,8 @@ import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -51,6 +54,20 @@ public final class GuideBoardBlock extends Block implements EntityBlock {
         return isModelPart(state)
                 ? new GuideBoardBlockEntity(pos, state)
                 : null;
+    }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(
+            Level level,
+            BlockState state,
+            BlockEntityType<T> type
+    ) {
+        if (level.isClientSide() || type != ModBlockEntities.GUIDE_BOARD.get()) {
+            return null;
+        }
+        return (tickLevel, tickPos, tickState, blockEntity) ->
+                GuideBoardBlockEntity.serverTick(tickLevel, tickPos, tickState, (GuideBoardBlockEntity) blockEntity);
     }
 
     @Nullable
@@ -121,6 +138,11 @@ public final class GuideBoardBlock extends Block implements EntityBlock {
     @Override
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock()) && !level.isClientSide()) {
+            if (isModelPart(state)
+                    && level instanceof net.minecraft.server.level.ServerLevel serverLevel
+                    && level.getBlockEntity(pos) instanceof GuideBoardBlockEntity board) {
+                board.removeLabel(serverLevel);
+            }
             removeOtherParts(level, pos, state);
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
