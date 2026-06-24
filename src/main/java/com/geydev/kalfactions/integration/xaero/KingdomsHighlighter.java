@@ -43,12 +43,19 @@ final class KingdomsHighlighter extends ChunkHighlighter {
     ) {
         ClaimInfo claim = ClientClaimStore.get(dimension, chunkX, chunkZ);
         if (claim != null && !claim.name().isBlank()) {
-            compiler.addLine(claim.outpost()
-                    ? Component.translatable("kingdoms.xaero.outpost_label", claim.name())
-                    : Component.literal(claim.name()));
+            compiler.addLine(claimLabel(claim));
             if (claim.forceLoaded()) {
                 compiler.addLine(Component.translatable("kingdoms.xaero.forceload_label"));
             }
         }
+    }
+
+    static Component claimLabel(ClaimInfo claim) {
+        if (claim.sanctuary()) {
+            return Component.translatable("kingdoms.xaero.sanctuary_label");
+        }
+        return claim.outpost()
+                ? Component.translatable("kingdoms.xaero.outpost_label", claim.name())
+                : Component.literal(claim.name());
     }
 }

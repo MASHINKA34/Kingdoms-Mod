@@ -3,7 +3,9 @@ package com.geydev.kalfactions.registry;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.DrillBlock;
 import com.geydev.kalfactions.block.FactionTableBlock;
+import com.geydev.kalfactions.block.GuideBoardBlock;
 import com.geydev.kalfactions.block.OutpostCoreBlock;
+import com.geydev.kalfactions.block.SanctuaryCoreBlock;
 import com.geydev.kalfactions.block.WarArchiveBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
@@ -61,6 +63,24 @@ public final class ModBlocks {
                     .strength(3.5F)
                     .sound(SoundType.METAL)
                     .requiresCorrectToolForDrops())
+    );
+
+    public static final DeferredBlock<GuideBoardBlock> GUIDE_BOARD = BLOCKS.register(
+            "guide_board",
+            () -> new GuideBoardBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.WOOD)
+                    .strength(2.5F)
+                    .sound(SoundType.WOOD)
+                    .noOcclusion())
+    );
+
+    public static final DeferredBlock<SanctuaryCoreBlock> SANCTUARY_CORE = BLOCKS.register(
+            "sanctuary_core",
+            () -> new SanctuaryCoreBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.GOLD)
+                    .strength(4.0F, 1200.0F)
+                    .sound(SoundType.STONE)
+                    .noOcclusion())
     );
 
     public static final DeferredBlock<OutpostCoreBlock> OUTPOST_CORE = BLOCKS.register(

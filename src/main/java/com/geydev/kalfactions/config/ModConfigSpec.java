@@ -78,6 +78,9 @@ public final class ModConfigSpec {
     public static final IntValue WAR_KILL_POINT_CAP_PER_MINUTE;
     public static final IntValue WAR_DECLARE_COOLDOWN_HOURS;
     public static final IntValue FORCE_LOAD_SLOTS;
+    public static final BooleanValue SANCTUARY_DISABLE_PVP;
+    public static final BooleanValue SANCTUARY_DISABLE_MOB_SPAWNS;
+    public static final BooleanValue SANCTUARY_EXPLOSION_IMMUNITY;
 
     static {
         Builder builder = new Builder();
@@ -253,6 +256,18 @@ public final class ModConfigSpec {
         CLAIM_SYNC_RADIUS_CHUNKS = builder
             .comment("Radius in chunks around each player for which faction claims are streamed to client minimap mods (Xaero).")
             .defineInRange("claimSyncRadiusChunks", 64, 8, 512);
+        builder.pop();
+
+        builder.push("sanctuary");
+        SANCTUARY_DISABLE_PVP = builder
+            .comment("Cancel all player-versus-player damage inside spawn sanctuary chunks.")
+            .define("disablePvp", true);
+        SANCTUARY_DISABLE_MOB_SPAWNS = builder
+            .comment("Prevent hostile mobs from spawning inside spawn sanctuary chunks.")
+            .define("disableMobSpawns", true);
+        SANCTUARY_EXPLOSION_IMMUNITY = builder
+            .comment("Make spawn sanctuary chunks immune to all explosions (creeper, TNT, etc.).")
+            .define("explosionImmunity", true);
         builder.pop();
         SPEC = builder.build();
     }

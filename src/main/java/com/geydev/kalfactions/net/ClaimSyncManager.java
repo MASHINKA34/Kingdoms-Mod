@@ -7,12 +7,14 @@ import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.integration.IntegrationManager;
 import com.geydev.kalfactions.integration.IntegrationManager.FactionMapData;
 import com.geydev.kalfactions.outpost.RogueOutpostManager;
+import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -28,6 +30,7 @@ public final class ClaimSyncManager {
     private static final int RESEND_MOVE_CHUNKS = 8;
     private static final int ROGUE_COLOR = 0x111111;
     private static final String ROGUE_NAME = "Форпост захвачен рейдерами";
+    private static final String SANCTUARY_NAME = "Спавн";
 
     private static final Map<UUID, SyncState> STATES = new HashMap<>();
     private static int ticksUntilCheck;
@@ -81,6 +84,12 @@ public final class ClaimSyncManager {
         sendTo(player);
     }
 
+    public static void resyncAll(MinecraftServer server) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            sendTo(player);
+        }
+    }
+
     private static void sendTo(ServerPlayer player) {
         ResourceKey<Level> dimension = player.level().dimension();
         long revision = IntegrationManager.revision();
@@ -99,7 +108,8 @@ public final class ClaimSyncManager {
                         faction.name(),
                         faction.factionId(),
                         faction.isOutpost(claim),
-                        faction.isForceLoaded(claim)
+                        faction.isForceLoaded(claim),
+                        false
                 ));
                 if (entries.size() >= FactionPayloads.S2CSyncClaims.MAX_ENTRIES) {
                     break outer;
@@ -123,9 +133,28 @@ public final class ClaimSyncManager {
                         ROGUE_NAME,
                         RogueOutpostManager.ROGUE_FACTION_ID,
                         false,
+                        false,
                         false
                 ));
             }
+        }
+
+        sanctuary:
+        for (com.geydev.kalfactions.claim.ClaimKey chunk
+                : SanctuaryManager.get(player.serverLevel()).claimsIn(dimension)) {
+            if (entries.size() >= FactionPayloads.S2CSyncClaims.MAX_ENTRIES) {
+                break sanctuary;
+            }
+            entries.add(new FactionPayloads.ClaimEntry(
+                    chunk.x(),
+                    chunk.z(),
+                    SanctuaryManager.SANCTUARY_COLOR,
+                    SANCTUARY_NAME,
+                    SanctuaryManager.SANCTUARY_FACTION_ID,
+                    false,
+                    false,
+                    true
+            ));
         }
 
         Faction viewerFaction = FactionManager.get(player.serverLevel())

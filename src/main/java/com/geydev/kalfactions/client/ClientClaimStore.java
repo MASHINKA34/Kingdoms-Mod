@@ -14,7 +14,14 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 
 public final class ClientClaimStore {
-    public record ClaimInfo(int color, String name, UUID factionId, boolean outpost, boolean forceLoaded) {
+    public record ClaimInfo(
+            int color,
+            String name,
+            UUID factionId,
+            boolean outpost,
+            boolean forceLoaded,
+            boolean sanctuary
+    ) {
     }
 
     public record ViewerInfo(UUID factionId, int claimCount, double claimDiscount) {
@@ -66,7 +73,13 @@ public final class ClientClaimStore {
         Map<Long, ClaimInfo> updated = new HashMap<>(claims);
         updated.put(
                 packedChunk,
-                new ClaimInfo(claim.color(), claim.name(), claim.factionId(), claim.outpost(), forceLoaded)
+                new ClaimInfo(
+                        claim.color(),
+                        claim.name(),
+                        claim.factionId(),
+                        claim.outpost(),
+                        forceLoaded,
+                        claim.sanctuary())
         );
         BY_DIMENSION.put(dimension, Map.copyOf(updated));
         REGION_HASHES.put(dimension, regionHashes(updated));

@@ -139,6 +139,11 @@ public final class FactionNetwork {
                 FactionNetwork::handleMapSetClaims
         );
         registrar.playToServer(
+                FactionPayloads.C2SSanctuarySetClaim.TYPE,
+                FactionPayloads.C2SSanctuarySetClaim.STREAM_CODEC,
+                FactionNetwork::handleSanctuarySetClaim
+        );
+        registrar.playToServer(
                 FactionPayloads.C2SToggleForceLoad.TYPE,
                 FactionPayloads.C2SToggleForceLoad.STREAM_CODEC,
                 FactionNetwork::handleToggleForceLoad
@@ -212,6 +217,16 @@ public final class FactionNetwork {
                 FactionPayloads.S2CMiningBonus.TYPE,
                 FactionPayloads.S2CMiningBonus.STREAM_CODEC,
                 FactionNetwork::handleMiningBonus
+        );
+        registrar.playToClient(
+                FactionPayloads.S2COpenGuide.TYPE,
+                FactionPayloads.S2COpenGuide.STREAM_CODEC,
+                FactionNetwork::handleOpenGuide
+        );
+        registrar.playToClient(
+                FactionPayloads.S2COpenSanctuary.TYPE,
+                FactionPayloads.S2COpenSanctuary.STREAM_CODEC,
+                FactionNetwork::handleOpenSanctuary
         );
     }
 
@@ -348,6 +363,19 @@ public final class FactionNetwork {
         FactionServerHooks.mapSetClaims(serverPlayer(context), payload.claimed(), payload.chunks());
     }
 
+    private static void handleSanctuarySetClaim(
+            FactionPayloads.C2SSanctuarySetClaim payload,
+            IPayloadContext context
+    ) {
+        FactionServerHooks.sanctuarySetClaim(
+                serverPlayer(context),
+                payload.corePos(),
+                payload.chunkX(),
+                payload.chunkZ(),
+                payload.claimed()
+        );
+    }
+
     private static void handleToggleForceLoad(FactionPayloads.C2SToggleForceLoad payload, IPayloadContext context) {
         FactionServerHooks.toggleForceLoad(serverPlayer(context), payload.dimension(), payload.packedChunk());
     }
@@ -429,6 +457,18 @@ public final class FactionNetwork {
     private static void handleMiningBonus(FactionPayloads.S2CMiningBonus payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientFactionPayloadHandler.handleMiningBonus(payload);
+        }
+    }
+
+    private static void handleOpenGuide(FactionPayloads.S2COpenGuide payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientFactionPayloadHandler.handleOpenGuide();
+        }
+    }
+
+    private static void handleOpenSanctuary(FactionPayloads.S2COpenSanctuary payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientFactionPayloadHandler.handleOpenSanctuary(payload);
         }
     }
 

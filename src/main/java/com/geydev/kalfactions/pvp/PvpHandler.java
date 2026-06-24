@@ -5,6 +5,7 @@ import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.protection.FactionAccess;
+import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -30,6 +31,15 @@ public final class PvpHandler {
         }
         applyArmorReduction(event);
         if (!(event.getSource().getEntity() instanceof ServerPlayer attacker)) {
+            return;
+        }
+
+        if (event.getEntity() instanceof ServerPlayer victim
+                && attacker != victim
+                && ModConfigSpec.SANCTUARY_DISABLE_PVP.get()
+                && SanctuaryManager.get(victim.serverLevel())
+                        .isSanctuary(victim.level(), victim.blockPosition())) {
+            event.setCanceled(true);
             return;
         }
 

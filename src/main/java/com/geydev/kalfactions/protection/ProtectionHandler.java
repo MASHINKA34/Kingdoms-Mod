@@ -5,6 +5,7 @@ import com.geydev.kalfactions.chest.AccessTool;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import com.geydev.kalfactions.war.WarManager;
 import java.util.HashMap;
 import java.util.Map;
@@ -47,8 +48,13 @@ public final class ProtectionHandler {
                 || !(event.getLevel() instanceof ServerLevel level)) {
             return;
         }
-        WarManager wars = WarManager.get(level);
         BlockPos breakPos = event.getPos();
+        if (isSanctuaryProtected(player, level, breakPos)) {
+            event.setCanceled(true);
+            deny(player, "kingdoms.protection.no_break");
+            return;
+        }
+        WarManager wars = WarManager.get(level);
         boolean canBuild = FactionAccess.canBuild(player, level, breakPos);
         boolean warBreak = !canBuild && wars.canBuildInWar(player, level, breakPos);
         // War override: a belligerent may break in the enemy faction's claims while the war is active.
@@ -75,6 +81,19 @@ public final class ProtectionHandler {
         if (!(event.getEntity() instanceof ServerPlayer player)
                 || !(event.getLevel() instanceof ServerLevel level)) {
             return;
+        }
+
+        if (!player.hasPermissions(2)) {
+            SanctuaryManager sanctuary = SanctuaryManager.get(level);
+            boolean intoSanctuary = event instanceof BlockEvent.EntityMultiPlaceEvent multiPlace
+                    ? multiPlace.getReplacedBlockSnapshots().stream()
+                            .anyMatch(snapshot -> sanctuary.isSanctuary(level, snapshot.getPos()))
+                    : sanctuary.isSanctuary(level, event.getPos());
+            if (intoSanctuary) {
+                event.setCanceled(true);
+                deny(player, "kingdoms.protection.no_place");
+                return;
+            }
         }
 
         // The only war placement override is TNT on enemy claims; everything else needs canBuild.
@@ -116,6 +135,12 @@ public final class ProtectionHandler {
         }
 
         BlockPos pos = event.getPos();
+        if (isSanctuaryProtected(player, level, pos)) {
+            cancelInteraction(event);
+            deny(player, event.getHand(), "kingdoms.protection.no_interact");
+            return;
+        }
+
         BlockState state = level.getBlockState(pos);
         if (isAlwaysAllowed(state)) {
             return;
@@ -167,8 +192,12 @@ public final class ProtectionHandler {
         }
 
         for (Slot slot : event.getContainer().slots) {
-            if (slot.container instanceof BlockEntity blockEntity
-                    && !canAccessContainer(player, level, blockEntity.getBlockPos())) {
+            if (!(slot.container instanceof BlockEntity blockEntity)) {
+                continue;
+            }
+            BlockPos containerPos = blockEntity.getBlockPos();
+            if ((isSanctuaryProtected(player, level, containerPos)
+                    || !canAccessContainer(player, level, containerPos))) {
                 player.closeContainer();
                 deny(player, "kingdoms.protection.no_container");
                 return;
@@ -178,8 +207,14 @@ public final class ProtectionHandler {
 
     @SubscribeEvent
     public static void onExplosion(ExplosionEvent.Detonate event) {
-        if (!ModConfigSpec.PROTECT_EXPLOSIONS.get()
-                || !(event.getLevel() instanceof ServerLevel level)) {
+        if (!(event.getLevel() instanceof ServerLevel level)) {
+            return;
+        }
+        if (ModConfigSpec.SANCTUARY_EXPLOSION_IMMUNITY.get()) {
+            SanctuaryManager sanctuary = SanctuaryManager.get(level);
+            event.getAffectedBlocks().removeIf(pos -> sanctuary.isSanctuary(level, pos));
+        }
+        if (!ModConfigSpec.PROTECT_EXPLOSIONS.get()) {
             return;
         }
         FactionManager factions = FactionManager.get(level);
@@ -261,6 +296,10 @@ public final class ProtectionHandler {
     private static boolean canAccessContainer(ServerPlayer player, ServerLevel level, BlockPos pos) {
         return player.hasPermissions(2)
                 || FactionManager.get(level).canAccessContainer(player.getUUID(), level, pos);
+    }
+
+    private static boolean isSanctuaryProtected(ServerPlayer player, ServerLevel level, BlockPos pos) {
+        return !player.hasPermissions(2) && SanctuaryManager.get(level).isSanctuary(level, pos);
     }
 
     private static void deny(ServerPlayer player, InteractionHand hand, String translationKey) {

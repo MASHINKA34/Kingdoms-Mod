@@ -4,6 +4,8 @@ import com.geydev.kalfactions.client.screen.ChestAccessScreen;
 import com.geydev.kalfactions.client.screen.FactionListScreen;
 import com.geydev.kalfactions.client.screen.FactionScreen;
 import com.geydev.kalfactions.client.screen.FactionScreens;
+import com.geydev.kalfactions.client.screen.GuideScreen;
+import com.geydev.kalfactions.client.screen.SanctuaryMapScreen;
 import com.geydev.kalfactions.client.screen.WarArchiveScreen;
 import com.geydev.kalfactions.faction.InfluenceType;
 import com.geydev.kalfactions.integration.xaero.XaeroMaps;
@@ -72,6 +74,23 @@ public final class ClientFactionPayloadHandler {
         });
     }
 
+    public static void handleOpenGuide() {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.execute(() -> minecraft.setScreen(new GuideScreen(minecraft.screen)));
+    }
+
+    public static void handleOpenSanctuary(FactionPayloads.S2COpenSanctuary payload) {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.execute(() -> {
+            if (minecraft.screen instanceof SanctuaryMapScreen screen
+                    && screen.corePos().equals(payload.corePos())) {
+                screen.acceptState(payload);
+            } else {
+                minecraft.setScreen(new SanctuaryMapScreen(payload));
+            }
+        });
+    }
+
     public static void handleChestAccess(FactionPayloads.S2CChestAccessState payload) {
         Minecraft minecraft = Minecraft.getInstance();
         minecraft.execute(() -> {
@@ -106,7 +125,12 @@ public final class ClientFactionPayloadHandler {
             claims.put(
                     ChunkPos.asLong(entry.chunkX(), entry.chunkZ()),
                     new ClientClaimStore.ClaimInfo(
-                            entry.color(), entry.name(), entry.factionId(), entry.outpost(), entry.forceLoaded())
+                            entry.color(),
+                            entry.name(),
+                            entry.factionId(),
+                            entry.outpost(),
+                            entry.forceLoaded(),
+                            entry.sanctuary())
             );
         }
         ClientClaimStore.ViewerInfo viewer = new ClientClaimStore.ViewerInfo(

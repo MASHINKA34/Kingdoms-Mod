@@ -1,0 +1,72 @@
+{
+  "ambientocclusion": true,
+  "textures": {
+    "particle": "kingdoms:block/sanctuary_core_side",
+    "top": "kingdoms:block/sanctuary_core_top",
+    "side": "kingdoms:block/sanctuary_core_side",
+    "bottom": "kingdoms:block/sanctuary_core_bottom",
+    "leg": "kingdoms:block/sanctuary_core_leg"
+  },
+  "elements": [
+    {
+      "from": [0, 12, 0],
+      "to": [16, 16, 16],
+      "faces": {
+        "down": {"texture": "#bottom"},
+        "up": {"texture": "#top", "cullface": "up"},
+        "north": {"texture": "#side", "cullface": "north"},
+        "south": {"texture": "#side", "cullface": "south"},
+        "west": {"texture": "#side", "cullface": "west"},
+        "east": {"texture": "#side", "cullface": "east"}
+      }
+    },
+    {
+      "from": [1, 0, 1],
+      "to": [4, 12, 4],
+      "faces": {
+        "down": {"texture": "#leg", "cullface": "down"},
+        "up": {"texture": "#leg"},
+        "north": {"texture": "#leg"},
+        "south": {"texture": "#leg"},
+        "west": {"texture": "#leg"},
+        "east": {"texture": "#leg"}
+      }
+    },
+    {
+      "from": [12, 0, 1],
+      "to": [15, 12, 4],
+      "faces": {
+        "down": {"texture": "#leg", "cullface": "down"},
+        "up": {"texture": "#leg"},
+        "north": {"texture": "#leg"},
+        "south": {"texture": "#leg"},
+        "west": {"texture": "#leg"},
+        "east": {"texture": "#leg"}
+      }
+    },
+    {
+      "from": [1, 0, 12],
+      "to": [4, 12, 15],
+      "faces": {
+        "down": {"texture": "#leg", "cullface": "down"},
+        "up": {"texture": "#leg"},
+        "north": {"texture": "#leg"},
+        "south": {"texture": "#leg"},
+        "west": {"texture": "#leg"},
+        "east": {"texture": "#leg"}
+      }
+    },
+    {
+      "from": [12, 0, 12],
+      "to": [15, 12, 15],
+      "faces": {
+        "down": {"texture": "#leg", "cullface": "down"},
+        "up": {"texture": "#leg"},
+        "north": {"texture": "#leg"},
+        "south": {"texture": "#leg"},
+        "west": {"texture": "#leg"},
+        "east": {"texture": "#leg"}
+      }
+    }
+  ]
+}

@@ -4,6 +4,8 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
 import com.geydev.kalfactions.chest.AccessTool;
 import com.geydev.kalfactions.chest.ChestAccessMode;
+import com.geydev.kalfactions.claim.ClaimKey;
+import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import com.geydev.kalfactions.command.PendingAllianceRequests;
 import com.geydev.kalfactions.command.PendingFactionInvites;
 import com.geydev.kalfactions.config.ModConfigSpec;
@@ -39,6 +41,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class FactionServerHooks {
     public static final int MAX_NAME_LENGTH = 32;
+    public static final int SANCTUARY_MAP_RADIUS = 8;
     private static final double MAX_TABLE_DISTANCE_SQR = 64.0D;
     private static final long ACTION_COOLDOWN_TICKS = 2L;
     private static final ConcurrentHashMap<UUID, Long> LAST_ACTION_TICK = new ConcurrentHashMap<>();
@@ -91,6 +94,101 @@ public final class FactionServerHooks {
                 .map(FactionServerHooks::warRecordView)
                 .toList();
         PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CWarArchive(records));
+    }
+
+    public static void openGuide(ServerPlayer player, BlockPos boardPos) {
+        if (!player.isAlive() || player.isSpectator()) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player, FactionPayloads.S2COpenGuide.INSTANCE);
+    }
+
+    public static void openSanctuary(ServerPlayer player, BlockPos corePos) {
+        if (!validateSanctuary(player, corePos)) {
+            return;
+        }
+        sendSanctuary(player, corePos, Component.empty(), true);
+    }
+
+    public static void sanctuarySetClaim(
+            ServerPlayer player,
+            BlockPos corePos,
+            int chunkX,
+            int chunkZ,
+            boolean claimed
+    ) {
+        if (!validateSanctuary(player, corePos)) {
+            return;
+        }
+        long now = player.level().getGameTime();
+        Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+        if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
+            sendNotice(player, Component.translatable("kingdoms.error.action_rate_limited"), false);
+            return;
+        }
+        ChunkPos center = new ChunkPos(corePos);
+        if (Math.abs(chunkX - center.x) > SANCTUARY_MAP_RADIUS
+                || Math.abs(chunkZ - center.z) > SANCTUARY_MAP_RADIUS) {
+            sendSanctuary(player, corePos, Component.translatable("kingdoms.error.claim_outside_map"), false);
+            return;
+        }
+        ServerLevel level = player.serverLevel();
+        ClaimKey key = new ClaimKey(level.dimension(), new ChunkPos(chunkX, chunkZ));
+        SanctuaryManager.get(level).setClaim(key, claimed);
+        ClaimSyncManager.resyncAll(player.getServer());
+        Component message = Component.translatable(
+                claimed ? "kingdoms.sanctuary.claimed" : "kingdoms.sanctuary.unclaimed");
+        sendSanctuary(player, corePos, message, true);
+    }
+
+    private static boolean validateSanctuary(ServerPlayer player, BlockPos corePos) {
+        if (!player.isAlive() || player.isSpectator()) {
+            return false;
+        }
+        if (!player.hasPermissions(2)) {
+            sendNotice(player, Component.translatable("kingdoms.sanctuary.not_operator"), false);
+            return false;
+        }
+        if (!player.level().isLoaded(corePos)) {
+            sendNotice(player, Component.translatable("kingdoms.error.table_not_loaded"), false);
+            return false;
+        }
+        if (player.distanceToSqr(corePos.getX() + 0.5D, corePos.getY() + 0.5D, corePos.getZ() + 0.5D)
+                > MAX_TABLE_DISTANCE_SQR) {
+            sendNotice(player, Component.translatable("kingdoms.error.table_too_far"), false);
+            return false;
+        }
+        if (!player.level().getBlockState(corePos).is(ModBlocks.SANCTUARY_CORE.get())) {
+            sendNotice(player, Component.translatable("kingdoms.sanctuary.not_core"), false);
+            return false;
+        }
+        return true;
+    }
+
+    private static void sendSanctuary(
+            ServerPlayer player,
+            BlockPos corePos,
+            Component message,
+            boolean successful
+    ) {
+        ServerLevel level = player.serverLevel();
+        ChunkPos center = new ChunkPos(corePos);
+        List<Long> chunks = new ArrayList<>();
+        for (ClaimKey key : SanctuaryManager.get(level).claimsIn(level.dimension())) {
+            if (Math.abs(key.x() - center.x) <= SANCTUARY_MAP_RADIUS
+                    && Math.abs(key.z() - center.z) <= SANCTUARY_MAP_RADIUS) {
+                chunks.add(ChunkPos.asLong(key.x(), key.z()));
+            }
+        }
+        PacketDistributor.sendToPlayer(player, new FactionPayloads.S2COpenSanctuary(
+                corePos,
+                center.x,
+                center.z,
+                SANCTUARY_MAP_RADIUS,
+                chunks,
+                message,
+                successful
+        ));
     }
 
     public static void create(

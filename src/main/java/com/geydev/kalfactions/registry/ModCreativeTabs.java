@@ -22,6 +22,8 @@ public final class ModCreativeTabs {
                     .displayItems((parameters, output) -> {
                         output.accept(ModItems.FACTION_TABLE.get());
                         output.accept(ModItems.WAR_ARCHIVE.get());
+                        output.accept(ModItems.GUIDE_BOARD.get());
+                        output.accept(ModItems.SANCTUARY_CORE.get());
                         output.accept(ModItems.ACCESS_TOOL.get());
                         output.accept(ModItems.OUTPOST_CHARTER.get());
                         output.accept(ModItems.DRILL.get());

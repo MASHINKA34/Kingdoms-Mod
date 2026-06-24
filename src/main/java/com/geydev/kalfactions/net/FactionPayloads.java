@@ -1166,7 +1166,8 @@ public final class FactionPayloads {
             String name,
             UUID factionId,
             boolean outpost,
-            boolean forceLoaded
+            boolean forceLoaded,
+            boolean sanctuary
     ) {
         private static void encode(RegistryFriendlyByteBuf buffer, ClaimEntry entry) {
             buffer.writeVarInt(entry.chunkX);
@@ -1176,6 +1177,7 @@ public final class FactionPayloads {
             buffer.writeUUID(entry.factionId);
             buffer.writeBoolean(entry.outpost);
             buffer.writeBoolean(entry.forceLoaded);
+            buffer.writeBoolean(entry.sanctuary);
         }
 
         private static ClaimEntry decode(RegistryFriendlyByteBuf buffer) {
@@ -1186,8 +1188,105 @@ public final class FactionPayloads {
                     buffer.readUtf(32),
                     buffer.readUUID(),
                     buffer.readBoolean(),
+                    buffer.readBoolean(),
                     buffer.readBoolean()
             );
+        }
+    }
+
+    public record S2COpenGuide() implements CustomPacketPayload {
+        public static final S2COpenGuide INSTANCE = new S2COpenGuide();
+        public static final Type<S2COpenGuide> TYPE = FactionPayloads.payloadType("open_guide_screen");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2COpenGuide> STREAM_CODEC =
+                StreamCodec.unit(INSTANCE);
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SSanctuarySetClaim(
+            BlockPos corePos,
+            int chunkX,
+            int chunkZ,
+            boolean claimed
+    ) implements CustomPacketPayload {
+        public static final Type<C2SSanctuarySetClaim> TYPE = FactionPayloads.payloadType("sanctuary_set_claim");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SSanctuarySetClaim> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBlockPos(payload.corePos);
+                    buffer.writeInt(payload.chunkX);
+                    buffer.writeInt(payload.chunkZ);
+                    buffer.writeBoolean(payload.claimed);
+                },
+                buffer -> new C2SSanctuarySetClaim(
+                        buffer.readBlockPos(),
+                        buffer.readInt(),
+                        buffer.readInt(),
+                        buffer.readBoolean()
+                )
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record S2COpenSanctuary(
+            BlockPos corePos,
+            int centerChunkX,
+            int centerChunkZ,
+            int radius,
+            List<Long> chunks,
+            Component message,
+            boolean successful
+    ) implements CustomPacketPayload {
+        public static final int MAX_CHUNKS = 16384;
+        public static final Type<S2COpenSanctuary> TYPE = FactionPayloads.payloadType("sanctuary_state");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2COpenSanctuary> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBlockPos(payload.corePos);
+                    buffer.writeInt(payload.centerChunkX);
+                    buffer.writeInt(payload.centerChunkZ);
+                    buffer.writeVarInt(payload.radius);
+                    int size = Math.min(payload.chunks.size(), MAX_CHUNKS);
+                    buffer.writeVarInt(size);
+                    for (int i = 0; i < size; i++) {
+                        buffer.writeLong(payload.chunks.get(i));
+                    }
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buffer, payload.message);
+                    buffer.writeBoolean(payload.successful);
+                },
+                buffer -> {
+                    BlockPos corePos = buffer.readBlockPos();
+                    int centerChunkX = buffer.readInt();
+                    int centerChunkZ = buffer.readInt();
+                    int radius = buffer.readVarInt();
+                    int size = buffer.readVarInt();
+                    if (size < 0 || size > MAX_CHUNKS) {
+                        throw new DecoderException("Sanctuary chunk batch size " + size + " exceeds " + MAX_CHUNKS);
+                    }
+                    List<Long> chunks = new ArrayList<>(size);
+                    for (int i = 0; i < size; i++) {
+                        chunks.add(buffer.readLong());
+                    }
+                    return new S2COpenSanctuary(
+                            corePos,
+                            centerChunkX,
+                            centerChunkZ,
+                            radius,
+                            List.copyOf(chunks),
+                            ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer),
+                            buffer.readBoolean()
+                    );
+                }
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
         }
     }
 

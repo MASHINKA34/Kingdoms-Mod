@@ -6,6 +6,7 @@ import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.InfluenceType;
+import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import com.mojang.logging.LogUtils;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -147,6 +148,9 @@ public final class WarManager extends SavedData {
      */
     public synchronized boolean canBuildInWar(ServerPlayer player, ServerLevel level, BlockPos pos) {
         if (wars.isEmpty()) {
+            return false;
+        }
+        if (SanctuaryManager.get(level).isSanctuary(ClaimKey.of(level, pos))) {
             return false;
         }
         FactionManager factions = FactionManager.get(level);

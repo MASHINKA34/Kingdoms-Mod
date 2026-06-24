@@ -21,6 +21,12 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> WAR_ARCHIVE =
             ITEMS.registerSimpleBlockItem(ModBlocks.WAR_ARCHIVE);
 
+    public static final DeferredItem<BlockItem> GUIDE_BOARD =
+            ITEMS.registerSimpleBlockItem(ModBlocks.GUIDE_BOARD);
+
+    public static final DeferredItem<BlockItem> SANCTUARY_CORE =
+            ITEMS.registerSimpleBlockItem(ModBlocks.SANCTUARY_CORE);
+
     public static final DeferredItem<AccessTool> ACCESS_TOOL = ITEMS.register(
             "access_tool",
             () -> new AccessTool(new Item.Properties().stacksTo(1))
