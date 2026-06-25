@@ -18,11 +18,12 @@ public final class GuideScreen extends Screen {
             "war",
             "alliances",
             "archive",
-            "outposts"
+            "outposts",
+            "commands"
     };
 
     private static final int PANEL_WIDTH = 362;
-    private static final int PANEL_HEIGHT = 216;
+    private static final int PANEL_HEIGHT = 236;
     private static final int LINE_HEIGHT = 10;
     private static final int SCROLLBAR_WIDTH = 4;
     private static final int GOLD = 0xFFF3D58B;

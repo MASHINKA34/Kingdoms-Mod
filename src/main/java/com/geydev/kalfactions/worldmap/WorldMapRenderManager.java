@@ -42,6 +42,17 @@ public final class WorldMapRenderManager {
             return false;
         }
         active = new WorldMapRenderJob(level, centerX, centerZ, regionBlocks, resolution);
+        startMillis = System.currentTimeMillis();
+        sinceBarUpdate = 0;
+        bar = new ServerBossEvent(
+                Component.literal(barName(level, 0.0, 0L)),
+                BossEvent.BossBarColor.GREEN,
+                BossEvent.BossBarOverlay.PROGRESS
+        );
+        bar.setProgress(0.0F);
+        for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
+            bar.addPlayer(player);
+        }
         return true;
     }
 
@@ -50,6 +61,7 @@ public final class WorldMapRenderManager {
             return false;
         }
         active = null;
+        clearBar();
         return true;
     }
 
@@ -64,12 +76,53 @@ public final class WorldMapRenderManager {
         } catch (RuntimeException e) {
             KalFactions.LOGGER.error("World map render failed", e);
             active = null;
+            clearBar();
             return;
         }
         if (job.isDone()) {
             active = null;
+            updateBar(job);
+            clearBar();
             finish(job);
+        } else if (++sinceBarUpdate >= BAR_UPDATE_INTERVAL_TICKS) {
+            sinceBarUpdate = 0;
+            updateBar(job);
         }
+    }
+
+    private static void updateBar(WorldMapRenderJob job) {
+        ServerBossEvent activeBar = bar;
+        if (activeBar == null) {
+            return;
+        }
+        double progress = job.progress();
+        for (ServerPlayer player : job.level().getServer().getPlayerList().getPlayers()) {
+            activeBar.addPlayer(player);
+        }
+        activeBar.setProgress((float) Math.min(1.0, progress));
+        long elapsedMillis = System.currentTimeMillis() - startMillis;
+        long etaSeconds = progress > 0.0001
+                ? (long) (elapsedMillis * (1.0 - progress) / progress / 1000.0)
+                : 0L;
+        activeBar.setName(Component.literal(barName(job.level(), progress, etaSeconds)));
+    }
+
+    private static void clearBar() {
+        if (bar != null) {
+            bar.removeAllPlayers();
+            bar = null;
+        }
+    }
+
+    private static String barName(ServerLevel level, double progress, long etaSeconds) {
+        return level.dimension().location()
+                + " | " + String.format(Locale.ROOT, "%.2f", progress * 100.0) + "%"
+                + " | " + formatEta(etaSeconds);
+    }
+
+    private static String formatEta(long seconds) {
+        long safe = Math.max(0L, seconds);
+        return String.format(Locale.ROOT, "%02d:%02d:%02d", safe / 3600, (safe % 3600) / 60, safe % 60);
     }
 
     private static void finish(WorldMapRenderJob job) {
