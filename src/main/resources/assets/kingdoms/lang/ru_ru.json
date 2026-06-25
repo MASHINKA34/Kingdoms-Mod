@@ -687,6 +687,7 @@
   "block.kingdoms.guide_board": "Кодекс Королевств",
   "block.kingdoms.guide_board.label": "Гайд по королевствам",
   "block.kingdoms.sanctuary_core": "Краеугольный камень спавна",
+  "block.kingdoms.world_map": "Карта мира",
   "kingdoms.sanctuary.not_operator": "Управлять защитой спавна может только оператор.",
   "kingdoms.sanctuary.not_core": "Это не Краеугольный камень спавна.",
   "kingdoms.sanctuary.claimed": "Чанк отмечен как зона спавна.",

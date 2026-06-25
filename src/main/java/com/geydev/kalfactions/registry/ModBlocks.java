@@ -7,6 +7,7 @@ import com.geydev.kalfactions.block.GuideBoardBlock;
 import com.geydev.kalfactions.block.OutpostCoreBlock;
 import com.geydev.kalfactions.block.SanctuaryCoreBlock;
 import com.geydev.kalfactions.block.WarArchiveBlock;
+import com.geydev.kalfactions.block.WorldMapBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -88,6 +89,14 @@ public final class ModBlocks {
             () -> new OutpostCoreBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_GRAY)
                     .strength(50.0F, 1200.0F)
+                    .sound(SoundType.STONE))
+    );
+
+    public static final DeferredBlock<WorldMapBlock> WORLD_MAP = BLOCKS.register(
+            "world_map",
+            () -> new WorldMapBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .strength(3.0F, 6.0F)
                     .sound(SoundType.STONE))
     );
 

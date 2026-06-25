@@ -1,0 +1,28 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "bonus_rolls": 0.0,
+      "conditions": [
+        {
+          "condition": "minecraft:block_state_property",
+          "block": "kingdoms:world_map",
+          "properties": {
+            "cell": "2"
+          }
+        },
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "kingdoms:world_map"
+        }
+      ],
+      "rolls": 1.0
+    }
+  ],
+  "random_sequence": "kingdoms:blocks/world_map"
+}

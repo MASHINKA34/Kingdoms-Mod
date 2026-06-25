@@ -1,0 +1,12 @@
+package com.geydev.kalfactions.block;
+
+import com.geydev.kalfactions.registry.ModBlockEntities;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+
+public final class WorldMapBlockEntity extends BlockEntity {
+    public WorldMapBlockEntity(BlockPos pos, BlockState state) {
+        super(ModBlockEntities.WORLD_MAP.get(), pos, state);
+    }
+}

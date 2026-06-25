@@ -687,6 +687,7 @@
   "block.kingdoms.guide_board": "Kingdoms Codex",
   "block.kingdoms.guide_board.label": "Kingdoms Guide",
   "block.kingdoms.sanctuary_core": "Spawn Sanctuary Cornerstone",
+  "block.kingdoms.world_map": "World Map",
   "kingdoms.sanctuary.not_operator": "Only an operator can manage the spawn sanctuary.",
   "kingdoms.sanctuary.not_core": "That is not a Spawn Sanctuary Cornerstone.",
   "kingdoms.sanctuary.claimed": "Chunk marked as spawn sanctuary.",

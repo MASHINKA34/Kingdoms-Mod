@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "PPP",
+    "PMP",
+    "SSS"
+  ],
+  "key": {
+    "P": {
+      "item": "minecraft:paper"
+    },
+    "M": {
+      "item": "minecraft:compass"
+    },
+    "S": {
+      "item": "minecraft:stone_bricks"
+    }
+  },
+  "result": {
+    "id": "kingdoms:world_map",
+    "count": 1
+  }
+}
