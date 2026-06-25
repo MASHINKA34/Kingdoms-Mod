@@ -2,10 +2,14 @@ package com.geydev.kalfactions.worldmap;
 
 import com.geydev.kalfactions.KalFactions;
 import java.io.IOException;
+import java.util.Locale;
 import javax.annotation.Nullable;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.BossEvent;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -13,9 +17,14 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class WorldMapRenderManager {
     private static final int SAMPLES_PER_TICK = 24_576;
+    private static final int BAR_UPDATE_INTERVAL_TICKS = 10;
 
     @Nullable
     private static WorldMapRenderJob active;
+    @Nullable
+    private static ServerBossEvent bar;
+    private static long startMillis;
+    private static int sinceBarUpdate;
 
     private WorldMapRenderManager() {
     }
