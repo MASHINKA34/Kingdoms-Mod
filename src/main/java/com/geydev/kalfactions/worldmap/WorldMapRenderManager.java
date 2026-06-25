@@ -74,6 +74,7 @@ public final class WorldMapRenderManager {
                     job.regionBlocks(),
                     job.resolution()
             );
+            WorldMapService.broadcast(server);
             server.getPlayerList().broadcastSystemMessage(
                     Component.literal("[Kingdoms] World map render complete."),
                     false

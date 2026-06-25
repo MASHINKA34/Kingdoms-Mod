@@ -17,7 +17,7 @@ import net.minecraft.world.phys.AABB;
 import org.joml.Matrix4f;
 
 public final class WorldMapRenderer implements BlockEntityRenderer<WorldMapBlockEntity> {
-    private static final ResourceLocation TEXTURE =
+    private static final ResourceLocation PLACEHOLDER =
             ResourceLocation.withDefaultNamespace("textures/map/map_background.png");
 
     public WorldMapRenderer(BlockEntityRendererProvider.Context context) {
@@ -68,7 +68,13 @@ public final class WorldMapRenderer implements BlockEntityRenderer<WorldMapBlock
         float[] c11 = {baseX + lx * leftMax, yMax, baseZ + lz * leftMax};
         float[] c01 = {baseX + lx * leftMin, yMax, baseZ + lz * leftMin};
 
-        VertexConsumer vc = buffer.getBuffer(RenderType.entitySolid(TEXTURE));
+        ResourceLocation texture = ClientWorldMapStore.texture();
+        if (texture == null) {
+            ClientWorldMapStore.requestIfNeeded(blockEntity.getBlockPos());
+            texture = PLACEHOLDER;
+        }
+
+        VertexConsumer vc = buffer.getBuffer(RenderType.entitySolid(texture));
         Matrix4f matrix = pose.last().pose();
 
         quad(vc, matrix, c00, c10, c11, c01, fx, fz, packedLight);

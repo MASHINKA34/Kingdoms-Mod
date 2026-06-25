@@ -1322,6 +1322,81 @@ public final class FactionPayloads {
         }
     }
 
+    public record C2SRequestWorldMap(BlockPos pos) implements CustomPacketPayload {
+        public static final Type<C2SRequestWorldMap> TYPE = FactionPayloads.payloadType("request_world_map");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SRequestWorldMap> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> buffer.writeBlockPos(payload.pos),
+                buffer -> new C2SRequestWorldMap(buffer.readBlockPos())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record S2CWorldMapBegin(
+            int width,
+            int height,
+            int centerX,
+            int centerZ,
+            int regionBlocks,
+            int totalParts,
+            int totalBytes,
+            long version
+    ) implements CustomPacketPayload {
+        public static final Type<S2CWorldMapBegin> TYPE = FactionPayloads.payloadType("world_map_begin");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CWorldMapBegin> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeVarInt(payload.width);
+                    buffer.writeVarInt(payload.height);
+                    buffer.writeInt(payload.centerX);
+                    buffer.writeInt(payload.centerZ);
+                    buffer.writeVarInt(payload.regionBlocks);
+                    buffer.writeVarInt(payload.totalParts);
+                    buffer.writeVarInt(payload.totalBytes);
+                    buffer.writeLong(payload.version);
+                },
+                buffer -> new S2CWorldMapBegin(
+                        buffer.readVarInt(),
+                        buffer.readVarInt(),
+                        buffer.readInt(),
+                        buffer.readInt(),
+                        buffer.readVarInt(),
+                        buffer.readVarInt(),
+                        buffer.readVarInt(),
+                        buffer.readLong()
+                )
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record S2CWorldMapPart(long version, int index, byte[] data) implements CustomPacketPayload {
+        public static final int MAX_PART = 32 * 1024;
+        public static final Type<S2CWorldMapPart> TYPE = FactionPayloads.payloadType("world_map_part");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CWorldMapPart> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeLong(payload.version);
+                    buffer.writeVarInt(payload.index);
+                    buffer.writeByteArray(payload.data);
+                },
+                buffer -> new S2CWorldMapPart(
+                        buffer.readLong(),
+                        buffer.readVarInt(),
+                        buffer.readByteArray(MAX_PART)
+                )
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> payloadType(String path) {
         return new CustomPacketPayload.Type<>(
                 ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, path)

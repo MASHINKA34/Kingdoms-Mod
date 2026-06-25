@@ -51,6 +51,10 @@ public final class WorldMapRenderJob {
         return (int) (100L * pz / resolution);
     }
 
+    public double progress() {
+        return (pz * (long) resolution + px) / (double) ((long) resolution * resolution);
+    }
+
     public ServerLevel level() {
         return level;
     }

@@ -2,6 +2,8 @@ package com.geydev.kalfactions.net;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.ClientFactionPayloadHandler;
+import com.geydev.kalfactions.client.ClientWorldMapStore;
+import com.geydev.kalfactions.worldmap.WorldMapService;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -174,6 +176,11 @@ public final class FactionNetwork {
                 FactionNetwork::handleRequestFactionList
         );
         registrar.playToServer(
+                FactionPayloads.C2SRequestWorldMap.TYPE,
+                FactionPayloads.C2SRequestWorldMap.STREAM_CODEC,
+                FactionNetwork::handleRequestWorldMap
+        );
+        registrar.playToServer(
                 FactionPayloads.C2SRespondInvite.TYPE,
                 FactionPayloads.C2SRespondInvite.STREAM_CODEC,
                 FactionNetwork::handleRespondInvite
@@ -232,6 +239,16 @@ public final class FactionNetwork {
                 FactionPayloads.S2COpenSanctuary.TYPE,
                 FactionPayloads.S2COpenSanctuary.STREAM_CODEC,
                 FactionNetwork::handleOpenSanctuary
+        );
+        registrar.playToClient(
+                FactionPayloads.S2CWorldMapBegin.TYPE,
+                FactionPayloads.S2CWorldMapBegin.STREAM_CODEC,
+                FactionNetwork::handleWorldMapBegin
+        );
+        registrar.playToClient(
+                FactionPayloads.S2CWorldMapPart.TYPE,
+                FactionPayloads.S2CWorldMapPart.STREAM_CODEC,
+                FactionNetwork::handleWorldMapPart
         );
     }
 
@@ -414,6 +431,22 @@ public final class FactionNetwork {
             IPayloadContext context
     ) {
         FactionServerHooks.sendFactionList(serverPlayer(context));
+    }
+
+    private static void handleRequestWorldMap(FactionPayloads.C2SRequestWorldMap payload, IPayloadContext context) {
+        WorldMapService.send(serverPlayer(context));
+    }
+
+    private static void handleWorldMapBegin(FactionPayloads.S2CWorldMapBegin payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientWorldMapStore.handleBegin(payload);
+        }
+    }
+
+    private static void handleWorldMapPart(FactionPayloads.S2CWorldMapPart payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientWorldMapStore.handlePart(payload);
+        }
     }
 
     private static void handleRespondInvite(FactionPayloads.C2SRespondInvite payload, IPayloadContext context) {
