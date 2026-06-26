@@ -1429,6 +1429,45 @@ public final class FactionPayloads {
         }
     }
 
+    public record S2CWorldMapStations(ResourceLocation dimension, List<StationView> stations)
+            implements CustomPacketPayload {
+        public static final int MAX_STATIONS = 512;
+        public static final Type<S2CWorldMapStations> TYPE = FactionPayloads.payloadType("world_map_stations");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CWorldMapStations> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeResourceLocation(payload.dimension);
+                    int size = Math.min(payload.stations.size(), MAX_STATIONS);
+                    buffer.writeVarInt(size);
+                    for (int i = 0; i < size; i++) {
+                        StationView view = payload.stations.get(i);
+                        buffer.writeUtf(view.name(), 64);
+                        buffer.writeFloat(view.x());
+                        buffer.writeFloat(view.z());
+                    }
+                },
+                buffer -> {
+                    ResourceLocation dimension = buffer.readResourceLocation();
+                    int size = buffer.readVarInt();
+                    if (size < 0 || size > MAX_STATIONS) {
+                        throw new DecoderException("World map station count " + size + " exceeds " + MAX_STATIONS);
+                    }
+                    List<StationView> stations = new ArrayList<>(size);
+                    for (int i = 0; i < size; i++) {
+                        stations.add(new StationView(buffer.readUtf(64), buffer.readFloat(), buffer.readFloat()));
+                    }
+                    return new S2CWorldMapStations(dimension, List.copyOf(stations));
+                }
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record StationView(String name, float x, float z) {
+    }
+
     private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> payloadType(String path) {
         return new CustomPacketPayload.Type<>(
                 ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, path)

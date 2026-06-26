@@ -2,6 +2,8 @@ package com.geydev.kalfactions.worldmap;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.net.FactionPayloads;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -38,19 +40,32 @@ public final class WorldMapTrackSync {
         if (meta == null) {
             return;
         }
-        FactionPayloads.S2CWorldMapTracks payload = build(meta);
+        FactionPayloads.S2CWorldMapTracks tracks = buildTracks(meta);
+        FactionPayloads.S2CWorldMapStations stations = buildStations(meta);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            PacketDistributor.sendToPlayer(player, payload);
+            PacketDistributor.sendToPlayer(player, tracks);
+            PacketDistributor.sendToPlayer(player, stations);
         }
     }
 
     public static void send(ServerPlayer player, WorldMapStorage.Meta meta) {
-        PacketDistributor.sendToPlayer(player, build(meta));
+        PacketDistributor.sendToPlayer(player, buildTracks(meta));
+        PacketDistributor.sendToPlayer(player, buildStations(meta));
     }
 
-    private static FactionPayloads.S2CWorldMapTracks build(WorldMapStorage.Meta meta) {
+    private static FactionPayloads.S2CWorldMapTracks buildTracks(WorldMapStorage.Meta meta) {
         ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, meta.dimension());
         float[] segments = WorldMapTracks.collect(dimension, meta.centerX(), meta.centerZ(), meta.regionBlocks());
         return new FactionPayloads.S2CWorldMapTracks(meta.dimension(), segments);
+    }
+
+    private static FactionPayloads.S2CWorldMapStations buildStations(WorldMapStorage.Meta meta) {
+        ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, meta.dimension());
+        List<FactionPayloads.StationView> views = new ArrayList<>();
+        for (WorldMapTracks.Station station
+                : WorldMapTracks.collectStations(dimension, meta.centerX(), meta.centerZ(), meta.regionBlocks())) {
+            views.add(new FactionPayloads.StationView(station.name(), station.x(), station.z()));
+        }
+        return new FactionPayloads.S2CWorldMapStations(meta.dimension(), views);
     }
 }

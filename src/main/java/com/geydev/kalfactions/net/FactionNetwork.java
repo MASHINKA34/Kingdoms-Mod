@@ -256,6 +256,11 @@ public final class FactionNetwork {
                 FactionPayloads.S2CWorldMapTracks.STREAM_CODEC,
                 FactionNetwork::handleWorldMapTracks
         );
+        registrar.playToClient(
+                FactionPayloads.S2CWorldMapStations.TYPE,
+                FactionPayloads.S2CWorldMapStations.STREAM_CODEC,
+                FactionNetwork::handleWorldMapStations
+        );
     }
 
     private static void handleOpen(FactionPayloads.C2SOpenTable payload, IPayloadContext context) {
@@ -458,6 +463,12 @@ public final class FactionNetwork {
     private static void handleWorldMapTracks(FactionPayloads.S2CWorldMapTracks payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientWorldMapTracks.handle(payload);
+        }
+    }
+
+    private static void handleWorldMapStations(FactionPayloads.S2CWorldMapStations payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientWorldMapTracks.handleStations(payload);
         }
     }
 

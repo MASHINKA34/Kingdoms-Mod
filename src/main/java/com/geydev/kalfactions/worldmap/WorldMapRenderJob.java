@@ -5,6 +5,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.core.BlockPos;
@@ -117,10 +118,17 @@ public final class WorldMapRenderJob {
             int delta = height - previous;
             brightness = delta > 0 ? BRIGHT_HIGH : (delta < 0 ? BRIGHT_LOW : BRIGHT_NORMAL);
         }
-        int base = mapColor.col;
+        int base = snowCovered(mapColor) ? MapColor.SNOW.col : mapColor.col;
         int r = ((base >> 16) & 255) * brightness / 255;
         int g = ((base >> 8) & 255) * brightness / 255;
         int b = (base & 255) * brightness / 255;
         image.setRGB(px, pz, 0xFF000000 | (r << 16) | (g << 8) | b);
+    }
+
+    private boolean snowCovered(MapColor mapColor) {
+        if (mapColor == MapColor.WATER || mapColor == MapColor.ICE || mapColor == MapColor.SNOW) {
+            return false;
+        }
+        return level.getBiome(cursor).value().getPrecipitationAt(cursor) == Biome.Precipitation.SNOW;
     }
 }
