@@ -1397,6 +1397,38 @@ public final class FactionPayloads {
         }
     }
 
+    public record S2CWorldMapTracks(ResourceLocation dimension, float[] segments) implements CustomPacketPayload {
+        public static final int MAX_FLOATS = 16_384 * 4;
+        public static final Type<S2CWorldMapTracks> TYPE = FactionPayloads.payloadType("world_map_tracks");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CWorldMapTracks> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeResourceLocation(payload.dimension);
+                    int count = Math.min(payload.segments.length, MAX_FLOATS);
+                    buffer.writeVarInt(count);
+                    for (int i = 0; i < count; i++) {
+                        buffer.writeFloat(payload.segments[i]);
+                    }
+                },
+                buffer -> {
+                    ResourceLocation dimension = buffer.readResourceLocation();
+                    int count = buffer.readVarInt();
+                    if (count < 0 || count > MAX_FLOATS) {
+                        throw new DecoderException("World map track float count " + count + " exceeds " + MAX_FLOATS);
+                    }
+                    float[] segments = new float[count];
+                    for (int i = 0; i < count; i++) {
+                        segments[i] = buffer.readFloat();
+                    }
+                    return new S2CWorldMapTracks(dimension, segments);
+                }
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> payloadType(String path) {
         return new CustomPacketPayload.Type<>(
                 ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, path)

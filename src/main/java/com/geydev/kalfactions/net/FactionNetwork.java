@@ -3,6 +3,7 @@ package com.geydev.kalfactions.net;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.ClientFactionPayloadHandler;
 import com.geydev.kalfactions.client.ClientWorldMapStore;
+import com.geydev.kalfactions.client.ClientWorldMapTracks;
 import com.geydev.kalfactions.worldmap.WorldMapService;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.api.distmarker.Dist;
@@ -250,6 +251,11 @@ public final class FactionNetwork {
                 FactionPayloads.S2CWorldMapPart.STREAM_CODEC,
                 FactionNetwork::handleWorldMapPart
         );
+        registrar.playToClient(
+                FactionPayloads.S2CWorldMapTracks.TYPE,
+                FactionPayloads.S2CWorldMapTracks.STREAM_CODEC,
+                FactionNetwork::handleWorldMapTracks
+        );
     }
 
     private static void handleOpen(FactionPayloads.C2SOpenTable payload, IPayloadContext context) {
@@ -446,6 +452,12 @@ public final class FactionNetwork {
     private static void handleWorldMapPart(FactionPayloads.S2CWorldMapPart payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientWorldMapStore.handlePart(payload);
+        }
+    }
+
+    private static void handleWorldMapTracks(FactionPayloads.S2CWorldMapTracks payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientWorldMapTracks.handle(payload);
         }
     }
 

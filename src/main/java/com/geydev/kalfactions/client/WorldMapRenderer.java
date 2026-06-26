@@ -11,9 +11,13 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import java.util.Map;
 import org.joml.Matrix4f;
 
 public final class WorldMapRenderer implements BlockEntityRenderer<WorldMapBlockEntity> {
@@ -79,6 +83,130 @@ public final class WorldMapRenderer implements BlockEntityRenderer<WorldMapBlock
 
         quad(vc, matrix, c00, c10, c11, c01, fx, fz, packedLight);
         quad(vc, matrix, c01, c11, c10, c00, -fx, -fz, packedLight);
+
+        renderFactions(blockEntity, buffer, matrix, baseX, baseZ, lx, lz, leftMin, leftMax, yMin, yMax, fx, fz);
+        renderTracks(blockEntity, buffer, matrix, baseX, baseZ, lx, lz, leftMin, leftMax, yMin, yMax, fx, fz);
+    }
+
+    private static final int TRACK_COLOR = 0xFF4FA8;
+
+    private static void renderTracks(WorldMapBlockEntity blockEntity, MultiBufferSource buffer, Matrix4f matrix,
+                                     float baseX, float baseZ, float lx, float lz,
+                                     float leftMin, float leftMax, float yMin, float yMax, float fx, float fz) {
+        int regionBlocks = ClientWorldMapStore.regionBlocks();
+        if (regionBlocks <= 0 || blockEntity.getLevel() == null) {
+            return;
+        }
+        float[] segments = ClientWorldMapTracks.segments(blockEntity.getLevel().dimension());
+        if (segments.length < 4) {
+            return;
+        }
+        double minX = ClientWorldMapStore.centerX() - regionBlocks / 2.0;
+        double minZ = ClientWorldMapStore.centerZ() - regionBlocks / 2.0;
+        float ox = baseX + fx * 0.02F;
+        float oz = baseZ + fz * 0.02F;
+        VertexConsumer vc = buffer.getBuffer(RenderType.debugQuads());
+        for (int i = 0; i + 3 < segments.length; i += 4) {
+            double uA = (segments[i] - minX) / regionBlocks;
+            double vA = (segments[i + 1] - minZ) / regionBlocks;
+            double uB = (segments[i + 2] - minX) / regionBlocks;
+            double vB = (segments[i + 3] - minZ) / regionBlocks;
+            if ((uA < 0.0 && uB < 0.0) || (uA > 1.0 && uB > 1.0)
+                    || (vA < 0.0 && vB < 0.0) || (vA > 1.0 && vB > 1.0)) {
+                continue;
+            }
+            lineQuad(vc, matrix, ox, oz, lx, lz, leftMin, leftMax, yMin, yMax, fx, fz, uA, vA, uB, vB, TRACK_COLOR);
+        }
+    }
+
+    private static void lineQuad(VertexConsumer vc, Matrix4f matrix, float baseX, float baseZ, float lx, float lz,
+                                 float leftMin, float leftMax, float yMin, float yMax, float fx, float fz,
+                                 double uA, double vA, double uB, double vB, int rgb) {
+        float[] a = facePoint(baseX, baseZ, lx, lz, leftMin, leftMax, yMin, yMax, clamp01(uA), clamp01(vA));
+        float[] b = facePoint(baseX, baseZ, lx, lz, leftMin, leftMax, yMin, yMax, clamp01(uB), clamp01(vB));
+        float dx = b[0] - a[0];
+        float dy = b[1] - a[1];
+        float dz = b[2] - a[2];
+        float px = dy * fz;
+        float py = dz * fx - dx * fz;
+        float pz = -dy * fx;
+        float len = (float) Math.sqrt(px * px + py * py + pz * pz);
+        if (len < 1.0E-5F) {
+            return;
+        }
+        float scale = 0.035F / len;
+        px *= scale;
+        py *= scale;
+        pz *= scale;
+        int r = (rgb >> 16) & 255;
+        int g = (rgb >> 8) & 255;
+        int b2 = rgb & 255;
+        int a2 = 0xE6;
+        colorVertex(vc, matrix, new float[] {a[0] + px, a[1] + py, a[2] + pz}, r, g, b2, a2);
+        colorVertex(vc, matrix, new float[] {b[0] + px, b[1] + py, b[2] + pz}, r, g, b2, a2);
+        colorVertex(vc, matrix, new float[] {b[0] - px, b[1] - py, b[2] - pz}, r, g, b2, a2);
+        colorVertex(vc, matrix, new float[] {a[0] - px, a[1] - py, a[2] - pz}, r, g, b2, a2);
+    }
+
+    private static void renderFactions(WorldMapBlockEntity blockEntity, MultiBufferSource buffer, Matrix4f matrix,
+                                       float baseX, float baseZ, float lx, float lz,
+                                       float leftMin, float leftMax, float yMin, float yMax, float fx, float fz) {
+        int regionBlocks = ClientWorldMapStore.regionBlocks();
+        if (regionBlocks <= 0 || blockEntity.getLevel() == null) {
+            return;
+        }
+        ResourceKey<Level> dimension = blockEntity.getLevel().dimension();
+        Map<Long, ClientClaimStore.ClaimInfo> claims = ClientClaimStore.claims(dimension);
+        if (claims.isEmpty()) {
+            return;
+        }
+        double minX = ClientWorldMapStore.centerX() - regionBlocks / 2.0;
+        double minZ = ClientWorldMapStore.centerZ() - regionBlocks / 2.0;
+        float ox = baseX + fx * 0.01F;
+        float oz = baseZ + fz * 0.01F;
+        VertexConsumer vc = buffer.getBuffer(RenderType.debugQuads());
+        for (Map.Entry<Long, ClientClaimStore.ClaimInfo> entry : claims.entrySet()) {
+            ChunkPos pos = new ChunkPos(entry.getKey());
+            double uMin = (pos.x * 16 - minX) / regionBlocks;
+            double uMax = (pos.x * 16 + 16 - minX) / regionBlocks;
+            double vMin = (pos.z * 16 - minZ) / regionBlocks;
+            double vMax = (pos.z * 16 + 16 - minZ) / regionBlocks;
+            if (uMax <= 0.0 || uMin >= 1.0 || vMax <= 0.0 || vMin >= 1.0) {
+                continue;
+            }
+            claimQuad(vc, matrix, ox, oz, lx, lz, leftMin, leftMax, yMin, yMax,
+                    clamp01(uMin), clamp01(uMax), clamp01(vMin), clamp01(vMax), entry.getValue().color());
+        }
+    }
+
+    private static void claimQuad(VertexConsumer vc, Matrix4f matrix, float baseX, float baseZ, float lx, float lz,
+                                  float leftMin, float leftMax, float yMin, float yMax,
+                                  double uMin, double uMax, double vMin, double vMax, int rgb) {
+        int r = (rgb >> 16) & 255;
+        int g = (rgb >> 8) & 255;
+        int b = rgb & 255;
+        int a = 0x99;
+        colorVertex(vc, matrix, facePoint(baseX, baseZ, lx, lz, leftMin, leftMax, yMin, yMax, uMin, vMin), r, g, b, a);
+        colorVertex(vc, matrix, facePoint(baseX, baseZ, lx, lz, leftMin, leftMax, yMin, yMax, uMax, vMin), r, g, b, a);
+        colorVertex(vc, matrix, facePoint(baseX, baseZ, lx, lz, leftMin, leftMax, yMin, yMax, uMax, vMax), r, g, b, a);
+        colorVertex(vc, matrix, facePoint(baseX, baseZ, lx, lz, leftMin, leftMax, yMin, yMax, uMin, vMax), r, g, b, a);
+    }
+
+    private static float[] facePoint(float baseX, float baseZ, float lx, float lz,
+                                     float leftMin, float leftMax, float yMin, float yMax, double u, double v) {
+        float leftCoord = leftMin + (float) u * (leftMax - leftMin);
+        float x = baseX + lx * leftCoord;
+        float z = baseZ + lz * leftCoord;
+        float y = yMax - (float) v * (yMax - yMin);
+        return new float[] {x, y, z};
+    }
+
+    private static void colorVertex(VertexConsumer vc, Matrix4f matrix, float[] p, int r, int g, int b, int a) {
+        vc.addVertex(matrix, p[0], p[1], p[2]).setColor(r, g, b, a);
+    }
+
+    private static double clamp01(double value) {
+        return value < 0.0 ? 0.0 : (value > 1.0 ? 1.0 : value);
     }
 
     private static void quad(VertexConsumer vc, Matrix4f matrix,

@@ -134,7 +134,8 @@ public final class WorldMapRenderManager {
                     job.centerX(),
                     job.centerZ(),
                     job.regionBlocks(),
-                    job.resolution()
+                    job.resolution(),
+                    job.level().dimension().location()
             );
             WorldMapService.broadcast(server);
             server.getPlayerList().broadcastSystemMessage(
