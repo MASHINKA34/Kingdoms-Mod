@@ -114,7 +114,7 @@ public final class WorldMapRenderJob {
             image.setRGB(px, pz, 0);
             return;
         }
-        cursor.set(blockX, height - 1, blockZ);
+        cursor.set(blockX, height, blockZ);
         BlockState state = chunk.getBlockState(cursor);
         MapColor mapColor = state.getMapColor(level, cursor);
         if (mapColor == MapColor.NONE) {

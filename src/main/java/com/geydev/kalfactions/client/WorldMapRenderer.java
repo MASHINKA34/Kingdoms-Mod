@@ -135,7 +135,7 @@ public final class WorldMapRenderer implements BlockEntityRenderer<WorldMapBlock
         if (len < 1.0E-5F) {
             return;
         }
-        float scale = 0.035F / len;
+        float scale = 0.02F / len;
         px *= scale;
         py *= scale;
         pz *= scale;
@@ -186,7 +186,7 @@ public final class WorldMapRenderer implements BlockEntityRenderer<WorldMapBlock
         int r = (rgb >> 16) & 255;
         int g = (rgb >> 8) & 255;
         int b = rgb & 255;
-        int a = 0x99;
+        int a = 0x55;
         colorVertex(vc, matrix, facePoint(baseX, baseZ, lx, lz, leftMin, leftMax, yMin, yMax, uMin, vMin), r, g, b, a);
         colorVertex(vc, matrix, facePoint(baseX, baseZ, lx, lz, leftMin, leftMax, yMin, yMax, uMax, vMin), r, g, b, a);
         colorVertex(vc, matrix, facePoint(baseX, baseZ, lx, lz, leftMin, leftMax, yMin, yMax, uMax, vMax), r, g, b, a);

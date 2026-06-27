@@ -16,7 +16,7 @@ public final class WorldMapScreen extends Screen {
     private static final int TRACK_COLOR = 0xFFFF4FA8;
     private static final int STATION_COLOR = 0xFFFFD24A;
     private static final int STATION_BORDER = 0xFF1A1A1A;
-    private static final int CLAIM_ALPHA = 0x99000000;
+    private static final int CLAIM_ALPHA = 0x55000000;
     private static final int GOLD = 0xFFF3D58B;
     private static final int TEXT = 0xFFEDE6D6;
     private static final double STATION_HOVER_RADIUS_SQ = 36.0;
@@ -156,12 +156,12 @@ public final class WorldMapScreen extends Screen {
         double dx = bx - ax;
         double dy = by - ay;
         double dist = Math.sqrt(dx * dx + dy * dy);
-        int steps = (int) Math.min(2000.0, Math.max(1.0, dist / 2.0));
+        int steps = (int) Math.min(4000.0, Math.max(1.0, dist));
         for (int i = 0; i <= steps; i++) {
             double t = i / (double) steps;
             int x = (int) Math.round(ax + dx * t);
             int y = (int) Math.round(ay + dy * t);
-            graphics.fill(x - 1, y - 1, x + 1, y + 1, TRACK_COLOR);
+            graphics.fill(x, y, x + 1, y + 1, TRACK_COLOR);
         }
     }
 
