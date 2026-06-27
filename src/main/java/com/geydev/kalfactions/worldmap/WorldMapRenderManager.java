@@ -16,7 +16,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class WorldMapRenderManager {
-    private static final int SAMPLES_PER_TICK = 24_576;
+    private static final int SAMPLES_PER_TICK = 8_192;
     private static final int BAR_UPDATE_INTERVAL_TICKS = 10;
 
     @Nullable

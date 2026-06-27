@@ -62,8 +62,9 @@ public final class WorldMapRenderer implements BlockEntityRenderer<WorldMapBlock
         float baseX = (fx > 0 ? 1.0F : 0.0F) + fx * eps;
         float baseZ = (fz > 0 ? 1.0F : 0.0F) + fz * eps;
 
-        float leftMin = -WorldMapBlock.HALF_WIDTH;
-        float leftMax = WorldMapBlock.HALF_WIDTH + 1.0F;
+        float shift = (lx + lz < 0.0F) ? -1.0F : 0.0F;
+        float leftMin = -WorldMapBlock.HALF_WIDTH + shift;
+        float leftMax = WorldMapBlock.HALF_WIDTH + 1.0F + shift;
         float yMin = 0.0F;
         float yMax = WorldMapBlock.HEIGHT;
 

@@ -1,8 +1,12 @@
 package com.geydev.kalfactions.worldmap;
 
 import java.awt.image.BufferedImage;
+import java.util.HashMap;
+import java.util.Map;
+import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.biome.Biome;
@@ -27,6 +31,7 @@ public final class WorldMapRenderJob {
     private final BufferedImage image;
     private final int[] northHeight;
     private final BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+    private final Map<Long, Boolean> chunkExists = new HashMap<>();
 
     private int px;
     private int pz;
@@ -96,7 +101,12 @@ public final class WorldMapRenderJob {
     }
 
     private void sample(int blockX, int blockZ) {
-        ChunkAccess chunk = level.getChunk(blockX >> 4, blockZ >> 4, ChunkStatus.FULL, true);
+        ChunkAccess chunk = loadIfGenerated(blockX >> 4, blockZ >> 4);
+        if (chunk == null) {
+            image.setRGB(px, pz, 0);
+            northHeight[px] = level.getMinBuildHeight();
+            return;
+        }
         int height = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, blockX & 15, blockZ & 15);
         int previous = northHeight[px];
         northHeight[px] = height;
@@ -123,6 +133,34 @@ public final class WorldMapRenderJob {
         int g = ((base >> 8) & 255) * brightness / 255;
         int b = (base & 255) * brightness / 255;
         image.setRGB(px, pz, 0xFF000000 | (r << 16) | (g << 8) | b);
+    }
+
+    private ChunkAccess loadIfGenerated(int chunkX, int chunkZ) {
+        ServerChunkCache source = level.getChunkSource();
+        ChunkAccess loaded = source.getChunkNow(chunkX, chunkZ);
+        if (loaded != null) {
+            return loaded;
+        }
+        if (!existsOnDisk(source, chunkX, chunkZ)) {
+            return null;
+        }
+        return level.getChunk(chunkX, chunkZ, ChunkStatus.FULL, true);
+    }
+
+    private boolean existsOnDisk(ServerChunkCache source, int chunkX, int chunkZ) {
+        long key = ChunkPos.asLong(chunkX, chunkZ);
+        Boolean cached = chunkExists.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        boolean exists;
+        try {
+            exists = source.chunkMap.read(new ChunkPos(chunkX, chunkZ)).join().isPresent();
+        } catch (RuntimeException e) {
+            exists = false;
+        }
+        chunkExists.put(key, exists);
+        return exists;
     }
 
     private boolean snowCovered(MapColor mapColor) {
