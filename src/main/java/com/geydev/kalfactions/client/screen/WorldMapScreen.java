@@ -189,8 +189,8 @@ public final class WorldMapScreen extends Screen {
             if (sx < viewLeft - 4 || sx > viewRight + 4 || sy < viewTop - 4 || sy > viewBottom + 4) {
                 continue;
             }
-            graphics.fill(sx - 4, sy - 4, sx + 4, sy + 4, TRAIN_BORDER);
-            graphics.fill(sx - 3, sy - 3, sx + 3, sy + 3, TRAIN_COLOR);
+            graphics.fill(sx - 3, sy - 3, sx + 3, sy + 3, TRAIN_BORDER);
+            graphics.fill(sx - 2, sy - 2, sx + 2, sy + 2, TRAIN_COLOR);
         }
     }
 

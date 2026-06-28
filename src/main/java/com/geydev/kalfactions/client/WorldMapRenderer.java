@@ -105,7 +105,7 @@ public final class WorldMapRenderer implements BlockEntityRenderer<WorldMapBlock
         double minZ = ClientWorldMapStore.centerZ() - regionBlocks / 2.0;
         float ox = baseX + fx * 0.03F;
         float oz = baseZ + fz * 0.03F;
-        float s = 0.07F;
+        float s = 0.04F;
         VertexConsumer vc = buffer.getBuffer(RenderType.debugQuads());
         for (var train : trains) {
             double u = (train.x() - minX) / regionBlocks;
