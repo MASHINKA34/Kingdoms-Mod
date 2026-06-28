@@ -17,6 +17,13 @@ public final class ClientWorldMapTracks {
     private ClientWorldMapTracks() {
     }
 
+    public static void clear() {
+        segments = EMPTY;
+        dimension = null;
+        stations = List.of();
+        stationDimension = null;
+    }
+
     public static void handle(FactionPayloads.S2CWorldMapTracks payload) {
         segments = payload.segments();
         dimension = payload.dimension();

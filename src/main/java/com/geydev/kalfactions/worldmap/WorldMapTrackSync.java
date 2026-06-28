@@ -11,6 +11,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -20,6 +21,13 @@ public final class WorldMapTrackSync {
     private static int ticks;
 
     private WorldMapTrackSync() {
+    }
+
+    @SubscribeEvent
+    public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            WorldMapService.send(player);
+        }
     }
 
     @SubscribeEvent

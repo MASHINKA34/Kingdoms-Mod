@@ -2,6 +2,8 @@ package com.geydev.kalfactions.integration.xaero;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.ClientClaimStore;
+import com.geydev.kalfactions.client.ClientWorldMapStore;
+import com.geydev.kalfactions.client.ClientWorldMapTracks;
 import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -19,6 +21,8 @@ public final class XaeroClientEvents {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null || minecraft.player == null) {
             ClientClaimStore.clear();
+            ClientWorldMapStore.clear();
+            ClientWorldMapTracks.clear();
             return;
         }
         if (ModList.get().isLoaded(MINIMAP_MOD_ID)) {

@@ -1,9 +1,11 @@
 package com.geydev.kalfactions.block;
 
 import com.geydev.kalfactions.client.WorldMapClientHooks;
+import com.geydev.kalfactions.registry.ModBlockEntities;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
@@ -19,6 +21,8 @@ import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -45,6 +49,16 @@ public final class WorldMapBlock extends Block implements EntityBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return isController(state) ? new WorldMapBlockEntity(pos, state) : null;
+    }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        if (level.isClientSide() || type != ModBlockEntities.WORLD_MAP.get()) {
+            return null;
+        }
+        return (tickLevel, tickPos, tickState, blockEntity) ->
+                WorldMapBlockEntity.serverTick(tickLevel, tickPos, tickState, (WorldMapBlockEntity) blockEntity);
     }
 
     @Nullable
@@ -99,6 +113,10 @@ public final class WorldMapBlock extends Block implements EntityBlock {
     @Override
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock()) && !level.isClientSide()) {
+            if (isController(state) && level instanceof ServerLevel serverLevel
+                    && level.getBlockEntity(pos) instanceof WorldMapBlockEntity map) {
+                map.removeLabel(serverLevel);
+            }
             removeOtherCells(level, pos, state);
         }
         super.onRemove(state, level, pos, newState, movedByPiston);

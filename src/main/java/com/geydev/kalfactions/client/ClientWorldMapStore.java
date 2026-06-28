@@ -34,6 +34,15 @@ public final class ClientWorldMapStore {
     private ClientWorldMapStore() {
     }
 
+    public static void clear() {
+        buffer = null;
+        assemblingVersion = -1L;
+        texture = null;
+        textureVersion = Long.MIN_VALUE;
+        lastRequest = Long.MIN_VALUE;
+        lastUnavailable = Long.MIN_VALUE;
+    }
+
     public static void handleBegin(FactionPayloads.S2CWorldMapBegin payload) {
         if (payload.totalParts() <= 0 || payload.totalBytes() <= 0) {
             buffer = null;
