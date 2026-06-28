@@ -16,6 +16,8 @@ public final class WorldMapScreen extends Screen {
     private static final int TRACK_COLOR = 0xFFFF4FA8;
     private static final int STATION_COLOR = 0xFFFFD24A;
     private static final int STATION_BORDER = 0xFF1A1A1A;
+    private static final int TRAIN_COLOR = 0xFFFFFFFF;
+    private static final int TRAIN_BORDER = 0xFF101010;
     private static final int CLAIM_ALPHA = 0x55000000;
     private static final int GOLD = 0xFFF3D58B;
     private static final int TEXT = 0xFFEDE6D6;
@@ -119,6 +121,7 @@ public final class WorldMapScreen extends Screen {
         renderClaims(graphics, dimension, minX, minZ, regionBlocks, resolution);
         renderTracks(graphics, dimension, minX, minZ, regionBlocks, resolution);
         renderStations(graphics, dimension, minX, minZ, regionBlocks, resolution);
+        renderTrains(graphics, dimension, minX, minZ, regionBlocks, resolution);
         graphics.disableScissor();
 
         renderTooltip(graphics, mouseX, mouseY, dimension, minX, minZ, regionBlocks, resolution);
@@ -178,9 +181,38 @@ public final class WorldMapScreen extends Screen {
         }
     }
 
+    private void renderTrains(GuiGraphics graphics, ResourceKey<Level> dimension,
+                             double minX, double minZ, int regionBlocks, int resolution) {
+        for (FactionPayloads.TrainView train : ClientWorldMapTracks.trains(dimension)) {
+            int sx = (int) Math.round(imageToScreenX(worldToImage(train.x(), minX, regionBlocks, resolution)));
+            int sy = (int) Math.round(imageToScreenY(worldToImage(train.z(), minZ, regionBlocks, resolution)));
+            if (sx < viewLeft - 4 || sx > viewRight + 4 || sy < viewTop - 4 || sy > viewBottom + 4) {
+                continue;
+            }
+            graphics.fill(sx - 4, sy - 4, sx + 4, sy + 4, TRAIN_BORDER);
+            graphics.fill(sx - 3, sy - 3, sx + 3, sy + 3, TRAIN_COLOR);
+        }
+    }
+
     private void renderTooltip(GuiGraphics graphics, int mouseX, int mouseY, ResourceKey<Level> dimension,
                                double minX, double minZ, int regionBlocks, int resolution) {
         if (mouseX < viewLeft || mouseX > viewRight || mouseY < viewTop || mouseY > viewBottom) {
+            return;
+        }
+        FactionPayloads.TrainView hoveredTrain = null;
+        double bestTrainDistance = STATION_HOVER_RADIUS_SQ;
+        for (FactionPayloads.TrainView train : ClientWorldMapTracks.trains(dimension)) {
+            double sx = imageToScreenX(worldToImage(train.x(), minX, regionBlocks, resolution));
+            double sy = imageToScreenY(worldToImage(train.z(), minZ, regionBlocks, resolution));
+            double distance = (sx - mouseX) * (sx - mouseX) + (sy - mouseY) * (sy - mouseY);
+            if (distance < bestTrainDistance) {
+                bestTrainDistance = distance;
+                hoveredTrain = train;
+            }
+        }
+        if (hoveredTrain != null) {
+            String name = hoveredTrain.name().isBlank() ? "Train" : hoveredTrain.name();
+            graphics.renderTooltip(font, Component.literal(name), mouseX, mouseY);
             return;
         }
         FactionPayloads.StationView hoveredStation = null;

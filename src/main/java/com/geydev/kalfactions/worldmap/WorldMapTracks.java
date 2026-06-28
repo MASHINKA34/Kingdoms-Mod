@@ -8,6 +8,9 @@ import com.simibubi.create.content.trains.graph.TrackEdge;
 import com.simibubi.create.content.trains.graph.TrackGraph;
 import com.simibubi.create.content.trains.graph.TrackNode;
 import com.simibubi.create.content.trains.graph.TrackNodeLocation;
+import com.simibubi.create.content.trains.entity.Carriage;
+import com.simibubi.create.content.trains.entity.Train;
+import com.simibubi.create.content.trains.entity.TravellingPoint;
 import com.simibubi.create.content.trains.station.GlobalStation;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,13 +24,59 @@ import net.minecraft.world.phys.Vec3;
 public final class WorldMapTracks {
     public static final int MAX_SEGMENTS = 16_384;
     public static final int MAX_STATIONS = 512;
+    public static final int MAX_TRAINS = 256;
     private static final float[] EMPTY = new float[0];
     private static final double MARGIN = 32.0;
 
     public record Station(String name, float x, float z) {
     }
 
+    public record TrainData(String name, float x, float z) {
+    }
+
     private WorldMapTracks() {
+    }
+
+    public static List<TrainData> collectTrains(ResourceKey<Level> dimension, int centerX, int centerZ, int regionBlocks) {
+        if (regionBlocks <= 0) {
+            return List.of();
+        }
+        GlobalRailwayManager railways = Create.RAILWAYS;
+        Map<UUID, Train> trains = railways == null ? null : railways.trains;
+        if (trains == null || trains.isEmpty()) {
+            return List.of();
+        }
+        double minX = centerX - regionBlocks / 2.0;
+        double minZ = centerZ - regionBlocks / 2.0;
+        double maxX = minX + regionBlocks;
+        double maxZ = minZ + regionBlocks;
+        List<TrainData> out = new ArrayList<>();
+        try {
+            for (Train train : trains.values()) {
+                if (train == null || train.graph == null || train.carriages == null || train.carriages.isEmpty()) {
+                    continue;
+                }
+                Carriage carriage = train.carriages.get(0);
+                TravellingPoint point = carriage == null ? null : carriage.getLeadingPoint();
+                if (point == null || point.node1 == null
+                        || !dimension.equals(point.node1.getLocation().getDimension())) {
+                    continue;
+                }
+                Vec3 pos = point.getPosition(train.graph);
+                if (pos == null || pos.x < minX - MARGIN || pos.x > maxX + MARGIN
+                        || pos.z < minZ - MARGIN || pos.z > maxZ + MARGIN) {
+                    continue;
+                }
+                String name = train.name == null ? "" : train.name.getString();
+                out.add(new TrainData(name, (float) pos.x, (float) pos.z));
+                if (out.size() >= MAX_TRAINS) {
+                    break;
+                }
+            }
+        } catch (RuntimeException e) {
+            KalFactions.LOGGER.error("Failed to collect Create trains", e);
+        }
+        return out;
     }
 
     public static List<Station> collectStations(ResourceKey<Level> dimension, int centerX, int centerZ, int regionBlocks) {

@@ -18,7 +18,9 @@ import net.neoforged.neoforge.network.PacketDistributor;
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class WorldMapTrackSync {
     private static final int BROADCAST_INTERVAL_TICKS = 600;
+    private static final int TRAIN_INTERVAL_TICKS = 10;
     private static int ticks;
+    private static int trainTicks;
 
     private WorldMapTrackSync() {
     }
@@ -32,15 +34,29 @@ public final class WorldMapTrackSync {
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
-        if (++ticks < BROADCAST_INTERVAL_TICKS) {
-            return;
-        }
-        ticks = 0;
         MinecraftServer server = event.getServer();
         if (server.getPlayerList().getPlayers().isEmpty()) {
             return;
         }
-        broadcast(server);
+        if (++trainTicks >= TRAIN_INTERVAL_TICKS) {
+            trainTicks = 0;
+            broadcastTrains(server);
+        }
+        if (++ticks >= BROADCAST_INTERVAL_TICKS) {
+            ticks = 0;
+            broadcast(server);
+        }
+    }
+
+    private static void broadcastTrains(MinecraftServer server) {
+        WorldMapStorage.Meta meta = WorldMapStorage.meta(server).orElse(null);
+        if (meta == null) {
+            return;
+        }
+        FactionPayloads.S2CWorldMapTrains payload = buildTrains(meta);
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            PacketDistributor.sendToPlayer(player, payload);
+        }
     }
 
     public static void broadcast(MinecraftServer server) {
@@ -59,6 +75,7 @@ public final class WorldMapTrackSync {
     public static void send(ServerPlayer player, WorldMapStorage.Meta meta) {
         PacketDistributor.sendToPlayer(player, buildTracks(meta));
         PacketDistributor.sendToPlayer(player, buildStations(meta));
+        PacketDistributor.sendToPlayer(player, buildTrains(meta));
     }
 
     private static FactionPayloads.S2CWorldMapTracks buildTracks(WorldMapStorage.Meta meta) {
@@ -75,5 +92,15 @@ public final class WorldMapTrackSync {
             views.add(new FactionPayloads.StationView(station.name(), station.x(), station.z()));
         }
         return new FactionPayloads.S2CWorldMapStations(meta.dimension(), views);
+    }
+
+    private static FactionPayloads.S2CWorldMapTrains buildTrains(WorldMapStorage.Meta meta) {
+        ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, meta.dimension());
+        List<FactionPayloads.TrainView> views = new ArrayList<>();
+        for (WorldMapTracks.TrainData train
+                : WorldMapTracks.collectTrains(dimension, meta.centerX(), meta.centerZ(), meta.regionBlocks())) {
+            views.add(new FactionPayloads.TrainView(train.name(), train.x(), train.z()));
+        }
+        return new FactionPayloads.S2CWorldMapTrains(meta.dimension(), views);
     }
 }

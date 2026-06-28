@@ -1468,6 +1468,45 @@ public final class FactionPayloads {
     public record StationView(String name, float x, float z) {
     }
 
+    public record S2CWorldMapTrains(ResourceLocation dimension, List<TrainView> trains)
+            implements CustomPacketPayload {
+        public static final int MAX_TRAINS = 256;
+        public static final Type<S2CWorldMapTrains> TYPE = FactionPayloads.payloadType("world_map_trains");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CWorldMapTrains> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeResourceLocation(payload.dimension);
+                    int size = Math.min(payload.trains.size(), MAX_TRAINS);
+                    buffer.writeVarInt(size);
+                    for (int i = 0; i < size; i++) {
+                        TrainView view = payload.trains.get(i);
+                        buffer.writeUtf(view.name(), 64);
+                        buffer.writeFloat(view.x());
+                        buffer.writeFloat(view.z());
+                    }
+                },
+                buffer -> {
+                    ResourceLocation dimension = buffer.readResourceLocation();
+                    int size = buffer.readVarInt();
+                    if (size < 0 || size > MAX_TRAINS) {
+                        throw new DecoderException("World map train count " + size + " exceeds " + MAX_TRAINS);
+                    }
+                    List<TrainView> trains = new ArrayList<>(size);
+                    for (int i = 0; i < size; i++) {
+                        trains.add(new TrainView(buffer.readUtf(64), buffer.readFloat(), buffer.readFloat()));
+                    }
+                    return new S2CWorldMapTrains(dimension, List.copyOf(trains));
+                }
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record TrainView(String name, float x, float z) {
+    }
+
     private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> payloadType(String path) {
         return new CustomPacketPayload.Type<>(
                 ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, path)

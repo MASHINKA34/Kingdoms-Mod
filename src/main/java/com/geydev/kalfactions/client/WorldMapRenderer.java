@@ -87,6 +87,38 @@ public final class WorldMapRenderer implements BlockEntityRenderer<WorldMapBlock
 
         renderFactions(blockEntity, buffer, matrix, baseX, baseZ, lx, lz, leftMin, leftMax, yMin, yMax, fx, fz);
         renderTracks(blockEntity, buffer, matrix, baseX, baseZ, lx, lz, leftMin, leftMax, yMin, yMax, fx, fz);
+        renderTrains(blockEntity, buffer, matrix, baseX, baseZ, lx, lz, leftMin, leftMax, yMin, yMax, fx, fz);
+    }
+
+    private static void renderTrains(WorldMapBlockEntity blockEntity, MultiBufferSource buffer, Matrix4f matrix,
+                                     float baseX, float baseZ, float lx, float lz,
+                                     float leftMin, float leftMax, float yMin, float yMax, float fx, float fz) {
+        int regionBlocks = ClientWorldMapStore.regionBlocks();
+        if (regionBlocks <= 0 || blockEntity.getLevel() == null) {
+            return;
+        }
+        var trains = ClientWorldMapTracks.trains(blockEntity.getLevel().dimension());
+        if (trains.isEmpty()) {
+            return;
+        }
+        double minX = ClientWorldMapStore.centerX() - regionBlocks / 2.0;
+        double minZ = ClientWorldMapStore.centerZ() - regionBlocks / 2.0;
+        float ox = baseX + fx * 0.03F;
+        float oz = baseZ + fz * 0.03F;
+        float s = 0.07F;
+        VertexConsumer vc = buffer.getBuffer(RenderType.debugQuads());
+        for (var train : trains) {
+            double u = (train.x() - minX) / regionBlocks;
+            double v = (train.z() - minZ) / regionBlocks;
+            if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0) {
+                continue;
+            }
+            float[] c = facePoint(ox, oz, lx, lz, leftMin, leftMax, yMin, yMax, u, v);
+            colorVertex(vc, matrix, new float[] {c[0] - lx * s, c[1] - s, c[2] - lz * s}, 255, 255, 255, 255);
+            colorVertex(vc, matrix, new float[] {c[0] + lx * s, c[1] - s, c[2] + lz * s}, 255, 255, 255, 255);
+            colorVertex(vc, matrix, new float[] {c[0] + lx * s, c[1] + s, c[2] + lz * s}, 255, 255, 255, 255);
+            colorVertex(vc, matrix, new float[] {c[0] - lx * s, c[1] + s, c[2] - lz * s}, 255, 255, 255, 255);
+        }
     }
 
     private static final int TRACK_COLOR = 0xFF4FA8;

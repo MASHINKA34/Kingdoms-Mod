@@ -13,6 +13,8 @@ public final class ClientWorldMapTracks {
     private static volatile ResourceLocation dimension;
     private static volatile List<FactionPayloads.StationView> stations = List.of();
     private static volatile ResourceLocation stationDimension;
+    private static volatile List<FactionPayloads.TrainView> trains = List.of();
+    private static volatile ResourceLocation trainDimension;
 
     private ClientWorldMapTracks() {
     }
@@ -22,6 +24,8 @@ public final class ClientWorldMapTracks {
         dimension = null;
         stations = List.of();
         stationDimension = null;
+        trains = List.of();
+        trainDimension = null;
     }
 
     public static void handle(FactionPayloads.S2CWorldMapTracks payload) {
@@ -34,6 +38,11 @@ public final class ClientWorldMapTracks {
         stationDimension = payload.dimension();
     }
 
+    public static void handleTrains(FactionPayloads.S2CWorldMapTrains payload) {
+        trains = payload.trains();
+        trainDimension = payload.dimension();
+    }
+
     public static float[] segments(ResourceKey<Level> dim) {
         ResourceLocation current = dimension;
         return current != null && current.equals(dim.location()) ? segments : EMPTY;
@@ -42,5 +51,10 @@ public final class ClientWorldMapTracks {
     public static List<FactionPayloads.StationView> stations(ResourceKey<Level> dim) {
         ResourceLocation current = stationDimension;
         return current != null && current.equals(dim.location()) ? stations : List.of();
+    }
+
+    public static List<FactionPayloads.TrainView> trains(ResourceKey<Level> dim) {
+        ResourceLocation current = trainDimension;
+        return current != null && current.equals(dim.location()) ? trains : List.of();
     }
 }
