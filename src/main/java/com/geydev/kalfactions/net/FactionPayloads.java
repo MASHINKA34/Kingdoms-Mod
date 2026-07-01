@@ -1116,6 +1116,7 @@ public final class FactionPayloads {
             ResourceLocation dimension,
             List<ClaimEntry> claims,
             UUID viewerFactionId,
+            List<UUID> viewerMemberIds,
             int viewerClaimCount,
             double viewerClaimDiscount
     ) implements CustomPacketPayload {
@@ -1130,6 +1131,7 @@ public final class FactionPayloads {
                         ClaimEntry.encode(buffer, payload.claims.get(i));
                     }
                     buffer.writeUUID(payload.viewerFactionId);
+                    writeMemberIds(buffer, payload.viewerMemberIds);
                     buffer.writeVarInt(payload.viewerClaimCount);
                     buffer.writeDouble(payload.viewerClaimDiscount);
                 },
@@ -1147,11 +1149,39 @@ public final class FactionPayloads {
                             dimension,
                             List.copyOf(claims),
                             buffer.readUUID(),
+                            readMemberIds(buffer),
                             buffer.readVarInt(),
                             buffer.readDouble()
                     );
                 }
         );
+
+        public S2CSyncClaims {
+            claims = claims == null ? List.of() : List.copyOf(claims);
+            viewerFactionId = viewerFactionId == null ? FactionSnapshot.NO_FACTION : viewerFactionId;
+            viewerMemberIds = viewerMemberIds == null ? List.of() : List.copyOf(viewerMemberIds);
+            viewerClaimCount = Math.max(0, viewerClaimCount);
+        }
+
+        private static void writeMemberIds(RegistryFriendlyByteBuf buffer, List<UUID> memberIds) {
+            int size = Math.min(memberIds.size(), FactionSnapshot.MAX_MEMBERS);
+            buffer.writeVarInt(size);
+            for (int i = 0; i < size; i++) {
+                buffer.writeUUID(memberIds.get(i));
+            }
+        }
+
+        private static List<UUID> readMemberIds(RegistryFriendlyByteBuf buffer) {
+            int size = buffer.readVarInt();
+            if (size < 0 || size > FactionSnapshot.MAX_MEMBERS) {
+                throw new DecoderException("Faction member sync size " + size + " exceeds " + FactionSnapshot.MAX_MEMBERS);
+            }
+            List<UUID> memberIds = new ArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                memberIds.add(buffer.readUUID());
+            }
+            return List.copyOf(memberIds);
+        }
 
         @Override
         public Type<? extends CustomPacketPayload> type() {

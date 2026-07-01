@@ -30,6 +30,13 @@ public final class PvpHandler {
             return;
         }
         applyArmorReduction(event);
+        if (event.getEntity() instanceof ServerPlayer victim
+                && ModConfigSpec.SANCTUARY_DISABLE_PVP.get()
+                && isInSanctuary(victim)) {
+            event.setCanceled(true);
+            return;
+        }
+
         if (!(event.getSource().getEntity() instanceof ServerPlayer attacker)) {
             return;
         }
@@ -37,8 +44,7 @@ public final class PvpHandler {
         if (event.getEntity() instanceof ServerPlayer victim
                 && attacker != victim
                 && ModConfigSpec.SANCTUARY_DISABLE_PVP.get()
-                && SanctuaryManager.get(victim.serverLevel())
-                        .isSanctuary(victim.level(), victim.blockPosition())) {
+                && isInSanctuary(attacker)) {
             event.setCanceled(true);
             return;
         }
@@ -96,6 +102,10 @@ public final class PvpHandler {
             float reduction = Math.min(0.50F, 0.05F * armorLevels);
             event.setAmount(event.getAmount() * (1.0F - reduction));
         }
+    }
+
+    private static boolean isInSanctuary(ServerPlayer player) {
+        return SanctuaryManager.get(player.serverLevel()).isSanctuary(player.level(), player.blockPosition());
     }
 
     @SubscribeEvent

@@ -30,13 +30,15 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.common.util.BlockSnapshot;
 import net.neoforged.neoforge.common.util.TriState;
 import net.neoforged.neoforge.event.entity.player.PlayerContainerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.level.BlockDropsEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.level.ExplosionEvent;
 
@@ -55,8 +57,8 @@ public final class ProtectionHandler {
             return;
         }
         WarManager wars = WarManager.get(level);
-        boolean canBuild = FactionAccess.canBuild(player, level, breakPos);
-        boolean warBreak = !canBuild && wars.canBuildInWar(player, level, breakPos);
+        boolean warBreak = isWarBreak(player, level, breakPos, wars);
+        boolean canBuild = !warBreak && FactionAccess.canBuild(player, level, breakPos);
         // War override: a belligerent may break in the enemy faction's claims while the war is active.
         if (!canBuild && !warBreak) {
             event.setCanceled(true);
@@ -74,6 +76,17 @@ public final class ProtectionHandler {
         }
         // Copy-on-write the chunk before the break is applied (no-op outside a war).
         wars.onChunkModified(level, new ChunkPos(breakPos));
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onBlockDrops(BlockDropsEvent event) {
+        if (!(event.getBreaker() instanceof ServerPlayer player)) {
+            return;
+        }
+        if (isWarBreak(player, event.getLevel(), event.getPos(), WarManager.get(event.getLevel()))) {
+            event.getDrops().clear();
+            event.setDroppedExperience(0);
+        }
     }
 
     @SubscribeEvent
@@ -251,6 +264,16 @@ public final class ProtectionHandler {
         return null;
     }
 
+    public static boolean isWarExplosionDrop(ServerLevel level, BlockPos pos, Explosion explosion) {
+        FactionManager factions = FactionManager.get(level);
+        UUID exploderFaction = resolveExploderFaction(factions, explosion);
+        if (exploderFaction == null) {
+            return false;
+        }
+        UUID owner = factions.getFactionIdAt(ClaimKey.of(level, pos)).orElse(null);
+        return owner != null && WarManager.get(level).areAtWar(owner, exploderFaction);
+    }
+
     private static void cancelInteraction(PlayerInteractEvent.RightClickBlock event) {
         event.setUseBlock(TriState.FALSE);
         event.setUseItem(TriState.FALSE);
@@ -300,6 +323,10 @@ public final class ProtectionHandler {
 
     private static boolean isSanctuaryProtected(ServerPlayer player, ServerLevel level, BlockPos pos) {
         return !player.hasPermissions(2) && SanctuaryManager.get(level).isSanctuary(level, pos);
+    }
+
+    private static boolean isWarBreak(ServerPlayer player, ServerLevel level, BlockPos pos, WarManager wars) {
+        return !FactionAccess.canBuild(player, level, pos) && wars.canBuildInWar(player, level, pos);
     }
 
     private static void deny(ServerPlayer player, InteractionHand hand, String translationKey) {

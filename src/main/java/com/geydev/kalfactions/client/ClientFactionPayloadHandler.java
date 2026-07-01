@@ -12,6 +12,8 @@ import com.geydev.kalfactions.integration.xaero.XaeroMaps;
 import com.geydev.kalfactions.net.FactionPayloads;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.ChunkPos;
@@ -141,7 +143,11 @@ public final class ClientFactionPayloadHandler {
                 payload.viewerClaimCount(),
                 payload.viewerClaimDiscount()
         );
-        Minecraft.getInstance().execute(() -> ClientClaimStore.replace(payload.dimension(), claims, viewer));
+        Set<UUID> memberIds = Set.copyOf(payload.viewerMemberIds());
+        Minecraft.getInstance().execute(() -> {
+            ClientFactionMembership.accept(payload.viewerFactionId(), memberIds);
+            ClientClaimStore.replace(payload.dimension(), claims, viewer);
+        });
     }
 
     private ClientFactionPayloadHandler() {

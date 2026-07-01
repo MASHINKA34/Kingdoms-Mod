@@ -3,10 +3,17 @@
   "minVersion": "0.8.5",
   "package": "com.geydev.kalfactions.mixin",
   "compatibilityLevel": "JAVA_21",
+  "plugin": "com.geydev.kalfactions.mixin.KingdomsMixinPlugin",
   "mixins": [
     "VillagerMixin",
     "MerchantResultSlotMixin",
-    "EnchantmentMenuMixin"
+    "EnchantmentMenuMixin",
+    "ExplosionMixin"
+  ],
+  "client": [
+    "XaeroMinimapPlayerTrackerElementReaderMixin",
+    "XaeroRadarElementReaderMixin",
+    "XaeroWorldMapPlayerTrackerElementReaderMixin"
   ],
   "injectors": {
     "defaultRequire": 1

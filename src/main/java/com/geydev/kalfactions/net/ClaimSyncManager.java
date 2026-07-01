@@ -9,6 +9,7 @@ import com.geydev.kalfactions.integration.IntegrationManager.FactionMapData;
 import com.geydev.kalfactions.outpost.RogueOutpostManager;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,14 +67,13 @@ public final class ClaimSyncManager {
         ResourceKey<Level> dimension = player.level().dimension();
         long chunkPos = player.chunkPosition().toLong();
         long revision = IntegrationManager.revision();
-        UUID viewerFactionId = FactionManager.get(player.serverLevel())
-                .getFactionIdForMember(player.getUUID())
-                .orElse(FactionSnapshot.NO_FACTION);
+        ViewerMembership membership = viewerMembership(player);
         SyncState previous = STATES.get(player.getUUID());
         if (previous != null
                 && previous.dimension.equals(dimension)
                 && previous.revision == revision
-                && previous.viewerFactionId.equals(viewerFactionId)
+                && previous.viewerFactionId.equals(membership.factionId())
+                && previous.viewerMemberIds.equals(membership.memberIds())
                 && within(previous.chunkPos, chunkPos)) {
             return;
         }
@@ -160,15 +160,22 @@ public final class ClaimSyncManager {
         Faction viewerFaction = FactionManager.get(player.serverLevel())
                 .getFactionForMember(player.getUUID())
                 .orElse(null);
-        UUID viewerFactionId = viewerFaction == null ? FactionSnapshot.NO_FACTION : viewerFaction.id();
+        ViewerMembership membership = viewerMembership(viewerFaction);
         PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CSyncClaims(
                 dimension.location(),
                 entries,
-                viewerFactionId,
+                membership.factionId(),
+                membership.memberIds(),
                 viewerFaction == null ? 0 : viewerFaction.claimCount(),
                 viewerFaction == null ? 0.0D : viewerFaction.claimDiscount()
         ));
-        STATES.put(player.getUUID(), new SyncState(dimension, player.chunkPosition().toLong(), revision, viewerFactionId));
+        STATES.put(player.getUUID(), new SyncState(
+                dimension,
+                player.chunkPosition().toLong(),
+                revision,
+                membership.factionId(),
+                membership.memberIds()
+        ));
     }
 
     private static boolean within(long previousChunk, long currentChunk) {
@@ -178,7 +185,35 @@ public final class ClaimSyncManager {
                 && Math.abs(previous.z - current.z) < RESEND_MOVE_CHUNKS;
     }
 
-    private record SyncState(ResourceKey<Level> dimension, long chunkPos, long revision, UUID viewerFactionId) {
+    private static ViewerMembership viewerMembership(ServerPlayer player) {
+        Faction viewerFaction = FactionManager.get(player.serverLevel())
+                .getFactionForMember(player.getUUID())
+                .orElse(null);
+        return viewerMembership(viewerFaction);
+    }
+
+    private static ViewerMembership viewerMembership(Faction faction) {
+        if (faction == null) {
+            return new ViewerMembership(FactionSnapshot.NO_FACTION, List.of());
+        }
+        return new ViewerMembership(
+                faction.id(),
+                faction.members().keySet().stream()
+                        .sorted(Comparator.comparing(UUID::toString))
+                        .toList()
+        );
+    }
+
+    private record ViewerMembership(UUID factionId, List<UUID> memberIds) {
+    }
+
+    private record SyncState(
+            ResourceKey<Level> dimension,
+            long chunkPos,
+            long revision,
+            UUID viewerFactionId,
+            List<UUID> viewerMemberIds
+    ) {
     }
 
     private ClaimSyncManager() {
