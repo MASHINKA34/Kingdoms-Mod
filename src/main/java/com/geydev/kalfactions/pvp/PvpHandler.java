@@ -5,6 +5,7 @@ import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.protection.FactionAccess;
+import com.geydev.kalfactions.sanctuary.SanctuaryExecutionManager;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,13 +31,6 @@ public final class PvpHandler {
             return;
         }
         applyArmorReduction(event);
-        if (event.getEntity() instanceof ServerPlayer victim
-                && ModConfigSpec.SANCTUARY_DISABLE_PVP.get()
-                && isInSanctuary(victim)) {
-            event.setCanceled(true);
-            return;
-        }
-
         if (!(event.getSource().getEntity() instanceof ServerPlayer attacker)) {
             return;
         }
@@ -44,7 +38,17 @@ public final class PvpHandler {
         if (event.getEntity() instanceof ServerPlayer victim
                 && attacker != victim
                 && ModConfigSpec.SANCTUARY_DISABLE_PVP.get()
-                && isInSanctuary(attacker)) {
+                && isInSanctuary(victim)
+                && !SanctuaryExecutionManager.get(victim.serverLevel()).isVulnerable(victim.getUUID())) {
+            event.setCanceled(true);
+            return;
+        }
+
+        if (event.getEntity() instanceof ServerPlayer victim
+                && attacker != victim
+                && ModConfigSpec.SANCTUARY_DISABLE_PVP.get()
+                && isInSanctuary(attacker)
+                && !SanctuaryExecutionManager.get(victim.serverLevel()).isVulnerable(victim.getUUID())) {
             event.setCanceled(true);
             return;
         }

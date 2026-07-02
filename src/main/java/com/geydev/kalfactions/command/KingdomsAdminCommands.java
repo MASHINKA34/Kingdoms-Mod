@@ -3,6 +3,7 @@ package com.geydev.kalfactions.command;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.ResearchNode;
 import com.geydev.kalfactions.outpost.trader.TraderService;
+import com.geydev.kalfactions.sanctuary.SanctuaryExecutionManager;
 import com.geydev.kalfactions.worldmap.WorldMapRenderManager;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -14,6 +15,7 @@ import java.util.UUID;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -31,6 +33,10 @@ public final class KingdomsAdminCommands {
                 .requires(source -> source.hasPermission(2))
                 .then(Commands.literal("spawntrader")
                         .executes(KingdomsAdminCommands::spawnTrader))
+                .then(Commands.literal("sanctuary")
+                        .then(Commands.literal("vulnerable")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(KingdomsAdminCommands::makeSanctuaryVulnerable))))
                 .then(Commands.literal("research")
                         .then(Commands.literal("complete")
                                 .then(Commands.argument("node", StringArgumentType.word())
@@ -65,6 +71,26 @@ public final class KingdomsAdminCommands {
                 () -> Component.translatable("command.kingdoms.spawntrader.success"),
                 true
         );
+        return 1;
+    }
+
+    private static int makeSanctuaryVulnerable(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer target = EntityArgument.getPlayer(context, "player");
+        boolean changed = SanctuaryExecutionManager.get(target.serverLevel())
+                .setVulnerableUntilDeath(target.getUUID());
+        if (!changed) {
+            source.sendSuccess(
+                    () -> Component.literal(target.getGameProfile().getName() + " уже уязвим на спавне до смерти."),
+                    false
+            );
+            return 0;
+        }
+        source.sendSuccess(
+                () -> Component.literal(target.getGameProfile().getName() + " теперь уязвим на спавне до первой смерти."),
+                true
+        );
+        target.displayClientMessage(Component.literal("Защита спавна отключена до вашей первой смерти."), false);
         return 1;
     }
 
