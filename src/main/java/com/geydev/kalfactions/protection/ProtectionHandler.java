@@ -11,7 +11,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -51,6 +53,15 @@ public final class ProtectionHandler {
             return;
         }
         BlockPos breakPos = event.getPos();
+        GraveBreakAccess graveBreakAccess = graveBreakAccess(player, level, breakPos);
+        if (graveBreakAccess == GraveBreakAccess.ALLOW) {
+            return;
+        }
+        if (graveBreakAccess == GraveBreakAccess.DENY) {
+            event.setCanceled(true);
+            deny(player, "kingdoms.protection.no_break");
+            return;
+        }
         if (isSanctuaryProtected(player, level, breakPos)) {
             event.setCanceled(true);
             deny(player, "kingdoms.protection.no_break");
@@ -299,6 +310,8 @@ public final class ProtectionHandler {
 
     private static final TagKey<Block> INTERACTABLE =
             TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "interactable"));
+    private static final ResourceLocation GRAVESTONE_BLOCK_ID =
+            ResourceLocation.fromNamespaceAndPath("gravestone", "gravestone");
 
     private static boolean isAlwaysAllowed(BlockState state) {
         return state.is(INTERACTABLE)
@@ -314,6 +327,64 @@ public final class ProtectionHandler {
         BlockEntity blockEntity = level.getBlockEntity(pos);
         return blockEntity instanceof Container
                 || level.getCapability(Capabilities.ItemHandler.BLOCK, pos, null) != null;
+    }
+
+    private static GraveBreakAccess graveBreakAccess(ServerPlayer player, ServerLevel level, BlockPos pos) {
+        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock());
+        if (!GRAVESTONE_BLOCK_ID.equals(blockId)) {
+            return GraveBreakAccess.PASS;
+        }
+        if (player.hasPermissions(2)) {
+            return GraveBreakAccess.ALLOW;
+        }
+        UUID owner = graveOwner(level, pos);
+        if (owner == null) {
+            return GraveBreakAccess.DENY;
+        }
+        return owner.equals(player.getUUID()) ? GraveBreakAccess.ALLOW : GraveBreakAccess.DENY;
+    }
+
+    private static UUID graveOwner(ServerLevel level, BlockPos pos) {
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity == null) {
+            return null;
+        }
+        CompoundTag tag = blockEntity.saveWithFullMetadata(level.registryAccess());
+        UUID owner = readGravestoneOwner(tag.getCompound("Death"));
+        if (owner != null) {
+            return owner;
+        }
+        owner = readGravestoneOwner(tag);
+        if (owner != null) {
+            return owner;
+        }
+        return readStringUuid(tag, "PlayerUUID");
+    }
+
+    private static UUID readGravestoneOwner(CompoundTag tag) {
+        if (tag.contains("PlayerUuid")) {
+            try {
+                return tag.getUUID("PlayerUuid");
+            } catch (IllegalArgumentException ignored) {
+                return null;
+            }
+        }
+        if (tag.contains("PlayerUuidMost") && tag.contains("PlayerUuidLeast")) {
+            return new UUID(tag.getLong("PlayerUuidMost"), tag.getLong("PlayerUuidLeast"));
+        }
+        return null;
+    }
+
+    private static UUID readStringUuid(CompoundTag tag, String key) {
+        String value = tag.getString(key);
+        if (value.isEmpty()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     private static boolean canAccessContainer(ServerPlayer player, ServerLevel level, BlockPos pos) {
@@ -340,5 +411,11 @@ public final class ProtectionHandler {
     }
 
     private ProtectionHandler() {
+    }
+
+    private enum GraveBreakAccess {
+        PASS,
+        ALLOW,
+        DENY
     }
 }
