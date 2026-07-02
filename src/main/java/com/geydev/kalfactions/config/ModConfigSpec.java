@@ -78,6 +78,7 @@ public final class ModConfigSpec {
     public static final IntValue WAR_KILL_POINT_CAP_PER_MINUTE;
     public static final IntValue WAR_DECLARE_COOLDOWN_HOURS;
     public static final IntValue FORCE_LOAD_SLOTS;
+    public static final DoubleValue MARKET_BUYBACK_PERCENT;
     public static final BooleanValue SANCTUARY_DISABLE_PVP;
     public static final BooleanValue SANCTUARY_DISABLE_MOB_SPAWNS;
     public static final BooleanValue SANCTUARY_EXPLOSION_IMMUNITY;
@@ -256,6 +257,12 @@ public final class ModConfigSpec {
         CLAIM_SYNC_RADIUS_CHUNKS = builder
             .comment("Radius in chunks around each player for which faction claims are streamed to client minimap mods (Xaero).")
             .defineInRange("claimSyncRadiusChunks", 64, 8, 512);
+        builder.pop();
+
+        builder.push("market");
+        MARKET_BUYBACK_PERCENT = builder
+            .comment("Fraction of the base price refunded when a market plot is sold back to the server.")
+            .defineInRange("buybackPercent", 0.5D, 0D, 1D);
         builder.pop();
 
         builder.push("sanctuary");

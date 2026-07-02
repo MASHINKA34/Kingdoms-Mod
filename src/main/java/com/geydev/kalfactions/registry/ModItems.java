@@ -3,6 +3,7 @@ package com.geydev.kalfactions.registry;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.chest.AccessTool;
 import com.geydev.kalfactions.faction.InfluenceType;
+import com.geydev.kalfactions.item.PlotWandItem;
 import com.geydev.kalfactions.item.SellerSpawnEggItem;
 import com.geydev.kalfactions.item.TraderSpawnEggItem;
 import java.util.Optional;
@@ -56,6 +57,11 @@ public final class ModItems {
     public static final DeferredItem<Item> TRADER_REMOVER = ITEMS.register(
             "trader_remover",
             () -> new Item(new Item.Properties().stacksTo(1))
+    );
+
+    public static final DeferredItem<PlotWandItem> PLOT_WAND = ITEMS.register(
+            "plot_wand",
+            () -> new PlotWandItem(new Item.Properties().stacksTo(1))
     );
 
     public static final DeferredItem<Item> CRYSTAL_SCIENCE = ITEMS.register(

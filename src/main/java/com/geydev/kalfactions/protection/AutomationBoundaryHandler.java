@@ -3,6 +3,9 @@ package com.geydev.kalfactions.protection;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.chest.ChestAccessMode;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.market.MarketPlot;
+import com.geydev.kalfactions.market.MarketPlotManager;
+import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -111,6 +114,9 @@ public final class AutomationBoundaryHandler {
         }
 
         BlockPos automationPos = targetPos.relative(targetSide);
+        if (crossesPlotBoundary(serverLevel, targetPos, automationPos)) {
+            return true;
+        }
         Optional<FactionAccess.FactionRef> targetFaction = FactionAccess.factionAt(serverLevel, targetPos);
         Optional<FactionAccess.FactionRef> automationFaction =
                 FactionAccess.factionAt(serverLevel, automationPos);
@@ -127,6 +133,17 @@ public final class AutomationBoundaryHandler {
                 .getChestAccess(serverLevel, targetPos)
                 .map(access -> access.mode() != ChestAccessMode.PUBLIC)
                 .orElse(true);
+    }
+
+    private static boolean crossesPlotBoundary(ServerLevel level, BlockPos targetPos, BlockPos automationPos) {
+        SanctuaryManager sanctuary = SanctuaryManager.get(level);
+        if (!sanctuary.isSanctuary(level, targetPos) && !sanctuary.isSanctuary(level, automationPos)) {
+            return false;
+        }
+        MarketPlotManager plots = MarketPlotManager.get(level);
+        int targetPlot = plots.plotAt(level.dimension(), targetPos).map(MarketPlot::id).orElse(-1);
+        int automationPlot = plots.plotAt(level.dimension(), automationPos).map(MarketPlot::id).orElse(-1);
+        return targetPlot != automationPlot;
     }
 
     private static final class BoundaryItemHandler implements IItemHandler {

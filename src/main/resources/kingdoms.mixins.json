@@ -8,7 +8,8 @@
     "VillagerMixin",
     "MerchantResultSlotMixin",
     "EnchantmentMenuMixin",
-    "ExplosionMixin"
+    "ExplosionMixin",
+    "FlowingFluidMixin"
   ],
   "client": [
     "XaeroMinimapPlayerTrackerElementReaderMixin",

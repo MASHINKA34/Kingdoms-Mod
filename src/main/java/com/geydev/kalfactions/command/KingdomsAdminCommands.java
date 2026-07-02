@@ -31,6 +31,7 @@ public final class KingdomsAdminCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("kingdoms")
                 .requires(source -> source.hasPermission(2))
+                .then(com.geydev.kalfactions.market.MarketPlotCommands.build())
                 .then(Commands.literal("spawntrader")
                         .executes(KingdomsAdminCommands::spawnTrader))
                 .then(Commands.literal("sanctuary")

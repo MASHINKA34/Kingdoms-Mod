@@ -5,6 +5,8 @@ import com.geydev.kalfactions.chest.AccessTool;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.market.MarketPlotEvents;
+import com.geydev.kalfactions.market.MarketPlotManager;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import com.geydev.kalfactions.war.WarManager;
 import java.util.HashMap;
@@ -108,11 +110,10 @@ public final class ProtectionHandler {
         }
 
         if (!player.hasPermissions(2)) {
-            SanctuaryManager sanctuary = SanctuaryManager.get(level);
             boolean intoSanctuary = event instanceof BlockEvent.EntityMultiPlaceEvent multiPlace
                     ? multiPlace.getReplacedBlockSnapshots().stream()
-                            .anyMatch(snapshot -> sanctuary.isSanctuary(level, snapshot.getPos()))
-                    : sanctuary.isSanctuary(level, event.getPos());
+                            .anyMatch(snapshot -> isSanctuaryProtected(player, level, snapshot.getPos()))
+                    : isSanctuaryProtected(player, level, event.getPos());
             if (intoSanctuary) {
                 event.setCanceled(true);
                 deny(player, "kingdoms.protection.no_place");
@@ -160,6 +161,10 @@ public final class ProtectionHandler {
 
         BlockPos pos = event.getPos();
         if (SanctuaryManager.get(level).isSanctuary(level, pos)) {
+            if (isPlotProtectedContainer(player, level, pos)) {
+                cancelInteraction(event);
+                deny(player, event.getHand(), "kingdoms.protection.no_container");
+            }
             return;
         }
 
@@ -219,6 +224,11 @@ public final class ProtectionHandler {
             }
             BlockPos containerPos = blockEntity.getBlockPos();
             if (SanctuaryManager.get(level).isSanctuary(level, containerPos)) {
+                if (isPlotProtectedContainer(player, level, containerPos)) {
+                    player.closeContainer();
+                    deny(player, "kingdoms.protection.no_container");
+                    return;
+                }
                 continue;
             }
             if (!canAccessContainer(player, level, containerPos)) {
@@ -393,7 +403,19 @@ public final class ProtectionHandler {
     }
 
     private static boolean isSanctuaryProtected(ServerPlayer player, ServerLevel level, BlockPos pos) {
-        return !player.hasPermissions(2) && SanctuaryManager.get(level).isSanctuary(level, pos);
+        return !player.hasPermissions(2)
+                && SanctuaryManager.get(level).isSanctuary(level, pos)
+                && !MarketPlotManager.get(level).canEdit(player.getUUID(), level.dimension(), pos);
+    }
+
+    private static boolean isPlotProtectedContainer(ServerPlayer player, ServerLevel level, BlockPos pos) {
+        if (player.hasPermissions(2) || !isContainer(level, pos)) {
+            return false;
+        }
+        var plot = MarketPlotManager.get(level).plotAt(level.dimension(), pos);
+        return plot.isPresent()
+                && !plot.get().isOwnedBy(player.getUUID())
+                && !MarketPlotEvents.isNumismaticsBlock(level, pos);
     }
 
     private static boolean isWarBreak(ServerPlayer player, ServerLevel level, BlockPos pos, WarManager wars) {
