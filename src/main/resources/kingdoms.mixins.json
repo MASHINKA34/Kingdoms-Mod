@@ -12,8 +12,10 @@
   ],
   "client": [
     "XaeroMinimapPlayerTrackerElementReaderMixin",
+    "XaeroMinimapPlayerTrackerElementCollectorMixin",
     "XaeroRadarElementReaderMixin",
-    "XaeroWorldMapPlayerTrackerElementReaderMixin"
+    "XaeroWorldMapPlayerTrackerElementReaderMixin",
+    "XaeroWorldMapPlayerTrackerElementCollectorMixin"
   ],
   "injectors": {
     "defaultRequire": 1

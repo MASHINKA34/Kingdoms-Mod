@@ -19,8 +19,10 @@ public final class KingdomsMixinPlugin implements IMixinConfigPlugin {
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         if (mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementReaderMixin")
+                || mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementCollectorMixin")
                 || mixinClassName.endsWith("XaeroRadarElementReaderMixin")
-                || mixinClassName.endsWith("XaeroWorldMapPlayerTrackerElementReaderMixin")) {
+                || mixinClassName.endsWith("XaeroWorldMapPlayerTrackerElementReaderMixin")
+                || mixinClassName.endsWith("XaeroWorldMapPlayerTrackerElementCollectorMixin")) {
             return classExists(targetClassName);
         }
         return true;
