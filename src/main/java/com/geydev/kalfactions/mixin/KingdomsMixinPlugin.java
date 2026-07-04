@@ -21,11 +21,14 @@ public final class KingdomsMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementReaderMixin")
                 || mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementCollectorMixin")
                 || mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementRendererMixin")
+                || mixinClassName.endsWith("XaeroMinimapSyncedTrackedPlayerManagerMixin")
+                || mixinClassName.endsWith("XaeroRadarListMixin")
                 || mixinClassName.endsWith("XaeroRadarElementReaderMixin")
                 || mixinClassName.endsWith("XaeroRadarRendererMixin")
                 || mixinClassName.endsWith("XaeroWorldMapPlayerTrackerElementReaderMixin")
                 || mixinClassName.endsWith("XaeroWorldMapPlayerTrackerElementCollectorMixin")
-                || mixinClassName.endsWith("XaeroWorldMapPlayerTrackerElementRendererMixin")) {
+                || mixinClassName.endsWith("XaeroWorldMapPlayerTrackerElementRendererMixin")
+                || mixinClassName.endsWith("XaeroWorldMapSyncedTrackedPlayerManagerMixin")) {
             return classExists(targetClassName);
         }
         return true;

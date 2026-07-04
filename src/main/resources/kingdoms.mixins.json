@@ -15,11 +15,14 @@
     "XaeroMinimapPlayerTrackerElementReaderMixin",
     "XaeroMinimapPlayerTrackerElementCollectorMixin",
     "XaeroMinimapPlayerTrackerElementRendererMixin",
+    "XaeroMinimapSyncedTrackedPlayerManagerMixin",
+    "XaeroRadarListMixin",
     "XaeroRadarElementReaderMixin",
     "XaeroRadarRendererMixin",
     "XaeroWorldMapPlayerTrackerElementReaderMixin",
     "XaeroWorldMapPlayerTrackerElementCollectorMixin",
-    "XaeroWorldMapPlayerTrackerElementRendererMixin"
+    "XaeroWorldMapPlayerTrackerElementRendererMixin",
+    "XaeroWorldMapSyncedTrackedPlayerManagerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
