@@ -7,6 +7,7 @@ import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.market.MarketPlotEvents;
 import com.geydev.kalfactions.market.MarketPlotManager;
+import com.geydev.kalfactions.market.MarketPlotService;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import com.geydev.kalfactions.war.WarManager;
 import java.util.HashMap;
@@ -405,7 +406,7 @@ public final class ProtectionHandler {
     private static boolean isSanctuaryProtected(ServerPlayer player, ServerLevel level, BlockPos pos) {
         return !player.hasPermissions(2)
                 && SanctuaryManager.get(level).isSanctuary(level, pos)
-                && !MarketPlotManager.get(level).canEdit(player.getUUID(), level.dimension(), pos);
+                && !MarketPlotService.canEdit(player, level, pos);
     }
 
     private static boolean isPlotProtectedContainer(ServerPlayer player, ServerLevel level, BlockPos pos) {
@@ -414,7 +415,7 @@ public final class ProtectionHandler {
         }
         var plot = MarketPlotManager.get(level).plotAt(level.dimension(), pos);
         return plot.isPresent()
-                && !plot.get().isOwnedBy(player.getUUID())
+                && !MarketPlotService.hasAccess(plot.get(), player)
                 && !MarketPlotEvents.isNumismaticsBlock(level, pos);
     }
 

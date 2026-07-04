@@ -761,5 +761,19 @@
   "screen.kingdoms.plot_list_resale": "List for sale",
   "screen.kingdoms.plot_cancel_resale": "Cancel listing",
   "screen.kingdoms.plot_sell_server": "Sell to server for %s",
-  "screen.kingdoms.plot_sell_server_confirm": "Really sell? The build will reset!"
+  "screen.kingdoms.plot_sell_server_confirm": "Really sell? The build will reset!",
+  "screen.kingdoms.plot_trusted": "Trusted...",
+  "screen.kingdoms.plot_trust_title": "Trusted — plot #%s",
+  "screen.kingdoms.plot_trust_factions": "Factions",
+  "screen.kingdoms.plot_trust_players": "Players",
+  "screen.kingdoms.plot_trust_add_faction": "+ Faction",
+  "screen.kingdoms.plot_trust_add_player": "+ Player",
+  "screen.kingdoms.plot_trust_empty": "Empty",
+  "screen.kingdoms.plot_trust_pick_faction": "Trust a faction",
+  "screen.kingdoms.plot_trust_pick_player": "Trust a player",
+  "kingdoms.plot.label.title": "Market plot #%s",
+  "kingdoms.plot.label.for_sale": "For sale: %s",
+  "kingdoms.plot.label.resale": "%s sells for %s",
+  "kingdoms.plot.label.owned": "Plot of %s",
+  "kingdoms.plot.wand.size": "Selection: %sx%sx%s"
 }

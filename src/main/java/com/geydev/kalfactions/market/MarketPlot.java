@@ -1,11 +1,16 @@
 package com.geydev.kalfactions.market;
 
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -21,6 +26,10 @@ public final class MarketPlot {
     private static final String TAG_OWNER_NAME = "owner_name";
     private static final String TAG_RESALE_PRICE = "resale_price";
     private static final String TAG_SNAPSHOT = "snapshot";
+    private static final String TAG_TRUSTED_PLAYERS = "trusted_players";
+    private static final String TAG_TRUSTED_FACTIONS = "trusted_factions";
+    private static final String TAG_ENTRY_ID = "id";
+    private static final String TAG_ENTRY_NAME = "name";
 
     private final int id;
     private final ResourceKey<Level> dimension;
@@ -30,6 +39,8 @@ public final class MarketPlot {
     private String ownerName = "";
     private long resalePrice;
     private CompoundTag snapshot = new CompoundTag();
+    private final Map<UUID, String> trustedPlayers = new LinkedHashMap<>();
+    private final Set<UUID> trustedFactions = new LinkedHashSet<>();
 
     public MarketPlot(int id, ResourceKey<Level> dimension, BoundingBox box, long basePrice) {
         this.id = id;
@@ -82,6 +93,40 @@ public final class MarketPlot {
         this.owner = owner;
         this.ownerName = owner == null || ownerName == null ? "" : ownerName;
         this.resalePrice = 0L;
+        this.trustedPlayers.clear();
+        this.trustedFactions.clear();
+    }
+
+    public Map<UUID, String> trustedPlayers() {
+        return Map.copyOf(trustedPlayers);
+    }
+
+    public Set<UUID> trustedFactions() {
+        return Set.copyOf(trustedFactions);
+    }
+
+    public boolean isTrustedPlayer(UUID playerId) {
+        return trustedPlayers.containsKey(playerId);
+    }
+
+    public boolean isTrustedFaction(UUID factionId) {
+        return trustedFactions.contains(factionId);
+    }
+
+    public boolean addTrustedPlayer(UUID playerId, String name) {
+        return trustedPlayers.put(playerId, name == null ? "" : name) == null;
+    }
+
+    public boolean removeTrustedPlayer(UUID playerId) {
+        return trustedPlayers.remove(playerId) != null;
+    }
+
+    public boolean addTrustedFaction(UUID factionId) {
+        return trustedFactions.add(factionId);
+    }
+
+    public boolean removeTrustedFaction(UUID factionId) {
+        return trustedFactions.remove(factionId);
     }
 
     public void setResalePrice(long resalePrice) {
@@ -122,6 +167,21 @@ public final class MarketPlot {
         }
         tag.putLong(TAG_RESALE_PRICE, resalePrice);
         tag.put(TAG_SNAPSHOT, snapshot);
+        ListTag playersTag = new ListTag();
+        for (Map.Entry<UUID, String> entry : trustedPlayers.entrySet()) {
+            CompoundTag entryTag = new CompoundTag();
+            entryTag.putUUID(TAG_ENTRY_ID, entry.getKey());
+            entryTag.putString(TAG_ENTRY_NAME, entry.getValue());
+            playersTag.add(entryTag);
+        }
+        tag.put(TAG_TRUSTED_PLAYERS, playersTag);
+        ListTag factionsTag = new ListTag();
+        for (UUID factionId : trustedFactions) {
+            CompoundTag entryTag = new CompoundTag();
+            entryTag.putUUID(TAG_ENTRY_ID, factionId);
+            factionsTag.add(entryTag);
+        }
+        tag.put(TAG_TRUSTED_FACTIONS, factionsTag);
         return tag;
     }
 
@@ -144,6 +204,20 @@ public final class MarketPlot {
         plot.resalePrice = Math.max(0L, tag.getLong(TAG_RESALE_PRICE));
         if (tag.contains(TAG_SNAPSHOT, Tag.TAG_COMPOUND)) {
             plot.snapshot = tag.getCompound(TAG_SNAPSHOT);
+        }
+        ListTag playersTag = tag.getList(TAG_TRUSTED_PLAYERS, Tag.TAG_COMPOUND);
+        for (int index = 0; index < playersTag.size(); index++) {
+            CompoundTag entryTag = playersTag.getCompound(index);
+            if (entryTag.hasUUID(TAG_ENTRY_ID)) {
+                plot.trustedPlayers.put(entryTag.getUUID(TAG_ENTRY_ID), entryTag.getString(TAG_ENTRY_NAME));
+            }
+        }
+        ListTag factionsTag = tag.getList(TAG_TRUSTED_FACTIONS, Tag.TAG_COMPOUND);
+        for (int index = 0; index < factionsTag.size(); index++) {
+            CompoundTag entryTag = factionsTag.getCompound(index);
+            if (entryTag.hasUUID(TAG_ENTRY_ID)) {
+                plot.trustedFactions.add(entryTag.getUUID(TAG_ENTRY_ID));
+            }
         }
         return Optional.of(plot);
     }

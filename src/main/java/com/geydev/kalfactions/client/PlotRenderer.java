@@ -7,28 +7,45 @@ import com.geydev.kalfactions.market.PlotSelection;
 import com.geydev.kalfactions.registry.ModDataComponents;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
+import org.joml.Matrix4f;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID, value = Dist.CLIENT)
 public final class PlotRenderer {
     private static final double RENDER_DISTANCE = 128.0D;
+    private static final double LABEL_DISTANCE = 64.0D;
     private static final byte STATE_FOR_SALE = 0;
     private static final byte STATE_RESALE = 2;
+    private static final int LABEL_TITLE_COLOR = 0xFFFFFFFF;
+    private static final int LABEL_FOR_SALE_COLOR = 0xFF6BF08A;
+    private static final int LABEL_RESALE_COLOR = 0xFFF5C542;
+    private static final int LABEL_OWNED_COLOR = 0xFF9AD8FF;
 
     private static int lastActionBarPlot = -1;
 
@@ -49,14 +66,16 @@ public final class PlotRenderer {
             return;
         }
 
-        Vec3 camera = event.getCamera().getPosition();
+        Camera camera = event.getCamera();
+        Vec3 cameraPos = camera.getPosition();
         PoseStack poseStack = event.getPoseStack();
         MultiBufferSource.BufferSource bufferSource = minecraft.renderBuffers().bufferSource();
         VertexConsumer lines = bufferSource.getBuffer(RenderType.lines());
 
         for (MarketPayloads.PlotEntry entry
                 : ClientPlotStore.plotsIn(minecraft.level.dimension().location())) {
-            boolean mine = entry.owner().map(owner -> owner.equals(player.getUUID())).orElse(false);
+            boolean mine = entry.access()
+                    || entry.owner().map(owner -> owner.equals(player.getUUID())).orElse(false);
             float red;
             float green;
             float blue;
@@ -73,29 +92,144 @@ public final class PlotRenderer {
                 green = 0.75F;
                 blue = 0.20F;
             } else {
-                continue;
+                red = -1.0F;
+                green = -1.0F;
+                blue = -1.0F;
             }
-            renderBox(poseStack, lines, camera,
-                    entry.minX(), entry.minY(), entry.minZ(),
-                    entry.maxX() + 1, entry.maxY() + 1, entry.maxZ() + 1,
-                    red, green, blue);
+            if (red >= 0.0F) {
+                renderBox(poseStack, lines, cameraPos,
+                        entry.minX(), entry.minY(), entry.minZ(),
+                        entry.maxX() + 1, entry.maxY() + 1, entry.maxZ() + 1,
+                        red, green, blue);
+            }
+            renderPlotLabel(poseStack, bufferSource, camera, cameraPos, entry, mine);
         }
 
         PlotSelection selection = heldSelection(player);
         if (selection != null && selection.dimension().equals(minecraft.level.dimension().location())) {
-            BlockPos first = selection.first();
-            BlockPos second = selection.second().orElse(first);
-            renderBox(poseStack, lines, camera,
-                    Math.min(first.getX(), second.getX()),
-                    Math.min(first.getY(), second.getY()),
-                    Math.min(first.getZ(), second.getZ()),
-                    Math.max(first.getX(), second.getX()) + 1,
-                    Math.max(first.getY(), second.getY()) + 1,
-                    Math.max(first.getZ(), second.getZ()) + 1,
-                    1.00F, 1.00F, 1.00F);
+            renderSelection(poseStack, bufferSource, lines, cameraPos, player, selection);
         }
 
+        bufferSource.endBatch(RenderType.debugFilledBox());
         bufferSource.endBatch(RenderType.lines());
+        bufferSource.endBatch();
+    }
+
+    private static void renderSelection(
+            PoseStack poseStack,
+            MultiBufferSource.BufferSource bufferSource,
+            VertexConsumer lines,
+            Vec3 cameraPos,
+            LocalPlayer player,
+            PlotSelection selection
+    ) {
+        AABB box = selectionBounds(selection);
+        VertexConsumer fill = bufferSource.getBuffer(RenderType.debugFilledBox());
+        LevelRenderer.addChainedFilledBoxVertices(
+                poseStack,
+                fill,
+                box.minX - cameraPos.x, box.minY - cameraPos.y, box.minZ - cameraPos.z,
+                box.maxX - cameraPos.x, box.maxY - cameraPos.y, box.maxZ - cameraPos.z,
+                0.55F, 0.72F, 1.00F, 0.16F
+        );
+        if (selection.isComplete() && Screen.hasControlDown()) {
+            Direction face = targetedFace(player, box);
+            if (face != null) {
+                AABB slab = faceSlab(box, face);
+                LevelRenderer.addChainedFilledBoxVertices(
+                        poseStack,
+                        fill,
+                        slab.minX - cameraPos.x, slab.minY - cameraPos.y, slab.minZ - cameraPos.z,
+                        slab.maxX - cameraPos.x, slab.maxY - cameraPos.y, slab.maxZ - cameraPos.z,
+                        0.75F, 0.88F, 1.00F, 0.42F
+                );
+            }
+        }
+        renderBox(poseStack, lines, cameraPos,
+                box.minX, box.minY, box.minZ,
+                box.maxX, box.maxY, box.maxZ,
+                1.00F, 1.00F, 1.00F);
+    }
+
+    private static void renderPlotLabel(
+            PoseStack poseStack,
+            MultiBufferSource bufferSource,
+            Camera camera,
+            Vec3 cameraPos,
+            MarketPayloads.PlotEntry entry,
+            boolean mine
+    ) {
+        double centerX = (entry.minX() + entry.maxX() + 1) / 2.0D;
+        double centerZ = (entry.minZ() + entry.maxZ() + 1) / 2.0D;
+        double labelY = entry.maxY() + 1.9D;
+        double distanceSq = cameraPos.distanceToSqr(centerX, labelY, centerZ);
+        if (distanceSq > LABEL_DISTANCE * LABEL_DISTANCE) {
+            return;
+        }
+
+        List<Line> linesToDraw = new ArrayList<>(2);
+        if (entry.state() == STATE_FOR_SALE) {
+            linesToDraw.add(new Line(
+                    Component.translatable("kingdoms.plot.label.title", entry.id()), LABEL_TITLE_COLOR));
+            linesToDraw.add(new Line(
+                    Component.translatable("kingdoms.plot.label.for_sale",
+                            NumismaticsEconomy.format(entry.price())),
+                    LABEL_FOR_SALE_COLOR));
+        } else if (entry.state() == STATE_RESALE) {
+            linesToDraw.add(new Line(
+                    Component.translatable("kingdoms.plot.label.title", entry.id()), LABEL_TITLE_COLOR));
+            linesToDraw.add(new Line(
+                    Component.translatable("kingdoms.plot.label.resale",
+                            entry.ownerName(),
+                            NumismaticsEconomy.format(entry.price())),
+                    LABEL_RESALE_COLOR));
+        } else if (!entry.ownerName().isEmpty()) {
+            linesToDraw.add(new Line(
+                    Component.translatable("kingdoms.plot.label.owned", entry.ownerName()),
+                    mine ? LABEL_OWNED_COLOR : LABEL_TITLE_COLOR));
+        } else {
+            return;
+        }
+
+        float scale = (float) Math.min(0.10D, 0.03D + Math.sqrt(distanceSq) * 0.0022D);
+        poseStack.pushPose();
+        poseStack.translate(centerX - cameraPos.x, labelY - cameraPos.y, centerZ - cameraPos.z);
+        poseStack.mulPose(camera.rotation());
+        poseStack.scale(scale, -scale, scale);
+        Font font = Minecraft.getInstance().font;
+        Matrix4f matrix = poseStack.last().pose();
+        int background = (int) (0.4F * 255.0F) << 24;
+        int lineY = -linesToDraw.size() * 10;
+        for (Line line : linesToDraw) {
+            float x = -font.width(line.text()) / 2.0F;
+            font.drawInBatch(line.text(), x, lineY, line.color(), false, matrix, bufferSource,
+                    Font.DisplayMode.SEE_THROUGH, background, LightTexture.FULL_BRIGHT);
+            lineY += 10;
+        }
+        poseStack.popPose();
+    }
+
+    @SubscribeEvent
+    public static void onMouseScroll(InputEvent.MouseScrollingEvent event) {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        if (player == null || minecraft.level == null || minecraft.screen != null
+                || !Screen.hasControlDown() || !player.hasPermissions(2)) {
+            return;
+        }
+        PlotSelection selection = heldSelection(player);
+        if (selection == null || !selection.isComplete()
+                || !selection.dimension().equals(minecraft.level.dimension().location())) {
+            return;
+        }
+        Direction face = targetedFace(player, selectionBounds(selection));
+        if (face == null) {
+            return;
+        }
+        byte delta = (byte) (event.getScrollDeltaY() > 0.0D ? 1 : -1);
+        PacketDistributor.sendToServer(
+                new MarketPayloads.C2SAdjustPlotSelection((byte) face.ordinal(), delta));
+        event.setCanceled(true);
     }
 
     @SubscribeEvent
@@ -124,7 +258,8 @@ public final class PlotRenderer {
             return;
         }
         lastActionBarPlot = inside.id();
-        boolean mine = inside.owner().map(owner -> owner.equals(player.getUUID())).orElse(false);
+        boolean mine = inside.access()
+                || inside.owner().map(owner -> owner.equals(player.getUUID())).orElse(false);
         if (mine) {
             player.displayClientMessage(
                     Component.translatable("kingdoms.plot.enter.yours", inside.id()), true);
@@ -153,6 +288,67 @@ public final class PlotRenderer {
         return null;
     }
 
+    private static AABB selectionBounds(PlotSelection selection) {
+        BlockPos first = selection.first();
+        BlockPos second = selection.second().orElse(first);
+        return new AABB(
+                Math.min(first.getX(), second.getX()),
+                Math.min(first.getY(), second.getY()),
+                Math.min(first.getZ(), second.getZ()),
+                Math.max(first.getX(), second.getX()) + 1,
+                Math.max(first.getY(), second.getY()) + 1,
+                Math.max(first.getZ(), second.getZ()) + 1
+        );
+    }
+
+    private static Direction targetedFace(LocalPlayer player, AABB box) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 look = player.getViewVector(1.0F);
+        if (box.contains(eye)) {
+            return Direction.getNearest(look.x, look.y, look.z);
+        }
+        Optional<Vec3> hit = box.clip(eye, eye.add(look.scale(96.0D)));
+        if (hit.isEmpty()) {
+            return null;
+        }
+        Vec3 point = hit.get();
+        double epsilon = 1.0E-4D;
+        if (Math.abs(point.x - box.minX) < epsilon) {
+            return Direction.WEST;
+        }
+        if (Math.abs(point.x - box.maxX) < epsilon) {
+            return Direction.EAST;
+        }
+        if (Math.abs(point.y - box.minY) < epsilon) {
+            return Direction.DOWN;
+        }
+        if (Math.abs(point.y - box.maxY) < epsilon) {
+            return Direction.UP;
+        }
+        if (Math.abs(point.z - box.minZ) < epsilon) {
+            return Direction.NORTH;
+        }
+        return Direction.SOUTH;
+    }
+
+    private static AABB faceSlab(AABB box, Direction face) {
+        double thickness = 0.03D;
+        return switch (face) {
+            case WEST -> new AABB(box.minX - thickness, box.minY, box.minZ,
+                    box.minX + thickness, box.maxY, box.maxZ);
+            case EAST -> new AABB(box.maxX - thickness, box.minY, box.minZ,
+                    box.maxX + thickness, box.maxY, box.maxZ);
+            case DOWN -> new AABB(box.minX, box.minY - thickness, box.minZ,
+                    box.maxX, box.minY + thickness, box.maxZ);
+            case UP -> new AABB(box.minX, box.maxY - thickness, box.minZ,
+                    box.maxX, box.maxY + thickness, box.maxZ);
+            case NORTH -> new AABB(box.minX, box.minY, box.minZ - thickness,
+                    box.maxX, box.maxY, box.minZ + thickness);
+            case SOUTH -> new AABB(box.minX, box.minY, box.maxZ - thickness,
+                    box.maxX, box.maxY, box.maxZ + thickness);
+        };
+    }
+
     private static void renderBox(
             PoseStack poseStack,
             VertexConsumer lines,
@@ -173,6 +369,9 @@ public final class PlotRenderer {
                 maxX - camera.x, maxY - camera.y, maxZ - camera.z,
                 red, green, blue, 1.0F
         );
+    }
+
+    private record Line(Component text, int color) {
     }
 
     private PlotRenderer() {

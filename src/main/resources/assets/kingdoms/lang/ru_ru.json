@@ -761,5 +761,19 @@
   "screen.kingdoms.plot_list_resale": "Выставить на продажу",
   "screen.kingdoms.plot_cancel_resale": "Снять с продажи",
   "screen.kingdoms.plot_sell_server": "Продать серверу за %s",
-  "screen.kingdoms.plot_sell_server_confirm": "Точно продать? Постройка сбросится!"
+  "screen.kingdoms.plot_sell_server_confirm": "Точно продать? Постройка сбросится!",
+  "screen.kingdoms.plot_trusted": "Доверенные...",
+  "screen.kingdoms.plot_trust_title": "Доверенные — участок #%s",
+  "screen.kingdoms.plot_trust_factions": "Фракции",
+  "screen.kingdoms.plot_trust_players": "Игроки",
+  "screen.kingdoms.plot_trust_add_faction": "+ Фракция",
+  "screen.kingdoms.plot_trust_add_player": "+ Игрок",
+  "screen.kingdoms.plot_trust_empty": "Пусто",
+  "screen.kingdoms.plot_trust_pick_faction": "Доверить фракцию",
+  "screen.kingdoms.plot_trust_pick_player": "Доверить игрока",
+  "kingdoms.plot.label.title": "Торговый участок #%s",
+  "kingdoms.plot.label.for_sale": "Продаётся за %s",
+  "kingdoms.plot.label.resale": "Продаёт %s за %s",
+  "kingdoms.plot.label.owned": "Участок игрока %s",
+  "kingdoms.plot.wand.size": "Выделение: %sx%sx%s"
 }

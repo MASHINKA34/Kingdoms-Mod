@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -74,11 +73,6 @@ public final class MarketPlotManager extends SavedData {
             }
         }
         return false;
-    }
-
-    public synchronized boolean canEdit(UUID playerId, ResourceKey<Level> dimension, BlockPos pos) {
-        Optional<MarketPlot> plot = plotAt(dimension, pos);
-        return plot.isPresent() && plot.get().isOwnedBy(playerId);
     }
 
     public synchronized MarketPlot create(ResourceKey<Level> dimension, BoundingBox box, long basePrice) {

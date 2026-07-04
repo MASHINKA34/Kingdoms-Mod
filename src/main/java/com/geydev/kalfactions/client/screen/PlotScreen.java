@@ -4,18 +4,21 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.command.NumismaticsEconomy;
 import com.geydev.kalfactions.market.MarketPayloads;
 import com.geydev.kalfactions.market.MarketPlot;
+import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class PlotScreen extends Screen {
     private static final int PANEL_WIDTH = 330;
     private static final int PANEL_HEIGHT = 220;
     private static final int CONTENT_LEFT = 28;
+    private static final int CONTENT_WIDTH = 274;
     private static final int BUTTON_WIDTH = 130;
     private static final int TEXT_DARK = 0xFF3F2A19;
     private static final int TEXT_MUTED = 0xFF4C3824;
@@ -85,7 +88,7 @@ public final class PlotScreen extends Screen {
                         onClose();
                     },
                     left + CONTENT_LEFT,
-                    top + 96,
+                    top + 100,
                     BUTTON_WIDTH,
                     20
             ));
@@ -93,7 +96,7 @@ public final class PlotScreen extends Screen {
             priceBox = new EditBox(
                     font,
                     left + CONTENT_LEFT,
-                    top + 96,
+                    top + 101,
                     100,
                     18,
                     Component.translatable("screen.kingdoms.plot_price_hint")
@@ -112,11 +115,20 @@ public final class PlotScreen extends Screen {
                         }
                     },
                     left + CONTENT_LEFT + 106,
-                    top + 95,
+                    top + 100,
                     BUTTON_WIDTH,
                     20
             ));
         }
+        addRenderableWidget(KingdomsButton.create(
+                Component.translatable("screen.kingdoms.plot_trusted"),
+                button -> PacketDistributor.sendToServer(
+                        new MarketPayloads.C2SRequestPlotTrust(data.plotId())),
+                left + CONTENT_LEFT,
+                top + 125,
+                BUTTON_WIDTH,
+                20
+        ));
         sellToServerButton = addRenderableWidget(KingdomsButton.create(
                 Component.translatable("screen.kingdoms.plot_sell_server",
                         NumismaticsEconomy.format(data.buybackAmount())),
@@ -163,26 +175,30 @@ public final class PlotScreen extends Screen {
 
         if (data.isOwner()) {
             graphics.drawString(font, Component.translatable("screen.kingdoms.plot_yours"),
-                    left + CONTENT_LEFT, top + 66, TEXT_MUTED, false);
+                    left + CONTENT_LEFT, top + 64, TEXT_MUTED, false);
             if (state == MarketPlot.State.RESALE) {
-                graphics.drawString(font, Component.translatable("screen.kingdoms.plot_listed_for",
-                                NumismaticsEconomy.format(data.askingPrice())),
-                        left + CONTENT_LEFT, top + 80, TEXT_MUTED, false);
+                drawWrapped(graphics, Component.translatable("screen.kingdoms.plot_listed_for",
+                        NumismaticsEconomy.format(data.askingPrice())), top + 77);
             } else {
-                graphics.drawString(font, Component.translatable("screen.kingdoms.plot_resale_prompt"),
-                        left + CONTENT_LEFT, top + 80, TEXT_MUTED, false);
+                drawWrapped(graphics, Component.translatable("screen.kingdoms.plot_resale_prompt"), top + 77);
             }
         } else {
             graphics.drawString(font, Component.translatable("screen.kingdoms.plot_price",
                             NumismaticsEconomy.format(data.askingPrice())),
-                    left + CONTENT_LEFT, top + 66, TEXT_MUTED, false);
+                    left + CONTENT_LEFT, top + 64, TEXT_MUTED, false);
             if (state == MarketPlot.State.RESALE && !data.ownerName().isEmpty()) {
                 graphics.drawString(font, Component.translatable("screen.kingdoms.plot_seller",
                                 data.ownerName()),
-                        left + CONTENT_LEFT, top + 80, TEXT_MUTED, false);
+                        left + CONTENT_LEFT, top + 77, TEXT_MUTED, false);
             }
-            graphics.drawString(font, Component.translatable("screen.kingdoms.plot_buy_hint"),
-                    left + CONTENT_LEFT, top + 96, TEXT_MUTED, false);
+            drawWrapped(graphics, Component.translatable("screen.kingdoms.plot_buy_hint"), top + 94);
+        }
+    }
+
+    private void drawWrapped(GuiGraphics graphics, Component text, int y) {
+        List<FormattedCharSequence> lines = font.split(text, CONTENT_WIDTH);
+        for (int index = 0; index < Math.min(2, lines.size()); index++) {
+            graphics.drawString(font, lines.get(index), left + CONTENT_LEFT, y + index * 10, TEXT_MUTED, false);
         }
     }
 
