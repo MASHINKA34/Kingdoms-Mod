@@ -202,6 +202,19 @@ public final class MarketPayloads {
         }
     }
 
+    public record C2SCreatePlot(long price) implements CustomPacketPayload {
+        public static final Type<C2SCreatePlot> TYPE = payloadType("market_create_plot");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SCreatePlot> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> buffer.writeVarLong(payload.price),
+                buffer -> new C2SCreatePlot(buffer.readVarLong())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record C2SAdjustPlotSelection(byte face, byte delta) implements CustomPacketPayload {
         public static final Type<C2SAdjustPlotSelection> TYPE = payloadType("market_adjust_plot_selection");
         public static final StreamCodec<RegistryFriendlyByteBuf, C2SAdjustPlotSelection> STREAM_CODEC = StreamCodec.of(

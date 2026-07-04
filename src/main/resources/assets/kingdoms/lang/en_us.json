@@ -732,7 +732,7 @@
   "kingdoms.plot.wand.no_permission": "Only operators can select market plots.",
   "kingdoms.plot.wand.cleared": "Selection cleared.",
   "kingdoms.plot.wand.first_corner": "First corner: %s, %s, %s",
-  "kingdoms.plot.wand.second_corner": "Second corner: %s, %s, %s. Create the plot: /kingdoms plot create <price>",
+  "kingdoms.plot.wand.second_corner": "Second corner: %s, %s, %s. Right-click the area to list it, Ctrl+scroll to resize",
   "kingdoms.plot.wand.tooltip": "Right-click - pick corners, Shift+Right-click - clear",
   "kingdoms.plot.create.too_large": "Plot is too large: at most %sx%s blocks horizontally and vertically.",
   "kingdoms.plot.create.too_large_volume": "Plot is too large: at most %s blocks of volume.",
@@ -775,5 +775,9 @@
   "kingdoms.plot.label.for_sale": "For sale: %s",
   "kingdoms.plot.label.resale": "%s sells for %s",
   "kingdoms.plot.label.owned": "Plot of %s",
-  "kingdoms.plot.wand.size": "Selection: %sx%sx%s"
+  "kingdoms.plot.wand.size": "Selection: %sx%sx%s",
+  "kingdoms.plot.created": "Market plot #%s created: for sale for %s.",
+  "screen.kingdoms.plot_create_title": "New market plot",
+  "screen.kingdoms.plot_create_size": "Size: %sx%sx%s",
+  "screen.kingdoms.plot_create_confirm": "List for sale"
 }

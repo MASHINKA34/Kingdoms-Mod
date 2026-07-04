@@ -12,9 +12,12 @@
     "FlowingFluidMixin"
   ],
   "client": [
+    "XaeroCommonMinimapRadarListMixin",
+    "XaeroCommonRadarRendererMixin",
     "XaeroMinimapPlayerTrackerElementReaderMixin",
     "XaeroMinimapPlayerTrackerElementCollectorMixin",
     "XaeroMinimapPlayerTrackerElementRendererMixin",
+    "XaeroMinimapPlayerTrackerIconRendererMixin",
     "XaeroMinimapSyncedTrackedPlayerManagerMixin",
     "XaeroRadarListMixin",
     "XaeroRadarElementReaderMixin",
@@ -22,6 +25,7 @@
     "XaeroWorldMapPlayerTrackerElementReaderMixin",
     "XaeroWorldMapPlayerTrackerElementCollectorMixin",
     "XaeroWorldMapPlayerTrackerElementRendererMixin",
+    "XaeroWorldMapPlayerTrackerIconRendererMixin",
     "XaeroWorldMapSyncedTrackedPlayerManagerMixin"
   ],
   "injectors": {

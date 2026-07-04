@@ -732,7 +732,7 @@
   "kingdoms.plot.wand.no_permission": "Только оператор может выделять торговые участки.",
   "kingdoms.plot.wand.cleared": "Выделение сброшено.",
   "kingdoms.plot.wand.first_corner": "Первый угол: %s, %s, %s",
-  "kingdoms.plot.wand.second_corner": "Второй угол: %s, %s, %s. Создайте участок: /kingdoms plot create <цена>",
+  "kingdoms.plot.wand.second_corner": "Второй угол: %s, %s, %s. ПКМ по области — выставить на продажу, Ctrl+колесо — растянуть",
   "kingdoms.plot.wand.tooltip": "ПКМ - выбрать углы области, Shift+ПКМ - сбросить",
   "kingdoms.plot.create.too_large": "Участок слишком большой: максимум %sx%s блоков по горизонтали и вертикали.",
   "kingdoms.plot.create.too_large_volume": "Участок слишком большой: максимум %s блоков объёма.",
@@ -775,5 +775,9 @@
   "kingdoms.plot.label.for_sale": "Продаётся за %s",
   "kingdoms.plot.label.resale": "Продаёт %s за %s",
   "kingdoms.plot.label.owned": "Участок игрока %s",
-  "kingdoms.plot.wand.size": "Выделение: %sx%sx%s"
+  "kingdoms.plot.wand.size": "Выделение: %sx%sx%s",
+  "kingdoms.plot.created": "Торговый участок #%s создан: продаётся за %s.",
+  "screen.kingdoms.plot_create_title": "Новый торговый участок",
+  "screen.kingdoms.plot_create_size": "Размер: %sx%sx%s",
+  "screen.kingdoms.plot_create_confirm": "Выставить на продажу"
 }

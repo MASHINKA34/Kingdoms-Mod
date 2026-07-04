@@ -31,6 +31,7 @@ public final class KalFactions {
 
     private static final class ClientOnly {
         private static void register(IEventBus modBus) {
+            com.geydev.kalfactions.client.FactionListOpener.register(modBus);
             com.geydev.kalfactions.client.KingdomsClientRenderers.register(modBus);
             com.geydev.kalfactions.client.KingdomsMenuScreens.register(modBus);
         }

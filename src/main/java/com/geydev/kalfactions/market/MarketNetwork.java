@@ -60,6 +60,17 @@ public final class MarketNetwork {
                 MarketPayloads.C2SAdjustPlotSelection.STREAM_CODEC,
                 MarketNetwork::handleAdjustPlotSelection
         );
+        registrar.playToServer(
+                MarketPayloads.C2SCreatePlot.TYPE,
+                MarketPayloads.C2SCreatePlot.STREAM_CODEC,
+                MarketNetwork::handleCreatePlot
+        );
+    }
+
+    private static void handleCreatePlot(MarketPayloads.C2SCreatePlot payload, IPayloadContext context) {
+        if (context.player() instanceof ServerPlayer player) {
+            MarketPlotService.createFromWand(player, payload.price());
+        }
     }
 
     private static void handlePlotTrustState(MarketPayloads.S2CPlotTrustState payload, IPayloadContext context) {

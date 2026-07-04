@@ -1,7 +1,9 @@
 package com.geydev.kalfactions.client;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.client.screen.PlotCreateScreen;
 import com.geydev.kalfactions.command.NumismaticsEconomy;
+import com.geydev.kalfactions.item.PlotWandItem;
 import com.geydev.kalfactions.market.MarketPayloads;
 import com.geydev.kalfactions.market.PlotSelection;
 import com.geydev.kalfactions.registry.ModDataComponents;
@@ -23,6 +25,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -33,13 +36,15 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.joml.Matrix4f;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID, value = Dist.CLIENT)
 public final class PlotRenderer {
     private static final double RENDER_DISTANCE = 128.0D;
-    private static final double LABEL_DISTANCE = 64.0D;
+    private static final double LABEL_DISTANCE = 48.0D;
+    private static final float LABEL_SCALE = 0.032F;
     private static final byte STATE_FOR_SALE = 0;
     private static final byte STATE_RESALE = 2;
     private static final int LABEL_TITLE_COLOR = 0xFFFFFFFF;
@@ -110,6 +115,7 @@ public final class PlotRenderer {
             bufferSource.endBatch(RenderType.debugFilledBox());
         }
 
+        boolean holdingWand = isHoldingWand(player);
         VertexConsumer lines = bufferSource.getBuffer(RenderType.lines());
         for (MarketPayloads.PlotEntry entry : entries) {
             boolean mine = entry.access()
@@ -129,6 +135,10 @@ public final class PlotRenderer {
                 red = 1.00F;
                 green = 0.75F;
                 blue = 0.20F;
+            } else if (holdingWand) {
+                red = 0.95F;
+                green = 0.30F;
+                blue = 0.30F;
             } else {
                 continue;
             }
@@ -193,19 +203,24 @@ public final class PlotRenderer {
             return;
         }
 
-        float scale = (float) Math.min(0.10D, 0.03D + Math.sqrt(distanceSq) * 0.0022D);
         poseStack.pushPose();
         poseStack.translate(centerX - cameraPos.x, labelY - cameraPos.y, centerZ - cameraPos.z);
         poseStack.mulPose(camera.rotation());
-        poseStack.scale(scale, -scale, scale);
+        poseStack.scale(LABEL_SCALE, -LABEL_SCALE, LABEL_SCALE);
         Font font = Minecraft.getInstance().font;
         Matrix4f matrix = poseStack.last().pose();
         int background = (int) (0.4F * 255.0F) << 24;
         int lineY = -linesToDraw.size() * 10;
         for (Line line : linesToDraw) {
             float x = -font.width(line.text()) / 2.0F;
-            font.drawInBatch(line.text(), x, lineY, line.color(), false, matrix, bufferSource,
+            // Nametag-style two passes: a dim see-through layer for occlusion and a
+            // depth-tested full-color layer on top, so the text is only grey when
+            // actually hidden behind blocks.
+            font.drawInBatch(line.text(), x, lineY, 0x20000000 | (line.color() & 0xFFFFFF),
+                    false, matrix, bufferSource,
                     Font.DisplayMode.SEE_THROUGH, background, LightTexture.FULL_BRIGHT);
+            font.drawInBatch(line.text(), x, lineY, line.color(), false, matrix, bufferSource,
+                    Font.DisplayMode.NORMAL, 0, LightTexture.FULL_BRIGHT);
             lineY += 10;
         }
         poseStack.popPose();
@@ -224,14 +239,94 @@ public final class PlotRenderer {
                 || !selection.dimension().equals(minecraft.level.dimension().location())) {
             return;
         }
-        Direction face = targetedFace(player, selectionBounds(selection));
+        AABB box = selectionBounds(selection);
+        Direction face = targetedFace(player, box);
         if (face == null) {
             return;
         }
-        byte delta = (byte) (event.getScrollDeltaY() > 0.0D ? 1 : -1);
+        // Scroll direction is relative to the player: wheel-down pulls the face
+        // toward them, wheel-up pushes it away, no matter which side they stand on.
+        boolean towardPlayer = event.getScrollDeltaY() < 0.0D;
+        boolean outside = isOutsideFacePlane(player, box, face);
+        byte delta = (byte) (towardPlayer == outside ? 1 : -1);
         PacketDistributor.sendToServer(
                 new MarketPayloads.C2SAdjustPlotSelection((byte) face.ordinal(), delta));
         event.setCanceled(true);
+    }
+
+    private static boolean isOutsideFacePlane(LocalPlayer player, AABB box, Direction face) {
+        Vec3 eye = player.getEyePosition();
+        return switch (face) {
+            case EAST -> eye.x >= box.maxX;
+            case WEST -> eye.x <= box.minX;
+            case UP -> eye.y >= box.maxY;
+            case DOWN -> eye.y <= box.minY;
+            case SOUTH -> eye.z >= box.maxZ;
+            case NORTH -> eye.z <= box.minZ;
+        };
+    }
+
+    @SubscribeEvent
+    public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        if (!event.getLevel().isClientSide() || !(event.getEntity() instanceof LocalPlayer player)) {
+            return;
+        }
+        AABB box = completeSelectionBox(player, event.getHand());
+        if (box == null || player.isShiftKeyDown()
+                || !box.contains(Vec3.atCenterOf(event.getPos()))) {
+            return;
+        }
+        openCreateScreen(box);
+        event.setCanceled(true);
+        event.setCancellationResult(InteractionResult.SUCCESS);
+    }
+
+    @SubscribeEvent
+    public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
+        if (!event.getLevel().isClientSide() || !(event.getEntity() instanceof LocalPlayer player)) {
+            return;
+        }
+        AABB box = completeSelectionBox(player, event.getHand());
+        if (box == null || player.isShiftKeyDown() || targetedFace(player, box) == null) {
+            return;
+        }
+        openCreateScreen(box);
+        event.setCanceled(true);
+        event.setCancellationResult(InteractionResult.SUCCESS);
+    }
+
+    private static AABB completeSelectionBox(LocalPlayer player, InteractionHand hand) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level == null || !player.hasPermissions(2)) {
+            return null;
+        }
+        ItemStack stack = player.getItemInHand(hand);
+        if (!(stack.getItem() instanceof PlotWandItem)) {
+            return null;
+        }
+        PlotSelection selection = stack.get(ModDataComponents.PLOT_SELECTION);
+        if (selection == null || !selection.isComplete()
+                || !selection.dimension().equals(minecraft.level.dimension().location())) {
+            return null;
+        }
+        return selectionBounds(selection);
+    }
+
+    private static void openCreateScreen(AABB box) {
+        Minecraft.getInstance().setScreen(new PlotCreateScreen(
+                (int) Math.round(box.maxX - box.minX),
+                (int) Math.round(box.maxY - box.minY),
+                (int) Math.round(box.maxZ - box.minZ)
+        ));
+    }
+
+    private static boolean isHoldingWand(LocalPlayer player) {
+        for (InteractionHand hand : InteractionHand.values()) {
+            if (player.getItemInHand(hand).getItem() instanceof PlotWandItem) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @SubscribeEvent

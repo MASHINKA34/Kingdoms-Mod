@@ -18,9 +18,12 @@ public final class KingdomsMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        if (mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementReaderMixin")
+        if (mixinClassName.endsWith("XaeroCommonMinimapRadarListMixin")
+                || mixinClassName.endsWith("XaeroCommonRadarRendererMixin")
+                || mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementReaderMixin")
                 || mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementCollectorMixin")
                 || mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementRendererMixin")
+                || mixinClassName.endsWith("XaeroMinimapPlayerTrackerIconRendererMixin")
                 || mixinClassName.endsWith("XaeroMinimapSyncedTrackedPlayerManagerMixin")
                 || mixinClassName.endsWith("XaeroRadarListMixin")
                 || mixinClassName.endsWith("XaeroRadarElementReaderMixin")
@@ -28,6 +31,7 @@ public final class KingdomsMixinPlugin implements IMixinConfigPlugin {
                 || mixinClassName.endsWith("XaeroWorldMapPlayerTrackerElementReaderMixin")
                 || mixinClassName.endsWith("XaeroWorldMapPlayerTrackerElementCollectorMixin")
                 || mixinClassName.endsWith("XaeroWorldMapPlayerTrackerElementRendererMixin")
+                || mixinClassName.endsWith("XaeroWorldMapPlayerTrackerIconRendererMixin")
                 || mixinClassName.endsWith("XaeroWorldMapSyncedTrackedPlayerManagerMixin")) {
             return classExists(targetClassName);
         }
@@ -52,11 +56,7 @@ public final class KingdomsMixinPlugin implements IMixinConfigPlugin {
     }
 
     private static boolean classExists(String className) {
-        try {
-            Class.forName(className, false, KingdomsMixinPlugin.class.getClassLoader());
-            return true;
-        } catch (ClassNotFoundException | LinkageError exception) {
-            return false;
-        }
+        String classFile = className.replace('.', '/') + ".class";
+        return KingdomsMixinPlugin.class.getClassLoader().getResource(classFile) != null;
     }
 }

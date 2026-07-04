@@ -2,13 +2,14 @@ package com.geydev.kalfactions.client;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.screen.FactionListScreen;
-import com.geydev.kalfactions.client.screen.KingdomsButton;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
+import net.neoforged.bus.api.IEventBus;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -27,7 +28,10 @@ public final class FactionListOpener {
             "key.categories.kingdoms"
     );
 
-    @SubscribeEvent
+    public static void register(IEventBus modBus) {
+        modBus.addListener(FactionListOpener::onRegisterKeys);
+    }
+
     public static void onRegisterKeys(RegisterKeyMappingsEvent event) {
         event.register(OPEN_KEY);
     }
@@ -42,7 +46,7 @@ public final class FactionListOpener {
     @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {
         if (event.getScreen() instanceof InventoryScreen screen) {
-            event.addListener(KingdomsButton.create(
+            event.addListener(createInventoryButton(
                     Component.literal("K"),
                     button -> open(),
                     screen.getGuiLeft() + screen.getXSize() - 20,
@@ -60,6 +64,27 @@ public final class FactionListOpener {
         }
         minecraft.setScreen(new FactionListScreen());
         PacketDistributor.sendToServer(FactionPayloads.C2SRequestFactionList.INSTANCE);
+    }
+
+    private static Button createInventoryButton(
+            Component message,
+            Button.OnPress onPress,
+            int x,
+            int y,
+            int width,
+            int height
+    ) {
+        try {
+            Class<?> buttonClass = Class.forName("com.geydev.kalfactions.client.screen.KingdomsButton");
+            Object button = buttonClass
+                    .getMethod("create", Component.class, Button.OnPress.class, int.class, int.class, int.class, int.class)
+                    .invoke(null, message, onPress, x, y, width, height);
+            if (button instanceof Button widget) {
+                return widget;
+            }
+        } catch (ReflectiveOperationException | LinkageError ignored) {
+        }
+        return Button.builder(message, onPress).bounds(x, y, width, height).build();
     }
 
     private FactionListOpener() {

@@ -338,18 +338,44 @@ public final class MarketPlotService {
                 plot.id(), trustedPlayers, trustedFactions, playerCandidates, factionCandidates));
     }
 
+    public static ItemStack heldWand(net.minecraft.world.entity.player.Player player) {
+        for (InteractionHand hand : InteractionHand.values()) {
+            ItemStack held = player.getItemInHand(hand);
+            if (held.getItem() instanceof com.geydev.kalfactions.item.PlotWandItem) {
+                return held;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    public static void createFromWand(ServerPlayer player, long price) {
+        if (!player.hasPermissions(2)) {
+            return;
+        }
+        ServerLevel level = player.serverLevel();
+        ItemStack wand = heldWand(player);
+        PlotSelection selection = wand.isEmpty() ? null : wand.get(ModDataComponents.PLOT_SELECTION);
+        if (selection == null || !selection.isComplete() || !selection.matchesDimension(level)
+                || price <= 0L || price > MAX_PRICE) {
+            return;
+        }
+        BoundingBox box = selection.box().orElseThrow();
+        Optional<Component> error = validateBox(level, box);
+        if (error.isPresent()) {
+            player.displayClientMessage(error.get(), false);
+            return;
+        }
+        MarketPlot plot = create(level, box, price);
+        wand.remove(ModDataComponents.PLOT_SELECTION);
+        player.displayClientMessage(Component.translatable(
+                "kingdoms.plot.created", plot.id(), NumismaticsEconomy.format(price)), false);
+    }
+
     public static void adjustSelection(ServerPlayer player, byte faceIndex, byte delta) {
         if (!player.hasPermissions(2) || delta == 0 || faceIndex < 0 || faceIndex >= Direction.values().length) {
             return;
         }
-        ItemStack wand = ItemStack.EMPTY;
-        for (InteractionHand hand : InteractionHand.values()) {
-            ItemStack held = player.getItemInHand(hand);
-            if (held.getItem() instanceof com.geydev.kalfactions.item.PlotWandItem) {
-                wand = held;
-                break;
-            }
-        }
+        ItemStack wand = heldWand(player);
         PlotSelection selection = wand.isEmpty() ? null : wand.get(ModDataComponents.PLOT_SELECTION);
         if (selection == null || !selection.isComplete() || !selection.matchesDimension(player.level())) {
             return;
