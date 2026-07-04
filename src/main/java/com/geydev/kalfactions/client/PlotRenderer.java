@@ -70,10 +70,48 @@ public final class PlotRenderer {
         Vec3 cameraPos = camera.getPosition();
         PoseStack poseStack = event.getPoseStack();
         MultiBufferSource.BufferSource bufferSource = minecraft.renderBuffers().bufferSource();
-        VertexConsumer lines = bufferSource.getBuffer(RenderType.lines());
 
-        for (MarketPayloads.PlotEntry entry
-                : ClientPlotStore.plotsIn(minecraft.level.dimension().location())) {
+        List<MarketPayloads.PlotEntry> entries =
+                ClientPlotStore.plotsIn(minecraft.level.dimension().location());
+        PlotSelection selection = heldSelection(player);
+        AABB selectionBox = selection != null
+                && selection.dimension().equals(minecraft.level.dimension().location())
+                ? selectionBounds(selection)
+                : null;
+
+        // BufferSource keeps one builder at a time: requesting a different RenderType
+        // ends the previous batch, so each phase below fully finishes before the next.
+        if (selectionBox != null) {
+            VertexConsumer fill = bufferSource.getBuffer(RenderType.debugFilledBox());
+            LevelRenderer.addChainedFilledBoxVertices(
+                    poseStack,
+                    fill,
+                    selectionBox.minX - cameraPos.x,
+                    selectionBox.minY - cameraPos.y,
+                    selectionBox.minZ - cameraPos.z,
+                    selectionBox.maxX - cameraPos.x,
+                    selectionBox.maxY - cameraPos.y,
+                    selectionBox.maxZ - cameraPos.z,
+                    0.55F, 0.72F, 1.00F, 0.16F
+            );
+            if (selection.isComplete() && Screen.hasControlDown()) {
+                Direction face = targetedFace(player, selectionBox);
+                if (face != null) {
+                    AABB slab = faceSlab(selectionBox, face);
+                    LevelRenderer.addChainedFilledBoxVertices(
+                            poseStack,
+                            fill,
+                            slab.minX - cameraPos.x, slab.minY - cameraPos.y, slab.minZ - cameraPos.z,
+                            slab.maxX - cameraPos.x, slab.maxY - cameraPos.y, slab.maxZ - cameraPos.z,
+                            0.75F, 0.88F, 1.00F, 0.42F
+                    );
+                }
+            }
+            bufferSource.endBatch(RenderType.debugFilledBox());
+        }
+
+        VertexConsumer lines = bufferSource.getBuffer(RenderType.lines());
+        for (MarketPayloads.PlotEntry entry : entries) {
             boolean mine = entry.access()
                     || entry.owner().map(owner -> owner.equals(player.getUUID())).orElse(false);
             float red;
@@ -92,63 +130,27 @@ public final class PlotRenderer {
                 green = 0.75F;
                 blue = 0.20F;
             } else {
-                red = -1.0F;
-                green = -1.0F;
-                blue = -1.0F;
+                continue;
             }
-            if (red >= 0.0F) {
-                renderBox(poseStack, lines, cameraPos,
-                        entry.minX(), entry.minY(), entry.minZ(),
-                        entry.maxX() + 1, entry.maxY() + 1, entry.maxZ() + 1,
-                        red, green, blue);
-            }
+            renderBox(poseStack, lines, cameraPos,
+                    entry.minX(), entry.minY(), entry.minZ(),
+                    entry.maxX() + 1, entry.maxY() + 1, entry.maxZ() + 1,
+                    red, green, blue);
+        }
+        if (selectionBox != null) {
+            renderBox(poseStack, lines, cameraPos,
+                    selectionBox.minX, selectionBox.minY, selectionBox.minZ,
+                    selectionBox.maxX, selectionBox.maxY, selectionBox.maxZ,
+                    1.00F, 1.00F, 1.00F);
+        }
+        bufferSource.endBatch(RenderType.lines());
+
+        for (MarketPayloads.PlotEntry entry : entries) {
+            boolean mine = entry.access()
+                    || entry.owner().map(owner -> owner.equals(player.getUUID())).orElse(false);
             renderPlotLabel(poseStack, bufferSource, camera, cameraPos, entry, mine);
         }
-
-        PlotSelection selection = heldSelection(player);
-        if (selection != null && selection.dimension().equals(minecraft.level.dimension().location())) {
-            renderSelection(poseStack, bufferSource, lines, cameraPos, player, selection);
-        }
-
-        bufferSource.endBatch(RenderType.debugFilledBox());
-        bufferSource.endBatch(RenderType.lines());
         bufferSource.endBatch();
-    }
-
-    private static void renderSelection(
-            PoseStack poseStack,
-            MultiBufferSource.BufferSource bufferSource,
-            VertexConsumer lines,
-            Vec3 cameraPos,
-            LocalPlayer player,
-            PlotSelection selection
-    ) {
-        AABB box = selectionBounds(selection);
-        VertexConsumer fill = bufferSource.getBuffer(RenderType.debugFilledBox());
-        LevelRenderer.addChainedFilledBoxVertices(
-                poseStack,
-                fill,
-                box.minX - cameraPos.x, box.minY - cameraPos.y, box.minZ - cameraPos.z,
-                box.maxX - cameraPos.x, box.maxY - cameraPos.y, box.maxZ - cameraPos.z,
-                0.55F, 0.72F, 1.00F, 0.16F
-        );
-        if (selection.isComplete() && Screen.hasControlDown()) {
-            Direction face = targetedFace(player, box);
-            if (face != null) {
-                AABB slab = faceSlab(box, face);
-                LevelRenderer.addChainedFilledBoxVertices(
-                        poseStack,
-                        fill,
-                        slab.minX - cameraPos.x, slab.minY - cameraPos.y, slab.minZ - cameraPos.z,
-                        slab.maxX - cameraPos.x, slab.maxY - cameraPos.y, slab.maxZ - cameraPos.z,
-                        0.75F, 0.88F, 1.00F, 0.42F
-                );
-            }
-        }
-        renderBox(poseStack, lines, cameraPos,
-                box.minX, box.minY, box.minZ,
-                box.maxX, box.maxY, box.maxZ,
-                1.00F, 1.00F, 1.00F);
     }
 
     private static void renderPlotLabel(
