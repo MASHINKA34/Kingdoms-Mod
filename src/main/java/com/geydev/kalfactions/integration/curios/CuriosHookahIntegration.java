@@ -4,14 +4,17 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.protection.FactionAccess;
+import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -86,6 +89,25 @@ public final class CuriosHookahIntegration {
 
     public static boolean hasActiveHookahBonus(ServerPlayer player) {
         return bonusChecker.test(player) && isHookahEquipped(player);
+    }
+
+    public static boolean hasHookahBonus(ServerPlayer player) {
+        return player != null && bonusChecker.test(player);
+    }
+
+    public static boolean canEquipHookah(ServerPlayer player) {
+        if (player == null || !(player.level() instanceof ServerLevel level)) {
+            return true;
+        }
+        return player.hasPermissions(2) || !SanctuaryManager.get(level).isSanctuary(level, player.blockPosition());
+    }
+
+    public static boolean canMoveHookahBlock(ServerPlayer player, BlockPos pos) {
+        if (player == null || pos == null || !(player.level() instanceof ServerLevel level)) {
+            return true;
+        }
+        return player.hasPermissions(2)
+                || (!SanctuaryManager.get(level).isSanctuary(level, pos) && FactionAccess.canBuild(player, level, pos));
     }
 
     public static float combatMultiplier(ServerPlayer player) {
