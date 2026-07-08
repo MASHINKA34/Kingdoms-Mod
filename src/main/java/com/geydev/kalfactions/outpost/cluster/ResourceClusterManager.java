@@ -44,6 +44,7 @@ public final class ResourceClusterManager extends SavedData {
     private static final long CELL_X_SALT = 0x632BE59BD9B4E019L;
     private static final long CELL_Z_SALT = 0x8CB92BA72F3D8DD7L;
     private static final String TAG_CLUSTERS = "clusters";
+    private static final String TAG_REMOVED = "removed";
     private static final String ENTITY_CLUSTER_KEY = KalFactions.MOD_ID + "ResourceCluster";
     private static final String ENTITY_ROLE_KEY = KalFactions.MOD_ID + "ResourceClusterRole";
     private static final String ITEM_ROLE = "item";
@@ -53,6 +54,7 @@ public final class ResourceClusterManager extends SavedData {
     private final Map<Long, Long> pendingChunks = new HashMap<>();
     private final Set<Long> activeChunks = new HashSet<>();
     private final Map<Long, Long> boundDrill = new HashMap<>();
+    private final Set<Long> removedChunks = new HashSet<>();
 
     public static ResourceClusterManager get(ServerLevel level) {
         return level.getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
@@ -63,6 +65,50 @@ public final class ResourceClusterManager extends SavedData {
         return cluster == null
                 ? Optional.empty()
                 : Optional.of(new ClusterView(cluster.type(), cluster.richness()));
+    }
+
+    public synchronized Optional<ResourceClusterType> clusterBlockAt(BlockPos pos) {
+        ResourceCluster cluster = clusters.get(ChunkPos.asLong(pos));
+        return cluster != null && isClusterColumn(cluster, pos)
+                ? Optional.of(cluster.type())
+                : Optional.empty();
+    }
+
+    public synchronized Optional<ResourceClusterType> removeCluster(ServerLevel level, BlockPos pos) {
+        long key = ChunkPos.asLong(pos);
+        ResourceCluster cluster = clusters.get(key);
+        if (cluster == null || !isClusterColumn(cluster, pos)) {
+            return Optional.empty();
+        }
+        for (int offset = 0; offset < 3; offset++) {
+            BlockPos blockPos = cluster.basePos().above(offset);
+            if (level.getBlockState(blockPos).is(cluster.type().block())) {
+                level.removeBlock(blockPos, false);
+            }
+        }
+        Display.ItemDisplay itemDisplay = findItemDisplay(level, cluster);
+        if (itemDisplay != null) {
+            itemDisplay.discard();
+        }
+        Display.TextDisplay textDisplay = findTextDisplay(level, cluster);
+        if (textDisplay != null) {
+            textDisplay.discard();
+        }
+        clusters.remove(key);
+        pendingChunks.remove(key);
+        activeChunks.remove(key);
+        boundDrill.remove(key);
+        removedChunks.add(key);
+        setDirty();
+        return Optional.of(cluster.type());
+    }
+
+    private static boolean isClusterColumn(ResourceCluster cluster, BlockPos pos) {
+        BlockPos base = cluster.basePos();
+        return pos.getX() == base.getX()
+                && pos.getZ() == base.getZ()
+                && pos.getY() >= base.getY()
+                && pos.getY() <= base.getY() + 2;
     }
 
     public synchronized boolean bindDrill(ChunkPos chunkPos, BlockPos drillPos) {
@@ -138,6 +184,9 @@ public final class ResourceClusterManager extends SavedData {
         }
 
         long chunkKey = loadedChunk.toLong();
+        if (removedChunks.contains(chunkKey)) {
+            return;
+        }
         ResourceCluster cluster = clusters.get(chunkKey);
         if (cluster == null) {
             int surfaceY = level.getHeight(
@@ -410,6 +459,7 @@ public final class ResourceClusterManager extends SavedData {
             list.add(cluster.save());
         }
         tag.put(TAG_CLUSTERS, list);
+        tag.putLongArray(TAG_REMOVED, removedChunks.stream().mapToLong(Long::longValue).toArray());
         return tag;
     }
 
@@ -429,6 +479,9 @@ public final class ResourceClusterManager extends SavedData {
                 LOGGER.warn("Skipped duplicate resource cluster in chunk {}", new ChunkPos(key));
                 manager.setDirty();
             }
+        }
+        for (long key : tag.getLongArray(TAG_REMOVED)) {
+            manager.removedChunks.add(key);
         }
         return manager;
     }

@@ -30,6 +30,8 @@ public final class SellerOfferRotation extends SavedData {
             new Factory<>(SellerOfferRotation::new, SellerOfferRotation::load);
 
     private static final ZoneId REFRESH_ZONE = ZoneId.systemDefault();
+    private static final String TAG_SHOPS = "shops";
+    private static final String TAG_TRADER = "trader";
     private static final String TAG_EPOCH_DAY = "epochDay";
     private static final String TAG_OFFERS = "offers";
     private static final String TAG_PLAYER_SALES = "playerSales";
@@ -39,86 +41,65 @@ public final class SellerOfferRotation extends SavedData {
     private static final String TAG_COUNT = "count";
     private static final long GOLDEN_GAMMA = 0x9E3779B97F4A7C15L;
 
-    private long activeEpochDay = Long.MIN_VALUE;
-    private List<String> activeOfferIds = List.of();
-    private final Map<UUID, Map<String, Integer>> soldByPlayer = new HashMap<>();
+    private final Map<UUID, TraderShop> shops = new HashMap<>();
 
     public static SellerOfferRotation get(MinecraftServer server) {
         Objects.requireNonNull(server, "server");
         return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
     }
 
-    public synchronized Window current(MinecraftServer server) {
+    public synchronized Window current(MinecraftServer server, UUID traderId) {
         long nowEpochMillis = System.currentTimeMillis();
-        ensureFresh(server, nowEpochMillis);
-        return new Window(activeOffers(), nextRefreshEpochMillis(nowEpochMillis));
+        TraderShop shop = shopFor(server, traderId, nowEpochMillis);
+        return new Window(shop.activeOffers(), nextRefreshEpochMillis(nowEpochMillis));
     }
 
-    public synchronized boolean refreshIfNeeded(MinecraftServer server, long nowEpochMillis) {
-        return ensureFresh(server, nowEpochMillis);
-    }
-
-    public synchronized int remainingLimit(MinecraftServer server, UUID playerId, SellOffer offer) {
-        ensureFresh(server, System.currentTimeMillis());
-        int sold = soldByPlayer.getOrDefault(playerId, Map.of()).getOrDefault(offer.id(), 0);
+    public synchronized int remainingLimit(MinecraftServer server, UUID traderId, UUID playerId, SellOffer offer) {
+        TraderShop shop = shopFor(server, traderId, System.currentTimeMillis());
+        int sold = shop.soldByPlayer.getOrDefault(playerId, Map.of()).getOrDefault(offer.id(), 0);
         return Math.max(0, offer.dailyLimit() - sold);
     }
 
-    public synchronized void recordSale(MinecraftServer server, UUID playerId, SellOffer offer, int count) {
+    public synchronized void recordSale(MinecraftServer server, UUID traderId, UUID playerId, SellOffer offer, int count) {
         if (count <= 0) {
             return;
         }
-        ensureFresh(server, System.currentTimeMillis());
-        Map<String, Integer> playerSales = soldByPlayer.computeIfAbsent(playerId, ignored -> new HashMap<>());
-        int previous = playerSales.getOrDefault(offer.id(), 0);
-        int updated = Integer.MAX_VALUE - previous < count ? Integer.MAX_VALUE : previous + count;
-        playerSales.put(offer.id(), updated);
+        TraderShop shop = shopFor(server, traderId, System.currentTimeMillis());
+        Map<String, Integer> playerSales = shop.soldByPlayer.computeIfAbsent(playerId, ignored -> new HashMap<>());
+        playerSales.merge(offer.id(), count, SellerOfferRotation::saturatedIntAdd);
         setDirty();
     }
 
-    private boolean ensureFresh(MinecraftServer server, long nowEpochMillis) {
-        long today = epochDay(nowEpochMillis);
-        if (activeEpochDay == today && hasValidOffers()) {
-            return false;
+    public synchronized void removeShop(UUID traderId) {
+        if (shops.remove(traderId) != null) {
+            setDirty();
         }
-        roll(server, today, nowEpochMillis);
-        return true;
     }
 
-    private void roll(MinecraftServer server, long epochDay, long nowEpochMillis) {
+    private TraderShop shopFor(MinecraftServer server, UUID traderId, long nowEpochMillis) {
+        TraderShop shop = shops.computeIfAbsent(traderId, ignored -> new TraderShop());
+        long today = epochDay(nowEpochMillis);
+        if (shop.epochDay != today || !shop.hasValidOffers()) {
+            roll(server, shop, traderId, today, nowEpochMillis);
+        }
+        return shop;
+    }
+
+    private void roll(MinecraftServer server, TraderShop shop, UUID traderId, long epochDay, long nowEpochMillis) {
         List<SellOffer> pool = new ArrayList<>(Arrays.asList(SellOffer.values()));
         long seed = mix64(server.overworld().getSeed())
                 ^ mix64(epochDay * GOLDEN_GAMMA)
+                ^ mix64(traderId.getMostSignificantBits())
+                ^ mix64(traderId.getLeastSignificantBits())
                 ^ mix64(nowEpochMillis);
         Collections.shuffle(pool, new Random(seed));
-        activeOfferIds = pool.stream()
+        shop.offerIds = pool.stream()
                 .limit(OFFER_COUNT)
                 .map(SellOffer::id)
                 .toList();
-        activeEpochDay = epochDay;
-        soldByPlayer.clear();
+        shop.epochDay = epochDay;
+        shop.soldByPlayer.clear();
         setDirty();
-    }
-
-    private boolean hasValidOffers() {
-        if (activeOfferIds.size() != OFFER_COUNT) {
-            return false;
-        }
-        Set<String> seen = new HashSet<>();
-        for (String id : activeOfferIds) {
-            if (!seen.add(id) || SellOffer.byId(id).isEmpty()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private List<SellOffer> activeOffers() {
-        List<SellOffer> offers = new ArrayList<>(activeOfferIds.size());
-        for (String id : activeOfferIds) {
-            SellOffer.byId(id).ifPresent(offers::add);
-        }
-        return List.copyOf(offers);
     }
 
     private static long epochDay(long epochMillis) {
@@ -141,88 +122,134 @@ public final class SellerOfferRotation extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-        tag.putLong(TAG_EPOCH_DAY, activeEpochDay);
-        ListTag offers = new ListTag();
-        for (String id : activeOfferIds) {
-            offers.add(StringTag.valueOf(id));
+        ListTag shopsTag = new ListTag();
+        for (Map.Entry<UUID, TraderShop> entry : shops.entrySet()) {
+            CompoundTag shopTag = entry.getValue().save();
+            shopTag.putUUID(TAG_TRADER, entry.getKey());
+            shopsTag.add(shopTag);
         }
-        tag.put(TAG_OFFERS, offers);
-
-        ListTag playerSales = new ListTag();
-        for (Map.Entry<UUID, Map<String, Integer>> playerEntry : soldByPlayer.entrySet()) {
-            CompoundTag playerTag = new CompoundTag();
-            playerTag.putUUID(TAG_PLAYER, playerEntry.getKey());
-            ListTag sales = new ListTag();
-            for (Map.Entry<String, Integer> saleEntry : playerEntry.getValue().entrySet()) {
-                int count = saleEntry.getValue();
-                if (count <= 0 || SellOffer.byId(saleEntry.getKey()).isEmpty()) {
-                    continue;
-                }
-                CompoundTag saleTag = new CompoundTag();
-                saleTag.putString(TAG_OFFER, saleEntry.getKey());
-                saleTag.putInt(TAG_COUNT, count);
-                sales.add(saleTag);
-            }
-            if (!sales.isEmpty()) {
-                playerTag.put(TAG_SALES, sales);
-                playerSales.add(playerTag);
-            }
-        }
-        tag.put(TAG_PLAYER_SALES, playerSales);
+        tag.put(TAG_SHOPS, shopsTag);
         return tag;
     }
 
     private static SellerOfferRotation load(CompoundTag tag, HolderLookup.Provider registries) {
         SellerOfferRotation rotation = new SellerOfferRotation();
-        rotation.activeEpochDay = tag.contains(TAG_EPOCH_DAY, Tag.TAG_LONG)
-                ? tag.getLong(TAG_EPOCH_DAY)
-                : Long.MIN_VALUE;
-
-        ListTag offers = tag.getList(TAG_OFFERS, Tag.TAG_STRING);
-        List<String> ids = new ArrayList<>(offers.size());
-        Set<String> seen = new HashSet<>();
-        boolean repaired = false;
-        for (int index = 0; index < offers.size(); index++) {
-            String id = offers.getString(index);
-            if (!seen.add(id) || SellOffer.byId(id).isEmpty()) {
-                repaired = true;
+        ListTag shopsTag = tag.getList(TAG_SHOPS, Tag.TAG_COMPOUND);
+        for (int index = 0; index < shopsTag.size(); index++) {
+            CompoundTag shopTag = shopsTag.getCompound(index);
+            if (!shopTag.hasUUID(TAG_TRADER)) {
+                rotation.setDirty();
                 continue;
             }
-            ids.add(id);
-        }
-        rotation.activeOfferIds = List.copyOf(ids);
-
-        ListTag playerSales = tag.getList(TAG_PLAYER_SALES, Tag.TAG_COMPOUND);
-        for (int index = 0; index < playerSales.size(); index++) {
-            CompoundTag playerTag = playerSales.getCompound(index);
-            if (!playerTag.hasUUID(TAG_PLAYER)) {
-                repaired = true;
-                continue;
-            }
-            Map<String, Integer> sales = new HashMap<>();
-            ListTag salesTag = playerTag.getList(TAG_SALES, Tag.TAG_COMPOUND);
-            for (int saleIndex = 0; saleIndex < salesTag.size(); saleIndex++) {
-                CompoundTag saleTag = salesTag.getCompound(saleIndex);
-                String offerId = saleTag.getString(TAG_OFFER);
-                int count = saleTag.getInt(TAG_COUNT);
-                if (count <= 0 || SellOffer.byId(offerId).isEmpty()) {
-                    repaired = true;
-                    continue;
-                }
-                sales.merge(offerId, count, SellerOfferRotation::saturatedIntAdd);
-            }
-            if (!sales.isEmpty()) {
-                rotation.soldByPlayer.put(playerTag.getUUID(TAG_PLAYER), sales);
-            }
-        }
-        if (repaired || !rotation.hasValidOffers()) {
-            rotation.setDirty();
+            rotation.shops.put(shopTag.getUUID(TAG_TRADER), TraderShop.load(shopTag));
         }
         return rotation;
     }
 
     private static int saturatedIntAdd(int left, int right) {
         return Integer.MAX_VALUE - left < right ? Integer.MAX_VALUE : left + right;
+    }
+
+    private static final class TraderShop {
+        private long epochDay = Long.MIN_VALUE;
+        private List<String> offerIds = List.of();
+        private final Map<UUID, Map<String, Integer>> soldByPlayer = new HashMap<>();
+
+        private boolean hasValidOffers() {
+            if (offerIds.size() != OFFER_COUNT) {
+                return false;
+            }
+            Set<String> seen = new HashSet<>();
+            for (String id : offerIds) {
+                if (!seen.add(id) || SellOffer.byId(id).isEmpty()) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private List<SellOffer> activeOffers() {
+            List<SellOffer> offers = new ArrayList<>(offerIds.size());
+            for (String id : offerIds) {
+                SellOffer.byId(id).ifPresent(offers::add);
+            }
+            return List.copyOf(offers);
+        }
+
+        private CompoundTag save() {
+            CompoundTag tag = new CompoundTag();
+            tag.putLong(TAG_EPOCH_DAY, epochDay);
+            ListTag offers = new ListTag();
+            for (String id : offerIds) {
+                offers.add(StringTag.valueOf(id));
+            }
+            tag.put(TAG_OFFERS, offers);
+
+            ListTag playerSales = new ListTag();
+            for (Map.Entry<UUID, Map<String, Integer>> playerEntry : soldByPlayer.entrySet()) {
+                CompoundTag playerTag = new CompoundTag();
+                playerTag.putUUID(TAG_PLAYER, playerEntry.getKey());
+                ListTag sales = new ListTag();
+                for (Map.Entry<String, Integer> saleEntry : playerEntry.getValue().entrySet()) {
+                    int count = saleEntry.getValue();
+                    if (count <= 0 || SellOffer.byId(saleEntry.getKey()).isEmpty()) {
+                        continue;
+                    }
+                    CompoundTag saleTag = new CompoundTag();
+                    saleTag.putString(TAG_OFFER, saleEntry.getKey());
+                    saleTag.putInt(TAG_COUNT, count);
+                    sales.add(saleTag);
+                }
+                if (!sales.isEmpty()) {
+                    playerTag.put(TAG_SALES, sales);
+                    playerSales.add(playerTag);
+                }
+            }
+            tag.put(TAG_PLAYER_SALES, playerSales);
+            return tag;
+        }
+
+        private static TraderShop load(CompoundTag tag) {
+            TraderShop shop = new TraderShop();
+            shop.epochDay = tag.contains(TAG_EPOCH_DAY, Tag.TAG_LONG)
+                    ? tag.getLong(TAG_EPOCH_DAY)
+                    : Long.MIN_VALUE;
+
+            ListTag offers = tag.getList(TAG_OFFERS, Tag.TAG_STRING);
+            List<String> ids = new ArrayList<>(offers.size());
+            Set<String> seen = new HashSet<>();
+            for (int index = 0; index < offers.size(); index++) {
+                String id = offers.getString(index);
+                if (!seen.add(id) || SellOffer.byId(id).isEmpty()) {
+                    continue;
+                }
+                ids.add(id);
+            }
+            shop.offerIds = List.copyOf(ids);
+
+            ListTag playerSales = tag.getList(TAG_PLAYER_SALES, Tag.TAG_COMPOUND);
+            for (int index = 0; index < playerSales.size(); index++) {
+                CompoundTag playerTag = playerSales.getCompound(index);
+                if (!playerTag.hasUUID(TAG_PLAYER)) {
+                    continue;
+                }
+                Map<String, Integer> sales = new HashMap<>();
+                ListTag salesTag = playerTag.getList(TAG_SALES, Tag.TAG_COMPOUND);
+                for (int saleIndex = 0; saleIndex < salesTag.size(); saleIndex++) {
+                    CompoundTag saleTag = salesTag.getCompound(saleIndex);
+                    String offerId = saleTag.getString(TAG_OFFER);
+                    int count = saleTag.getInt(TAG_COUNT);
+                    if (count <= 0 || SellOffer.byId(offerId).isEmpty()) {
+                        continue;
+                    }
+                    sales.merge(offerId, count, SellerOfferRotation::saturatedIntAdd);
+                }
+                if (!sales.isEmpty()) {
+                    shop.soldByPlayer.put(playerTag.getUUID(TAG_PLAYER), sales);
+                }
+            }
+            return shop;
+        }
     }
 
     public record Window(List<SellOffer> offers, long nextRefreshEpochMillis) {

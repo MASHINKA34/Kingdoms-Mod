@@ -1,8 +1,10 @@
 package com.geydev.kalfactions.entity;
 
+import com.geydev.kalfactions.outpost.trader.SellerOfferRotation;
 import com.geydev.kalfactions.outpost.trader.TraderService;
 import com.geydev.kalfactions.registry.ModItems;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.InteractionHand;
@@ -62,6 +64,14 @@ public final class SellerTraderEntity extends PathfinderMob {
     @Override
     public boolean isPersistenceRequired() {
         return true;
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        if (reason.shouldDestroy() && level() instanceof ServerLevel serverLevel) {
+            SellerOfferRotation.get(serverLevel.getServer()).removeShop(getUUID());
+        }
+        super.remove(reason);
     }
 
     @Override

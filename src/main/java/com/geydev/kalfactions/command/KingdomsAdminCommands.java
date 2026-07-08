@@ -1,5 +1,7 @@
 package com.geydev.kalfactions.command;
 
+import com.geydev.kalfactions.dimension.DimensionControlEvents;
+import com.geydev.kalfactions.dimension.DimensionControlManager;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.ResearchNode;
 import com.geydev.kalfactions.outpost.trader.TraderService;
@@ -8,6 +10,7 @@ import com.geydev.kalfactions.worldmap.WorldMapRenderManager;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
@@ -17,8 +20,10 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.border.WorldBorder;
 
 public final class KingdomsAdminCommands {
@@ -47,6 +52,9 @@ public final class KingdomsAdminCommands {
                                 .executes(KingdomsAdminCommands::completeAllResearch))
                         .then(Commands.literal("reset")
                                 .executes(KingdomsAdminCommands::resetResearch)))
+                .then(Commands.literal("dimension")
+                        .then(dimensionBranch("nether", Level.NETHER, "Ад"))
+                        .then(dimensionBranch("end", Level.END, "Энд")))
                 .then(Commands.literal("map")
                         .then(Commands.literal("render")
                                 .executes(context -> startRender(context, DEFAULT_MAP_RESOLUTION))
@@ -57,6 +65,106 @@ public final class KingdomsAdminCommands {
                                 .executes(KingdomsAdminCommands::cancelRender))
                         .then(Commands.literal("status")
                                 .executes(KingdomsAdminCommands::mapStatus))));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> dimensionBranch(
+            String literal,
+            ResourceKey<Level> dimension,
+            String displayName
+    ) {
+        return Commands.literal(literal)
+                .then(Commands.literal("open")
+                        .executes(context -> setDimensionClosed(context, dimension, displayName, false)))
+                .then(Commands.literal("close")
+                        .executes(context -> setDimensionClosed(context, dimension, displayName, true)))
+                .then(Commands.literal("status")
+                        .executes(context -> dimensionStatus(context, dimension, displayName)))
+                .then(Commands.literal("wipe")
+                        .executes(context -> scheduleDimensionWipe(context, dimension, displayName))
+                        .then(Commands.literal("cancel")
+                                .executes(context -> cancelDimensionWipe(context, dimension, displayName))));
+    }
+
+    private static int setDimensionClosed(
+            CommandContext<CommandSourceStack> context,
+            ResourceKey<Level> dimension,
+            String displayName,
+            boolean closed
+    ) {
+        CommandSourceStack source = context.getSource();
+        DimensionControlManager control = DimensionControlManager.get(source.getServer());
+        if (!control.setClosed(dimension, closed)) {
+            source.sendFailure(Component.literal(displayName + (closed ? " уже закрыт." : " уже открыт.")));
+            return 0;
+        }
+        if (!closed) {
+            source.sendSuccess(() -> Component.literal(displayName + " открыт."), true);
+            return 1;
+        }
+        int moved = DimensionControlEvents.evacuate(source.getServer(), dimension);
+        source.sendSuccess(
+                () -> Component.literal(displayName + " закрыт. Игроков перемещено на спавн: " + moved + "."),
+                true
+        );
+        return 1;
+    }
+
+    private static int scheduleDimensionWipe(
+            CommandContext<CommandSourceStack> context,
+            ResourceKey<Level> dimension,
+            String displayName
+    ) {
+        CommandSourceStack source = context.getSource();
+        DimensionControlManager control = DimensionControlManager.get(source.getServer());
+        if (!control.setWipePending(dimension, true)) {
+            source.sendFailure(Component.literal("Вайп уже запланирован: " + displayName
+                    + " будет очищен при следующем запуске сервера."));
+            return 0;
+        }
+        int moved = DimensionControlEvents.evacuate(source.getServer(), dimension);
+        String hint = control.isClosed(dimension)
+                ? ""
+                : " Совет: закройте измерение до рестарта — /kingdoms dimension "
+                        + dimension.location().getPath().replace("the_", "") + " close.";
+        source.sendSuccess(
+                () -> Component.literal(displayName + " будет очищен при следующем запуске сервера."
+                        + " Игроков перемещено на спавн: " + moved + "." + hint),
+                true
+        );
+        return 1;
+    }
+
+    private static int cancelDimensionWipe(
+            CommandContext<CommandSourceStack> context,
+            ResourceKey<Level> dimension,
+            String displayName
+    ) {
+        CommandSourceStack source = context.getSource();
+        DimensionControlManager control = DimensionControlManager.get(source.getServer());
+        if (!control.setWipePending(dimension, false)) {
+            source.sendFailure(Component.literal("Вайп " + displayName + " не запланирован."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Вайп отменён: " + displayName + " не будет очищен."), true);
+        return 1;
+    }
+
+    private static int dimensionStatus(
+            CommandContext<CommandSourceStack> context,
+            ResourceKey<Level> dimension,
+            String displayName
+    ) {
+        CommandSourceStack source = context.getSource();
+        DimensionControlManager control = DimensionControlManager.get(source.getServer());
+        ServerLevel level = source.getServer().getLevel(dimension);
+        int inside = level == null ? 0 : level.players().size();
+        source.sendSuccess(
+                () -> Component.literal(displayName + ": " + (control.isClosed(dimension) ? "закрыт" : "открыт")
+                        + "; вайп при следующем запуске: " + (control.isWipePending(dimension) ? "да" : "нет")
+                        + "; игроков внутри: " + inside + "."),
+                false
+        );
+        return 1;
     }
 
     private static int spawnTrader(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {

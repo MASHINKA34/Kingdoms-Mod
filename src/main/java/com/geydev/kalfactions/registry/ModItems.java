@@ -3,8 +3,10 @@ package com.geydev.kalfactions.registry;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.chest.AccessTool;
 import com.geydev.kalfactions.faction.InfluenceType;
+import com.geydev.kalfactions.item.DimensionKeyItem;
 import com.geydev.kalfactions.item.PlotWandItem;
 import com.geydev.kalfactions.item.SellerSpawnEggItem;
+import com.geydev.kalfactions.item.TraderRemoverItem;
 import com.geydev.kalfactions.item.TraderSpawnEggItem;
 import java.util.Optional;
 import net.minecraft.world.item.BlockItem;
@@ -54,9 +56,14 @@ public final class ModItems {
             () -> new SellerSpawnEggItem(new Item.Properties())
     );
 
-    public static final DeferredItem<Item> TRADER_REMOVER = ITEMS.register(
+    public static final DeferredItem<TraderRemoverItem> TRADER_REMOVER = ITEMS.register(
             "trader_remover",
-            () -> new Item(new Item.Properties().stacksTo(1))
+            () -> new TraderRemoverItem(new Item.Properties().stacksTo(1))
+    );
+
+    public static final DeferredItem<DimensionKeyItem> DIMENSION_KEY = ITEMS.register(
+            "dimension_key",
+            () -> new DimensionKeyItem(new Item.Properties().stacksTo(1))
     );
 
     public static final DeferredItem<PlotWandItem> PLOT_WAND = ITEMS.register(

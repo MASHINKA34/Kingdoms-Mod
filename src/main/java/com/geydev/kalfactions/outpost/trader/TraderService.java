@@ -95,27 +95,26 @@ public final class TraderService {
         if (!isAvailable(player, trader)) {
             sendSellState(
                     player,
-                    trader.getUUID(),
+                    trader,
                     Component.translatable("screen.kingdoms.trader.notice.unavailable"),
                     false
             );
             return;
         }
-        sendSellState(player, trader.getUUID(), Component.empty(), true);
+        sendSellState(player, trader, Component.empty(), true);
     }
 
     public static void refreshSeller(ServerPlayer player, UUID traderId) {
         Entity entity = player.serverLevel().getEntity(traderId);
-        if (!(entity instanceof SellerTraderEntity trader) || !isAvailable(player, trader)) {
-            sendSellState(
-                    player,
-                    traderId,
-                    Component.translatable("screen.kingdoms.trader.notice.too_far"),
-                    false
-            );
+        if (!(entity instanceof SellerTraderEntity trader)) {
+            sendSellUnavailable(player, traderId, Component.translatable("screen.kingdoms.trader.notice.too_far"));
             return;
         }
-        sendSellState(player, traderId, Component.empty(), true);
+        if (!isAvailable(player, trader)) {
+            sendSellState(player, trader, Component.translatable("screen.kingdoms.trader.notice.too_far"), false);
+            return;
+        }
+        sendSellState(player, trader, Component.empty(), true);
     }
 
     public static void buy(ServerPlayer player, UUID traderId, String offerId) {
@@ -218,10 +217,14 @@ public final class TraderService {
 
     public static void sell(ServerPlayer player, UUID traderId, String offerId, int requestedCount) {
         Entity entity = player.serverLevel().getEntity(traderId);
-        if (!(entity instanceof SellerTraderEntity trader) || !isAvailable(player, trader)) {
+        if (!(entity instanceof SellerTraderEntity trader)) {
+            sendSellUnavailable(player, traderId, Component.translatable("screen.kingdoms.trader.notice.too_far"));
+            return;
+        }
+        if (!isAvailable(player, trader)) {
             sendSellState(
                     player,
-                    traderId,
+                    trader,
                     Component.translatable("screen.kingdoms.trader.notice.too_far"),
                     false
             );
@@ -230,7 +233,7 @@ public final class TraderService {
         if (requestedCount <= 0) {
             sendSellState(
                     player,
-                    traderId,
+                    trader,
                     Component.translatable("screen.kingdoms.trader.notice.invalid_offer"),
                     false
             );
@@ -239,12 +242,12 @@ public final class TraderService {
 
         MinecraftServer server = player.serverLevel().getServer();
         SellerOfferRotation rotation = SellerOfferRotation.get(server);
-        SellerOfferRotation.Window window = rotation.current(server);
+        SellerOfferRotation.Window window = rotation.current(server, trader.getUUID());
         SellOffer offer = window.offer(offerId).orElse(null);
         if (offer == null) {
             sendSellState(
                     player,
-                    traderId,
+                    trader,
                     Component.translatable("screen.kingdoms.trader.notice.invalid_offer"),
                     false
             );
@@ -255,17 +258,17 @@ public final class TraderService {
         if (owned <= 0) {
             sendSellState(
                     player,
-                    traderId,
+                    trader,
                     Component.translatable("screen.kingdoms.trader.notice.nothing_to_sell"),
                     false
             );
             return;
         }
-        int remainingLimit = rotation.remainingLimit(server, player.getUUID(), offer);
+        int remainingLimit = rotation.remainingLimit(server, trader.getUUID(), player.getUUID(), offer);
         if (remainingLimit <= 0) {
             sendSellState(
                     player,
-                    traderId,
+                    trader,
                     Component.translatable("screen.kingdoms.trader.notice.sell_limit_reached"),
                     false
             );
@@ -277,7 +280,7 @@ public final class TraderService {
         if (removed <= 0) {
             sendSellState(
                     player,
-                    traderId,
+                    trader,
                     Component.translatable("screen.kingdoms.trader.notice.nothing_to_sell"),
                     false
             );
@@ -289,7 +292,7 @@ public final class TraderService {
         UUID factionId = manager.getFactionIdForMember(player.getUUID()).orElse(null);
         long spurs = PriceMath.saturatedMultiply(sellUnitPrice(player, offer.price()), count);
         NumismaticsEconomy.give(player, spurs);
-        rotation.recordSale(server, player.getUUID(), offer, count);
+        rotation.recordSale(server, trader.getUUID(), player.getUUID(), offer, count);
         player.inventoryMenu.broadcastChanges();
 
         long influenceGained = 0L;
@@ -324,7 +327,7 @@ public final class TraderService {
                         new ItemStack(offer.item()).getHoverName(),
                         NumismaticsEconomy.format(spurs)
                 );
-        sendSellState(player, traderId, notice, true);
+        sendSellState(player, trader, notice, true);
     }
 
     private static int countItems(ServerPlayer player, net.minecraft.world.item.Item item) {
@@ -405,30 +408,37 @@ public final class TraderService {
 
     private static void sendSellState(
             ServerPlayer player,
-            UUID traderId,
+            SellerTraderEntity trader,
             Component notice,
             boolean successful
     ) {
         MinecraftServer server = player.serverLevel().getServer();
         SellerOfferRotation rotation = SellerOfferRotation.get(server);
-        SellerOfferRotation.Window window = rotation.current(server);
+        SellerOfferRotation.Window window = rotation.current(server, trader.getUUID());
         List<TraderPayloads.OfferInfo> sellOffers = window.offers().stream()
                 .map(offer -> new TraderPayloads.OfferInfo(
                         offer.id(),
                         sellUnitPrice(player, offer.price()),
-                        rotation.remainingLimit(server, player.getUUID(), offer)
+                        rotation.remainingLimit(server, trader.getUUID(), player.getUUID(), offer)
                 ))
                 .toList();
         PacketDistributor.sendToPlayer(
                 player,
                 new TraderPayloads.S2CShopState(
-                        traderId,
+                        trader.getUUID(),
                         List.of(),
                         sellOffers,
                         notice,
                         successful,
                         window.nextRefreshEpochMillis()
                 )
+        );
+    }
+
+    private static void sendSellUnavailable(ServerPlayer player, UUID traderId, Component notice) {
+        PacketDistributor.sendToPlayer(
+                player,
+                new TraderPayloads.S2CShopState(traderId, List.of(), List.of(), notice, false, 0L)
         );
     }
 
