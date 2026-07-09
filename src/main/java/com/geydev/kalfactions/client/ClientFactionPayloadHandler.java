@@ -78,7 +78,12 @@ public final class ClientFactionPayloadHandler {
 
     public static void handleOpenGuide() {
         Minecraft minecraft = Minecraft.getInstance();
-        minecraft.execute(() -> minecraft.setScreen(new GuideScreen(minecraft.screen)));
+        minecraft.execute(() -> {
+            if (minecraft.screen instanceof GuideScreen) {
+                return;
+            }
+            minecraft.setScreen(new GuideScreen(minecraft.screen));
+        });
     }
 
     public static void handleOpenSanctuary(FactionPayloads.S2COpenSanctuary payload) {

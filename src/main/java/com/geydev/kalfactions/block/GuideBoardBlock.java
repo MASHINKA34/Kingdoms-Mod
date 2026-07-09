@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.block;
 
+import com.geydev.kalfactions.ClientBridge;
 import com.geydev.kalfactions.net.FactionServerHooks;
 import com.geydev.kalfactions.registry.ModBlockEntities;
 import javax.annotation.Nullable;
@@ -192,10 +193,14 @@ public final class GuideBoardBlock extends Block implements EntityBlock {
     }
 
     private static InteractionResult open(Level level, BlockPos pos, Player player) {
-        if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
+        if (level.isClientSide()) {
+            ClientBridge.openGuide();
+            return InteractionResult.SUCCESS;
+        }
+        if (player instanceof ServerPlayer serverPlayer) {
             FactionServerHooks.openGuide(serverPlayer, pos);
         }
-        return InteractionResult.sidedSuccess(level.isClientSide());
+        return InteractionResult.CONSUME;
     }
 
     private static boolean canPlacePart(BlockPlaceContext context, BlockPos pos) {
