@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.client.screen;
 
+import com.geydev.kalfactions.client.EmblemTextures;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
 import java.util.List;
@@ -176,7 +177,7 @@ public final class FactionActionsScreen extends FactionScreen {
 
     private void openWarPicker() {
         List<SelectEntryScreen.Entry> entries = snapshot.knownFactions().stream()
-                .map(name -> SelectEntryScreen.Entry.swatch(name, 0xB3312C))
+                .map(FactionActionsScreen::factionEntry)
                 .toList();
         minecraft.setScreen(new SelectEntryScreen(
                 this,
@@ -189,7 +190,7 @@ public final class FactionActionsScreen extends FactionScreen {
 
     private void openJoinWarPicker() {
         List<SelectEntryScreen.Entry> entries = snapshot.joinableAllies().stream()
-                .map(name -> SelectEntryScreen.Entry.swatch(name, 0x3F7B33))
+                .map(FactionActionsScreen::factionEntry)
                 .toList();
         minecraft.setScreen(new SelectEntryScreen(
                 this,
@@ -203,7 +204,7 @@ public final class FactionActionsScreen extends FactionScreen {
 
     private void openAlliancePicker() {
         List<SelectEntryScreen.Entry> entries = snapshot.allianceCandidates().stream()
-                .map(name -> SelectEntryScreen.Entry.swatch(name, 0x3F7B33))
+                .map(FactionActionsScreen::factionEntry)
                 .toList();
         minecraft.setScreen(new SelectEntryScreen(
                 this,
@@ -217,7 +218,7 @@ public final class FactionActionsScreen extends FactionScreen {
 
     private void openBreakAlliancePicker() {
         List<SelectEntryScreen.Entry> entries = snapshot.allies().stream()
-                .map(name -> SelectEntryScreen.Entry.swatch(name, 0x8C2B2B))
+                .map(FactionActionsScreen::factionEntry)
                 .toList();
         minecraft.setScreen(new SelectEntryScreen(
                 this,
@@ -227,6 +228,12 @@ public final class FactionActionsScreen extends FactionScreen {
                 entry -> PacketDistributor.sendToServer(
                         new FactionPayloads.C2SBreakAlliance(snapshot.tablePos(), entry.value()))
         ));
+    }
+
+    private static SelectEntryScreen.Entry factionEntry(FactionSnapshot.FactionRef ref) {
+        EmblemTextures.Emblem emblem =
+                EmblemTextures.resolve(ref.id(), ref.emblem(), ref.emblemUrl(), ref.color());
+        return SelectEntryScreen.Entry.emblem(ref.name(), emblem.texture(), emblem.width(), emblem.height());
     }
 
     private static Component roleText(String role) {

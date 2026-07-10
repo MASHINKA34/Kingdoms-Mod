@@ -31,10 +31,10 @@ public record FactionSnapshot(
         boolean isOfficer,
         String warWith,
         long warDeclareCooldownSeconds,
-        List<String> knownFactions,
-        List<String> allianceCandidates,
-        List<String> allies,
-        List<String> joinableAllies,
+        List<FactionRef> knownFactions,
+        List<FactionRef> allianceCandidates,
+        List<FactionRef> allies,
+        List<FactionRef> joinableAllies,
         List<OnlinePlayer> onlinePlayers,
         List<String> bonuses,
         List<Integer> emblem,
@@ -156,30 +156,10 @@ public record FactionSnapshot(
         buffer.writeBoolean(snapshot.isOfficer);
         buffer.writeUtf(snapshot.warWith, 32);
         buffer.writeLong(snapshot.warDeclareCooldownSeconds);
-        writeBoundedList(
-                buffer,
-                snapshot.knownFactions,
-                MAX_KNOWN_FACTIONS,
-                (target, value) -> target.writeUtf(value, 32)
-        );
-        writeBoundedList(
-                buffer,
-                snapshot.allianceCandidates,
-                MAX_KNOWN_FACTIONS,
-                (target, value) -> target.writeUtf(value, 32)
-        );
-        writeBoundedList(
-                buffer,
-                snapshot.allies,
-                MAX_KNOWN_FACTIONS,
-                (target, value) -> target.writeUtf(value, 32)
-        );
-        writeBoundedList(
-                buffer,
-                snapshot.joinableAllies,
-                MAX_KNOWN_FACTIONS,
-                (target, value) -> target.writeUtf(value, 32)
-        );
+        writeBoundedList(buffer, snapshot.knownFactions, MAX_KNOWN_FACTIONS, FactionRef::encode);
+        writeBoundedList(buffer, snapshot.allianceCandidates, MAX_KNOWN_FACTIONS, FactionRef::encode);
+        writeBoundedList(buffer, snapshot.allies, MAX_KNOWN_FACTIONS, FactionRef::encode);
+        writeBoundedList(buffer, snapshot.joinableAllies, MAX_KNOWN_FACTIONS, FactionRef::encode);
         writeBoundedList(buffer, snapshot.onlinePlayers, MAX_ONLINE_PLAYERS, OnlinePlayer::encode);
         writeBoundedList(
                 buffer,
@@ -226,26 +206,10 @@ public record FactionSnapshot(
         boolean isOfficer = buffer.readBoolean();
         String warWith = buffer.readUtf(32);
         long warDeclareCooldownSeconds = buffer.readLong();
-        List<String> knownFactions = readBoundedList(
-                buffer,
-                MAX_KNOWN_FACTIONS,
-                target -> target.readUtf(32)
-        );
-        List<String> allianceCandidates = readBoundedList(
-                buffer,
-                MAX_KNOWN_FACTIONS,
-                target -> target.readUtf(32)
-        );
-        List<String> allies = readBoundedList(
-                buffer,
-                MAX_KNOWN_FACTIONS,
-                target -> target.readUtf(32)
-        );
-        List<String> joinableAllies = readBoundedList(
-                buffer,
-                MAX_KNOWN_FACTIONS,
-                target -> target.readUtf(32)
-        );
+        List<FactionRef> knownFactions = readBoundedList(buffer, MAX_KNOWN_FACTIONS, FactionRef::decode);
+        List<FactionRef> allianceCandidates = readBoundedList(buffer, MAX_KNOWN_FACTIONS, FactionRef::decode);
+        List<FactionRef> allies = readBoundedList(buffer, MAX_KNOWN_FACTIONS, FactionRef::decode);
+        List<FactionRef> joinableAllies = readBoundedList(buffer, MAX_KNOWN_FACTIONS, FactionRef::decode);
         List<OnlinePlayer> onlinePlayers = readBoundedList(buffer, MAX_ONLINE_PLAYERS, OnlinePlayer::decode);
         List<String> bonuses = readBoundedList(buffer, MAX_BONUSES, target -> target.readUtf(24));
         List<Integer> emblem = readBoundedList(buffer, MAX_EMBLEM_PIXELS, RegistryFriendlyByteBuf::readInt);
@@ -302,6 +266,34 @@ public record FactionSnapshot(
             return "";
         }
         return value.length() <= maxLength ? value : value.substring(0, maxLength);
+    }
+
+    public record FactionRef(UUID id, String name, int color, List<Integer> emblem, String emblemUrl) {
+        public FactionRef {
+            id = id == null ? NO_FACTION : id;
+            name = limit(name, 32);
+            color &= 0xFFFFFF;
+            emblem = emblem == null || !isValidEmblemSize(emblem.size()) ? List.of() : List.copyOf(emblem);
+            emblemUrl = limit(emblemUrl, MAX_EMBLEM_URL);
+        }
+
+        private static void encode(RegistryFriendlyByteBuf buffer, FactionRef ref) {
+            buffer.writeUUID(ref.id);
+            buffer.writeUtf(ref.name, 32);
+            buffer.writeInt(ref.color);
+            writeBoundedList(buffer, ref.emblem, MAX_EMBLEM_PIXELS, (target, value) -> target.writeInt(value));
+            buffer.writeUtf(ref.emblemUrl, MAX_EMBLEM_URL);
+        }
+
+        private static FactionRef decode(RegistryFriendlyByteBuf buffer) {
+            return new FactionRef(
+                    buffer.readUUID(),
+                    buffer.readUtf(32),
+                    buffer.readInt(),
+                    readBoundedList(buffer, MAX_EMBLEM_PIXELS, RegistryFriendlyByteBuf::readInt),
+                    buffer.readUtf(MAX_EMBLEM_URL)
+            );
+        }
     }
 
     public record Member(UUID playerId, String name, String role) {

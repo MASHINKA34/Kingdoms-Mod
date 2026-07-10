@@ -36,6 +36,7 @@ import net.minecraft.world.level.ChunkPos;
 
 final class FactionManagerService implements FactionServerHooks.Service {
     private static final int MAP_RADIUS = 6;
+    private static final int MAX_PIXEL_EMBLEM_REFS = 64;
 
     @Override
     public FactionSnapshot view(ServerPlayer player, BlockPos tablePos) {
@@ -53,7 +54,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
 
         FactionRole role = faction.roleOf(player.getUUID()).orElse(FactionRole.MEMBER);
         int ownColor = faction.color();
-        List<String> allies = alliedFactionNames(manager, faction);
+        List<FactionSnapshot.FactionRef> allies = alliedFactionRefs(manager, faction);
         return new FactionSnapshot(
                 tablePos,
                 faction.id(),
@@ -78,10 +79,10 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 role.isAtLeast(FactionRole.OFFICER),
                 activeWarName(player, manager, faction),
                 WarManager.get(player.getServer()).declareCooldownRemainingSeconds(faction.id()),
-                warTargetNames(manager, faction),
-                allianceCandidateNames(player, manager, faction),
+                warTargetRefs(manager, faction),
+                allianceCandidateRefs(player, manager, faction),
                 allies,
-                joinableAllyNames(player, manager, faction),
+                joinableAllyRefs(player, manager, faction),
                 onlinePlayers(player, manager),
                 bonusNames(faction),
                 emblemPixels(faction),
@@ -151,13 +152,28 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 .toList();
     }
 
-    private static List<String> warTargetNames(FactionManager manager, Faction ownFaction) {
-        return manager.factions().stream()
+    private static List<FactionSnapshot.FactionRef> warTargetRefs(FactionManager manager, Faction ownFaction) {
+        return factionRefs(manager.factions().stream()
                 .filter(faction -> !faction.id().equals(ownFaction.id()))
-                .filter(faction -> !manager.areAllied(ownFaction.id(), faction.id()))
-                .map(Faction::name)
-                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .filter(faction -> !manager.areAllied(ownFaction.id(), faction.id())));
+    }
+
+    private static List<FactionSnapshot.FactionRef> factionRefs(java.util.stream.Stream<Faction> factions) {
+        List<Faction> sorted = factions
+                .sorted(Comparator.comparing(Faction::name, String.CASE_INSENSITIVE_ORDER))
                 .toList();
+        List<FactionSnapshot.FactionRef> refs = new ArrayList<>(sorted.size());
+        for (int index = 0; index < sorted.size(); index++) {
+            Faction faction = sorted.get(index);
+            refs.add(new FactionSnapshot.FactionRef(
+                    faction.id(),
+                    faction.name(),
+                    faction.color(),
+                    index < MAX_PIXEL_EMBLEM_REFS ? emblemPixels(faction) : List.of(),
+                    faction.emblemUrl()
+            ));
+        }
+        return List.copyOf(refs);
     }
 
     private static String activeWarName(ServerPlayer player, FactionManager manager, Faction faction) {
@@ -169,49 +185,44 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 .orElse("");
     }
 
-    private static List<String> allianceCandidateNames(
+    private static List<FactionSnapshot.FactionRef> allianceCandidateRefs(
             ServerPlayer player,
             FactionManager manager,
             Faction ownFaction
     ) {
         WarManager wars = WarManager.get(player.getServer());
-        return manager.factions().stream()
+        return factionRefs(manager.factions().stream()
                 .filter(faction -> !faction.id().equals(ownFaction.id()))
                 .filter(faction -> !manager.areAllied(ownFaction.id(), faction.id()))
                 .filter(faction -> !wars.areAtWar(ownFaction.id(), faction.id()))
                 .filter(faction -> PendingAllianceRequests
                         .find(player.getServer(), ownFaction.id(), faction.id())
-                        .isEmpty())
-                .map(Faction::name)
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .toList();
+                        .isEmpty()));
     }
 
-    private static List<String> alliedFactionNames(FactionManager manager, Faction faction) {
-        return faction.allies().stream()
+    private static List<FactionSnapshot.FactionRef> alliedFactionRefs(FactionManager manager, Faction faction) {
+        return factionRefs(faction.allies().stream()
                 .map(manager::getFactionById)
-                .flatMap(java.util.Optional::stream)
-                .map(Faction::name)
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .toList();
+                .flatMap(java.util.Optional::stream));
     }
 
     /**
      * Allies the viewing faction may join in war: an ally currently defending an active war it was
      * attacked in, provided the viewer is free (not already in a war) and not allied with the attacker.
      */
-    private static List<String> joinableAllyNames(ServerPlayer player, FactionManager manager, Faction faction) {
+    private static List<FactionSnapshot.FactionRef> joinableAllyRefs(
+            ServerPlayer player,
+            FactionManager manager,
+            Faction faction
+    ) {
         WarManager wars = WarManager.get(player.getServer());
         if (wars.warForFaction(faction.id()).isPresent()) {
             return List.of();
         }
-        return faction.allies().stream()
+        return factionRefs(faction.allies().stream()
                 .map(manager::getFactionById)
                 .flatMap(java.util.Optional::stream)
-                .filter(ally -> wars.canJoinDefense(faction.id(), ally.id()))
-                .map(Faction::name)
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .toList();
+                .filter(ally -> wars.canJoinDefense(faction.id(), ally.id())));
     }
 
     @Override

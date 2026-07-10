@@ -129,13 +129,11 @@ public final class FactionCreateScreen extends FactionScreen {
                 continue;
             }
             order.add(bonus);
-            entries.add(new SelectEntryScreen.Entry(
+            entries.add(SelectEntryScreen.Entry.icon(
                     I18n.get(bonus.translationKey()),
-                    null,
                     Component.translatable(bonus.descriptionKey()),
-                    bonusColor(bonus),
-                    true,
-                    bonusIcon(bonus)
+                    bonusIcon(bonus),
+                    true
             ));
         }
         minecraft.setScreen(new SelectEntryScreen(
@@ -150,20 +148,6 @@ public final class FactionCreateScreen extends FactionScreen {
                     }
                 }
         ));
-    }
-
-    static int bonusColor(FactionBonus bonus) {
-        return switch (bonus) {
-            case MINERS -> 0x8A8A8A;
-            case FARMERS -> 0x6FBF4A;
-            case BUILDERS -> 0xC9A24C;
-            case ASSASSINS -> 0xC05050;
-            case HOOKAH -> 0x7A5AB5;
-            case ENCHANTERS -> 0x4A90BF;
-            case MERCHANTS -> 0xD4B23C;
-            case NOMADS -> 0xC77D3A;
-            case RESEARCHERS -> 0x39C6C8;
-        };
     }
 
     static ResourceLocation bonusIcon(FactionBonus bonus) {

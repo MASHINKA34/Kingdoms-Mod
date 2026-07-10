@@ -15,9 +15,19 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 
 public final class SelectEntryScreen extends Screen {
-    public record Entry(String value, String skinName, Component subtitle, int swatchColor, boolean enabled, ResourceLocation icon) {
+    public record Entry(
+            String value,
+            String skinName,
+            Component subtitle,
+            int swatchColor,
+            boolean enabled,
+            ResourceLocation icon,
+            ResourceLocation emblem,
+            int emblemWidth,
+            int emblemHeight
+    ) {
         public Entry(String value, String skinName, Component subtitle, int swatchColor, boolean enabled) {
-            this(value, skinName, subtitle, swatchColor, enabled, null);
+            this(value, skinName, subtitle, swatchColor, enabled, null, null, 0, 0);
         }
 
         public static Entry player(String name, Component subtitle, boolean enabled) {
@@ -29,7 +39,11 @@ public final class SelectEntryScreen extends Screen {
         }
 
         public static Entry icon(String name, Component subtitle, ResourceLocation icon, boolean enabled) {
-            return new Entry(name, null, subtitle, 0, enabled, icon);
+            return new Entry(name, null, subtitle, 0, enabled, icon, null, 0, 0);
+        }
+
+        public static Entry emblem(String name, ResourceLocation texture, int width, int height) {
+            return new Entry(name, null, null, 0, true, null, texture, width, height);
         }
     }
 
@@ -127,6 +141,11 @@ public final class SelectEntryScreen extends Screen {
         if (entry.skinName() != null) {
             PlayerSkin skin = resolveSkin(entry.skinName());
             PlayerFaceRenderer.draw(graphics, skin, rowLeft + 4, rowTop + 4, 16);
+        } else if (entry.emblem() != null) {
+            graphics.fill(rowLeft + 3, rowTop + 3, rowLeft + 21, rowTop + 21, 0xFF1A140C);
+            graphics.blit(entry.emblem(), rowLeft + 4, rowTop + 4, 16, 16,
+                    0.0F, 0.0F, entry.emblemWidth(), entry.emblemHeight(),
+                    entry.emblemWidth(), entry.emblemHeight());
         } else if (entry.icon() != null) {
             int iconSize = iconSize();
             int iconY = rowTop + Math.max(2, (rowHeight - 2 - iconSize) / 2);
