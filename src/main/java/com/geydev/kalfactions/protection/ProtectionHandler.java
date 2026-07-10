@@ -60,11 +60,6 @@ public final class ProtectionHandler {
         if (graveBreakAccess == GraveBreakAccess.ALLOW) {
             return;
         }
-        if (graveBreakAccess == GraveBreakAccess.DENY) {
-            event.setCanceled(true);
-            deny(player, "kingdoms.protection.no_break");
-            return;
-        }
         if (isSanctuaryProtected(player, level, breakPos)) {
             event.setCanceled(true);
             deny(player, "kingdoms.protection.no_break");
@@ -349,10 +344,9 @@ public final class ProtectionHandler {
             return GraveBreakAccess.ALLOW;
         }
         UUID owner = graveOwner(level, pos);
-        if (owner == null) {
-            return GraveBreakAccess.DENY;
-        }
-        return owner.equals(player.getUUID()) ? GraveBreakAccess.ALLOW : GraveBreakAccess.DENY;
+        return owner != null && owner.equals(player.getUUID())
+                ? GraveBreakAccess.ALLOW
+                : GraveBreakAccess.PASS;
     }
 
     private static UUID graveOwner(ServerLevel level, BlockPos pos) {
@@ -438,7 +432,6 @@ public final class ProtectionHandler {
 
     private enum GraveBreakAccess {
         PASS,
-        ALLOW,
-        DENY
+        ALLOW
     }
 }
