@@ -15,7 +15,10 @@ import net.minecraft.resources.ResourceLocation;
 public final class TraderPayloads {
     public static final int MAX_OFFERS = 8;
     public static final int MAX_SELL_OFFERS = 9;
+    public static final int MAX_SELLERS = 32;
     public static final int MAX_OFFER_ID_LENGTH = 32;
+    public static final int MAX_TITLE_KEY_LENGTH = 128;
+    public static final int MAX_SELLER_LABEL_LENGTH = 80;
 
     public record C2SBuy(UUID traderId, String offerId) implements CustomPacketPayload {
         public static final Type<C2SBuy> TYPE = payloadType("trader_buy");
@@ -72,6 +75,7 @@ public final class TraderPayloads {
 
     public record S2CShopState(
             UUID traderId,
+            String titleKey,
             List<OfferInfo> offers,
             List<OfferInfo> sellOffers,
             Component notice,
@@ -82,6 +86,7 @@ public final class TraderPayloads {
         public static final StreamCodec<RegistryFriendlyByteBuf, S2CShopState> STREAM_CODEC = StreamCodec.of(
                 (buffer, payload) -> {
                     buffer.writeUUID(payload.traderId);
+                    buffer.writeUtf(payload.titleKey, MAX_TITLE_KEY_LENGTH);
                     int size = Math.min(payload.offers.size(), MAX_OFFERS);
                     buffer.writeVarInt(size);
                     for (int i = 0; i < size; i++) {
@@ -98,6 +103,7 @@ public final class TraderPayloads {
                 },
                 buffer -> {
                     UUID traderId = buffer.readUUID();
+                    String titleKey = buffer.readUtf(MAX_TITLE_KEY_LENGTH);
                     int size = buffer.readVarInt();
                     if (size < 0 || size > MAX_OFFERS) {
                         throw new DecoderException("Trader offer count " + size + " exceeds " + MAX_OFFERS);
@@ -116,6 +122,7 @@ public final class TraderPayloads {
                     }
                     return new S2CShopState(
                             traderId,
+                            titleKey,
                             List.copyOf(offers),
                             List.copyOf(sellOffers),
                             ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer),
@@ -126,6 +133,7 @@ public final class TraderPayloads {
         );
 
         public S2CShopState {
+            titleKey = titleKey == null || titleKey.isBlank() ? "screen.kingdoms.trader.title" : titleKey;
             offers = List.copyOf(offers);
             sellOffers = List.copyOf(sellOffers);
         }
@@ -133,6 +141,76 @@ public final class TraderPayloads {
         @Override
         public Type<? extends CustomPacketPayload> type() {
             return TYPE;
+        }
+    }
+
+    public record S2CSellerCatalog(List<SellerInfo> sellers) implements CustomPacketPayload {
+        public static final Type<S2CSellerCatalog> TYPE = payloadType("seller_catalog");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CSellerCatalog> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    int size = Math.min(payload.sellers.size(), MAX_SELLERS);
+                    buffer.writeVarInt(size);
+                    for (int i = 0; i < size; i++) {
+                        SellerInfo.encode(buffer, payload.sellers.get(i));
+                    }
+                },
+                buffer -> {
+                    int size = buffer.readVarInt();
+                    if (size < 0 || size > MAX_SELLERS) {
+                        throw new DecoderException("Seller count " + size + " exceeds " + MAX_SELLERS);
+                    }
+                    List<SellerInfo> sellers = new ArrayList<>(size);
+                    for (int i = 0; i < size; i++) {
+                        sellers.add(SellerInfo.decode(buffer));
+                    }
+                    return new S2CSellerCatalog(List.copyOf(sellers));
+                }
+        );
+
+        public S2CSellerCatalog {
+            sellers = List.copyOf(sellers);
+        }
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record SellerInfo(
+            UUID sellerId,
+            String label,
+            List<OfferInfo> offers,
+            long nextRefreshEpochMillis
+    ) {
+        private static void encode(RegistryFriendlyByteBuf buffer, SellerInfo seller) {
+            buffer.writeUUID(seller.sellerId);
+            buffer.writeUtf(seller.label, MAX_SELLER_LABEL_LENGTH);
+            int size = Math.min(seller.offers.size(), MAX_SELL_OFFERS);
+            buffer.writeVarInt(size);
+            for (int i = 0; i < size; i++) {
+                OfferInfo.encode(buffer, seller.offers.get(i));
+            }
+            buffer.writeLong(seller.nextRefreshEpochMillis);
+        }
+
+        private static SellerInfo decode(RegistryFriendlyByteBuf buffer) {
+            UUID sellerId = buffer.readUUID();
+            String label = buffer.readUtf(MAX_SELLER_LABEL_LENGTH);
+            int size = buffer.readVarInt();
+            if (size < 0 || size > MAX_SELL_OFFERS) {
+                throw new DecoderException("Seller catalog offer count " + size + " exceeds " + MAX_SELL_OFFERS);
+            }
+            List<OfferInfo> offers = new ArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                offers.add(OfferInfo.decode(buffer));
+            }
+            return new SellerInfo(sellerId, label, List.copyOf(offers), buffer.readLong());
+        }
+
+        public SellerInfo {
+            label = label == null ? "" : label;
+            offers = List.copyOf(offers);
         }
     }
 

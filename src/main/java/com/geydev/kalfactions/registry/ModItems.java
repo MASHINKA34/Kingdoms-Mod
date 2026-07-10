@@ -3,8 +3,10 @@ package com.geydev.kalfactions.registry;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.chest.AccessTool;
 import com.geydev.kalfactions.faction.InfluenceType;
+import com.geydev.kalfactions.item.BankerSpawnEggItem;
 import com.geydev.kalfactions.item.DimensionKeyItem;
 import com.geydev.kalfactions.item.PlotWandItem;
+import com.geydev.kalfactions.item.SellerCatalogItem;
 import com.geydev.kalfactions.item.SellerSpawnEggItem;
 import com.geydev.kalfactions.item.TraderRemoverItem;
 import com.geydev.kalfactions.item.TraderSpawnEggItem;
@@ -56,9 +58,19 @@ public final class ModItems {
             () -> new SellerSpawnEggItem(new Item.Properties())
     );
 
+    public static final DeferredItem<BankerSpawnEggItem> BANKER_SPAWN_EGG = ITEMS.register(
+            "banker_spawn_egg",
+            () -> new BankerSpawnEggItem(new Item.Properties())
+    );
+
     public static final DeferredItem<TraderRemoverItem> TRADER_REMOVER = ITEMS.register(
             "trader_remover",
             () -> new TraderRemoverItem(new Item.Properties().stacksTo(1))
+    );
+
+    public static final DeferredItem<SellerCatalogItem> SELLER_CATALOG = ITEMS.register(
+            "seller_catalog",
+            () -> new SellerCatalogItem(new Item.Properties().stacksTo(1))
     );
 
     public static final DeferredItem<DimensionKeyItem> DIMENSION_KEY = ITEMS.register(

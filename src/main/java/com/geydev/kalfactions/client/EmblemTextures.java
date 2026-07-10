@@ -24,11 +24,16 @@ public final class EmblemTextures {
     private static final long FAILED_RETRY_MILLIS = 60_000L;
     private static final Map<UUID, PixelEntry> PIXEL_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, UrlEntry> URL_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Integer, Emblem> FALLBACK_CACHE = new ConcurrentHashMap<>();
 
     public record Emblem(ResourceLocation texture, int width, int height) {
     }
 
     public static Emblem resolve(UUID factionId, List<Integer> pixels, String url) {
+        return resolve(factionId, pixels, url, null);
+    }
+
+    public static Emblem resolve(UUID factionId, List<Integer> pixels, String url, Integer fallbackColor) {
         if (url != null && !url.isBlank()) {
             UrlEntry entry = URL_CACHE.compute(url, (key, existing) -> {
                 if (existing == null
@@ -52,7 +57,7 @@ public final class EmblemTextures {
             }
             return entry.emblem;
         }
-        return null;
+        return fallbackColor == null ? null : FALLBACK_CACHE.computeIfAbsent(fallbackColor & 0xFFFFFF, EmblemTextures::fallback);
     }
 
     public static boolean isValidPixelCount(int count) {
@@ -121,6 +126,50 @@ public final class EmblemTextures {
         int green = (argb >> 8) & 0xFF;
         int blue = argb & 0xFF;
         return alpha << 24 | blue << 16 | green << 8 | red;
+    }
+
+    private static Emblem fallback(int color) {
+        int size = 16;
+        int base = 0xFF000000 | color;
+        int light = mix(base, 0xFFFFFFFF, 0.35F);
+        int dark = mix(base, 0xFF000000, 0.45F);
+        NativeImage image = new NativeImage(size, size, true);
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                boolean shield = y < 2
+                        ? x >= 2 && x <= 13
+                        : y < 11
+                                ? x >= 1 && x <= 14
+                                : x >= y - 9 && x <= 24 - y;
+                int pixel = 0;
+                if (shield) {
+                    boolean border = x <= 2 || x >= 13 || y <= 2 || y >= 13 || x == y - 8 || x == 23 - y;
+                    boolean band = x - y >= -1 && x - y <= 1;
+                    pixel = border ? 0xFF1A140C : band ? light : base;
+                    if (!border && !band && (x + y) % 5 == 0) {
+                        pixel = dark;
+                    }
+                }
+                image.setPixelRGBA(x, y, argbToAbgr(pixel));
+            }
+        }
+        ResourceLocation location = ResourceLocation.fromNamespaceAndPath(
+                KalFactions.MOD_ID,
+                "emblem/fallback/" + Integer.toHexString(color)
+        );
+        Minecraft.getInstance().getTextureManager().register(location, new DynamicTexture(image));
+        return new Emblem(location, size, size);
+    }
+
+    private static int mix(int left, int right, float amount) {
+        int r = blend((left >> 16) & 0xFF, (right >> 16) & 0xFF, amount);
+        int g = blend((left >> 8) & 0xFF, (right >> 8) & 0xFF, amount);
+        int b = blend(left & 0xFF, right & 0xFF, amount);
+        return 0xFF000000 | r << 16 | g << 8 | b;
+    }
+
+    private static int blend(int left, int right, float amount) {
+        return Math.round(left + (right - left) * amount);
     }
 
     private enum UrlState {

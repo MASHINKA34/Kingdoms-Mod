@@ -46,7 +46,7 @@ public final class SellerShopScreen extends Screen {
     private KingdomsButton sellButton;
 
     public SellerShopScreen(TraderPayloads.S2CShopState state) {
-        super(Component.translatable("screen.kingdoms.seller.title"));
+        super(Component.translatable(state.titleKey()));
         traderId = state.traderId();
         sellOffers = state.sellOffers();
         nextRefreshEpochMillis = state.nextSellRefreshEpochMillis();

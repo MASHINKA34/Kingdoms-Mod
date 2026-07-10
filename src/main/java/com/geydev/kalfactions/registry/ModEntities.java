@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.registry;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.entity.BankerEntity;
 import com.geydev.kalfactions.entity.OutpostTraderEntity;
 import com.geydev.kalfactions.entity.SellerTraderEntity;
 import net.minecraft.core.registries.Registries;
@@ -34,6 +35,14 @@ public final class ModEntities {
                     .clientTrackingRange(10)
                     .build("seller_trader"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<BankerEntity>> BANKER =
+            ENTITIES.register("banker", () -> EntityType.Builder
+                    .<BankerEntity>of(BankerEntity::new, MobCategory.MISC)
+                    .sized(0.6F, 1.95F)
+                    .eyeHeight(1.74F)
+                    .clientTrackingRange(10)
+                    .build("banker"));
+
     public static void register(IEventBus bus) {
         ENTITIES.register(bus);
     }
@@ -42,6 +51,7 @@ public final class ModEntities {
     public static void onCreateAttributes(EntityAttributeCreationEvent event) {
         event.put(OUTPOST_TRADER.get(), OutpostTraderEntity.createAttributes().build());
         event.put(SELLER_TRADER.get(), SellerTraderEntity.createAttributes().build());
+        event.put(BANKER.get(), BankerEntity.createAttributes().build());
     }
 
     private ModEntities() {

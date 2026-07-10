@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.outpost.trader;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.client.screen.SellerCatalogScreen;
 import com.geydev.kalfactions.client.screen.TraderShopScreen;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.api.distmarker.Dist;
@@ -13,7 +14,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class TraderNetwork {
-    private static final String PROTOCOL_VERSION = "4";
+    private static final String PROTOCOL_VERSION = "5";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -38,6 +39,11 @@ public final class TraderNetwork {
                 TraderPayloads.S2CShopState.STREAM_CODEC,
                 TraderNetwork::handleShopState
         );
+        registrar.playToClient(
+                TraderPayloads.S2CSellerCatalog.TYPE,
+                TraderPayloads.S2CSellerCatalog.STREAM_CODEC,
+                TraderNetwork::handleSellerCatalog
+        );
     }
 
     private static void handleBuy(TraderPayloads.C2SBuy payload, IPayloadContext context) {
@@ -61,6 +67,12 @@ public final class TraderNetwork {
     private static void handleShopState(TraderPayloads.S2CShopState payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             TraderShopScreen.handle(payload);
+        }
+    }
+
+    private static void handleSellerCatalog(TraderPayloads.S2CSellerCatalog payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            SellerCatalogScreen.handle(payload);
         }
     }
 

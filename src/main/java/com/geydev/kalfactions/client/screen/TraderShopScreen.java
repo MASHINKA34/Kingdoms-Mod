@@ -21,8 +21,8 @@ public final class TraderShopScreen extends Screen {
     private static final int PANEL_HEIGHT = 220;
     private static final int TEXT_DARK = 0xFF3F2A19;
     private static final int TEXT_MUTED = 0xFF5B452E;
-    private static final int OFFER_TOP = 72;
-    private static final int OFFER_STEP = 30;
+    private static final int OFFER_TOP = 68;
+    private static final int OFFER_STEP = 24;
 
     private final UUID traderId;
     private List<TraderPayloads.OfferInfo> offers;
@@ -31,7 +31,7 @@ public final class TraderShopScreen extends Screen {
     private int top;
 
     public TraderShopScreen(TraderPayloads.S2CShopState state) {
-        super(Component.translatable("screen.kingdoms.trader.title"));
+        super(Component.translatable(state.titleKey()));
         traderId = state.traderId();
         offers = state.offers();
     }
@@ -39,7 +39,7 @@ public final class TraderShopScreen extends Screen {
     public static void handle(TraderPayloads.S2CShopState state) {
         Minecraft minecraft = Minecraft.getInstance();
         minecraft.execute(() -> {
-            if (state.offers().isEmpty()) {
+            if (state.offers().isEmpty() && "screen.kingdoms.seller.title".equals(state.titleKey())) {
                 SellerShopScreen.handle(state);
             } else if (minecraft.screen instanceof TraderShopScreen screen
                     && screen.traderId.equals(state.traderId())) {
@@ -69,9 +69,9 @@ public final class TraderShopScreen extends Screen {
                     Component.translatable("screen.kingdoms.trader.buy"),
                     pressed -> buy(offer.id()),
                     left + PANEL_WIDTH - 92,
-                    rowTop + 6,
+                    rowTop + 3,
                     68,
-                    20
+                    18
             );
             button.active = pendingOfferId.isBlank();
             addRenderableWidget(button);
@@ -136,12 +136,16 @@ public final class TraderShopScreen extends Screen {
         TraderOffer.byId(offerInfo.id()).ifPresent(offer -> {
             ItemStack stack = new ItemStack(offer.item());
             graphics.renderItem(stack, left + 24, rowTop + 4);
-            graphics.drawString(font, stack.getHoverName(), left + 44, rowTop + 2, TEXT_DARK, false);
+            Component name = Component.literal(font.plainSubstrByWidth(
+                    stack.getHoverName().getString(),
+                    PANEL_WIDTH - 150
+            ));
+            graphics.drawString(font, name, left + 44, rowTop + 1, TEXT_DARK, false);
             graphics.drawString(
                     font,
                     formatPrice(offerInfo.price()),
                     left + 44,
-                    rowTop + 14,
+                    rowTop + 12,
                     TEXT_MUTED,
                     false
             );

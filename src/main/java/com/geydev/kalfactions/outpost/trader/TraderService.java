@@ -2,6 +2,7 @@ package com.geydev.kalfactions.outpost.trader;
 
 import com.geydev.kalfactions.command.NumismaticsEconomy;
 import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.entity.BankerEntity;
 import com.geydev.kalfactions.entity.OutpostTraderEntity;
 import com.geydev.kalfactions.entity.SellerTraderEntity;
 import com.geydev.kalfactions.economy.PriceMath;
@@ -9,7 +10,7 @@ import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.protection.FactionAccess;
 import com.geydev.kalfactions.registry.ModEntities;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nullable;
@@ -74,8 +75,32 @@ public final class TraderService {
         return level.addFreshEntity(trader);
     }
 
+    public static boolean spawnBanker(
+            ServerLevel level,
+            double x,
+            double y,
+            double z,
+            float yRot,
+            @Nullable Player spawner
+    ) {
+        BankerEntity banker = ModEntities.BANKER.get().create(level);
+        if (banker == null) {
+            return false;
+        }
+        banker.moveTo(x, y, z, yRot, 0.0F);
+        if (spawner != null) {
+            banker.lookAt(EntityAnchorArgument.Anchor.EYES, spawner.getEyePosition());
+            banker.setYBodyRot(banker.getYRot());
+            banker.yBodyRotO = banker.getYRot();
+            banker.yHeadRotO = banker.getYHeadRot();
+        }
+        return level.addFreshEntity(banker);
+    }
+
     public static boolean isMarked(Entity entity) {
-        return entity instanceof OutpostTraderEntity || entity instanceof SellerTraderEntity;
+        return entity instanceof OutpostTraderEntity
+                || entity instanceof SellerTraderEntity
+                || entity instanceof BankerEntity;
     }
 
     public static void open(ServerPlayer player, OutpostTraderEntity trader) {
@@ -83,12 +108,27 @@ public final class TraderService {
             sendBuyState(
                     player,
                     trader.getUUID(),
+                    TraderOffer.Shop.KINGDOMS,
                     Component.translatable("screen.kingdoms.trader.notice.unavailable"),
                     false
             );
             return;
         }
-        sendBuyState(player, trader.getUUID(), Component.empty(), true);
+        sendBuyState(player, trader.getUUID(), TraderOffer.Shop.KINGDOMS, Component.empty(), true);
+    }
+
+    public static void openBanker(ServerPlayer player, BankerEntity banker) {
+        if (!isAvailable(player, banker)) {
+            sendBuyState(
+                    player,
+                    banker.getUUID(),
+                    TraderOffer.Shop.BANKER,
+                    Component.translatable("screen.kingdoms.trader.notice.unavailable"),
+                    false
+            );
+            return;
+        }
+        sendBuyState(player, banker.getUUID(), TraderOffer.Shop.BANKER, Component.empty(), true);
     }
 
     public static void openSeller(ServerPlayer player, SellerTraderEntity trader) {
@@ -119,19 +159,26 @@ public final class TraderService {
 
     public static void buy(ServerPlayer player, UUID traderId, String offerId) {
         Entity entity = player.serverLevel().getEntity(traderId);
-        if (!(entity instanceof OutpostTraderEntity trader)) {
+        TraderOffer.Shop shop;
+        if (entity instanceof OutpostTraderEntity) {
+            shop = TraderOffer.Shop.KINGDOMS;
+        } else if (entity instanceof BankerEntity) {
+            shop = TraderOffer.Shop.BANKER;
+        } else {
             sendBuyState(
                     player,
                     traderId,
+                    TraderOffer.Shop.KINGDOMS,
                     Component.translatable("screen.kingdoms.trader.notice.unavailable"),
                     false
             );
             return;
         }
-        if (!isAvailable(player, trader)) {
+        if (!isAvailable(player, entity)) {
             sendBuyState(
                     player,
                     traderId,
+                    shop,
                     Component.translatable("screen.kingdoms.trader.notice.too_far"),
                     false
             );
@@ -139,22 +186,34 @@ public final class TraderService {
         }
 
         TraderOffer offer = TraderOffer.byId(offerId).orElse(null);
-        if (offer == null) {
+        if (offer == null || offer.shop() != shop) {
             sendBuyState(
                     player,
                     traderId,
+                    shop,
                     Component.translatable("screen.kingdoms.trader.notice.invalid_offer"),
                     false
             );
             return;
         }
 
-        long price = buyUnitPrice(player, offer.price());
+        long price = buyUnitPrice(player, offer);
         ItemStack product = new ItemStack(offer.item());
+        if (product.isEmpty()) {
+            sendBuyState(
+                    player,
+                    traderId,
+                    shop,
+                    Component.translatable("screen.kingdoms.trader.notice.invalid_offer"),
+                    false
+            );
+            return;
+        }
         if (!hasInventorySpace(player, product)) {
             sendBuyState(
                     player,
                     traderId,
+                    shop,
                     Component.translatable("screen.kingdoms.trader.notice.inventory_full"),
                     false
             );
@@ -167,6 +226,7 @@ public final class TraderService {
                 sendBuyState(
                         player,
                         traderId,
+                        shop,
                         Component.translatable(
                                 "screen.kingdoms.trader.notice.insufficient_funds",
                                 NumismaticsEconomy.format(price),
@@ -180,6 +240,7 @@ public final class TraderService {
                 sendBuyState(
                         player,
                         traderId,
+                        shop,
                         Component.translatable("screen.kingdoms.trader.notice.payment_changed"),
                         false
                 );
@@ -194,6 +255,7 @@ public final class TraderService {
         sendBuyState(
                 player,
                 traderId,
+                shop,
                 Component.translatable(
                         "screen.kingdoms.trader.notice.purchased",
                         offer.item().getName(new ItemStack(offer.item())),
@@ -201,6 +263,48 @@ public final class TraderService {
                 ),
                 true
         );
+    }
+
+    public static void openSellerCatalog(ServerPlayer player) {
+        MinecraftServer server = player.serverLevel().getServer();
+        SellerOfferRotation rotation = SellerOfferRotation.get(server);
+        List<TraderPayloads.SellerInfo> sellers = new ArrayList<>();
+        for (ServerLevel level : server.getAllLevels()) {
+            for (Entity entity : level.getAllEntities()) {
+                if (!(entity instanceof SellerTraderEntity trader) || !trader.isAlive() || trader.isRemoved()) {
+                    continue;
+                }
+                SellerOfferRotation.Window window = rotation.current(server, trader.getUUID());
+                List<TraderPayloads.OfferInfo> offers = window.offers().stream()
+                        .map(offer -> new TraderPayloads.OfferInfo(
+                                offer.id(),
+                                sellUnitPrice(player, offer.price()),
+                                rotation.remainingLimit(server, trader.getUUID(), player.getUUID(), offer)
+                        ))
+                        .toList();
+                sellers.add(new TraderPayloads.SellerInfo(
+                        trader.getUUID(),
+                        sellerLabel(trader),
+                        offers,
+                        window.nextRefreshEpochMillis()
+                ));
+            }
+        }
+        sellers.sort(java.util.Comparator.comparing(TraderPayloads.SellerInfo::label));
+        if (sellers.size() > TraderPayloads.MAX_SELLERS) {
+            sellers = List.copyOf(sellers.subList(0, TraderPayloads.MAX_SELLERS));
+        }
+        PacketDistributor.sendToPlayer(player, new TraderPayloads.S2CSellerCatalog(sellers));
+    }
+
+    private static String sellerLabel(SellerTraderEntity trader) {
+        return trader.level().dimension().location().getPath()
+                + " "
+                + trader.blockPosition().getX()
+                + " "
+                + trader.blockPosition().getY()
+                + " "
+                + trader.blockPosition().getZ();
     }
 
     private static boolean isAvailable(ServerPlayer player, Entity trader) {
@@ -391,19 +495,40 @@ public final class TraderService {
         return (long) Math.ceil(basePrice * factor);
     }
 
+    private static long buyUnitPrice(ServerPlayer player, TraderOffer offer) {
+        return offer.shop() == TraderOffer.Shop.KINGDOMS
+                ? buyUnitPrice(player, offer.price())
+                : offer.price();
+    }
+
     private static void sendBuyState(
             ServerPlayer player,
             UUID traderId,
+            TraderOffer.Shop shop,
             Component notice,
             boolean successful
     ) {
-        List<TraderPayloads.OfferInfo> offers = Arrays.stream(TraderOffer.values())
-                .map(offer -> new TraderPayloads.OfferInfo(offer.id(), buyUnitPrice(player, offer.price()), 0))
+        List<TraderPayloads.OfferInfo> offers = TraderOffer.forShop(shop).stream()
+                .map(offer -> new TraderPayloads.OfferInfo(offer.id(), buyUnitPrice(player, offer), 0))
                 .toList();
         PacketDistributor.sendToPlayer(
                 player,
-                new TraderPayloads.S2CShopState(traderId, offers, List.of(), notice, successful, 0L)
+                new TraderPayloads.S2CShopState(
+                        traderId,
+                        titleKey(shop),
+                        offers,
+                        List.of(),
+                        notice,
+                        successful,
+                        0L
+                )
         );
+    }
+
+    private static String titleKey(TraderOffer.Shop shop) {
+        return shop == TraderOffer.Shop.BANKER
+                ? "screen.kingdoms.banker.title"
+                : "screen.kingdoms.trader.title";
     }
 
     private static void sendSellState(
@@ -426,6 +551,7 @@ public final class TraderService {
                 player,
                 new TraderPayloads.S2CShopState(
                         trader.getUUID(),
+                        "screen.kingdoms.seller.title",
                         List.of(),
                         sellOffers,
                         notice,
@@ -438,7 +564,15 @@ public final class TraderService {
     private static void sendSellUnavailable(ServerPlayer player, UUID traderId, Component notice) {
         PacketDistributor.sendToPlayer(
                 player,
-                new TraderPayloads.S2CShopState(traderId, List.of(), List.of(), notice, false, 0L)
+                new TraderPayloads.S2CShopState(
+                        traderId,
+                        "screen.kingdoms.seller.title",
+                        List.of(),
+                        List.of(),
+                        notice,
+                        false,
+                        0L
+                )
         );
     }
 

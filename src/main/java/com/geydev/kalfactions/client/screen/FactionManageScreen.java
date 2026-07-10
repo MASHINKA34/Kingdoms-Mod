@@ -160,19 +160,16 @@ public final class FactionManageScreen extends FactionScreen {
         EmblemTextures.Emblem emblem = EmblemTextures.resolve(
                 snapshot.factionId(),
                 snapshot.emblem(),
-                snapshot.emblemUrl()
+                snapshot.emblemUrl(),
+                selectedColor
         );
         graphics.fill(leftColumn - 1, top + 56, leftColumn + 13, top + 70, 0xFF1A140C);
-        if (emblem != null) {
-            graphics.blit(
-                    emblem.texture(),
-                    leftColumn, top + 57, 12, 12,
-                    0.0F, 0.0F, emblem.width(), emblem.height(),
-                    emblem.width(), emblem.height()
-            );
-        } else {
-            graphics.fill(leftColumn, top + 57, leftColumn + 12, top + 69, 0xFF000000 | selectedColor);
-        }
+        graphics.blit(
+                emblem.texture(),
+                leftColumn, top + 57, 12, 12,
+                0.0F, 0.0F, emblem.width(), emblem.height(),
+                emblem.width(), emblem.height()
+        );
         graphics.drawString(font, snapshot.name(), leftColumn + 17, top + 59, TEXT_DARK, false);
         graphics.drawString(
                 font,

@@ -59,13 +59,9 @@ public final class FactionDetailsScreen extends Screen {
         int alpha = Math.max(16, (int) (progress * 255.0F)) << 24;
 
         graphics.fill(panelLeft + 9, panelTop + 7, panelLeft + 31, panelTop + 29, 0xFF1A140C);
-        EmblemTextures.Emblem emblem = EmblemTextures.resolve(info.id(), info.emblem(), info.emblemUrl());
-        if (emblem != null) {
-            graphics.blit(emblem.texture(), panelLeft + 10, panelTop + 8, 20, 20,
-                    0.0F, 0.0F, emblem.width(), emblem.height(), emblem.width(), emblem.height());
-        } else {
-            graphics.fill(panelLeft + 10, panelTop + 8, panelLeft + 30, panelTop + 28, 0xFF000000 | info.color());
-        }
+        EmblemTextures.Emblem emblem = EmblemTextures.resolve(info.id(), info.emblem(), info.emblemUrl(), info.color());
+        graphics.blit(emblem.texture(), panelLeft + 10, panelTop + 8, 20, 20,
+                0.0F, 0.0F, emblem.width(), emblem.height(), emblem.width(), emblem.height());
         graphics.drawString(font, title, panelLeft + 38, panelTop + 9, alpha | 0xF3D58B, true);
 
         Component stats = Component.translatable(

@@ -328,14 +328,10 @@ public final class FactionListScreen extends Screen {
             int y
     ) {
         graphics.fill(x - 1, y - 1, x + 21, y + 21, 0xFF1A140C);
-        EmblemTextures.Emblem resolved = EmblemTextures.resolve(factionId, emblem, emblemUrl);
-        if (resolved != null) {
-            graphics.blit(resolved.texture(), x, y, 20, 20,
-                    0.0F, 0.0F, resolved.width(), resolved.height(),
-                    resolved.width(), resolved.height());
-        } else {
-            graphics.fill(x, y, x + 20, y + 20, 0xFF000000 | color);
-        }
+        EmblemTextures.Emblem resolved = EmblemTextures.resolve(factionId, emblem, emblemUrl, color);
+        graphics.blit(resolved.texture(), x, y, 20, 20,
+                0.0F, 0.0F, resolved.width(), resolved.height(),
+                resolved.width(), resolved.height());
     }
 
     private void renderMiniButton(

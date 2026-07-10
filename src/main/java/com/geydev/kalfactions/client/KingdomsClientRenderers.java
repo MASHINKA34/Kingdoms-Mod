@@ -13,6 +13,7 @@ public final class KingdomsClientRenderers {
     public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.OUTPOST_TRADER.get(), KingdomsTraderRenderer::new);
         event.registerEntityRenderer(ModEntities.SELLER_TRADER.get(), KingdomsSellerTraderRenderer::new);
+        event.registerEntityRenderer(ModEntities.BANKER.get(), KingdomsBankerRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.WORLD_MAP.get(), WorldMapRenderer::new);
     }
 
