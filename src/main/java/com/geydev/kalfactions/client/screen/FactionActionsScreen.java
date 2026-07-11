@@ -225,8 +225,13 @@ public final class FactionActionsScreen extends FactionScreen {
                 text("screen.kingdoms.alliance_members_pick"),
                 entries,
                 null,
-                entry -> PacketDistributor.sendToServer(
-                        new FactionPayloads.C2SBreakAlliance(snapshot.tablePos(), entry.value()))
+                entry -> minecraft.setScreen(new KingdomsConfirmScreen(
+                        this,
+                        text("screen.kingdoms.alliance_break_title"),
+                        Component.translatable("screen.kingdoms.alliance_break_confirm", entry.value()),
+                        () -> PacketDistributor.sendToServer(
+                                new FactionPayloads.C2SBreakAlliance(snapshot.tablePos(), entry.value()))
+                ))
         ));
     }
 

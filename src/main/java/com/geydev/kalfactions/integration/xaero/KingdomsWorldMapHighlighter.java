@@ -10,7 +10,7 @@ import xaero.map.highlight.ChunkHighlighter;
 
 final class KingdomsWorldMapHighlighter extends ChunkHighlighter {
     KingdomsWorldMapHighlighter() {
-        super(true);
+        super(false);
     }
 
     @Override

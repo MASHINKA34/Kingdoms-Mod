@@ -189,6 +189,7 @@ public final class FactionCommands {
             actor.getUUID(),
             target.getUUID()
         );
+        com.geydev.kalfactions.net.FactionServerHooks.pushInviteBadge(target);
         success(
             context,
             "kingdoms.command.faction.invite.sent",

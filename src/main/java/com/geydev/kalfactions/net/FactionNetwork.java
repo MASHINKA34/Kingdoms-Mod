@@ -222,6 +222,11 @@ public final class FactionNetwork {
                 FactionNetwork::handleNotice
         );
         registrar.playToClient(
+                FactionPayloads.S2CInviteBadge.TYPE,
+                FactionPayloads.S2CInviteBadge.STREAM_CODEC,
+                FactionNetwork::handleInviteBadge
+        );
+        registrar.playToClient(
                 FactionPayloads.S2CInfluenceGain.TYPE,
                 FactionPayloads.S2CInfluenceGain.STREAM_CODEC,
                 FactionNetwork::handleInfluenceGain
@@ -524,6 +529,12 @@ public final class FactionNetwork {
     private static void handleNotice(FactionPayloads.S2CFactionNotice payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientFactionPayloadHandler.handleNotice(payload);
+        }
+    }
+
+    private static void handleInviteBadge(FactionPayloads.S2CInviteBadge payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientFactionPayloadHandler.handleInviteBadge(payload);
         }
     }
 

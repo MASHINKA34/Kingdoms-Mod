@@ -1064,6 +1064,23 @@ public final class FactionPayloads {
         }
     }
 
+    public record S2CInviteBadge(int count) implements CustomPacketPayload {
+        public static final Type<S2CInviteBadge> TYPE = FactionPayloads.payloadType("invite_badge");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CInviteBadge> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> buffer.writeVarInt(payload.count),
+                buffer -> new S2CInviteBadge(buffer.readVarInt())
+        );
+
+        public S2CInviteBadge {
+            count = Math.max(0, count);
+        }
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record S2CFactionNotice(Component message, boolean successful) implements CustomPacketPayload {
         public static final Type<S2CFactionNotice> TYPE = FactionPayloads.payloadType("faction_notice");
         public static final StreamCodec<RegistryFriendlyByteBuf, S2CFactionNotice> STREAM_CODEC = StreamCodec.of(

@@ -32,6 +32,7 @@ public final class SellerOfferRotation extends SavedData {
     private static final ZoneId REFRESH_ZONE = ZoneId.systemDefault();
     private static final String TAG_SHOPS = "shops";
     private static final String TAG_TRADER = "trader";
+    private static final String TAG_INDEX = "index";
     private static final String TAG_EPOCH_DAY = "epochDay";
     private static final String TAG_OFFERS = "offers";
     private static final String TAG_PLAYER_SALES = "playerSales";
@@ -76,13 +77,41 @@ public final class SellerOfferRotation extends SavedData {
         }
     }
 
+    public synchronized void ensureShop(MinecraftServer server, UUID traderId) {
+        shopFor(server, traderId, System.currentTimeMillis());
+    }
+
+    public synchronized List<ShopEntry> shopEntries(MinecraftServer server) {
+        long nowEpochMillis = System.currentTimeMillis();
+        List<ShopEntry> entries = new ArrayList<>(shops.size());
+        for (UUID traderId : List.copyOf(shops.keySet())) {
+            TraderShop shop = shopFor(server, traderId, nowEpochMillis);
+            entries.add(new ShopEntry(
+                    traderId,
+                    shop.displayIndex,
+                    shop.activeOffers(),
+                    nextRefreshEpochMillis(nowEpochMillis)
+            ));
+        }
+        entries.sort(java.util.Comparator.comparingInt(ShopEntry::index));
+        return List.copyOf(entries);
+    }
+
     private TraderShop shopFor(MinecraftServer server, UUID traderId, long nowEpochMillis) {
-        TraderShop shop = shops.computeIfAbsent(traderId, ignored -> new TraderShop());
+        TraderShop shop = shops.computeIfAbsent(traderId, ignored -> {
+            TraderShop created = new TraderShop();
+            created.displayIndex = nextDisplayIndex();
+            return created;
+        });
         long today = epochDay(nowEpochMillis);
         if (shop.epochDay != today || !shop.hasValidOffers()) {
             roll(server, shop, traderId, today, nowEpochMillis);
         }
         return shop;
+    }
+
+    private int nextDisplayIndex() {
+        return shops.values().stream().mapToInt(shop -> shop.displayIndex).max().orElse(0) + 1;
     }
 
     private void roll(MinecraftServer server, TraderShop shop, UUID traderId, long epochDay, long nowEpochMillis) {
@@ -143,6 +172,13 @@ public final class SellerOfferRotation extends SavedData {
             }
             rotation.shops.put(shopTag.getUUID(TAG_TRADER), TraderShop.load(shopTag));
         }
+        int maxIndex = rotation.shops.values().stream().mapToInt(shop -> shop.displayIndex).max().orElse(0);
+        for (TraderShop shop : rotation.shops.values()) {
+            if (shop.displayIndex <= 0) {
+                shop.displayIndex = ++maxIndex;
+                rotation.setDirty();
+            }
+        }
         return rotation;
     }
 
@@ -152,6 +188,7 @@ public final class SellerOfferRotation extends SavedData {
 
     private static final class TraderShop {
         private long epochDay = Long.MIN_VALUE;
+        private int displayIndex;
         private List<String> offerIds = List.of();
         private final Map<UUID, Map<String, Integer>> soldByPlayer = new HashMap<>();
 
@@ -179,6 +216,7 @@ public final class SellerOfferRotation extends SavedData {
         private CompoundTag save() {
             CompoundTag tag = new CompoundTag();
             tag.putLong(TAG_EPOCH_DAY, epochDay);
+            tag.putInt(TAG_INDEX, displayIndex);
             ListTag offers = new ListTag();
             for (String id : offerIds) {
                 offers.add(StringTag.valueOf(id));
@@ -214,6 +252,7 @@ public final class SellerOfferRotation extends SavedData {
             shop.epochDay = tag.contains(TAG_EPOCH_DAY, Tag.TAG_LONG)
                     ? tag.getLong(TAG_EPOCH_DAY)
                     : Long.MIN_VALUE;
+            shop.displayIndex = tag.getInt(TAG_INDEX);
 
             ListTag offers = tag.getList(TAG_OFFERS, Tag.TAG_STRING);
             List<String> ids = new ArrayList<>(offers.size());
@@ -249,6 +288,12 @@ public final class SellerOfferRotation extends SavedData {
                 }
             }
             return shop;
+        }
+    }
+
+    public record ShopEntry(UUID traderId, int index, List<SellOffer> offers, long nextRefreshEpochMillis) {
+        public ShopEntry {
+            offers = List.copyOf(offers);
         }
     }
 

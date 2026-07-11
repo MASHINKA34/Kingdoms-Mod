@@ -45,6 +45,10 @@ public final class ClientFactionPayloadHandler {
         minecraft.execute(() -> showNotice(minecraft, payload.message(), payload.successful()));
     }
 
+    public static void handleInviteBadge(FactionPayloads.S2CInviteBadge payload) {
+        ClientInviteState.accept(payload.count());
+    }
+
     public static void handleInfluenceGain(FactionPayloads.S2CInfluenceGain payload) {
         InfluenceType.parse(payload.influenceType()).ifPresent(type -> {
             Minecraft minecraft = Minecraft.getInstance();
@@ -116,15 +120,7 @@ public final class ClientFactionPayloadHandler {
         if (XaeroMaps.showMapNotice(message, successful)) {
             return;
         }
-        if (minecraft.screen instanceof FactionListScreen listScreen) {
-            listScreen.showNotice(message, successful);
-            return;
-        }
-        if (minecraft.screen instanceof FactionScreen) {
-            KingdomsNoticeToast.show(message, successful);
-            return;
-        }
-        if (minecraft.player != null) {
+        if (minecraft.player != null || minecraft.screen != null) {
             KingdomsNoticeToast.show(message, successful);
         }
     }

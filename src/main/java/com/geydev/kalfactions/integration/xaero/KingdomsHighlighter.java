@@ -10,7 +10,7 @@ import xaero.hud.minimap.info.render.compile.InfoDisplayCompiler;
 
 final class KingdomsHighlighter extends ChunkHighlighter {
     KingdomsHighlighter() {
-        super(true);
+        super(false);
     }
 
     @Override

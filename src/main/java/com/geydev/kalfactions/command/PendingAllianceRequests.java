@@ -10,7 +10,7 @@ import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
 
 public final class PendingAllianceRequests {
-    private static final long REQUEST_LIFETIME_TICKS = 20L * 60L * 10L;
+    private static final long REQUEST_LIFETIME_TICKS = 20L * 60L * 30L;
     private static final Map<MinecraftServer, Map<RequestKey, Request>> REQUESTS = new HashMap<>();
 
     public static synchronized void put(

@@ -269,42 +269,25 @@ public final class TraderService {
         MinecraftServer server = player.serverLevel().getServer();
         SellerOfferRotation rotation = SellerOfferRotation.get(server);
         List<TraderPayloads.SellerInfo> sellers = new ArrayList<>();
-        for (ServerLevel level : server.getAllLevels()) {
-            for (Entity entity : level.getAllEntities()) {
-                if (!(entity instanceof SellerTraderEntity trader) || !trader.isAlive() || trader.isRemoved()) {
-                    continue;
-                }
-                SellerOfferRotation.Window window = rotation.current(server, trader.getUUID());
-                List<TraderPayloads.OfferInfo> offers = window.offers().stream()
-                        .map(offer -> new TraderPayloads.OfferInfo(
-                                offer.id(),
-                                sellUnitPrice(player, offer.price()),
-                                rotation.remainingLimit(server, trader.getUUID(), player.getUUID(), offer)
-                        ))
-                        .toList();
-                sellers.add(new TraderPayloads.SellerInfo(
-                        trader.getUUID(),
-                        sellerLabel(trader),
-                        offers,
-                        window.nextRefreshEpochMillis()
-                ));
+        for (SellerOfferRotation.ShopEntry entry : rotation.shopEntries(server)) {
+            if (sellers.size() >= TraderPayloads.MAX_SELLERS) {
+                break;
             }
-        }
-        sellers.sort(java.util.Comparator.comparing(TraderPayloads.SellerInfo::label));
-        if (sellers.size() > TraderPayloads.MAX_SELLERS) {
-            sellers = List.copyOf(sellers.subList(0, TraderPayloads.MAX_SELLERS));
+            List<TraderPayloads.OfferInfo> offers = entry.offers().stream()
+                    .map(offer -> new TraderPayloads.OfferInfo(
+                            offer.id(),
+                            sellUnitPrice(player, offer.price()),
+                            rotation.remainingLimit(server, entry.traderId(), player.getUUID(), offer)
+                    ))
+                    .toList();
+            sellers.add(new TraderPayloads.SellerInfo(
+                    entry.traderId(),
+                    entry.index(),
+                    offers,
+                    entry.nextRefreshEpochMillis()
+            ));
         }
         PacketDistributor.sendToPlayer(player, new TraderPayloads.S2CSellerCatalog(sellers));
-    }
-
-    private static String sellerLabel(SellerTraderEntity trader) {
-        return trader.level().dimension().location().getPath()
-                + " "
-                + trader.blockPosition().getX()
-                + " "
-                + trader.blockPosition().getY()
-                + " "
-                + trader.blockPosition().getZ();
     }
 
     private static boolean isAvailable(ServerPlayer player, Entity trader) {

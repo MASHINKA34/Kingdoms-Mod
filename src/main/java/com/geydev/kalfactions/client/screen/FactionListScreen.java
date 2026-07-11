@@ -44,9 +44,6 @@ public final class FactionListScreen extends Screen {
     private boolean loaded;
     private Tab tab = Tab.FACTIONS;
     private int scrollOffset;
-    private String noticeText = "";
-    private boolean noticeSuccess = true;
-    private long noticeShownAt;
 
     private int left;
     private int top;
@@ -54,15 +51,6 @@ public final class FactionListScreen extends Screen {
 
     public FactionListScreen() {
         super(Component.translatable("screen.kingdoms.factions_list"));
-    }
-
-    public void showNotice(Component message, boolean successful) {
-        if (message == null || message.getString().isBlank()) {
-            return;
-        }
-        noticeText = message.getString();
-        noticeSuccess = successful;
-        noticeShownAt = System.currentTimeMillis();
     }
 
     public void acceptData(FactionPayloads.S2CFactionList payload) {
@@ -186,11 +174,6 @@ public final class FactionListScreen extends Screen {
         if (rows.size() > VISIBLE_ROWS) {
             String pager = (scrollOffset + 1) + "–" + (scrollOffset + shown) + " / " + rows.size();
             graphics.drawString(font, pager, left + CONTENT_RIGHT - font.width(pager), top + 48, TEXT_MUTED, false);
-        }
-        if (!noticeText.isEmpty() && System.currentTimeMillis() - noticeShownAt < 3000L) {
-            String clipped = font.plainSubstrByWidth(noticeText, PANEL_WIDTH - 90);
-            int color = noticeSuccess ? 0xFF3F6B33 : 0xFF8C2B2B;
-            graphics.drawString(font, clipped, left + CONTENT_LEFT, top + PANEL_HEIGHT - 19, color, false);
         }
     }
 

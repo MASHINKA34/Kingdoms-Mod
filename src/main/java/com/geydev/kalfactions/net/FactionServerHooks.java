@@ -631,6 +631,20 @@ public final class FactionServerHooks {
         PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CFactionNotice(message, successful));
     }
 
+    public static void pushInviteBadge(ServerPlayer player) {
+        PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CInviteBadge(countPendingInvites(player)));
+    }
+
+    public static int countPendingInvites(ServerPlayer player) {
+        int count = PendingFactionInvites.allFor(player.getServer(), player.getUUID()).size();
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction ownFaction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (ownFaction != null && ownFaction.ownerId().equals(player.getUUID())) {
+            count += PendingAllianceRequests.allFor(player.getServer(), ownFaction.id()).size();
+        }
+        return count;
+    }
+
     public static void sendFactionList(ServerPlayer player) {
         if (!player.isAlive()) {
             return;
@@ -718,6 +732,7 @@ public final class FactionServerHooks {
                 player,
                 new FactionPayloads.S2CFactionList(factions, invites, allianceInvites)
         );
+        pushInviteBadge(player);
     }
 
     public static void respondInvite(ServerPlayer player, UUID factionId, boolean accept) {

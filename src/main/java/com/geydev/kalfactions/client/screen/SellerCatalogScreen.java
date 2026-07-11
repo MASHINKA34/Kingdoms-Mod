@@ -5,6 +5,7 @@ import com.geydev.kalfactions.outpost.trader.SellOffer;
 import com.geydev.kalfactions.outpost.trader.TraderPayloads;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -18,19 +19,22 @@ public final class SellerCatalogScreen extends Screen {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/gui/faction/panel.png");
     private static final int PANEL_WIDTH = 330;
     private static final int PANEL_HEIGHT = 220;
+    private static final int CONTENT_LEFT = 28;
+    private static final int CONTENT_RIGHT = 298;
     private static final int TEXT_DARK = 0xFF3F2A19;
     private static final int TEXT_MUTED = 0xFF5B452E;
     private static final int SELLER_ROWS = 5;
     private static final int SELLER_ROW_HEIGHT = 22;
-    private static final int OFFER_COLUMNS = 2;
-    private static final int OFFER_ROWS = 4;
-    private static final int OFFER_CELL_WIDTH = 78;
-    private static final int OFFER_CELL_HEIGHT = 26;
+    private static final int SELLER_LIST_TOP = 70;
+    private static final int OFFER_COLUMNS = 3;
+    private static final int OFFER_ROWS = 3;
+    private static final int OFFER_CELL_WIDTH = 90;
+    private static final int OFFER_CELL_HEIGHT = 30;
+    private static final int OFFER_GRID_TOP = 88;
 
     private List<TraderPayloads.SellerInfo> sellers;
-    private int selectedIndex;
+    private UUID openedSellerId;
     private int sellerScroll;
-    private int offerScroll;
     private int left;
     private int top;
 
@@ -52,18 +56,31 @@ public final class SellerCatalogScreen extends Screen {
 
     private void acceptCatalog(TraderPayloads.S2CSellerCatalog catalog) {
         sellers = catalog.sellers();
-        selectedIndex = Math.clamp(selectedIndex, 0, Math.max(0, sellers.size() - 1));
+        if (openedSeller() == null) {
+            openedSellerId = null;
+        }
         sellerScroll = Math.clamp(sellerScroll, 0, maxSellerScroll());
-        offerScroll = Math.clamp(offerScroll, 0, maxOfferScroll());
+        rebuildWidgets();
     }
 
     @Override
     protected void init() {
         left = (width - PANEL_WIDTH) / 2;
         top = (height - PANEL_HEIGHT) / 2;
-        selectedIndex = Math.clamp(selectedIndex, 0, Math.max(0, sellers.size() - 1));
         sellerScroll = Math.clamp(sellerScroll, 0, maxSellerScroll());
-        offerScroll = Math.clamp(offerScroll, 0, maxOfferScroll());
+        if (openedSellerId != null) {
+            addRenderableWidget(KingdomsButton.create(
+                    Component.translatable("screen.kingdoms.back"),
+                    button -> {
+                        openedSellerId = null;
+                        rebuildWidgets();
+                    },
+                    left + CONTENT_LEFT,
+                    top + PANEL_HEIGHT - 25,
+                    66,
+                    20
+            ));
+        }
         addRenderableWidget(KingdomsButton.create(
                 Component.translatable("gui.done"),
                 button -> onClose(),
@@ -83,93 +100,96 @@ public final class SellerCatalogScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawString(font, title, left + (PANEL_WIDTH - font.width(title)) / 2, top + 42, TEXT_DARK, false);
-        if (sellers.isEmpty()) {
-            Component empty = Component.translatable("screen.kingdoms.seller_catalog.empty");
-            graphics.drawString(font, empty, left + (PANEL_WIDTH - font.width(empty)) / 2, top + 98, TEXT_MUTED, false);
-            return;
+        graphics.drawString(font, title, left + (PANEL_WIDTH - font.width(title)) / 2, top + 48, TEXT_DARK, false);
+        TraderPayloads.SellerInfo opened = openedSeller();
+        if (opened != null) {
+            renderOffersView(graphics, opened, mouseX, mouseY);
+        } else {
+            renderSellerList(graphics, mouseX, mouseY);
         }
-
-        graphics.drawString(font, Component.translatable("screen.kingdoms.seller_catalog.sellers"),
-                left + 24, top + 61, TEXT_MUTED, false);
-        graphics.drawString(font, Component.translatable("screen.kingdoms.seller_catalog.offers"),
-                left + 146, top + 61, TEXT_MUTED, false);
-        renderSellers(graphics, mouseX, mouseY);
-        renderOffers(graphics, mouseX, mouseY);
     }
 
-    private void renderSellers(GuiGraphics graphics, int mouseX, int mouseY) {
+    private void renderSellerList(GuiGraphics graphics, int mouseX, int mouseY) {
+        if (sellers.isEmpty()) {
+            Component empty = Component.translatable("screen.kingdoms.seller_catalog.empty");
+            graphics.drawString(font, empty, left + (PANEL_WIDTH - font.width(empty)) / 2, top + 110, TEXT_MUTED, false);
+            return;
+        }
         int shown = Math.min(SELLER_ROWS, sellers.size() - sellerScroll);
         for (int i = 0; i < shown; i++) {
-            int index = sellerScroll + i;
-            int x = left + 24;
-            int y = top + 75 + i * SELLER_ROW_HEIGHT;
-            boolean selected = index == selectedIndex;
-            boolean hovered = mouseX >= x && mouseX < x + 108 && mouseY >= y && mouseY < y + 18;
-            graphics.fill(x, y, x + 108, y + 18, selected ? 0x88D1A43D : hovered ? 0x55C9A24C : 0x24A8783D);
-            if (selected) {
-                graphics.renderOutline(x, y, 108, 18, 0xFFD8B25A);
-            }
-            String label = font.plainSubstrByWidth(sellers.get(index).label(), 100);
-            graphics.drawString(font, label, x + 4, y + 5, selected ? TEXT_DARK : TEXT_MUTED, false);
+            TraderPayloads.SellerInfo seller = sellers.get(sellerScroll + i);
+            int x = left + CONTENT_LEFT;
+            int y = top + SELLER_LIST_TOP + i * SELLER_ROW_HEIGHT;
+            int right = left + CONTENT_RIGHT;
+            boolean hovered = mouseX >= x && mouseX < right && mouseY >= y && mouseY < y + SELLER_ROW_HEIGHT - 2;
+            graphics.fill(x, y, right, y + SELLER_ROW_HEIGHT - 2, hovered ? 0x55C9A24C : 0x24A8783D);
+            graphics.drawString(font, sellerName(seller), x + 6, y + 6, TEXT_DARK, false);
+            Component count = Component.translatable("screen.kingdoms.seller_catalog.offers_count", seller.offers().size());
+            graphics.drawString(font, count, right - 6 - font.width(count), y + 6, TEXT_MUTED, false);
         }
         if (sellers.size() > SELLER_ROWS) {
             String pager = (sellerScroll + 1) + "-" + (sellerScroll + shown) + " / " + sellers.size();
-            graphics.drawString(font, pager, left + 24, top + 188, TEXT_MUTED, false);
+            graphics.drawString(font, pager, left + CONTENT_RIGHT - font.width(pager), top + 62, TEXT_MUTED, false);
         }
     }
 
-    private void renderOffers(GuiGraphics graphics, int mouseX, int mouseY) {
-        TraderPayloads.SellerInfo seller = selectedSeller();
-        if (seller == null) {
-            return;
-        }
+    private void renderOffersView(GuiGraphics graphics, TraderPayloads.SellerInfo seller, int mouseX, int mouseY) {
+        graphics.drawString(font, sellerName(seller), left + CONTENT_LEFT, top + 62, TEXT_DARK, false);
         Component timer = Component.translatable(
                 "screen.kingdoms.seller.refresh_timer",
                 formatDuration(remainingRefreshSeconds(seller.nextRefreshEpochMillis()))
         );
-        graphics.drawString(font, timer, left + 146, top + 75, TEXT_MUTED, false);
+        graphics.drawString(font, timer, left + CONTENT_RIGHT - font.width(timer), top + 62, TEXT_MUTED, false);
+
         List<TraderPayloads.OfferInfo> offers = seller.offers();
-        int shown = Math.min(OFFER_COLUMNS * OFFER_ROWS, offers.size() - offerScroll);
+        if (offers.isEmpty()) {
+            Component empty = Component.translatable("screen.kingdoms.seller_catalog.empty_offers");
+            graphics.drawString(font, empty, left + (PANEL_WIDTH - font.width(empty)) / 2, top + 110, TEXT_MUTED, false);
+            return;
+        }
+        int shown = Math.min(OFFER_COLUMNS * OFFER_ROWS, offers.size());
         ItemStack hovered = null;
         for (int i = 0; i < shown; i++) {
-            int index = offerScroll + i;
             int col = i % OFFER_COLUMNS;
             int row = i / OFFER_COLUMNS;
-            int x = left + 146 + col * OFFER_CELL_WIDTH;
-            int y = top + 91 + row * OFFER_CELL_HEIGHT;
-            TraderPayloads.OfferInfo offer = offers.get(index);
+            int x = left + CONTENT_LEFT + col * OFFER_CELL_WIDTH;
+            int y = top + OFFER_GRID_TOP + row * OFFER_CELL_HEIGHT;
+            TraderPayloads.OfferInfo offer = offers.get(i);
             ItemStack stack = SellOffer.byId(offer.id())
                     .map(found -> new ItemStack(found.item()))
                     .orElse(new ItemStack(Items.AIR));
             boolean active = offer.remainingLimit() > 0;
             boolean mouseOver = mouseX >= x && mouseX < x + OFFER_CELL_WIDTH - 4
-                    && mouseY >= y && mouseY < y + OFFER_CELL_HEIGHT - 2;
-            graphics.fill(x, y, x + OFFER_CELL_WIDTH - 4, y + OFFER_CELL_HEIGHT - 2,
+                    && mouseY >= y && mouseY < y + OFFER_CELL_HEIGHT - 4;
+            graphics.fill(x, y, x + OFFER_CELL_WIDTH - 4, y + OFFER_CELL_HEIGHT - 4,
                     mouseOver ? 0x55C9A24C : 0x24A8783D);
-            graphics.renderItem(stack, x + 3, y + 5);
-            graphics.drawString(font, TraderShopScreen.formatPrice(offer.price()), x + 23, y + 3,
+            graphics.renderItem(stack, x + 4, y + 5);
+            graphics.drawString(font, TraderShopScreen.formatPrice(offer.price()), x + 25, y + 4,
                     active ? TEXT_DARK : 0xFF8A7A66, false);
-            graphics.drawString(font, Component.translatable("screen.kingdoms.seller_catalog.limit", offer.remainingLimit()),
-                    x + 23, y + 14, active ? TEXT_MUTED : 0xFF8A5A45, false);
+            graphics.drawString(font,
+                    Component.translatable("screen.kingdoms.seller_catalog.limit", offer.remainingLimit()),
+                    x + 25, y + 15, active ? TEXT_MUTED : 0xFF8A5A45, false);
             if (mouseOver) {
                 hovered = stack;
             }
-        }
-        if (offers.size() > OFFER_COLUMNS * OFFER_ROWS) {
-            String pager = (offerScroll + 1) + "-" + (offerScroll + shown) + " / " + offers.size();
-            graphics.drawString(font, pager, left + 146, top + 188, TEXT_MUTED, false);
         }
         if (hovered != null) {
             graphics.renderTooltip(font, hovered, mouseX, mouseY);
         }
     }
 
-    private TraderPayloads.SellerInfo selectedSeller() {
-        if (selectedIndex < 0 || selectedIndex >= sellers.size()) {
+    private Component sellerName(TraderPayloads.SellerInfo seller) {
+        return Component.translatable("screen.kingdoms.seller_catalog.seller", seller.index());
+    }
+
+    private TraderPayloads.SellerInfo openedSeller() {
+        if (openedSellerId == null) {
             return null;
         }
-        return sellers.get(selectedIndex);
+        return sellers.stream()
+                .filter(seller -> seller.sellerId().equals(openedSellerId))
+                .findFirst()
+                .orElse(null);
     }
 
     private long remainingRefreshSeconds(long nextRefreshEpochMillis) {
@@ -188,14 +208,15 @@ public final class SellerCatalogScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && !sellers.isEmpty()) {
+        if (button == 0 && openedSellerId == null && !sellers.isEmpty()) {
             int shown = Math.min(SELLER_ROWS, sellers.size() - sellerScroll);
             for (int i = 0; i < shown; i++) {
-                int x = left + 24;
-                int y = top + 75 + i * SELLER_ROW_HEIGHT;
-                if (mouseX >= x && mouseX < x + 108 && mouseY >= y && mouseY < y + 18) {
-                    selectedIndex = sellerScroll + i;
-                    offerScroll = 0;
+                int x = left + CONTENT_LEFT;
+                int y = top + SELLER_LIST_TOP + i * SELLER_ROW_HEIGHT;
+                if (mouseX >= x && mouseX < left + CONTENT_RIGHT
+                        && mouseY >= y && mouseY < y + SELLER_ROW_HEIGHT - 2) {
+                    openedSellerId = sellers.get(sellerScroll + i).sellerId();
+                    rebuildWidgets();
                     return true;
                 }
             }
@@ -205,32 +226,28 @@ public final class SellerCatalogScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (sellers.isEmpty()) {
-            return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
-        }
-        if (mouseX < left + 140) {
+        if (openedSellerId == null && !sellers.isEmpty()) {
             int updated = Math.clamp(sellerScroll - (int) Math.signum(scrollY), 0, maxSellerScroll());
             if (updated != sellerScroll) {
                 sellerScroll = updated;
-                return true;
-            }
-        } else {
-            int updated = Math.clamp(offerScroll - (int) Math.signum(scrollY), 0, maxOfferScroll());
-            if (updated != offerScroll) {
-                offerScroll = updated;
                 return true;
             }
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
-    private int maxSellerScroll() {
-        return Math.max(0, sellers.size() - SELLER_ROWS);
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE && openedSellerId != null) {
+            openedSellerId = null;
+            rebuildWidgets();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
-    private int maxOfferScroll() {
-        TraderPayloads.SellerInfo seller = selectedSeller();
-        return seller == null ? 0 : Math.max(0, seller.offers().size() - OFFER_COLUMNS * OFFER_ROWS);
+    private int maxSellerScroll() {
+        return Math.max(0, sellers.size() - SELLER_ROWS);
     }
 
     @Override

@@ -8,7 +8,7 @@ import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
 
 public final class PendingFactionInvites {
-    private static final long INVITE_LIFETIME_TICKS = 20L * 60L * 5L;
+    private static final long INVITE_LIFETIME_TICKS = 20L * 60L * 30L;
     private static final Map<MinecraftServer, Map<InviteKey, Invite>> INVITES = new HashMap<>();
 
     public static synchronized void put(

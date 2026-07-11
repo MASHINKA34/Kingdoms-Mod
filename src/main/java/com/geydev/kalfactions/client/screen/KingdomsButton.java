@@ -8,7 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
-public final class KingdomsButton extends Button {
+public class KingdomsButton extends Button {
     private static final ResourceLocation TEXTURE =
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/gui/faction/button.png");
     private static final int TEXTURE_WIDTH = 200;
@@ -16,7 +16,7 @@ public final class KingdomsButton extends Button {
     private static final int STATE_HEIGHT = 20;
     private static final int BORDER = 4;
 
-    private KingdomsButton(int x, int y, int width, int height, Component message, OnPress onPress) {
+    protected KingdomsButton(int x, int y, int width, int height, Component message, OnPress onPress) {
         super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
     }
 

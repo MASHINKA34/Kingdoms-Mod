@@ -941,6 +941,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
         }
 
         PendingFactionInvites.put(player.getServer(), faction.id(), player.getUUID(), target.getUUID());
+        FactionServerHooks.pushInviteBadge(target);
         FactionServerHooks.sendNotice(
                 target,
                 Component.translatable(
@@ -1062,6 +1063,10 @@ final class FactionManagerService implements FactionServerHooks.Service {
         }
 
         PendingAllianceRequests.put(player.getServer(), faction.id(), player.getUUID(), target.id());
+        ServerPlayer targetLeader = player.getServer().getPlayerList().getPlayer(target.ownerId());
+        if (targetLeader != null) {
+            FactionServerHooks.pushInviteBadge(targetLeader);
+        }
         FactionServerHooks.sendNoticeToFaction(
                 player,
                 faction,

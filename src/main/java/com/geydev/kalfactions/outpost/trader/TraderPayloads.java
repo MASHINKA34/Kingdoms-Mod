@@ -18,7 +18,6 @@ public final class TraderPayloads {
     public static final int MAX_SELLERS = 32;
     public static final int MAX_OFFER_ID_LENGTH = 32;
     public static final int MAX_TITLE_KEY_LENGTH = 128;
-    public static final int MAX_SELLER_LABEL_LENGTH = 80;
 
     public record C2SBuy(UUID traderId, String offerId) implements CustomPacketPayload {
         public static final Type<C2SBuy> TYPE = payloadType("trader_buy");
@@ -179,13 +178,13 @@ public final class TraderPayloads {
 
     public record SellerInfo(
             UUID sellerId,
-            String label,
+            int index,
             List<OfferInfo> offers,
             long nextRefreshEpochMillis
     ) {
         private static void encode(RegistryFriendlyByteBuf buffer, SellerInfo seller) {
             buffer.writeUUID(seller.sellerId);
-            buffer.writeUtf(seller.label, MAX_SELLER_LABEL_LENGTH);
+            buffer.writeVarInt(seller.index);
             int size = Math.min(seller.offers.size(), MAX_SELL_OFFERS);
             buffer.writeVarInt(size);
             for (int i = 0; i < size; i++) {
@@ -196,7 +195,7 @@ public final class TraderPayloads {
 
         private static SellerInfo decode(RegistryFriendlyByteBuf buffer) {
             UUID sellerId = buffer.readUUID();
-            String label = buffer.readUtf(MAX_SELLER_LABEL_LENGTH);
+            int index = buffer.readVarInt();
             int size = buffer.readVarInt();
             if (size < 0 || size > MAX_SELL_OFFERS) {
                 throw new DecoderException("Seller catalog offer count " + size + " exceeds " + MAX_SELL_OFFERS);
@@ -205,11 +204,11 @@ public final class TraderPayloads {
             for (int i = 0; i < size; i++) {
                 offers.add(OfferInfo.decode(buffer));
             }
-            return new SellerInfo(sellerId, label, List.copyOf(offers), buffer.readLong());
+            return new SellerInfo(sellerId, index, List.copyOf(offers), buffer.readLong());
         }
 
         public SellerInfo {
-            label = label == null ? "" : label;
+            index = Math.max(1, index);
             offers = List.copyOf(offers);
         }
     }
