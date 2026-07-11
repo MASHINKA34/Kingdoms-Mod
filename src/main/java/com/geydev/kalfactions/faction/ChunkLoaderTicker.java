@@ -4,12 +4,18 @@ import com.geydev.kalfactions.KalFactions;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class ChunkLoaderTicker {
     private static final int INTERVAL_TICKS = 200;
     private static int ticks;
+
+    @SubscribeEvent
+    public static void onServerStarted(ServerStartedEvent event) {
+        FactionManager.get(event.getServer()).reconcileForceLoads(event.getServer());
+    }
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {

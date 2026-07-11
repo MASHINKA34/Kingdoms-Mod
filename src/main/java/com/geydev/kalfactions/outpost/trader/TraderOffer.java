@@ -46,19 +46,31 @@ public enum TraderOffer {
     BANK_TERMINAL(
             "bank_terminal",
             () -> numismaticsItem("bank_terminal"),
-            () -> 500L,
+            () -> 300L,
             Shop.BANKER
     ),
     VENDOR(
             "vendor",
             () -> numismaticsItem("vendor"),
-            () -> 450L,
+            () -> 250L,
             Shop.BANKER
     ),
     WHITE_CARD(
             "white_card",
             () -> numismaticsItem("white_card"),
             () -> 100L,
+            Shop.BANKER
+    ),
+    RED_ID_CARD(
+            "red_id_card",
+            () -> numismaticsItem("red_id_card"),
+            () -> 200L,
+            Shop.BANKER
+    ),
+    BANKING_GUIDE(
+            "banking_guide",
+            () -> numismaticsItem("banking_guide"),
+            () -> 150L,
             Shop.BANKER
     );
 

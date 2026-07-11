@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.faction;
 
+import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.chest.ChestAccess;
 import com.geydev.kalfactions.chest.ChestAccessMode;
 import com.geydev.kalfactions.chest.ChestLinks;
@@ -34,6 +35,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.neoforged.neoforge.common.world.chunk.RegisterTicketControllersEvent;
+import net.neoforged.neoforge.common.world.chunk.TicketController;
+import net.neoforged.neoforge.common.world.chunk.TicketHelper;
 import org.slf4j.Logger;
 
 public final class FactionManager extends SavedData {
@@ -52,6 +56,11 @@ public final class FactionManager extends SavedData {
     private static final String TAG_FACTIONS = "factions";
     private static final String TAG_CHESTS = "chests";
     private static final String TAG_LAST_INFLUENCE_DECAY = "lastInfluenceDecay";
+    private static final String TAG_CHUNK_TICKETS_MIGRATED = "chunkTicketsMigrated";
+    private static final TicketController CHUNK_TICKETS = new TicketController(
+        ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "faction_chunks"),
+        FactionManager::validateChunkTickets
+    );
 
     private final Map<UUID, Faction> factions = new LinkedHashMap<>();
     private final Map<String, UUID> nameIndex = new HashMap<>();
@@ -59,7 +68,12 @@ public final class FactionManager extends SavedData {
     private final Map<ClaimKey, UUID> claimIndex = new HashMap<>();
     private final Map<ChestAccess.Key, ChestAccess> chestAccess = new LinkedHashMap<>();
     private long lastInfluenceDecayMillis = -1L;
-    private final transient Set<ClaimKey> appliedForceLoads = new HashSet<>();
+    private boolean chunkTicketsMigrated;
+    private final transient Map<ClaimKey, UUID> appliedForceLoads = new HashMap<>();
+
+    public static void registerChunkTicketController(RegisterTicketControllersEvent event) {
+        event.register(CHUNK_TICKETS);
+    }
 
     public static FactionManager get(MinecraftServer server) {
         Objects.requireNonNull(server, "server");
@@ -68,6 +82,22 @@ public final class FactionManager extends SavedData {
 
     public static FactionManager get(ServerLevel level) {
         return get(Objects.requireNonNull(level, "level").getServer());
+    }
+
+    private static void validateChunkTickets(ServerLevel level, TicketHelper helper) {
+        FactionManager manager = get(level);
+        helper.getEntityTickets().forEach((factionId, tickets) -> {
+            for (long packedChunk : tickets.nonTicking()) {
+                helper.removeTicket(factionId, packedChunk, false);
+            }
+            Faction faction = manager.getFactionById(factionId).orElse(null);
+            for (long packedChunk : tickets.ticking()) {
+                ClaimKey key = new ClaimKey(level.dimension(), new ChunkPos(packedChunk));
+                if (faction == null || !faction.isForceLoaded(key)) {
+                    helper.removeTicket(factionId, packedChunk, true);
+                }
+            }
+        });
     }
 
     public synchronized Collection<Faction> factions() {
@@ -776,7 +806,7 @@ public final class FactionManager extends SavedData {
         }
         if (faction.isForceLoaded(key)) {
             faction.removeForceLoaded(key);
-            level.setChunkForced(key.chunk().x, key.chunk().z, false);
+            CHUNK_TICKETS.forceChunk(level, faction.id(), key.x(), key.z(), false, true);
             appliedForceLoads.remove(key);
             setDirty();
             return ForceLoadResult.DISABLED;
@@ -785,8 +815,8 @@ public final class FactionManager extends SavedData {
             return ForceLoadResult.LIMIT_REACHED;
         }
         faction.addForceLoaded(key);
-        level.setChunkForced(key.chunk().x, key.chunk().z, true);
-        appliedForceLoads.add(key);
+        CHUNK_TICKETS.forceChunk(level, faction.id(), key.x(), key.z(), true, true);
+        appliedForceLoads.put(key, faction.id());
         setDirty();
         return ForceLoadResult.ENABLED;
     }
@@ -807,31 +837,45 @@ public final class FactionManager extends SavedData {
     }
 
     public synchronized void reconcileForceLoads(MinecraftServer server) {
-        Set<ClaimKey> desired = new HashSet<>();
+        Map<ClaimKey, UUID> desired = new HashMap<>();
         for (Faction faction : factions.values()) {
             for (ClaimKey key : faction.forceLoadedChunks()) {
                 if (faction.hasClaim(key) || faction.isOutpostChunk(key)) {
-                    desired.add(key);
+                    desired.put(key, faction.id());
                 } else if (faction.removeForceLoaded(key)) {
                     setDirty();
                 }
             }
         }
-        for (ClaimKey key : new ArrayList<>(appliedForceLoads)) {
-            if (!desired.contains(key)) {
+        if (!chunkTicketsMigrated) {
+            for (ClaimKey key : desired.keySet()) {
                 ServerLevel level = server.getLevel(key.dimension());
                 if (level != null) {
-                    level.setChunkForced(key.chunk().x, key.chunk().z, false);
+                    level.setChunkForced(key.x(), key.z(), false);
+                }
+            }
+            chunkTicketsMigrated = true;
+            setDirty();
+        }
+        for (Map.Entry<ClaimKey, UUID> applied : new ArrayList<>(appliedForceLoads.entrySet())) {
+            ClaimKey key = applied.getKey();
+            UUID factionId = applied.getValue();
+            if (!factionId.equals(desired.get(key))) {
+                ServerLevel level = server.getLevel(key.dimension());
+                if (level != null) {
+                    CHUNK_TICKETS.forceChunk(level, factionId, key.x(), key.z(), false, true);
                 }
                 appliedForceLoads.remove(key);
             }
         }
-        for (ClaimKey key : desired) {
-            if (!appliedForceLoads.contains(key)) {
+        for (Map.Entry<ClaimKey, UUID> requested : desired.entrySet()) {
+            ClaimKey key = requested.getKey();
+            UUID factionId = requested.getValue();
+            if (!factionId.equals(appliedForceLoads.get(key))) {
                 ServerLevel level = server.getLevel(key.dimension());
                 if (level != null) {
-                    level.setChunkForced(key.chunk().x, key.chunk().z, true);
-                    appliedForceLoads.add(key);
+                    CHUNK_TICKETS.forceChunk(level, factionId, key.x(), key.z(), true, true);
+                    appliedForceLoads.put(key, factionId);
                 }
             }
         }
@@ -1077,6 +1121,7 @@ public final class FactionManager extends SavedData {
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putInt(TAG_VERSION, DATA_VERSION);
         tag.putLong(TAG_LAST_INFLUENCE_DECAY, lastInfluenceDecayMillis);
+        tag.putBoolean(TAG_CHUNK_TICKETS_MIGRATED, chunkTicketsMigrated);
 
         ListTag factionsTag = new ListTag();
         factions.values().stream()
@@ -1099,6 +1144,7 @@ public final class FactionManager extends SavedData {
         manager.lastInfluenceDecayMillis = tag.contains(TAG_LAST_INFLUENCE_DECAY)
             ? tag.getLong(TAG_LAST_INFLUENCE_DECAY)
             : -1L;
+        manager.chunkTicketsMigrated = tag.getBoolean(TAG_CHUNK_TICKETS_MIGRATED);
         boolean repaired = tag.getInt(TAG_VERSION) != DATA_VERSION;
 
         ListTag factionsTag = tag.getList(TAG_FACTIONS, Tag.TAG_COMPOUND);
