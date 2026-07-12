@@ -13,6 +13,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
@@ -112,17 +113,29 @@ public final class DimensionControlManager {
         return 0L;
     }
 
+    public synchronized long generationSeed(ResourceKey<Level> dimension, long defaultSeed) {
+        if (Level.NETHER.equals(dimension)) {
+            return state.netherSeed == null ? defaultSeed : state.netherSeed;
+        }
+        if (Level.END.equals(dimension)) {
+            return state.endSeed == null ? defaultSeed : state.endSeed;
+        }
+        return defaultSeed;
+    }
+
     public synchronized void runPendingWipes(MinecraftServer server) {
         boolean changed = false;
         if (state.netherWipePending && wipeFolder(server, Level.NETHER)) {
             state.netherWipePending = false;
             state.netherWipeGen++;
+            state.netherSeed = nextSeed(generationSeed(Level.NETHER, server.getWorldData().worldGenOptions().seed()));
             wipedThisStartup.add(Level.NETHER);
             changed = true;
         }
         if (state.endWipePending && wipeFolder(server, Level.END)) {
             state.endWipePending = false;
             state.endWipeGen++;
+            state.endSeed = nextSeed(generationSeed(Level.END, server.getWorldData().worldGenOptions().seed()));
             server.getWorldData().setEndDragonFightData(EndDragonFight.Data.DEFAULT);
             wipedThisStartup.add(Level.END);
             changed = true;
@@ -130,6 +143,14 @@ public final class DimensionControlManager {
         if (changed) {
             save();
         }
+    }
+
+    private static long nextSeed(long currentSeed) {
+        long seed;
+        do {
+            seed = ThreadLocalRandom.current().nextLong();
+        } while (seed == currentSeed);
+        return seed;
     }
 
     public synchronized Set<ResourceKey<Level>> consumeWipedThisStartup() {
@@ -206,5 +227,7 @@ public final class DimensionControlManager {
         private boolean endWipePending;
         private long netherWipeGen;
         private long endWipeGen;
+        private Long netherSeed;
+        private Long endSeed;
     }
 }

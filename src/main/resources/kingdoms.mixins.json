@@ -9,7 +9,8 @@
     "MerchantResultSlotMixin",
     "EnchantmentMenuMixin",
     "ExplosionMixin",
-    "FlowingFluidMixin"
+    "FlowingFluidMixin",
+    "ServerLevelMixin"
   ],
   "client": [
     "XaeroCommonMinimapRadarListMixin",
