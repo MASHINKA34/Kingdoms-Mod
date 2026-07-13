@@ -22,6 +22,14 @@ final class ClaimHighlightColors {
             result[3] = green;
             result[4] = green;
         }
+        if (self.frozen()) {
+            int red = pack(0xFF4545, 0xE0);
+            result[0] = pack(0xB03030, 0x60);
+            result[1] = red;
+            result[2] = red;
+            result[3] = red;
+            result[4] = red;
+        }
     }
 
     private static int side(ResourceKey<Level> dimension, int chunkX, int chunkZ, ClaimInfo self) {

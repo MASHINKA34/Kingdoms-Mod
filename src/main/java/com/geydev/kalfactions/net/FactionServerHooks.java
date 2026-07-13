@@ -373,6 +373,10 @@ public final class FactionServerHooks {
             return;
         }
         perform(player, tablePos, () -> service.deposit(player, tablePos, amount));
+        FactionManager.get(player.serverLevel())
+                .getFactionIdForMember(player.getUUID())
+                .ifPresent(factionId ->
+                        com.geydev.kalfactions.tax.LagTaxService.tryCollectUnpaid(player.getServer(), factionId));
     }
 
     public static void withdraw(ServerPlayer player, BlockPos tablePos, long amount) {
@@ -607,24 +611,12 @@ public final class FactionServerHooks {
         }
         ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, dimensionId);
         ChunkPos chunk = new ChunkPos(packedChunk);
-        FactionManager.ForceLoadResult result = manager.toggleForceLoad(
-                player.getServer(),
-                faction.id(),
-                new com.geydev.kalfactions.claim.ClaimKey(dimension, chunk)
-        );
-        switch (result) {
-            case ENABLED -> sendNotice(player, Component.translatable("kingdoms.command.faction.forceload.enabled"), true);
-            case DISABLED -> sendNotice(player, Component.translatable("kingdoms.command.faction.forceload.disabled"), true);
-            case LIMIT_REACHED -> sendNotice(
-                    player,
-                    Component.translatable("kingdoms.command.faction.forceload.limit", manager.forceLoadLimit(faction.id())),
-                    false
-            );
-            case NOT_OWN_CLAIM -> sendNotice(player, Component.translatable("kingdoms.command.faction.forceload.not_own"), false);
-            default -> sendNotice(player, Component.translatable("kingdoms.error.faction_action_failed"), false);
+        com.geydev.kalfactions.claim.ClaimKey key = new com.geydev.kalfactions.claim.ClaimKey(dimension, chunk);
+        if (faction.isForceLoaded(key)) {
+            com.geydev.kalfactions.tax.LagTaxService.disableChunkLoadFromMap(player, dimensionId, packedChunk);
+        } else {
+            sendNotice(player, Component.translatable("kingdoms.lagtax.load.buy_hint"), false);
         }
-        IntegrationManager.refreshFromServer(player.getServer());
-        ClaimSyncManager.resync(player);
     }
 
     public static void sendNotice(ServerPlayer player, Component message, boolean successful) {

@@ -3,8 +3,10 @@ package com.geydev.kalfactions.registry;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.chest.AccessTool;
 import com.geydev.kalfactions.faction.InfluenceType;
+import com.geydev.kalfactions.item.AdminAnalyzerItem;
 import com.geydev.kalfactions.item.BankerSpawnEggItem;
 import com.geydev.kalfactions.item.DimensionKeyItem;
+import com.geydev.kalfactions.item.FactionMeterItem;
 import com.geydev.kalfactions.item.PlotWandItem;
 import com.geydev.kalfactions.item.SellerCatalogItem;
 import com.geydev.kalfactions.item.SellerSpawnEggItem;
@@ -81,6 +83,16 @@ public final class ModItems {
     public static final DeferredItem<PlotWandItem> PLOT_WAND = ITEMS.register(
             "plot_wand",
             () -> new PlotWandItem(new Item.Properties().stacksTo(1))
+    );
+
+    public static final DeferredItem<AdminAnalyzerItem> ADMIN_ANALYZER = ITEMS.register(
+            "admin_analyzer",
+            () -> new AdminAnalyzerItem(new Item.Properties().stacksTo(1))
+    );
+
+    public static final DeferredItem<FactionMeterItem> FACTION_METER = ITEMS.register(
+            "faction_meter",
+            () -> new FactionMeterItem(new Item.Properties().stacksTo(1))
     );
 
     public static final DeferredItem<Item> CRYSTAL_SCIENCE = ITEMS.register(

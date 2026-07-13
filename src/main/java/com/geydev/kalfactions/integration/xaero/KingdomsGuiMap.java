@@ -159,13 +159,18 @@ final class KingdomsGuiMap extends GuiMap {
                 ChunkPos chunk = new ChunkPos(packed);
                 ClaimInfo claim = ClientClaimStore.get(clickedDimension, chunk.x, chunk.z);
                 if (claim != null && claim.factionId().equals(viewer.factionId())) {
-                    options.add(forceLoadOption(
-                            options.size(),
-                            clickedDimension,
-                            packed,
-                            claim.forceLoaded(),
-                            sameDimension
-                    ));
+                    boolean loaded = claim.forceLoaded();
+                    options.add(chunkLoadOption(options.size(), clickedDimension, packed, 12, loaded, sameDimension));
+                    options.add(chunkLoadOption(options.size(), clickedDimension, packed, 24, loaded, sameDimension));
+                    if (loaded) {
+                        options.add(forceLoadOption(
+                                options.size(),
+                                clickedDimension,
+                                packed,
+                                true,
+                                sameDimension
+                        ));
+                    }
                 }
             }
         } catch (ReflectiveOperationException | RuntimeException exception) {
@@ -237,6 +242,39 @@ final class KingdomsGuiMap extends GuiMap {
         };
         option.setActive(usable);
         return option;
+    }
+
+    private RightClickOption chunkLoadOption(
+            int index,
+            ResourceKey<Level> dimension,
+            long packedChunk,
+            int hours,
+            boolean loaded,
+            boolean usable
+    ) {
+        String key = loaded ? "kingdoms.xaero_map.chunkload.extend" : "kingdoms.xaero_map.chunkload.buy";
+        RightClickOption option = new RightClickOption(key, index, this) {
+            @Override
+            public void onAction(Screen screen) {
+                PacketDistributor.sendToServer(new com.geydev.kalfactions.tax.LagTaxPayloads.C2SBuyChunkLoad(
+                        dimension.location(),
+                        packedChunk,
+                        hours
+                ));
+            }
+        };
+        long price = estimateChunkLoadPrice(hours);
+        option.setNameFormatArgs(hours, price < 0L ? "?" : NumismaticsEconomy.format(price).getString());
+        option.setActive(usable);
+        return option;
+    }
+
+    private static long estimateChunkLoadPrice(int hours) {
+        try {
+            return PriceMath.saturatedMultiply(ModConfigSpec.CHUNK_LOAD_PRICE_PER_HOUR.get(), hours);
+        } catch (IllegalStateException | IllegalArgumentException exception) {
+            return -1L;
+        }
     }
 
     private RightClickOption option(String key, int index, List<Long> chunks, boolean claimed) {

@@ -94,9 +94,12 @@ public final class ClaimSyncManager {
         ResourceKey<Level> dimension = player.level().dimension();
         long revision = IntegrationManager.revision();
         List<FactionPayloads.ClaimEntry> entries = new ArrayList<>();
+        java.util.Set<UUID> frozenFactions =
+                com.geydev.kalfactions.tax.LagTaxManager.get(player.getServer()).frozenFactionIds();
 
         outer:
         for (FactionMapData faction : IntegrationManager.snapshots()) {
+            boolean frozen = frozenFactions.contains(faction.factionId());
             for (ClaimKey claim : faction.claims()) {
                 if (!claim.dimension().equals(dimension)) {
                     continue;
@@ -109,7 +112,8 @@ public final class ClaimSyncManager {
                         faction.factionId(),
                         faction.isOutpost(claim),
                         faction.isForceLoaded(claim),
-                        false
+                        false,
+                        frozen
                 ));
                 if (entries.size() >= FactionPayloads.S2CSyncClaims.MAX_ENTRIES) {
                     break outer;
@@ -134,6 +138,7 @@ public final class ClaimSyncManager {
                         RogueOutpostManager.ROGUE_FACTION_ID,
                         false,
                         false,
+                        false,
                         false
                 ));
             }
@@ -153,7 +158,8 @@ public final class ClaimSyncManager {
                     SanctuaryManager.SANCTUARY_FACTION_ID,
                     false,
                     false,
-                    true
+                    true,
+                    false
             ));
         }
 

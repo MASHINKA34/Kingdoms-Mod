@@ -66,6 +66,9 @@ final class KingdomsWorldMapHighlighter extends ChunkHighlighter {
             if (claim.forceLoaded()) {
                 lines.add(Component.translatable("kingdoms.xaero.forceload_label"));
             }
+            if (claim.frozen()) {
+                lines.add(Component.translatable("kingdoms.xaero.frozen_label"));
+            }
         }
     }
 }

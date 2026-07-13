@@ -47,6 +47,9 @@ final class KingdomsHighlighter extends ChunkHighlighter {
             if (claim.forceLoaded()) {
                 compiler.addLine(Component.translatable("kingdoms.xaero.forceload_label"));
             }
+            if (claim.frozen()) {
+                compiler.addLine(Component.translatable("kingdoms.xaero.frozen_label"));
+            }
         }
     }
 

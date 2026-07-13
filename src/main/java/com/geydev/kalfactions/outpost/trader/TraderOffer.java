@@ -43,6 +43,12 @@ public enum TraderOffer {
             () -> 200L,
             Shop.KINGDOMS
     ),
+    FACTION_METER(
+            "faction_meter",
+            ModItems.FACTION_METER,
+            ModConfigSpec.FACTION_METER_COST::get,
+            Shop.KINGDOMS
+    ),
     BANK_TERMINAL(
             "bank_terminal",
             () -> numismaticsItem("bank_terminal"),

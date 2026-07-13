@@ -70,6 +70,7 @@ public final class FactionManager extends SavedData {
     private long lastInfluenceDecayMillis = -1L;
     private boolean chunkTicketsMigrated;
     private final transient Map<ClaimKey, UUID> appliedForceLoads = new HashMap<>();
+    private final transient Set<UUID> forceLoadSuspended = new HashSet<>();
 
     public static void registerChunkTicketController(RegisterTicketControllersEvent event) {
         event.register(CHUNK_TICKETS);
@@ -797,6 +798,16 @@ public final class FactionManager extends SavedData {
         if (faction == null) {
             return ForceLoadResult.NO_FACTION;
         }
+        return faction.isForceLoaded(key)
+            ? disableForceLoad(server, factionId, key)
+            : enableForceLoad(server, factionId, key);
+    }
+
+    public synchronized ForceLoadResult enableForceLoad(MinecraftServer server, UUID factionId, ClaimKey key) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return ForceLoadResult.NO_FACTION;
+        }
         if (!faction.hasClaim(key) && !faction.isOutpostChunk(key)) {
             return ForceLoadResult.NOT_OWN_CLAIM;
         }
@@ -805,20 +816,49 @@ public final class FactionManager extends SavedData {
             return ForceLoadResult.DIMENSION_MISSING;
         }
         if (faction.isForceLoaded(key)) {
-            faction.removeForceLoaded(key);
-            CHUNK_TICKETS.forceChunk(level, faction.id(), key.x(), key.z(), false, true);
-            appliedForceLoads.remove(key);
-            setDirty();
-            return ForceLoadResult.DISABLED;
+            return ForceLoadResult.ENABLED;
         }
         if (faction.forceLoadedCount() >= forceLoadLimit(faction)) {
             return ForceLoadResult.LIMIT_REACHED;
         }
         faction.addForceLoaded(key);
-        CHUNK_TICKETS.forceChunk(level, faction.id(), key.x(), key.z(), true, true);
-        appliedForceLoads.put(key, faction.id());
+        if (!forceLoadSuspended.contains(factionId)) {
+            CHUNK_TICKETS.forceChunk(level, faction.id(), key.x(), key.z(), true, true);
+            appliedForceLoads.put(key, faction.id());
+        }
         setDirty();
         return ForceLoadResult.ENABLED;
+    }
+
+    public synchronized ForceLoadResult disableForceLoad(MinecraftServer server, UUID factionId, ClaimKey key) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return ForceLoadResult.NO_FACTION;
+        }
+        if (!faction.isForceLoaded(key)) {
+            return ForceLoadResult.DISABLED;
+        }
+        ServerLevel level = server.getLevel(key.dimension());
+        if (level == null) {
+            return ForceLoadResult.DIMENSION_MISSING;
+        }
+        faction.removeForceLoaded(key);
+        CHUNK_TICKETS.forceChunk(level, faction.id(), key.x(), key.z(), false, true);
+        appliedForceLoads.remove(key);
+        setDirty();
+        return ForceLoadResult.DISABLED;
+    }
+
+    public synchronized void setForceLoadsSuspended(UUID factionId, boolean suspended) {
+        if (suspended) {
+            forceLoadSuspended.add(factionId);
+        } else {
+            forceLoadSuspended.remove(factionId);
+        }
+    }
+
+    public synchronized boolean areForceLoadsSuspended(UUID factionId) {
+        return forceLoadSuspended.contains(factionId);
     }
 
     public synchronized int forceLoadLimit(UUID factionId) {
@@ -839,12 +879,23 @@ public final class FactionManager extends SavedData {
     public synchronized void reconcileForceLoads(MinecraftServer server) {
         Map<ClaimKey, UUID> desired = new HashMap<>();
         for (Faction faction : factions.values()) {
+            boolean suspended = forceLoadSuspended.contains(faction.id());
             for (ClaimKey key : faction.forceLoadedChunks()) {
-                if (faction.hasClaim(key) || faction.isOutpostChunk(key)) {
-                    desired.put(key, faction.id());
-                } else if (faction.removeForceLoaded(key)) {
-                    setDirty();
+                if (!faction.hasClaim(key) && !faction.isOutpostChunk(key)) {
+                    if (faction.removeForceLoaded(key)) {
+                        setDirty();
+                    }
+                    continue;
                 }
+                if (suspended) {
+                    ServerLevel level = server.getLevel(key.dimension());
+                    if (level != null) {
+                        CHUNK_TICKETS.forceChunk(level, faction.id(), key.x(), key.z(), false, true);
+                    }
+                    appliedForceLoads.remove(key);
+                    continue;
+                }
+                desired.put(key, faction.id());
             }
         }
         if (!chunkTicketsMigrated) {

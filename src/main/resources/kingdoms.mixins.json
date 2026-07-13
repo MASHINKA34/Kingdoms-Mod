@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_21",
   "plugin": "com.geydev.kalfactions.mixin.KingdomsMixinPlugin",
   "mixins": [
+    "BoundTickingBlockEntityMixin",
     "VillagerMixin",
     "MerchantResultSlotMixin",
     "EnchantmentMenuMixin",

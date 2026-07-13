@@ -82,6 +82,19 @@ public final class ModConfigSpec {
     public static final BooleanValue SANCTUARY_DISABLE_PVP;
     public static final BooleanValue SANCTUARY_DISABLE_MOB_SPAWNS;
     public static final BooleanValue SANCTUARY_EXPLOSION_IMMUNITY;
+    public static final DoubleValue LAGTAX_QUOTA_MS;
+    public static final DoubleValue LAGTAX_TIER1_LIMIT_MS;
+    public static final DoubleValue LAGTAX_TIER2_LIMIT_MS;
+    public static final LongValue LAGTAX_TIER1_PRICE;
+    public static final LongValue LAGTAX_TIER2_PRICE;
+    public static final LongValue LAGTAX_TIER3_PRICE;
+    public static final IntValue LAGTAX_INTERVAL_TICKS;
+    public static final DoubleValue LAGTAX_HARD_CAP_MS;
+    public static final IntValue LAGTAX_SAMPLE_INTERVAL_TICKS;
+    public static final IntValue LAGTAX_EMA_SECONDS;
+    public static final LongValue CHUNK_LOAD_PRICE_PER_HOUR;
+    public static final IntValue CHUNK_LOAD_MAX_DAYS;
+    public static final LongValue FACTION_METER_COST;
 
     static {
         Builder builder = new Builder();
@@ -275,6 +288,48 @@ public final class ModConfigSpec {
         SANCTUARY_EXPLOSION_IMMUNITY = builder
             .comment("Make spawn sanctuary chunks immune to all explosions (creeper, TNT, etc.).")
             .define("explosionImmunity", true);
+        builder.pop();
+
+        builder.push("lagtax");
+        LAGTAX_QUOTA_MS = builder
+            .comment("Free ms/tick quota per faction summed over all its chunks.")
+            .defineInRange("quotaMs", 2.0D, 0D, 50D);
+        LAGTAX_TIER1_LIMIT_MS = builder
+            .comment("Excess above the quota (ms/tick) charged at the tier 1 price.")
+            .defineInRange("tier1LimitMs", 2.0D, 0D, 50D);
+        LAGTAX_TIER2_LIMIT_MS = builder
+            .comment("Excess above the quota (ms/tick) up to which the tier 2 price applies; above it tier 3.")
+            .defineInRange("tier2LimitMs", 5.0D, 0D, 50D);
+        LAGTAX_TIER1_PRICE = builder
+            .comment("Spurs per 0.1 ms/tick of tier 1 excess per game day.")
+            .defineInRange("tier1Price", 100L, 0L, Long.MAX_VALUE);
+        LAGTAX_TIER2_PRICE = builder
+            .comment("Spurs per 0.1 ms/tick of tier 2 excess per game day.")
+            .defineInRange("tier2Price", 250L, 0L, Long.MAX_VALUE);
+        LAGTAX_TIER3_PRICE = builder
+            .comment("Spurs per 0.1 ms/tick of tier 3 excess per game day.")
+            .defineInRange("tier3Price", 600L, 0L, Long.MAX_VALUE);
+        LAGTAX_INTERVAL_TICKS = builder
+            .comment("Server ticks between tax collections (24000 = one game day).")
+            .defineInRange("taxIntervalTicks", 24000, 1200, 1_728_000);
+        LAGTAX_HARD_CAP_MS = builder
+            .comment("Absolute ms/tick ceiling per faction regardless of money (0 disables).")
+            .defineInRange("hardCapMs", 0.0D, 0D, 50D);
+        LAGTAX_SAMPLE_INTERVAL_TICKS = builder
+            .comment("Profiler samples block entity ticks every Nth server tick.")
+            .defineInRange("sampleIntervalTicks", 4, 1, 20);
+        LAGTAX_EMA_SECONDS = builder
+            .comment("Smoothing window in seconds for the per-chunk load moving average.")
+            .defineInRange("emaSeconds", 300, 10, 3600);
+        CHUNK_LOAD_PRICE_PER_HOUR = builder
+            .comment("Spurs per chunk per hour of paid chunk loading (12h preset = 12x this).")
+            .defineInRange("chunkLoadPricePerHour", 84L, 0L, Long.MAX_VALUE);
+        CHUNK_LOAD_MAX_DAYS = builder
+            .comment("Maximum days ahead a chunk load timer may be extended to.")
+            .defineInRange("chunkLoadMaxDays", 7, 1, 365);
+        FACTION_METER_COST = builder
+            .comment("Spurs charged by the kingdom trader for the faction load meter.")
+            .defineInRange("factionMeterCost", 300L, 0L, Long.MAX_VALUE);
         builder.pop();
         SPEC = builder.build();
     }

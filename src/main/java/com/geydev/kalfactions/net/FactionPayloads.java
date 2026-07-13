@@ -1214,7 +1214,8 @@ public final class FactionPayloads {
             UUID factionId,
             boolean outpost,
             boolean forceLoaded,
-            boolean sanctuary
+            boolean sanctuary,
+            boolean frozen
     ) {
         private static void encode(RegistryFriendlyByteBuf buffer, ClaimEntry entry) {
             buffer.writeVarInt(entry.chunkX);
@@ -1225,6 +1226,7 @@ public final class FactionPayloads {
             buffer.writeBoolean(entry.outpost);
             buffer.writeBoolean(entry.forceLoaded);
             buffer.writeBoolean(entry.sanctuary);
+            buffer.writeBoolean(entry.frozen);
         }
 
         private static ClaimEntry decode(RegistryFriendlyByteBuf buffer) {
@@ -1234,6 +1236,7 @@ public final class FactionPayloads {
                     buffer.readInt(),
                     buffer.readUtf(32),
                     buffer.readUUID(),
+                    buffer.readBoolean(),
                     buffer.readBoolean(),
                     buffer.readBoolean(),
                     buffer.readBoolean()

@@ -20,7 +20,8 @@ public final class ClientClaimStore {
             UUID factionId,
             boolean outpost,
             boolean forceLoaded,
-            boolean sanctuary
+            boolean sanctuary,
+            boolean frozen
     ) {
     }
 
@@ -79,7 +80,8 @@ public final class ClientClaimStore {
                         claim.factionId(),
                         claim.outpost(),
                         forceLoaded,
-                        claim.sanctuary())
+                        claim.sanctuary(),
+                        claim.frozen())
         );
         BY_DIMENSION.put(dimension, Map.copyOf(updated));
         REGION_HASHES.put(dimension, regionHashes(updated));
@@ -133,6 +135,7 @@ public final class ClientClaimStore {
             claimHash = claimHash * 31 + claim.factionId().hashCode();
             claimHash = claimHash * 31 + (claim.forceLoaded() ? 1 : 0);
             claimHash = claimHash * 31 + (claim.outpost() ? 1 : 0);
+            claimHash = claimHash * 31 + (claim.frozen() ? 1 : 0);
             touchedRegions.clear();
             for (int dx = -1; dx <= 1; dx++) {
                 for (int dz = -1; dz <= 1; dz++) {
