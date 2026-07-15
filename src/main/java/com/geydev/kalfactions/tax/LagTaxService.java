@@ -38,6 +38,11 @@ public final class LagTaxService {
     private static final long DAY_MILLIS = 24L * HOUR_MILLIS;
     private static final int DETAIL_SAMPLE_COUNT = 25;
     private static final double HARD_CAP_RELEASE_FACTOR = 0.8D;
+    private static final double MIN_DISPLAY_MS = 0.005D;
+    private static final int LOAD_WINDOW = 5;
+
+    private static final Map<UUID, double[]> RECENT_LOADS = new HashMap<>();
+    private static int loadCursor;
 
     public static void initialize(MinecraftServer server) {
         LagTaxManager manager = LagTaxManager.get(server);
@@ -69,15 +74,26 @@ public final class LagTaxService {
         long price3 = ModConfigSpec.LAGTAX_TIER3_PRICE.getAsLong();
         long ticks = sample.ticksCovered();
 
-        for (Map.Entry<UUID, Double> entry : sample.factionLoads().entrySet()) {
-            double load = entry.getValue();
+        loadCursor = (loadCursor + 1) % LOAD_WINDOW;
+        java.util.Set<UUID> tracked = new java.util.HashSet<>(RECENT_LOADS.keySet());
+        tracked.addAll(sample.factionLoads().keySet());
+        for (UUID factionId : tracked) {
+            double[] window = RECENT_LOADS.computeIfAbsent(factionId, ignored -> new double[LOAD_WINDOW]);
+            window[loadCursor] = sample.factionLoads().getOrDefault(factionId, 0.0D);
+            double load = median(window);
+            if (load <= 0.0D) {
+                if (isIdle(window)) {
+                    RECENT_LOADS.remove(factionId);
+                }
+                continue;
+            }
             long costMicros = TaxMath.accrualMicros(
                     load, quota, tier1, tier2, price1, price2, price3, ticks, DAY_TICKS);
             double excess = Math.max(0.0D, load - quota);
             long excessIntegral = Math.round(excess * TaxMath.MICROS * ticks);
             long loadIntegral = Math.round(load * TaxMath.MICROS * ticks);
             if (costMicros > 0L || excessIntegral > 0L || loadIntegral > 0L) {
-                manager.accrue(entry.getKey(), costMicros, excessIntegral, loadIntegral);
+                manager.accrue(factionId, costMicros, excessIntegral, loadIntegral);
             }
         }
 
@@ -454,6 +470,9 @@ public final class LagTaxService {
         double wildSum = 0.0D;
 
         for (ChunkProfiler.ChunkSample sample : ChunkProfiler.allChunks()) {
+            if (sample.loadMs() < MIN_DISPLAY_MS) {
+                continue;
+            }
             ClaimKey key = new ClaimKey(sample.dimension(), new ChunkPos(sample.packedChunk()));
             Faction owner = factions.getFactionAt(key).orElse(null);
             if (owner == null) {
@@ -491,7 +510,7 @@ public final class LagTaxService {
                             state.frozen()
                     ));
                 });
-        if (wildSum > 0.0D) {
+        if (wildSum >= MIN_DISPLAY_MS) {
             factionEntries.add(new LagTaxPayloads.FactionEntry(
                     "",
                     Math.round(wildSum * TaxMath.MICROS),
@@ -526,6 +545,9 @@ public final class LagTaxService {
         List<LagTaxPayloads.MeterChunk> chunks = new ArrayList<>();
         Map<ClaimKey, Double> seen = new HashMap<>();
         for (ChunkProfiler.ChunkSample sample : ChunkProfiler.allChunks()) {
+            if (sample.loadMs() < MIN_DISPLAY_MS) {
+                continue;
+            }
             ClaimKey key = new ClaimKey(sample.dimension(), new ChunkPos(sample.packedChunk()));
             UUID owner = factions.getFactionIdAt(key).orElse(null);
             if (!faction.id().equals(owner)) {
@@ -725,6 +747,21 @@ public final class LagTaxService {
                 player.sendSystemMessage(message);
             }
         }
+    }
+
+    private static double median(double[] window) {
+        double[] sorted = window.clone();
+        java.util.Arrays.sort(sorted);
+        return sorted[sorted.length / 2];
+    }
+
+    private static boolean isIdle(double[] window) {
+        for (double value : window) {
+            if (value > 0.0D) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static String formatMs(double ms) {

@@ -23,8 +23,8 @@ public final class FactionMeterScreen extends Screen {
     private static final int TEXT_RED = 0xFF9C2B2B;
     private static final int TEXT_GREEN = 0xFF2E6B2E;
     private static final int ROWS = 4;
-    private static final int ROW_HEIGHT = 16;
-    private static final int LIST_TOP = 118;
+    private static final int ROW_HEIGHT = 15;
+    private static final int LIST_TOP = 124;
 
     private LagTaxPayloads.S2CMeterData data;
     private int scroll;
@@ -113,16 +113,16 @@ public final class FactionMeterScreen extends Screen {
         Component forecast = data.forecastPerDay() > 0L
                 ? Component.translatable("screen.kingdoms.meter.forecast", data.forecastPerDay())
                 : Component.translatable("screen.kingdoms.meter.forecast_free");
-        graphics.drawString(font, forecast, left + CONTENT_LEFT, top + 86, TEXT_MUTED, false);
+        graphics.drawString(font, forecast, left + CONTENT_LEFT, top + 84, TEXT_MUTED, false);
         Component accrued = Component.translatable("screen.kingdoms.meter.accrued", data.accruedBill());
-        graphics.drawString(font, accrued, left + CONTENT_LEFT, top + 97, TEXT_MUTED, false);
+        graphics.drawString(font, accrued, left + CONTENT_LEFT, top + 94, TEXT_MUTED, false);
 
         if (data.frozen()) {
             Component frozen = Component.translatable("screen.kingdoms.meter.frozen", data.unpaidBill());
-            graphics.drawString(font, frozen, left + CONTENT_RIGHT - font.width(frozen), top + 86, TEXT_RED, false);
+            graphics.drawString(font, frozen, left + CONTENT_LEFT, top + 104, TEXT_RED, false);
         } else if (data.unpaidBill() > 0L) {
             Component unpaid = Component.translatable("screen.kingdoms.meter.unpaid", data.unpaidBill());
-            graphics.drawString(font, unpaid, left + CONTENT_RIGHT - font.width(unpaid), top + 86, TEXT_RED, false);
+            graphics.drawString(font, unpaid, left + CONTENT_LEFT, top + 104, TEXT_RED, false);
         }
 
         List<LagTaxPayloads.MeterChunk> chunks = data.chunks();

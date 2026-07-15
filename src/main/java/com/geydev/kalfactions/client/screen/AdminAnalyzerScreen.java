@@ -21,9 +21,10 @@ public final class AdminAnalyzerScreen extends Screen {
     private static final int TEXT_DARK = 0xFF3F2A19;
     private static final int TEXT_MUTED = 0xFF5B452E;
     private static final int TEXT_RED = 0xFF9C2B2B;
-    private static final int ROWS = 6;
+    private static final int ROWS = 5;
     private static final int ROW_HEIGHT = 18;
-    private static final int LIST_TOP = 84;
+    private static final int LIST_TOP = 92;
+    private static final int INFO_ROW_TOP = 81;
     private static final int DETAIL_BUTTON_WIDTH = 18;
 
     private enum Tab {
@@ -36,6 +37,7 @@ public final class AdminAnalyzerScreen extends Screen {
     private boolean awaitingDetail;
     private Tab tab = Tab.CHUNKS;
     private int scroll;
+    private int detailScroll;
     private int left;
     private int top;
 
@@ -72,6 +74,7 @@ public final class AdminAnalyzerScreen extends Screen {
 
     private void acceptDetail(LagTaxPayloads.S2CChunkDetail payload) {
         detail = payload;
+        detailScroll = 0;
         awaitingDetail = false;
         rebuildWidgets();
     }
@@ -109,6 +112,7 @@ public final class AdminAnalyzerScreen extends Screen {
                     Component.translatable("screen.kingdoms.back"),
                     button -> {
                         detail = null;
+                        detailScroll = 0;
                         awaitingDetail = false;
                         rebuildWidgets();
                     },
@@ -149,6 +153,14 @@ public final class AdminAnalyzerScreen extends Screen {
     }
 
     private void renderChunks(GuiGraphics graphics, int mouseX, int mouseY) {
+        graphics.drawString(
+                font,
+                Component.translatable("screen.kingdoms.analyzer.hint"),
+                left + CONTENT_LEFT,
+                top + INFO_ROW_TOP,
+                TEXT_MUTED,
+                false
+        );
         List<LagTaxPayloads.ChunkEntry> chunks = data.chunks();
         if (chunks.isEmpty()) {
             Component empty = Component.translatable("screen.kingdoms.analyzer.empty");
@@ -184,19 +196,13 @@ public final class AdminAnalyzerScreen extends Screen {
         }
         if (chunks.size() > ROWS) {
             String pager = (scroll + 1) + "-" + (scroll + shown) + " / " + chunks.size();
-            graphics.drawString(font, pager, left + CONTENT_RIGHT - font.width(pager), top + LIST_TOP - 10, TEXT_MUTED, false);
+            graphics.drawString(font, pager, left + CONTENT_RIGHT - font.width(pager), top + INFO_ROW_TOP, TEXT_MUTED, false);
         }
-        graphics.drawString(
-                font,
-                Component.translatable("screen.kingdoms.analyzer.hint"),
-                left + CONTENT_LEFT,
-                top + PANEL_HEIGHT - 22,
-                TEXT_MUTED,
-                false
-        );
     }
 
     private void renderFactions(GuiGraphics graphics) {
+        Component quota = Component.translatable("screen.kingdoms.analyzer.quota", formatMs(data.quotaNanos()));
+        graphics.drawString(font, quota, left + CONTENT_LEFT, top + INFO_ROW_TOP, TEXT_MUTED, false);
         List<LagTaxPayloads.FactionEntry> factions = data.factions();
         if (factions.isEmpty()) {
             Component empty = Component.translatable("screen.kingdoms.analyzer.empty");
@@ -225,8 +231,10 @@ public final class AdminAnalyzerScreen extends Screen {
                 graphics.drawString(font, unpaid, left + CONTENT_RIGHT - 4 - font.width(unpaid), y + 5, TEXT_RED, false);
             }
         }
-        Component quota = Component.translatable("screen.kingdoms.analyzer.quota", formatMs(data.quotaNanos()));
-        graphics.drawString(font, quota, left + CONTENT_LEFT, top + PANEL_HEIGHT - 22, TEXT_MUTED, false);
+        if (factions.size() > ROWS) {
+            String pager = (scroll + 1) + "-" + (scroll + shown) + " / " + factions.size();
+            graphics.drawString(font, pager, left + CONTENT_RIGHT - font.width(pager), top + INFO_ROW_TOP, TEXT_MUTED, false);
+        }
     }
 
     private void renderDetail(GuiGraphics graphics) {
@@ -244,9 +252,13 @@ public final class AdminAnalyzerScreen extends Screen {
             graphics.drawString(font, empty, left + (PANEL_WIDTH - font.width(empty)) / 2, top + 120, TEXT_MUTED, false);
             return;
         }
-        int shown = Math.min(ROWS, entries.size());
+        int shown = Math.min(ROWS, entries.size() - detailScroll);
+        if (entries.size() > ROWS) {
+            String pager = (detailScroll + 1) + "-" + (detailScroll + shown) + " / " + entries.size();
+            graphics.drawString(font, pager, left + CONTENT_RIGHT - font.width(pager), top + INFO_ROW_TOP, TEXT_MUTED, false);
+        }
         for (int i = 0; i < shown; i++) {
-            LagTaxPayloads.DetailEntry entry = entries.get(i);
+            LagTaxPayloads.DetailEntry entry = entries.get(detailScroll + i);
             int y = top + LIST_TOP + i * ROW_HEIGHT;
             graphics.fill(left + CONTENT_LEFT, y, left + CONTENT_RIGHT, y + ROW_HEIGHT - 2, 0x24A8783D);
             String label = String.format(
@@ -303,7 +315,17 @@ public final class AdminAnalyzerScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (detail == null && !awaitingDetail) {
+        if (detail != null) {
+            int updated = Math.clamp(
+                    detailScroll - (int) Math.signum(scrollY),
+                    0,
+                    Math.max(0, detail.entries().size() - ROWS)
+            );
+            if (updated != detailScroll) {
+                detailScroll = updated;
+                return true;
+            }
+        } else if (!awaitingDetail) {
             int updated = Math.clamp(scroll - (int) Math.signum(scrollY), 0, maxScroll());
             if (updated != scroll) {
                 scroll = updated;

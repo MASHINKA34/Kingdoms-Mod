@@ -845,7 +845,7 @@
   "screen.kingdoms.meter.load": "Заводы: %s из %s мс/тик",
   "screen.kingdoms.meter.forecast": "Прогноз налога: %s шпор в игровой день",
   "screen.kingdoms.meter.forecast_free": "В пределах квоты — налога нет",
-  "screen.kingdoms.meter.accrued": "Набежало за день: %s шпор",
+  "screen.kingdoms.meter.accrued": "Начислено за игровой день: %s шпор",
   "screen.kingdoms.meter.frozen": "ЗАМОРОЖЕНО — счёт %s шпор",
   "screen.kingdoms.meter.unpaid": "Счёт к оплате: %s шпор",
   "screen.kingdoms.meter.chunks_header": "Чанки (мс/тик и таймеры прогрузки):",

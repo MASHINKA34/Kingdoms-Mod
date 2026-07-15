@@ -23,10 +23,12 @@ public final class TraderShopScreen extends Screen {
     private static final int TEXT_MUTED = 0xFF5B452E;
     private static final int OFFER_TOP = 68;
     private static final int OFFER_STEP = 24;
+    private static final int VISIBLE_OFFERS = 5;
 
     private final UUID traderId;
     private List<TraderPayloads.OfferInfo> offers;
     private String pendingOfferId = "";
+    private int scroll;
     private int left;
     private int top;
 
@@ -54,6 +56,7 @@ public final class TraderShopScreen extends Screen {
     private void acceptState(TraderPayloads.S2CShopState state) {
         offers = state.offers();
         pendingOfferId = "";
+        scroll = Math.clamp(scroll, 0, maxScroll());
         showShopNotice(state.notice(), state.successful());
         rebuildWidgets();
     }
@@ -62,8 +65,10 @@ public final class TraderShopScreen extends Screen {
     protected void init() {
         left = (width - PANEL_WIDTH) / 2;
         top = (height - PANEL_HEIGHT) / 2;
-        for (int i = 0; i < offers.size(); i++) {
-            TraderPayloads.OfferInfo offer = offers.get(i);
+        scroll = Math.clamp(scroll, 0, maxScroll());
+        int shown = Math.min(VISIBLE_OFFERS, offers.size() - scroll);
+        for (int i = 0; i < shown; i++) {
+            TraderPayloads.OfferInfo offer = offers.get(scroll + i);
             int rowTop = top + OFFER_TOP + i * OFFER_STEP;
             KingdomsButton button = KingdomsButton.create(
                     Component.translatable("screen.kingdoms.trader.buy"),
@@ -123,9 +128,29 @@ public final class TraderShopScreen extends Screen {
                 TEXT_DARK,
                 false
         );
-        for (int i = 0; i < offers.size(); i++) {
-            renderOffer(graphics, offers.get(i), top + OFFER_TOP + i * OFFER_STEP);
+        int shown = Math.min(VISIBLE_OFFERS, offers.size() - scroll);
+        if (offers.size() > VISIBLE_OFFERS) {
+            String pager = (scroll + 1) + "-" + (scroll + shown) + " / " + offers.size();
+            graphics.drawString(font, pager, left + PANEL_WIDTH - 32 - font.width(pager), top + 60, TEXT_MUTED, false);
         }
+        for (int i = 0; i < shown; i++) {
+            renderOffer(graphics, offers.get(scroll + i), top + OFFER_TOP + i * OFFER_STEP);
+        }
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        int updated = Math.clamp(scroll - (int) Math.signum(scrollY), 0, maxScroll());
+        if (updated != scroll) {
+            scroll = updated;
+            rebuildWidgets();
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    private int maxScroll() {
+        return Math.max(0, offers.size() - VISIBLE_OFFERS);
     }
 
     private void renderOffer(

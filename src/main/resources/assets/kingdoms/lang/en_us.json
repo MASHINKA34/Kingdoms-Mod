@@ -845,7 +845,7 @@
   "screen.kingdoms.meter.load": "Factories: %s of %s ms/tick",
   "screen.kingdoms.meter.forecast": "Tax forecast: %s spurs per game day",
   "screen.kingdoms.meter.forecast_free": "Within quota — no tax",
-  "screen.kingdoms.meter.accrued": "Accrued today: %s spurs",
+  "screen.kingdoms.meter.accrued": "Accrued this game day: %s spurs",
   "screen.kingdoms.meter.frozen": "FROZEN — bill %s spurs",
   "screen.kingdoms.meter.unpaid": "Bill due: %s spurs",
   "screen.kingdoms.meter.chunks_header": "Chunks (ms/tick and load timers):",
