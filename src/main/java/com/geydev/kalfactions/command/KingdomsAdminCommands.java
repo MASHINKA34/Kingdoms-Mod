@@ -33,6 +33,13 @@ public final class KingdomsAdminCommands {
                     builder
             );
 
+    private static final SuggestionProvider<CommandSourceStack> FACTION_SUGGESTIONS = (context, builder) ->
+            SharedSuggestionProvider.suggest(
+                    FactionManager.get(context.getSource().getServer()).factions().stream()
+                            .map(com.geydev.kalfactions.faction.Faction::name),
+                    builder
+            );
+
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("kingdoms")
                 .requires(source -> source.hasPermission(2))
@@ -52,6 +59,11 @@ public final class KingdomsAdminCommands {
                                 .executes(KingdomsAdminCommands::completeAllResearch))
                         .then(Commands.literal("reset")
                                 .executes(KingdomsAdminCommands::resetResearch)))
+                .then(Commands.literal("faction")
+                        .then(Commands.literal("move")
+                                .then(Commands.argument("name", StringArgumentType.greedyString())
+                                        .suggests(FACTION_SUGGESTIONS)
+                                        .executes(KingdomsAdminCommands::moveFaction))))
                 .then(Commands.literal("dimension")
                         .then(dimensionBranch("nether", Level.NETHER, "Ад"))
                         .then(dimensionBranch("end", Level.END, "Энд")))
@@ -164,6 +176,71 @@ public final class KingdomsAdminCommands {
                         + "; игроков внутри: " + inside + "."),
                 false
         );
+        return 1;
+    }
+
+    private static int moveFaction(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer player = source.getPlayerOrException();
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        String name = StringArgumentType.getString(context, "name");
+        com.geydev.kalfactions.faction.Faction faction = manager.getFactionByName(name).orElse(null);
+        if (faction == null) {
+            source.sendFailure(Component.literal("Фракция не найдена: " + name));
+            return 0;
+        }
+        com.geydev.kalfactions.war.WarManager wars = com.geydev.kalfactions.war.WarManager.get(source.getServer());
+        if (wars.warForFaction(faction.id()).filter(com.geydev.kalfactions.war.War::isActive).isPresent()) {
+            source.sendFailure(Component.literal("Фракция в активной войне — сначала завершите войну."));
+            return 0;
+        }
+        ResourceKey<Level> targetDimension = player.level().dimension();
+        java.util.Set<com.geydev.kalfactions.claim.ClaimKey> sanctuaryChunks = java.util.Set.copyOf(
+                com.geydev.kalfactions.sanctuary.SanctuaryManager.get(player.serverLevel())
+                        .claimsIn(targetDimension));
+        FactionManager.RelocateResult result = manager.relocateFaction(
+                source.getServer(),
+                faction.id(),
+                targetDimension,
+                player.chunkPosition(),
+                sanctuaryChunks::contains
+        );
+        switch (result.status()) {
+            case FACTION_NOT_FOUND -> {
+                source.sendFailure(Component.literal("Фракция не найдена: " + name));
+                return 0;
+            }
+            case NO_CLAIMS -> {
+                source.sendFailure(Component.literal("У фракции нет клеймов для переноса."));
+                return 0;
+            }
+            case OBSTRUCTED -> {
+                source.sendFailure(Component.literal(
+                        "Место занято: в целевой области чужие клеймы или спавн. Отойдите и повторите."));
+                return 0;
+            }
+            case SUCCESS -> {
+            }
+        }
+        com.geydev.kalfactions.tax.LagTaxManager.get(source.getServer())
+                .relocateChunkLoads(faction.id(), result.mapping());
+        manager.reconcileForceLoads(source.getServer());
+        com.geydev.kalfactions.integration.IntegrationManager.refreshFromServer(source.getServer());
+        com.geydev.kalfactions.net.ClaimSyncManager.resyncAll(source.getServer());
+        Component notice = Component.literal(
+                "Территория фракции перенесена администратором. Проверьте карту — постройки нужно перевозить самим.");
+        for (UUID memberId : faction.members().keySet()) {
+            ServerPlayer member = source.getServer().getPlayerList().getPlayer(memberId);
+            if (member != null) {
+                member.sendSystemMessage(notice);
+                com.geydev.kalfactions.net.FactionServerHooks.sendNotice(member, notice, true);
+            }
+        }
+        int moved = result.mapping().size();
+        source.sendSuccess(() -> Component.literal(
+                "Перенесено чанков: " + moved + " → центр [" + player.chunkPosition().x * 16 + ", "
+                        + player.chunkPosition().z * 16 + "] " + targetDimension.location().getPath()
+                        + ". Казна, влияние, исследования и таймеры прогрузки сохранены."), true);
         return 1;
     }
 

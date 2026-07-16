@@ -295,6 +295,10 @@ public final class Faction {
         protectedClaims.add(key);
     }
 
+    boolean removeProtectedClaim(ClaimKey key) {
+        return protectedClaims.remove(key);
+    }
+
     public Set<ClaimKey> forceLoadedChunks() {
         return Set.copyOf(forceLoadedChunks);
     }

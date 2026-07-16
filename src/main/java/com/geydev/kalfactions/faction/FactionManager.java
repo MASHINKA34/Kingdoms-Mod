@@ -876,6 +876,105 @@ public final class FactionManager extends SavedData {
             : 2;
     }
 
+    public enum RelocateStatus {
+        SUCCESS,
+        FACTION_NOT_FOUND,
+        NO_CLAIMS,
+        OBSTRUCTED
+    }
+
+    public record RelocateResult(RelocateStatus status, Map<ClaimKey, ClaimKey> mapping) {
+        public boolean successful() {
+            return status == RelocateStatus.SUCCESS;
+        }
+    }
+
+    public synchronized RelocateResult relocateFaction(
+        MinecraftServer server,
+        UUID factionId,
+        net.minecraft.resources.ResourceKey<Level> targetDimension,
+        ChunkPos targetChunk,
+        java.util.function.Predicate<ClaimKey> obstructed
+    ) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return new RelocateResult(RelocateStatus.FACTION_NOT_FOUND, Map.of());
+        }
+        Map<net.minecraft.resources.ResourceKey<Level>, Integer> claimsPerDimension = new HashMap<>();
+        for (ClaimKey claim : faction.claims()) {
+            claimsPerDimension.merge(claim.dimension(), 1, Integer::sum);
+        }
+        net.minecraft.resources.ResourceKey<Level> sourceDimension = claimsPerDimension.entrySet().stream()
+            .max(Map.Entry.comparingByValue())
+            .map(Map.Entry::getKey)
+            .orElse(null);
+        if (sourceDimension == null) {
+            return new RelocateResult(RelocateStatus.NO_CLAIMS, Map.of());
+        }
+
+        List<ClaimKey> sourceClaims = new ArrayList<>();
+        int minX = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        for (ClaimKey claim : faction.claims()) {
+            if (!claim.dimension().equals(sourceDimension)) {
+                continue;
+            }
+            sourceClaims.add(claim);
+            minX = Math.min(minX, claim.x());
+            maxX = Math.max(maxX, claim.x());
+            minZ = Math.min(minZ, claim.z());
+            maxZ = Math.max(maxZ, claim.z());
+        }
+        int deltaX = targetChunk.x - (minX + maxX) / 2;
+        int deltaZ = targetChunk.z - (minZ + maxZ) / 2;
+
+        Map<ClaimKey, ClaimKey> mapping = new LinkedHashMap<>();
+        for (ClaimKey claim : sourceClaims) {
+            ClaimKey moved = new ClaimKey(targetDimension, claim.x() + deltaX, claim.z() + deltaZ);
+            UUID occupant = claimIndex.get(moved);
+            if ((occupant != null && !occupant.equals(factionId)) || obstructed.test(moved)) {
+                return new RelocateResult(RelocateStatus.OBSTRUCTED, Map.of());
+            }
+            mapping.put(claim, moved);
+        }
+
+        Map<ClaimKey, Long> paidPrices = faction.claimPrices();
+        Set<ClaimKey> protectedClaims = faction.protectedClaims();
+        Set<ClaimKey> forceLoaded = faction.forceLoadedChunks();
+        for (ClaimKey claim : sourceClaims) {
+            claimIndex.remove(claim);
+            faction.removeClaim(claim);
+            faction.removeProtectedClaim(claim);
+            if (forceLoaded.contains(claim)) {
+                faction.removeForceLoaded(claim);
+                ServerLevel level = server.getLevel(claim.dimension());
+                if (level != null) {
+                    CHUNK_TICKETS.forceChunk(level, factionId, claim.x(), claim.z(), false, true);
+                }
+                appliedForceLoads.remove(claim);
+            }
+        }
+        for (Map.Entry<ClaimKey, ClaimKey> entry : mapping.entrySet()) {
+            ClaimKey moved = entry.getValue();
+            faction.addClaim(moved, paidPrices.getOrDefault(entry.getKey(), 0L));
+            claimIndex.put(moved, factionId);
+            if (protectedClaims.contains(entry.getKey())) {
+                faction.addProtectedClaim(moved);
+            }
+            if (forceLoaded.contains(entry.getKey())) {
+                faction.addForceLoaded(moved);
+            }
+        }
+        chestAccess.entrySet().removeIf(entry -> entry.getValue().factionId().equals(factionId)
+            && mapping.containsKey(new ClaimKey(
+                entry.getKey().dimension(),
+                new ChunkPos(entry.getKey().position()))));
+        setDirty();
+        return new RelocateResult(RelocateStatus.SUCCESS, Map.copyOf(mapping));
+    }
+
     public synchronized void reconcileForceLoads(MinecraftServer server) {
         Map<ClaimKey, UUID> desired = new HashMap<>();
         for (Faction faction : factions.values()) {

@@ -119,7 +119,7 @@ public final class LagTaxService {
                 continue;
             }
             long bill = TaxMath.billFromMicros(state.accruedMicros());
-            if (bill <= 0L) {
+            if (bill <= 0L || bill < ModConfigSpec.LAGTAX_MIN_BILL.getAsLong()) {
                 continue;
             }
             double averageExcess = TaxMath.averageMs(state.excessMsTicksMicros(), periodTicks);
@@ -188,7 +188,7 @@ public final class LagTaxService {
         Component message = Component.translatable(
                         "kingdoms.lagtax.notice.unfrozen",
                         NumismaticsEconomy.format(bill))
-                .withStyle(ChatFormatting.GREEN);
+                .withStyle(ChatFormatting.DARK_GREEN);
         if (state.freezeReason() == LagTaxManager.FreezeReason.TAX) {
             unfreeze(server, faction, message);
         } else {
@@ -233,7 +233,7 @@ public final class LagTaxService {
                         && load <= hardCap * HARD_CAP_RELEASE_FACTOR
                         && state.unpaidBill() <= 0L) {
                     unfreeze(server, faction, Component.translatable("kingdoms.lagtax.notice.hardcap_unfrozen")
-                            .withStyle(ChatFormatting.GREEN));
+                            .withStyle(ChatFormatting.DARK_GREEN));
                     continue;
                 }
             }

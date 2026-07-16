@@ -145,6 +145,7 @@ dependencies {
     compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}:api"
     compileOnly "de.bluecolored:bluemap-api:${bluemap_api_version}"
 
+    compileOnly files("libs/ScorchedGuns-1.5.jar")
     compileOnly files("libs/xaerominimap-neoforge-${minecraft_version}-${xaero_minimap_version}.jar")
     compileOnly files("libs/xaeroworldmap-neoforge-${minecraft_version}-${xaero_worldmap_version}.jar")
     compileOnly files("libs/xaerolib-neoforge-${minecraft_version}-1.1.15.jar")

@@ -89,6 +89,7 @@ public final class ModConfigSpec {
     public static final LongValue LAGTAX_TIER2_PRICE;
     public static final LongValue LAGTAX_TIER3_PRICE;
     public static final IntValue LAGTAX_INTERVAL_TICKS;
+    public static final LongValue LAGTAX_MIN_BILL;
     public static final DoubleValue LAGTAX_HARD_CAP_MS;
     public static final IntValue LAGTAX_SAMPLE_INTERVAL_TICKS;
     public static final IntValue LAGTAX_EMA_SECONDS;
@@ -312,6 +313,9 @@ public final class ModConfigSpec {
         LAGTAX_INTERVAL_TICKS = builder
             .comment("Server ticks between tax collections (24000 = one game day).")
             .defineInRange("taxIntervalTicks", 24000, 1200, 1_728_000);
+        LAGTAX_MIN_BILL = builder
+            .comment("Bills below this many spurs are forgiven at collection time.")
+            .defineInRange("minBill", 10L, 0L, Long.MAX_VALUE);
         LAGTAX_HARD_CAP_MS = builder
             .comment("Absolute ms/tick ceiling per faction regardless of money (0 disables).")
             .defineInRange("hardCapMs", 0.0D, 0D, 50D);

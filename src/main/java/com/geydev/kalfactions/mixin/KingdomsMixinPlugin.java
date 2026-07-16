@@ -18,6 +18,12 @@ public final class KingdomsMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+        if (mixinClassName.endsWith("ScorchedProjectileMixin")
+                || mixinClassName.endsWith("ScorchedBeamMiningMixin")
+                || mixinClassName.endsWith("BlockBreakingMovementBehaviourMixin")
+                || mixinClassName.endsWith("BlockBreakingKineticBlockEntityMixin")) {
+            return classExists(targetClassName);
+        }
         if (mixinClassName.endsWith("XaeroCommonMinimapRadarListMixin")
                 || mixinClassName.endsWith("XaeroCommonRadarRendererMixin")
                 || mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementReaderMixin")

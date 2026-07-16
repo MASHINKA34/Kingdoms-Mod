@@ -11,7 +11,12 @@
     "EnchantmentMenuMixin",
     "ExplosionMixin",
     "FlowingFluidMixin",
-    "ServerLevelMixin"
+    "ServerLevelMixin",
+    "LevelBlockGuardMixin",
+    "ScorchedProjectileMixin",
+    "ScorchedBeamMiningMixin",
+    "BlockBreakingMovementBehaviourMixin",
+    "BlockBreakingKineticBlockEntityMixin"
   ],
   "client": [
     "XaeroCommonMinimapRadarListMixin",

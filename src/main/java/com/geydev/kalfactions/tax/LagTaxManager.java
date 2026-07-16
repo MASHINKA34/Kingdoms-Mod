@@ -223,6 +223,24 @@ public final class LagTaxManager extends SavedData {
         }
     }
 
+    public synchronized void relocateChunkLoads(UUID factionId, Map<ClaimKey, ClaimKey> mapping) {
+        FactionTaxState state = states.get(factionId);
+        if (state == null || state.chunkLoads.isEmpty()) {
+            return;
+        }
+        boolean changed = false;
+        for (Map.Entry<ClaimKey, ClaimKey> entry : mapping.entrySet()) {
+            ChunkLoad load = state.chunkLoads.remove(entry.getKey());
+            if (load != null) {
+                state.chunkLoads.put(entry.getValue(), load);
+                changed = true;
+            }
+        }
+        if (changed) {
+            setDirty();
+        }
+    }
+
     public synchronized void removeFaction(UUID factionId) {
         if (states.remove(factionId) != null) {
             setDirty();
