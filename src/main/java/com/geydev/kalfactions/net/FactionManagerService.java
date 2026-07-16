@@ -34,7 +34,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
 
-final class FactionManagerService implements FactionServerHooks.Service {
+public final class FactionManagerService implements FactionServerHooks.Service {
     private static final int MAP_RADIUS = 6;
     private static final int MAX_PIXEL_EMBLEM_REFS = 64;
 
@@ -127,7 +127,7 @@ final class FactionManagerService implements FactionServerHooks.Service {
                 .toList();
     }
 
-    static List<Integer> emblemPixels(Faction faction) {
+    public static List<Integer> emblemPixels(Faction faction) {
         int[] pixels = faction.emblem();
         if (!Faction.isValidEmblemLength(pixels.length)) {
             return List.of();

@@ -96,6 +96,8 @@ public final class ModConfigSpec {
     public static final LongValue CHUNK_LOAD_PRICE_PER_HOUR;
     public static final IntValue CHUNK_LOAD_MAX_DAYS;
     public static final LongValue FACTION_METER_COST;
+    public static final IntValue NEWS_MAX_ARTICLES_PER_FACTION;
+    public static final IntValue NEWS_PUBLISH_COOLDOWN_MINUTES;
 
     static {
         Builder builder = new Builder();
@@ -334,6 +336,15 @@ public final class ModConfigSpec {
         FACTION_METER_COST = builder
             .comment("Spurs charged by the kingdom trader for the faction load meter.")
             .defineInRange("factionMeterCost", 300L, 0L, Long.MAX_VALUE);
+        builder.pop();
+
+        builder.push("news");
+        NEWS_MAX_ARTICLES_PER_FACTION = builder
+            .comment("Maximum stored news articles per faction; publishing beyond evicts the oldest.")
+            .defineInRange("maxArticlesPerFaction", 20, 1, 200);
+        NEWS_PUBLISH_COOLDOWN_MINUTES = builder
+            .comment("Real-time minutes a faction must wait between news publications (0 disables).")
+            .defineInRange("publishCooldownMinutes", 10, 0, 10080);
         builder.pop();
         SPEC = builder.build();
     }

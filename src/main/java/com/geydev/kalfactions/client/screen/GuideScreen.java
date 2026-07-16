@@ -20,6 +20,7 @@ public final class GuideScreen extends Screen {
             "archive",
             "outposts",
             "trade",
+            "news",
             "world",
             "commands"
     };
@@ -57,7 +58,7 @@ public final class GuideScreen extends Screen {
                     Component.translatable("kingdoms.guide.section." + SECTIONS[index]),
                     button -> select(section),
                     panelLeft + 10,
-                    buttonTop + index * 17,
+                    buttonTop + index * 16,
                     132,
                     15
             ));

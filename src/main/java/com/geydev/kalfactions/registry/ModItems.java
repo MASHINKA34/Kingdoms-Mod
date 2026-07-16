@@ -31,6 +31,9 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> GUIDE_BOARD =
             ITEMS.registerSimpleBlockItem(ModBlocks.GUIDE_BOARD);
 
+    public static final DeferredItem<BlockItem> NEWS_BOARD =
+            ITEMS.registerSimpleBlockItem(ModBlocks.NEWS_BOARD);
+
     public static final DeferredItem<BlockItem> SANCTUARY_CORE =
             ITEMS.registerSimpleBlockItem(ModBlocks.SANCTUARY_CORE);
 

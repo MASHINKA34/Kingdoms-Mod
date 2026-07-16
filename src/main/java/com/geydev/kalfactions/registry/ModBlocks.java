@@ -4,6 +4,7 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.DrillBlock;
 import com.geydev.kalfactions.block.FactionTableBlock;
 import com.geydev.kalfactions.block.GuideBoardBlock;
+import com.geydev.kalfactions.block.NewsBoardBlock;
 import com.geydev.kalfactions.block.OutpostCoreBlock;
 import com.geydev.kalfactions.block.SanctuaryCoreBlock;
 import com.geydev.kalfactions.block.WarArchiveBlock;
@@ -69,6 +70,15 @@ public final class ModBlocks {
     public static final DeferredBlock<GuideBoardBlock> GUIDE_BOARD = BLOCKS.register(
             "guide_board",
             () -> new GuideBoardBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.WOOD)
+                    .strength(2.5F)
+                    .sound(SoundType.WOOD)
+                    .noOcclusion())
+    );
+
+    public static final DeferredBlock<NewsBoardBlock> NEWS_BOARD = BLOCKS.register(
+            "news_board",
+            () -> new NewsBoardBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.WOOD)
                     .strength(2.5F)
                     .sound(SoundType.WOOD)

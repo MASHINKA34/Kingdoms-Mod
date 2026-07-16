@@ -5,6 +5,7 @@ import com.geydev.kalfactions.client.screen.FactionListScreen;
 import com.geydev.kalfactions.client.screen.FactionScreen;
 import com.geydev.kalfactions.client.screen.FactionScreens;
 import com.geydev.kalfactions.client.screen.GuideScreen;
+import com.geydev.kalfactions.client.screen.NewsScreen;
 import com.geydev.kalfactions.client.screen.SanctuaryMapScreen;
 import com.geydev.kalfactions.client.screen.WarArchiveScreen;
 import com.geydev.kalfactions.faction.InfluenceType;
@@ -87,6 +88,16 @@ public final class ClientFactionPayloadHandler {
                 return;
             }
             minecraft.setScreen(new GuideScreen(minecraft.screen));
+        });
+    }
+
+    public static void handleOpenNews() {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.execute(() -> {
+            if (minecraft.screen instanceof NewsScreen) {
+                return;
+            }
+            NewsScreen.open();
         });
     }
 

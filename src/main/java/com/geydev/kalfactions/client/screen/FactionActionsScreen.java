@@ -65,6 +65,13 @@ public final class FactionActionsScreen extends FactionScreen {
                 leftColumn, top + 142, columnWidth, 20
         ));
 
+        KingdomsButton createNews = addRenderableWidget(KingdomsButton.create(
+                text("screen.kingdoms.news_create"),
+                button -> minecraft.setScreen(new NewsEditorScreen(this)),
+                leftColumn, top + 166, columnWidth, 20
+        ));
+        createNews.active = snapshot.isOfficer();
+
         boolean hasActiveWar = !snapshot.warWith().isBlank();
         int nextDiplomacyY = top + 70;
         if (snapshot.hasPendingWarSpoils()) {

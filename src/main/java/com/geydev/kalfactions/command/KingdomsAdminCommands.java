@@ -4,6 +4,8 @@ import com.geydev.kalfactions.dimension.DimensionControlEvents;
 import com.geydev.kalfactions.dimension.DimensionControlManager;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.ResearchNode;
+import com.geydev.kalfactions.news.NewsManager;
+import com.geydev.kalfactions.news.NewsService;
 import com.geydev.kalfactions.outpost.trader.TraderService;
 import com.geydev.kalfactions.sanctuary.SanctuaryExecutionManager;
 import com.geydev.kalfactions.worldmap.WorldMapRenderManager;
@@ -67,6 +69,16 @@ public final class KingdomsAdminCommands {
                 .then(Commands.literal("dimension")
                         .then(dimensionBranch("nether", Level.NETHER, "Ад"))
                         .then(dimensionBranch("end", Level.END, "Энд")))
+                .then(Commands.literal("news")
+                        .then(Commands.literal("publish")
+                                .then(Commands.argument("faction", StringArgumentType.string())
+                                        .suggests(FACTION_SUGGESTIONS)
+                                        .then(Commands.argument("text", StringArgumentType.greedyString())
+                                                .executes(KingdomsAdminCommands::publishNews))))
+                        .then(Commands.literal("list")
+                                .then(Commands.argument("faction", StringArgumentType.string())
+                                        .suggests(FACTION_SUGGESTIONS)
+                                        .executes(KingdomsAdminCommands::listNews))))
                 .then(Commands.literal("map")
                         .then(Commands.literal("render")
                                 .executes(context -> startRender(context, DEFAULT_MAP_RESOLUTION))
@@ -177,6 +189,53 @@ public final class KingdomsAdminCommands {
                 false
         );
         return 1;
+    }
+
+    private static int publishNews(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        String factionName = StringArgumentType.getString(context, "faction");
+        com.geydev.kalfactions.faction.Faction faction =
+                FactionManager.get(source.getServer()).getFactionByName(factionName).orElse(null);
+        if (faction == null) {
+            source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+            return 0;
+        }
+        String text = StringArgumentType.getString(context, "text");
+        int separator = text.indexOf('|');
+        if (separator <= 0 || separator >= text.length() - 1) {
+            source.sendFailure(Component.literal("Формат: /kingdoms news publish <фракция> <заголовок>|<текст>"));
+            return 0;
+        }
+        String title = text.substring(0, separator).strip();
+        String body = text.substring(separator + 1).strip();
+        if (!NewsService.adminPublish(source.getServer(), faction, title, body, source.getTextName())) {
+            source.sendFailure(Component.literal("Заголовок и текст не могут быть пустыми."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Новость опубликована от фракции " + faction.name() + "."), true);
+        return 1;
+    }
+
+    private static int listNews(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        String factionName = StringArgumentType.getString(context, "faction");
+        com.geydev.kalfactions.faction.Faction faction =
+                FactionManager.get(source.getServer()).getFactionByName(factionName).orElse(null);
+        if (faction == null) {
+            source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+            return 0;
+        }
+        java.util.List<NewsManager.Article> articles = NewsManager.get(source.getServer()).articles(faction.id());
+        if (articles.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("У фракции " + faction.name() + " нет новостей."), false);
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Новостей у " + faction.name() + ": " + articles.size()), false);
+        for (NewsManager.Article article : articles) {
+            source.sendSuccess(() -> Component.literal("- [" + article.publishedAtMillis() + "] "
+                    + article.title() + " (" + article.author() + ")"), false);
+        }
+        return articles.size();
     }
 
     private static int moveFaction(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {

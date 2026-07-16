@@ -1,0 +1,45 @@
+{
+  "ambientocclusion": true,
+  "textures": {
+    "particle": "kingdoms:block/news_board_side",
+    "front": "kingdoms:block/news_board_front",
+    "side": "kingdoms:block/news_board_side",
+    "leg": "kingdoms:block/news_board_leg"
+  },
+  "elements": [
+    {
+      "from": [0, 4, 6],
+      "to": [16, 16, 10],
+      "faces": {
+        "down": {"texture": "#side", "uv": [0, 6, 16, 10]},
+        "up": {"texture": "#side", "uv": [0, 6, 16, 10]},
+        "north": {"texture": "#front", "uv": [0, 0, 16, 12]},
+        "south": {"texture": "#side", "uv": [0, 2, 16, 14]},
+        "west": {"texture": "#side", "uv": [6, 0, 10, 12]},
+        "east": {"texture": "#side", "uv": [6, 0, 10, 12]}
+      }
+    },
+    {
+      "from": [1, 0, 7],
+      "to": [3, 4, 9],
+      "faces": {
+        "down": {"texture": "#leg", "cullface": "down"},
+        "north": {"texture": "#leg"},
+        "south": {"texture": "#leg"},
+        "west": {"texture": "#leg"},
+        "east": {"texture": "#leg"}
+      }
+    },
+    {
+      "from": [13, 0, 7],
+      "to": [15, 4, 9],
+      "faces": {
+        "down": {"texture": "#leg", "cullface": "down"},
+        "north": {"texture": "#leg"},
+        "south": {"texture": "#leg"},
+        "west": {"texture": "#leg"},
+        "east": {"texture": "#leg"}
+      }
+    }
+  ]
+}

@@ -12,6 +12,10 @@ public final class ClientBridge {
         invoke("handleOpenGuide");
     }
 
+    public static void openNews() {
+        invoke("handleOpenNews");
+    }
+
     private static void invoke(String method) {
         if (!FMLEnvironment.dist.isClient()) {
             return;

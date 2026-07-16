@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "kingdoms:block/news_board" },
+    "facing=east": { "model": "kingdoms:block/news_board", "y": 90 },
+    "facing=south": { "model": "kingdoms:block/news_board", "y": 180 },
+    "facing=west": { "model": "kingdoms:block/news_board", "y": 270 }
+  }
+}

@@ -23,6 +23,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.FACTION_TABLE.get());
                         output.accept(ModItems.WAR_ARCHIVE.get());
                         output.accept(ModItems.GUIDE_BOARD.get());
+                        output.accept(ModItems.NEWS_BOARD.get());
                         output.accept(ModItems.SANCTUARY_CORE.get());
                         output.accept(ModItems.WORLD_MAP.get());
                         output.accept(ModItems.ACCESS_TOOL.get());
