@@ -160,7 +160,7 @@ final class KingdomsGuiMap extends GuiMap {
                 ClaimInfo claim = ClientClaimStore.get(clickedDimension, chunk.x, chunk.z);
                 if (claim != null && claim.factionId().equals(viewer.factionId())) {
                     boolean loaded = claim.forceLoaded();
-                    options.add(chunkLoadOption(options.size(), clickedDimension, packed, 12, loaded, sameDimension));
+                    options.add(chunkLoadOption(options.size(), clickedDimension, packed, 8, loaded, sameDimension));
                     options.add(chunkLoadOption(options.size(), clickedDimension, packed, 24, loaded, sameDimension));
                     if (loaded) {
                         options.add(forceLoadOption(
@@ -271,7 +271,7 @@ final class KingdomsGuiMap extends GuiMap {
 
     private static long estimateChunkLoadPrice(int hours) {
         try {
-            return PriceMath.saturatedMultiply(ModConfigSpec.CHUNK_LOAD_PRICE_PER_HOUR.get(), hours);
+            return PriceMath.saturatedMultiply(ModConfigSpec.CHUNK_LOAD_PRICE_8H.get(), Math.max(1, hours / 8));
         } catch (IllegalStateException | IllegalArgumentException exception) {
             return -1L;
         }

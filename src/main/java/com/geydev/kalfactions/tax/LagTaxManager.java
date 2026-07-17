@@ -22,6 +22,8 @@ public final class LagTaxManager extends SavedData {
     public static final Factory<LagTaxManager> FACTORY = new Factory<>(LagTaxManager::new, LagTaxManager::load);
 
     private static final String TAG_PERIOD_TICKS = "periodTicks";
+    private static final String TAG_LAST_BILLING = "lastBillingMillis";
+    private static final String TAG_BILLING_WARN_STAGE = "billingWarnStage";
     private static final String TAG_FACTIONS = "factions";
     private static final String TAG_FACTION_ID = "id";
     private static final String TAG_ACCRUED = "accruedMicros";
@@ -117,6 +119,8 @@ public final class LagTaxManager extends SavedData {
 
     private final Map<UUID, FactionTaxState> states = new HashMap<>();
     private long periodTicks;
+    private long lastBillingMillis;
+    private int billingWarnStage;
 
     public static LagTaxManager get(MinecraftServer server) {
         Objects.requireNonNull(server, "server");
@@ -144,6 +148,35 @@ public final class LagTaxManager extends SavedData {
 
     public synchronized long periodTicks() {
         return periodTicks;
+    }
+
+    public synchronized long lastBillingMillis() {
+        return lastBillingMillis;
+    }
+
+    public synchronized void ensureBillingAnchor(long nowMillis) {
+        if (lastBillingMillis <= 0L || lastBillingMillis > nowMillis) {
+            lastBillingMillis = nowMillis;
+            billingWarnStage = 0;
+            setDirty();
+        }
+    }
+
+    public synchronized int billingWarnStage() {
+        return billingWarnStage;
+    }
+
+    public synchronized void setBillingWarnStage(int stage) {
+        if (billingWarnStage != stage) {
+            billingWarnStage = stage;
+            setDirty();
+        }
+    }
+
+    public synchronized void completeBilling(long nowMillis) {
+        lastBillingMillis = nowMillis;
+        billingWarnStage = 0;
+        resetPeriod();
     }
 
     public synchronized void accrue(UUID factionId, long costMicros, long excessMsTicksMicros, long loadMsTicksMicros) {
@@ -250,6 +283,8 @@ public final class LagTaxManager extends SavedData {
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putLong(TAG_PERIOD_TICKS, periodTicks);
+        tag.putLong(TAG_LAST_BILLING, lastBillingMillis);
+        tag.putInt(TAG_BILLING_WARN_STAGE, billingWarnStage);
         ListTag factionsTag = new ListTag();
         states.entrySet().stream()
             .sorted(Map.Entry.comparingByKey(Comparator.comparing(UUID::toString)))
@@ -286,6 +321,8 @@ public final class LagTaxManager extends SavedData {
     private static LagTaxManager load(CompoundTag tag, HolderLookup.Provider registries) {
         LagTaxManager manager = new LagTaxManager();
         manager.periodTicks = Math.max(0L, tag.getLong(TAG_PERIOD_TICKS));
+        manager.lastBillingMillis = Math.max(0L, tag.getLong(TAG_LAST_BILLING));
+        manager.billingWarnStage = Math.max(0, tag.getInt(TAG_BILLING_WARN_STAGE));
         ListTag factionsTag = tag.getList(TAG_FACTIONS, Tag.TAG_COMPOUND);
         for (int index = 0; index < factionsTag.size(); index++) {
             CompoundTag stateTag = factionsTag.getCompound(index);

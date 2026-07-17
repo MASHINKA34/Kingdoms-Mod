@@ -864,9 +864,9 @@
   "screen.kingdoms.analyzer.measuring": "Измеряю машины чанка (~5 с)...",
   "screen.kingdoms.meter.title": "Нагрузка фракции",
   "screen.kingdoms.meter.load": "Заводы: %s из %s мс/тик",
-  "screen.kingdoms.meter.forecast": "Прогноз налога: %s шпор в игровой день",
+  "screen.kingdoms.meter.forecast": "Прогноз налога: %s шпор за период списания",
   "screen.kingdoms.meter.forecast_free": "В пределах квоты — налога нет",
-  "screen.kingdoms.meter.accrued": "Начислено за игровой день: %s шпор",
+  "screen.kingdoms.meter.accrued": "Начислено с прошлого списания: %s шпор",
   "screen.kingdoms.meter.frozen": "ЗАМОРОЖЕНО — счёт %s шпор",
   "screen.kingdoms.meter.unpaid": "Счёт к оплате: %s шпор",
   "screen.kingdoms.meter.chunks_header": "Чанки (мс/тик и таймеры прогрузки):",
@@ -894,5 +894,6 @@
   "kingdoms.lagtax.detail.busy": "Другой замер ещё идёт — попробуйте позже.",
   "kingdoms.xaero_map.chunkload.buy": "Прогрузить %s ч (%s)",
   "kingdoms.xaero_map.chunkload.extend": "Продлить прогрузку %s ч (%s)",
-  "kingdoms.xaero.frozen_label": "Заморожено за неуплату"
+  "kingdoms.xaero.frozen_label": "Заморожено за неуплату",
+  "kingdoms.lagtax.notice.billing_soon": "Через %s мин спишется налог на лаги: %s. Пополните казну, если не хватает."
 }

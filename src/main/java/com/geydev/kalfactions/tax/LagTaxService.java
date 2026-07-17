@@ -33,9 +33,10 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class LagTaxService {
-    private static final long DAY_TICKS = 24_000L;
+    private static final long TICKS_PER_HOUR = 72_000L;
     private static final long HOUR_MILLIS = 3_600_000L;
     private static final long DAY_MILLIS = 24L * HOUR_MILLIS;
+    private static final int LOAD_BLOCK_HOURS = 8;
     private static final int DETAIL_SAMPLE_COUNT = 25;
     private static final double HARD_CAP_RELEASE_FACTOR = 0.8D;
     private static final double MIN_DISPLAY_MS = 0.005D;
@@ -47,6 +48,7 @@ public final class LagTaxService {
     public static void initialize(MinecraftServer server) {
         LagTaxManager manager = LagTaxManager.get(server);
         FactionManager factions = FactionManager.get(server);
+        manager.ensureBillingAnchor(System.currentTimeMillis());
         for (UUID factionId : manager.frozenFactionIds()) {
             factions.setForceLoadsSuspended(factionId, true);
         }
@@ -73,6 +75,7 @@ public final class LagTaxService {
         long price2 = ModConfigSpec.LAGTAX_TIER2_PRICE.getAsLong();
         long price3 = ModConfigSpec.LAGTAX_TIER3_PRICE.getAsLong();
         long ticks = sample.ticksCovered();
+        long periodTicks = ModConfigSpec.LAGTAX_INTERVAL_HOURS.getAsInt() * TICKS_PER_HOUR;
 
         loadCursor = (loadCursor + 1) % LOAD_WINDOW;
         java.util.Set<UUID> tracked = new java.util.HashSet<>(RECENT_LOADS.keySet());
@@ -88,7 +91,7 @@ public final class LagTaxService {
                 continue;
             }
             long costMicros = TaxMath.accrualMicros(
-                    load, quota, tier1, tier2, price1, price2, price3, ticks, DAY_TICKS);
+                    load, quota, tier1, tier2, price1, price2, price3, ticks, periodTicks);
             double excess = Math.max(0.0D, load - quota);
             long excessIntegral = Math.round(excess * TaxMath.MICROS * ticks);
             long loadIntegral = Math.round(load * TaxMath.MICROS * ticks);
@@ -98,16 +101,13 @@ public final class LagTaxService {
         }
 
         manager.advancePeriod(ticks);
-        if (manager.periodTicks() >= ModConfigSpec.LAGTAX_INTERVAL_TICKS.getAsInt()) {
-            runBilling(server);
-        }
 
         if (sample.capture() != null) {
             sendCaptureResult(server, sample.capture());
         }
     }
 
-    private static void runBilling(MinecraftServer server) {
+    private static void runBilling(MinecraftServer server, long nowMillis) {
         LagTaxManager manager = LagTaxManager.get(server);
         FactionManager factions = FactionManager.get(server);
         long periodTicks = Math.max(1L, manager.periodTicks());
@@ -139,7 +139,7 @@ public final class LagTaxService {
                         .withStyle(ChatFormatting.RED));
             }
         }
-        manager.resetPeriod();
+        manager.completeBilling(nowMillis);
     }
 
     private static void freeze(
@@ -201,6 +201,39 @@ public final class LagTaxService {
         LagTaxManager manager = LagTaxManager.get(server);
         FactionManager factions = FactionManager.get(server);
 
+        long now = System.currentTimeMillis();
+        manager.ensureBillingAnchor(now);
+        long billingDue = manager.lastBillingMillis()
+                + ModConfigSpec.LAGTAX_INTERVAL_HOURS.getAsInt() * HOUR_MILLIS;
+        if (now >= billingDue) {
+            runBilling(server, now);
+        } else {
+            long minutesLeft = Math.max(1L, (billingDue - now + 59_999L) / 60_000L);
+            int[] stages = warningStages();
+            int stage = manager.billingWarnStage();
+            if (stage < stages.length && minutesLeft <= stages[stage]) {
+                while (stage + 1 < stages.length && minutesLeft <= stages[stage + 1]) {
+                    stage++;
+                }
+                manager.setBillingWarnStage(stage + 1);
+                for (Faction faction : factions.factions()) {
+                    LagTaxManager.FactionTaxState state = manager.existingState(faction.id()).orElse(null);
+                    if (state == null) {
+                        continue;
+                    }
+                    long upcoming = TaxMath.billFromMicros(state.accruedMicros());
+                    if (upcoming < ModConfigSpec.LAGTAX_MIN_BILL.getAsLong()) {
+                        continue;
+                    }
+                    notifyRoles(server, faction, FactionRole.MEMBER, Component.translatable(
+                                    "kingdoms.lagtax.notice.billing_soon",
+                                    minutesLeft,
+                                    NumismaticsEconomy.format(upcoming))
+                            .withStyle(ChatFormatting.YELLOW), false, true);
+                }
+            }
+        }
+
         for (UUID factionId : manager.frozenFactionIds()) {
             if (factions.getFactionById(factionId).isEmpty()) {
                 manager.removeFaction(factionId);
@@ -249,7 +282,7 @@ public final class LagTaxService {
         LagTaxManager manager = LagTaxManager.get(server);
         FactionManager factions = FactionManager.get(server);
         long now = System.currentTimeMillis();
-        long pricePerHour = ModConfigSpec.CHUNK_LOAD_PRICE_PER_HOUR.getAsLong();
+        long price8h = ModConfigSpec.CHUNK_LOAD_PRICE_8H.getAsLong();
         boolean changed = false;
 
         for (Faction faction : factions.factions()) {
@@ -271,7 +304,9 @@ public final class LagTaxService {
                     }
                     continue;
                 }
-                long renewCost = PriceMath.saturatedMultiply(pricePerHour, load.lastHours());
+                long renewCost = PriceMath.saturatedMultiply(
+                        price8h,
+                        Math.max(1, load.lastHours() / LOAD_BLOCK_HOURS));
                 boolean canRenew = state.autoRenew()
                         && !state.frozen()
                         && state.unpaidBill() <= 0L
@@ -337,7 +372,10 @@ public final class LagTaxService {
 
     public static void buyChunkLoad(ServerPlayer player, ResourceLocation dimensionId, long packedChunk, int hours) {
         MinecraftServer server = player.getServer();
-        if (server == null || hours <= 0 || hours > 24 * ModConfigSpec.CHUNK_LOAD_MAX_DAYS.getAsInt()) {
+        if (server == null
+                || hours <= 0
+                || hours % LOAD_BLOCK_HOURS != 0
+                || hours > 24 * ModConfigSpec.CHUNK_LOAD_MAX_DAYS.getAsInt()) {
             return;
         }
         FactionManager factions = FactionManager.get(server);
@@ -374,7 +412,9 @@ public final class LagTaxService {
                     ModConfigSpec.CHUNK_LOAD_MAX_DAYS.getAsInt()), false);
             return;
         }
-        long price = PriceMath.saturatedMultiply(ModConfigSpec.CHUNK_LOAD_PRICE_PER_HOUR.getAsLong(), hours);
+        long price = PriceMath.saturatedMultiply(
+                ModConfigSpec.CHUNK_LOAD_PRICE_8H.getAsLong(),
+                hours / LOAD_BLOCK_HOURS);
         if (!factions.withdraw(faction.id(), price).successful()) {
             FactionServerHooks.sendNotice(player, Component.translatable(
                     "kingdoms.lagtax.load.insufficient",
@@ -601,7 +641,7 @@ public final class LagTaxService {
                 state.unpaidBill(),
                 state.frozen(),
                 state.autoRenew(),
-                ModConfigSpec.CHUNK_LOAD_PRICE_PER_HOUR.getAsLong(),
+                ModConfigSpec.CHUNK_LOAD_PRICE_8H.getAsLong(),
                 ModConfigSpec.CHUNK_LOAD_MAX_DAYS.getAsInt(),
                 chunks
         ));
@@ -747,6 +787,16 @@ public final class LagTaxService {
                 player.sendSystemMessage(message);
             }
         }
+    }
+
+    private static int[] warningStages() {
+        java.util.TreeSet<Integer> stages = new java.util.TreeSet<>(java.util.Comparator.reverseOrder());
+        stages.add(Math.max(1, ModConfigSpec.LAGTAX_WARNING_MINUTES.getAsInt()));
+        stages.add(30);
+        stages.add(5);
+        int intervalMinutes = ModConfigSpec.LAGTAX_INTERVAL_HOURS.getAsInt() * 60;
+        stages.removeIf(stage -> stage >= intervalMinutes);
+        return stages.stream().mapToInt(Integer::intValue).toArray();
     }
 
     private static double median(double[] window) {

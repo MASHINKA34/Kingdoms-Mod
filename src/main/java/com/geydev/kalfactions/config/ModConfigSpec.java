@@ -88,12 +88,13 @@ public final class ModConfigSpec {
     public static final LongValue LAGTAX_TIER1_PRICE;
     public static final LongValue LAGTAX_TIER2_PRICE;
     public static final LongValue LAGTAX_TIER3_PRICE;
-    public static final IntValue LAGTAX_INTERVAL_TICKS;
+    public static final IntValue LAGTAX_INTERVAL_HOURS;
+    public static final IntValue LAGTAX_WARNING_MINUTES;
     public static final LongValue LAGTAX_MIN_BILL;
     public static final DoubleValue LAGTAX_HARD_CAP_MS;
     public static final IntValue LAGTAX_SAMPLE_INTERVAL_TICKS;
     public static final IntValue LAGTAX_EMA_SECONDS;
-    public static final LongValue CHUNK_LOAD_PRICE_PER_HOUR;
+    public static final LongValue CHUNK_LOAD_PRICE_8H;
     public static final IntValue CHUNK_LOAD_MAX_DAYS;
     public static final LongValue FACTION_METER_COST;
     public static final IntValue NEWS_MAX_ARTICLES_PER_FACTION;
@@ -312,9 +313,12 @@ public final class ModConfigSpec {
         LAGTAX_TIER3_PRICE = builder
             .comment("Spurs per 0.1 ms/tick of tier 3 excess per game day.")
             .defineInRange("tier3Price", 600L, 0L, Long.MAX_VALUE);
-        LAGTAX_INTERVAL_TICKS = builder
-            .comment("Server ticks between tax collections (24000 = one game day).")
-            .defineInRange("taxIntervalTicks", 24000, 1200, 1_728_000);
+        LAGTAX_INTERVAL_HOURS = builder
+            .comment("Real-time hours between tax collections; tier prices cover one fully ticked period.")
+            .defineInRange("taxIntervalHours", 12, 1, 720);
+        LAGTAX_WARNING_MINUTES = builder
+            .comment("Minutes before a collection at which officers are warned about the upcoming charge.")
+            .defineInRange("taxWarningMinutes", 60, 1, 720);
         LAGTAX_MIN_BILL = builder
             .comment("Bills below this many spurs are forgiven at collection time.")
             .defineInRange("minBill", 10L, 0L, Long.MAX_VALUE);
@@ -327,9 +331,9 @@ public final class ModConfigSpec {
         LAGTAX_EMA_SECONDS = builder
             .comment("Smoothing window in seconds for the per-chunk load moving average.")
             .defineInRange("emaSeconds", 300, 10, 3600);
-        CHUNK_LOAD_PRICE_PER_HOUR = builder
-            .comment("Spurs per chunk per hour of paid chunk loading (12h preset = 12x this).")
-            .defineInRange("chunkLoadPricePerHour", 84L, 0L, Long.MAX_VALUE);
+        CHUNK_LOAD_PRICE_8H = builder
+            .comment("Spurs per chunk per 8-hour block of paid chunk loading.")
+            .defineInRange("chunkLoadPrice8h", 500L, 0L, Long.MAX_VALUE);
         CHUNK_LOAD_MAX_DAYS = builder
             .comment("Maximum days ahead a chunk load timer may be extended to.")
             .defineInRange("chunkLoadMaxDays", 7, 1, 365);

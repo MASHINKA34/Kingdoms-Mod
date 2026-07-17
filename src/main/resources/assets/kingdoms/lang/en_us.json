@@ -864,9 +864,9 @@
   "screen.kingdoms.analyzer.measuring": "Measuring chunk machines (~5 s)...",
   "screen.kingdoms.meter.title": "Faction Load",
   "screen.kingdoms.meter.load": "Factories: %s of %s ms/tick",
-  "screen.kingdoms.meter.forecast": "Tax forecast: %s spurs per game day",
+  "screen.kingdoms.meter.forecast": "Tax forecast: %s spurs per collection period",
   "screen.kingdoms.meter.forecast_free": "Within quota — no tax",
-  "screen.kingdoms.meter.accrued": "Accrued this game day: %s spurs",
+  "screen.kingdoms.meter.accrued": "Accrued since last collection: %s spurs",
   "screen.kingdoms.meter.frozen": "FROZEN — bill %s spurs",
   "screen.kingdoms.meter.unpaid": "Bill due: %s spurs",
   "screen.kingdoms.meter.chunks_header": "Chunks (ms/tick and load timers):",
@@ -894,5 +894,6 @@
   "kingdoms.lagtax.detail.busy": "Another measurement is in progress — try again later.",
   "kingdoms.xaero_map.chunkload.buy": "Load chunk %s h (%s)",
   "kingdoms.xaero_map.chunkload.extend": "Extend loading %s h (%s)",
-  "kingdoms.xaero.frozen_label": "Frozen for non-payment"
+  "kingdoms.xaero.frozen_label": "Frozen for non-payment",
+  "kingdoms.lagtax.notice.billing_soon": "The lag tax will be collected in %s min: %s. Top up the treasury if needed."
 }
