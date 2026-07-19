@@ -151,6 +151,10 @@ dependencies {
     compileOnly files("libs/xaerolib-neoforge-${minecraft_version}-1.1.15.jar")
     localRuntime files("libs/xaerominimap-neoforge-${minecraft_version}-${xaero_minimap_version}.jar")
     localRuntime files("libs/xaeroworldmap-neoforge-${minecraft_version}-${xaero_worldmap_version}.jar")
+    localRuntime files("libs/ScorchedGuns-1.5.jar")
+    localRuntime files("libs/framework-neoforge-${minecraft_version}-0.13.11.jar")
+    localRuntime files("libs/curios-neoforge-9.5.1+${minecraft_version}.jar")
+    localRuntime files("libs/geckolib-neoforge-${minecraft_version}-4.9.2.jar")
 
     localRuntime("dev.ithundxr.createnumismatics:CreateNumismatics-neoforge-${minecraft_version}:${numismatics_version}") {
         transitive = false
