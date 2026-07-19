@@ -19,6 +19,8 @@ public final class KingdomsMixinPlugin implements IMixinConfigPlugin {
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         if (mixinClassName.endsWith("ScorchedProjectileMixin")
+                || mixinClassName.endsWith("ScorchedKrahgProjectileMixin")
+                || mixinClassName.endsWith("ScorchedOsborneProjectileMixin")
                 || mixinClassName.endsWith("ScorchedBeamMiningMixin")
                 || mixinClassName.endsWith("BlockBreakingMovementBehaviourMixin")
                 || mixinClassName.endsWith("BlockBreakingKineticBlockEntityMixin")) {

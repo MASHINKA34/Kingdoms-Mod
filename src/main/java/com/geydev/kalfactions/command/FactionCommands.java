@@ -797,6 +797,9 @@ public final class FactionCommands {
             case DEFENDER_BUSY -> {
                 return failure(context, "kingdoms.command.faction.war.defender_busy", target.name());
             }
+            case DEFENDER_OFFLINE -> {
+                return failure(context, "kingdoms.command.faction.war.defender_offline", target.name());
+            }
             default -> {
                 return 0;
             }

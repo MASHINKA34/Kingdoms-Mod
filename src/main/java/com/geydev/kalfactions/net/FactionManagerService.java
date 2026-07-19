@@ -1172,6 +1172,8 @@ public final class FactionManagerService implements FactionServerHooks.Service {
                     "kingdoms.command.faction.war.cooldown",
                     WarManager.get(player.getServer()).declareCooldownRemainingHours(faction.id()));
             case DEFENDER_BUSY -> Component.translatable("kingdoms.command.faction.war.defender_busy", target.name());
+            case DEFENDER_OFFLINE -> Component.translatable(
+                    "kingdoms.command.faction.war.defender_offline", target.name());
         };
         return new FactionServerHooks.Result(
                 result == WarManager.DeclareResult.SUCCESS,

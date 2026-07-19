@@ -165,8 +165,7 @@ public final class WarManager extends SavedData {
     // ------------------------------------------------------------------ war points
 
     /**
-     * Awards war points to the scoring faction's side of its active war. Points only count when the
-     * opposing belligerent has at least one member online (anti-grief). Reaching the configured goal
+     * Awards war points to the scoring faction's side of its active war. Reaching the configured goal
      * ends the war with the scoring side as the winner.
      */
     public synchronized void addWarPoints(MinecraftServer server, UUID scoringFactionId, long amount) {
@@ -179,10 +178,6 @@ public final class WarManager extends SavedData {
         }
         War.Side scoringSide = war.sideOf(scoringFactionId);
         if (scoringSide == null) {
-            return;
-        }
-        War.Side opposingSide = scoringSide == War.Side.ATTACKER ? War.Side.DEFENDER : War.Side.ATTACKER;
-        if (!hasOnlineMemberOnSide(server, war, opposingSide)) {
             return;
         }
         war.addPoints(scoringFactionId, amount);
@@ -265,16 +260,6 @@ public final class WarManager extends SavedData {
         }
         for (UUID memberId : faction.members().keySet()) {
             if (server.getPlayerList().getPlayer(memberId) != null) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean hasOnlineMemberOnSide(MinecraftServer server, War war, War.Side side) {
-        Set<UUID> factionsOnSide = side == War.Side.ATTACKER ? war.attackerSide() : war.defenderSide();
-        for (UUID factionId : factionsOnSide) {
-            if (hasOnlineMember(server, factionId)) {
                 return true;
             }
         }
@@ -891,6 +876,9 @@ public final class WarManager extends SavedData {
         if (factionToWar.containsKey(defenderFactionId)) {
             return DeclareResult.DEFENDER_BUSY;
         }
+        if (!hasOnlineMember(server, defenderFactionId)) {
+            return DeclareResult.DEFENDER_OFFLINE;
+        }
 
         UUID warId;
         do {
@@ -1228,7 +1216,8 @@ public final class WarManager extends SavedData {
         SAME_FACTION,
         ATTACKER_BUSY,
         ATTACKER_COOLDOWN,
-        DEFENDER_BUSY
+        DEFENDER_BUSY,
+        DEFENDER_OFFLINE
     }
 
     public enum JoinResult {

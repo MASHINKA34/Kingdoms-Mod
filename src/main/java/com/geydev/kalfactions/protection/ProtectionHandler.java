@@ -76,7 +76,7 @@ public final class ProtectionHandler {
         }
         if (warBreak) {
             // Storages are excluded from war-break so loot cannot be reached through claim walls.
-            if (level.getBlockEntity(breakPos) instanceof net.minecraft.world.Container) {
+            if (isWarProtectedBlock(level, breakPos)) {
                 event.setCanceled(true);
                 deny(player, "kingdoms.war.container_protected");
                 return;
@@ -256,7 +256,7 @@ public final class ProtectionHandler {
                 return false; // unclaimed land: vanilla explosion
             }
             if (exploderFaction != null && wars.areAtWar(owner, exploderFaction)) {
-                if (level.getBlockEntity(pos) instanceof net.minecraft.world.Container) {
+                if (isWarProtectedBlock(level, pos)) {
                     return true; // storages stay protected even from war explosions
                 }
                 wars.onChunkModified(level, new ChunkPos(pos)); // snapshot before the blast
@@ -333,6 +333,20 @@ public final class ProtectionHandler {
         BlockEntity blockEntity = level.getBlockEntity(pos);
         return blockEntity instanceof Container
                 || level.getCapability(Capabilities.ItemHandler.BLOCK, pos, null) != null;
+    }
+
+    private static final String CREATE_NAMESPACE = "create";
+
+    private static boolean isWarProtectedBlock(ServerLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        if (CREATE_NAMESPACE.equals(BuiltInRegistries.BLOCK.getKey(state.getBlock()).getNamespace())) {
+            return true;
+        }
+        if (level.getBlockEntity(pos) instanceof Container) {
+            return true;
+        }
+        return level.getCapability(Capabilities.ItemHandler.BLOCK, pos, null) != null
+                || level.getCapability(Capabilities.FluidHandler.BLOCK, pos, null) != null;
     }
 
     private static GraveBreakAccess graveBreakAccess(ServerPlayer player, ServerLevel level, BlockPos pos) {
