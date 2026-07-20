@@ -67,7 +67,9 @@ public final class DrillBlock extends BaseEntityBlock {
             return InteractionResult.sidedSuccess(true);
         }
         if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer
+                && level instanceof ServerLevel serverLevel
                 && level.getBlockEntity(pos) instanceof DrillBlockEntity drill) {
+            drill.runCheck(serverLevel, pos);
             serverPlayer.openMenu(drill);
         }
         return InteractionResult.sidedSuccess(false);

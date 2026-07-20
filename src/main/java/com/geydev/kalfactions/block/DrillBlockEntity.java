@@ -61,7 +61,7 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
     private int progress;
     private int interval = baseIntervalTicks();
     private long lastProduceMillis;
-    private int sinceCheck;
+    private int sinceCheck = CHECK_INTERVAL_TICKS - 1;
 
     public DrillBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.DRILL.get(), pos, state);
@@ -75,32 +75,36 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
             return;
         }
         drill.sinceCheck = 0;
-        drill.recomputeInterval(serverLevel, pos);
+        drill.runCheck(serverLevel, pos);
+    }
+
+    public void runCheck(ServerLevel serverLevel, BlockPos pos) {
+        recomputeInterval(serverLevel, pos);
         long now = System.currentTimeMillis();
-        if (drill.lastProduceMillis == 0L) {
-            drill.lastProduceMillis = now;
-            drill.setChanged();
+        if (lastProduceMillis == 0L) {
+            lastProduceMillis = now;
+            setChanged();
         }
-        long intervalMillis = Math.max(1L, (long) drill.interval * 50L);
+        long intervalMillis = Math.max(1L, (long) interval * 50L);
         int batches = 0;
-        while (now - drill.lastProduceMillis >= intervalMillis && batches < SLOTS) {
-            ProduceResult result = drill.produce(serverLevel, pos);
+        while (now - lastProduceMillis >= intervalMillis && batches < SLOTS) {
+            ProduceResult result = produce(serverLevel, pos);
             if (result == ProduceResult.PRODUCED) {
-                drill.lastProduceMillis += intervalMillis;
+                lastProduceMillis += intervalMillis;
                 batches++;
                 continue;
             }
             if (result == ProduceResult.FULL) {
-                drill.lastProduceMillis = now - intervalMillis;
+                lastProduceMillis = now - intervalMillis;
             } else {
-                drill.lastProduceMillis = now;
+                lastProduceMillis = now;
             }
             break;
         }
-        long elapsedTicks = (now - drill.lastProduceMillis) / 50L;
-        drill.progress = (int) Math.clamp(elapsedTicks, 0L, (long) drill.interval);
+        long elapsedTicks = (now - lastProduceMillis) / 50L;
+        progress = (int) Math.clamp(elapsedTicks, 0L, (long) interval);
         if (batches > 0) {
-            drill.setChanged();
+            setChanged();
         }
     }
 

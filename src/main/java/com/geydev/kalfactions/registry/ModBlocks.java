@@ -63,8 +63,7 @@ public final class ModBlocks {
             () -> new DrillBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.METAL)
                     .strength(3.5F)
-                    .sound(SoundType.METAL)
-                    .requiresCorrectToolForDrops())
+                    .sound(SoundType.METAL))
     );
 
     public static final DeferredBlock<GuideBoardBlock> GUIDE_BOARD = BLOCKS.register(
