@@ -18,6 +18,7 @@ final class TradeSequenceGuardTest {
         assertTrue(guard.accept(1L));
         assertFalse(guard.accept(1L));
         assertFalse(guard.accept(0L));
+        assertFalse(guard.accept(3L));
         assertTrue(guard.accept(2L));
     }
 

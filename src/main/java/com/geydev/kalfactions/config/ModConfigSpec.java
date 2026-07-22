@@ -117,6 +117,18 @@ public final class ModConfigSpec {
     public static final IntValue RESEARCH_CRYSTAL_COST_TIER_4;
     public static final IntValue RESEARCH_CRYSTAL_COST_TIER_5;
     public static final IntValue RESEARCH_CRYSTAL_COST_TIER_6_PLUS;
+    public static final IntValue CONTRABAND_LIFETIME_MINUTES;
+    public static final IntValue CONTRABAND_COOLDOWN_MINUTES;
+    public static final IntValue CONTRABAND_MAX_SPAWN_DISTANCE;
+    public static final IntValue CONTRABAND_SPAWN_ATTEMPTS;
+    public static final IntValue WANDERING_ROLL_INTERVAL_MINUTES;
+    public static final IntValue WANDERING_CHANCE_PERCENT;
+    public static final IntValue WANDERING_LIFETIME_MINUTES;
+    public static final IntValue WANDERING_COOLDOWN_MINUTES;
+    public static final IntValue WANDERING_OFFER_COUNT_MIN;
+    public static final IntValue WANDERING_OFFER_COUNT_MAX;
+    public static final IntValue WANDERING_SPAWN_ATTEMPTS;
+    public static final IntValue TRADER_WORLD_BORDER_MARGIN;
 
     static {
         Builder builder = new Builder();
@@ -155,6 +167,21 @@ public final class ModConfigSpec {
         RESEARCH_CRYSTAL_COST_TIER_4 = builder.defineInRange("crystalCostTier4", 48, 0, 4096);
         RESEARCH_CRYSTAL_COST_TIER_5 = builder.defineInRange("crystalCostTier5", 64, 0, 4096);
         RESEARCH_CRYSTAL_COST_TIER_6_PLUS = builder.defineInRange("crystalCostTier6Plus", 96, 0, 4096);
+        builder.pop();
+
+        builder.push("traderEvents");
+        CONTRABAND_LIFETIME_MINUTES = builder.defineInRange("contrabandLifetimeMinutes", 60, 1, 10080);
+        CONTRABAND_COOLDOWN_MINUTES = builder.defineInRange("contrabandCooldownMinutes", 240, 1, 43200);
+        CONTRABAND_MAX_SPAWN_DISTANCE = builder.defineInRange("contrabandMaxSpawnDistanceFromSpawn", 512, 16, 10000);
+        CONTRABAND_SPAWN_ATTEMPTS = builder.defineInRange("contrabandSpawnAttempts", 8, 1, 128);
+        WANDERING_ROLL_INTERVAL_MINUTES = builder.defineInRange("wanderingRollIntervalMinutes", 60, 1, 10080);
+        WANDERING_CHANCE_PERCENT = builder.defineInRange("wanderingChancePercent", 10, 0, 100);
+        WANDERING_LIFETIME_MINUTES = builder.defineInRange("wanderingLifetimeMinutes", 45, 1, 10080);
+        WANDERING_COOLDOWN_MINUTES = builder.defineInRange("wanderingCooldownMinutes", 360, 1, 43200);
+        WANDERING_OFFER_COUNT_MIN = builder.defineInRange("wanderingOfferCountMin", 3, 1, 16);
+        WANDERING_OFFER_COUNT_MAX = builder.defineInRange("wanderingOfferCountMax", 6, 1, 16);
+        WANDERING_SPAWN_ATTEMPTS = builder.defineInRange("wanderingSpawnAttempts", 8, 1, 128);
+        TRADER_WORLD_BORDER_MARGIN = builder.defineInRange("traderWorldBorderMargin", 16, 1, 512);
         builder.pop();
 
         builder.push("resourceDeposits");

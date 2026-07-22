@@ -4,7 +4,7 @@ final class TradeSequenceGuard {
     private long lastAccepted;
 
     synchronized boolean accept(long sequence) {
-        if (sequence < 1L || sequence <= lastAccepted) {
+        if (sequence != lastAccepted + 1L) {
             return false;
         }
         lastAccepted = sequence;

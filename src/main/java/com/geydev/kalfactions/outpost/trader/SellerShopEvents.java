@@ -14,7 +14,7 @@ public final class SellerShopEvents {
     public static void onEntityJoinLevel(EntityJoinLevelEvent event) {
         if (event.getEntity() instanceof SellerTraderEntity trader
                 && event.getLevel() instanceof ServerLevel level) {
-            SellerOfferRotation.get(level.getServer()).ensureShop(level.getServer(), trader.getUUID());
+            TraderLifecycle.onJoin(trader, level);
         }
     }
 

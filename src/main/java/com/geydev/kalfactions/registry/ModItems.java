@@ -12,6 +12,7 @@ import com.geydev.kalfactions.item.SellerCatalogItem;
 import com.geydev.kalfactions.item.SellerSpawnEggItem;
 import com.geydev.kalfactions.item.TraderRemoverItem;
 import com.geydev.kalfactions.item.TraderSpawnEggItem;
+import com.geydev.kalfactions.item.TraderPointToolItem;
 import java.util.Optional;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -71,6 +72,11 @@ public final class ModItems {
     public static final DeferredItem<TraderRemoverItem> TRADER_REMOVER = ITEMS.register(
             "trader_remover",
             () -> new TraderRemoverItem(new Item.Properties().stacksTo(1))
+    );
+
+    public static final DeferredItem<TraderPointToolItem> TRADER_POINT_TOOL = ITEMS.register(
+            "trader_point_tool",
+            () -> new TraderPointToolItem(new Item.Properties().stacksTo(1))
     );
 
     public static final DeferredItem<SellerCatalogItem> SELLER_CATALOG = ITEMS.register(

@@ -7,6 +7,7 @@ import com.geydev.kalfactions.faction.ResearchNode;
 import com.geydev.kalfactions.news.NewsManager;
 import com.geydev.kalfactions.news.NewsService;
 import com.geydev.kalfactions.outpost.trader.TraderService;
+import com.geydev.kalfactions.outpost.trader.TraderWorldData;
 import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager;
 import com.geydev.kalfactions.outpost.cluster.distribution.ResourceZone;
 import com.geydev.kalfactions.sanctuary.SanctuaryExecutionManager;
@@ -51,6 +52,13 @@ public final class KingdomsAdminCommands {
                 .then(com.geydev.kalfactions.market.MarketPlotCommands.build())
                 .then(Commands.literal("spawntrader")
                         .executes(KingdomsAdminCommands::spawnTrader))
+                .then(Commands.literal("trader")
+                        .then(Commands.literal("points")
+                                .then(Commands.literal("list").executes(KingdomsAdminCommands::traderPointsList))
+                                .then(Commands.literal("add").executes(KingdomsAdminCommands::traderPointsAdd))
+                                .then(Commands.literal("remove")
+                                        .then(Commands.argument("id", StringArgumentType.word())
+                                                .executes(KingdomsAdminCommands::traderPointsRemove)))))
                 .then(Commands.literal("sanctuary")
                         .then(Commands.literal("vulnerable")
                                 .then(Commands.argument("player", EntityArgument.player())
@@ -416,6 +424,59 @@ public final class KingdomsAdminCommands {
                 () -> Component.translatable("command.kingdoms.spawntrader.success"),
                 true
         );
+        return 1;
+    }
+
+    private static int traderPointsList(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        java.util.List<TraderWorldData.SpawnPoint> points = TraderWorldData.get(source.getServer()).points();
+        source.sendSuccess(() -> Component.translatable("kingdoms.trader.point.list.header", points.size()), false);
+        int index = 0;
+        for (TraderWorldData.SpawnPoint point : points) {
+            index++;
+            int displayIndex = index;
+            source.sendSuccess(() -> Component.translatable(
+                    "kingdoms.trader.point.list.entry",
+                    displayIndex,
+                    point.id(),
+                    point.dimension().location(),
+                    point.pos().getX(),
+                    point.pos().getY(),
+                    point.pos().getZ(),
+                    String.format(java.util.Locale.ROOT, "%.1f", point.yaw())
+            ), false);
+        }
+        return points.size();
+    }
+
+    private static int traderPointsAdd(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        TraderWorldData.AddPointResult result = TraderWorldData.get(context.getSource().getServer()).addPoint(
+                player.level().dimension(), player.blockPosition(), player.getYRot()
+        );
+        if (!result.added()) {
+            context.getSource().sendFailure(Component.translatable("kingdoms.trader.point.limit"));
+            return 0;
+        }
+        context.getSource().sendSuccess(
+                () -> Component.translatable("kingdoms.trader.point.added", result.point().id()), true
+        );
+        return 1;
+    }
+
+    private static int traderPointsRemove(CommandContext<CommandSourceStack> context) {
+        UUID id;
+        try {
+            id = UUID.fromString(StringArgumentType.getString(context, "id"));
+        } catch (IllegalArgumentException exception) {
+            context.getSource().sendFailure(Component.translatable("kingdoms.trader.point.invalid_id"));
+            return 0;
+        }
+        if (!TraderWorldData.get(context.getSource().getServer()).removePoint(id)) {
+            context.getSource().sendFailure(Component.translatable("kingdoms.trader.point.not_found", id));
+            return 0;
+        }
+        context.getSource().sendSuccess(() -> Component.translatable("kingdoms.trader.point.removed", id), true);
         return 1;
     }
 

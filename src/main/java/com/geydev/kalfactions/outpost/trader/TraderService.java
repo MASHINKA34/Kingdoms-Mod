@@ -8,6 +8,7 @@ import com.geydev.kalfactions.entity.SellerTraderEntity;
 import com.geydev.kalfactions.economy.PriceMath;
 import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.protection.FactionAccess;
 import com.geydev.kalfactions.registry.ModEntities;
 import java.util.ArrayList;
@@ -24,7 +25,9 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -65,10 +68,50 @@ public final class TraderService {
             float yRot,
             @Nullable Player spawner
     ) {
+        SellerTraderEntity trader = spawnSellerEntity(
+                level, x, y, z, yRot, spawner, SellerTraderRole.PERMANENT, null, null, 0L
+        );
+        return trader != null;
+    }
+
+    public static SellerTraderEntity spawnSellerEntity(
+            ServerLevel level,
+            double x,
+            double y,
+            double z,
+            float yRot,
+            @Nullable Player spawner,
+            SellerTraderRole role,
+            @Nullable UUID eventId,
+            @Nullable UUID targetFactionId,
+            long expiresAtMillis
+    ) {
+        SellerTraderEntity trader = createSellerEntity(
+                level, x, y, z, yRot, spawner, role, eventId, targetFactionId, expiresAtMillis
+        );
+        return trader != null && level.addFreshEntity(trader) ? trader : null;
+    }
+
+    public static SellerTraderEntity createSellerEntity(
+            ServerLevel level,
+            double x,
+            double y,
+            double z,
+            float yRot,
+            @Nullable Player spawner,
+            SellerTraderRole role,
+            @Nullable UUID eventId,
+            @Nullable UUID targetFactionId,
+            long expiresAtMillis
+    ) {
         SellerTraderEntity trader = ModEntities.SELLER_TRADER.get().create(level);
         if (trader == null) {
-            return false;
+            return null;
         }
+        trader.setTraderRole(role);
+        trader.setEventId(eventId);
+        trader.setTargetFactionId(targetFactionId);
+        trader.setExpiresAtMillis(expiresAtMillis);
         trader.moveTo(x, y, z, yRot, 0.0F);
         if (spawner != null) {
             trader.lookAt(EntityAnchorArgument.Anchor.EYES, spawner.getEyePosition());
@@ -76,7 +119,7 @@ public final class TraderService {
             trader.yBodyRotO = trader.getYRot();
             trader.yHeadRotO = trader.getYHeadRot();
         }
-        return level.addFreshEntity(trader);
+        return trader;
     }
 
     public static boolean spawnBanker(
@@ -138,13 +181,13 @@ public final class TraderService {
     }
 
     public static void openSeller(ServerPlayer player, SellerTraderEntity trader) {
+        SellerOfferRotation.get(player.getServer()).setCatalogVisible(
+                player.getServer(), trader.getUUID(), trader.traderRole() == SellerTraderRole.PERMANENT
+        );
         TradeSessionManager.open(player, trader.getUUID());
         if (!isAvailable(player, trader)) {
-            sendSellState(
-                    player,
-                    trader,
-                    Component.translatable("screen.kingdoms.trader.notice.unavailable"),
-                    false
+            sendSellUnavailable(
+                    player, trader.getUUID(), Component.translatable("screen.kingdoms.trader.notice.unavailable")
             );
             return;
         }
@@ -161,7 +204,9 @@ public final class TraderService {
             return;
         }
         if (!isAvailable(player, trader)) {
-            sendSellState(player, trader, Component.translatable("screen.kingdoms.trader.notice.too_far"), false);
+            sendSellUnavailable(
+                    player, trader.getUUID(), Component.translatable("screen.kingdoms.trader.notice.too_far")
+            );
             return;
         }
         sendSellState(player, trader, Component.empty(), true);
@@ -300,12 +345,15 @@ public final class TraderService {
                 break;
             }
             List<TraderPayloads.OfferInfo> offers = entry.offers().stream()
+                    .filter(offer -> offer.itemId() != null)
                     .map(offer -> new TraderPayloads.OfferInfo(
                             offer.id(),
-                            BuiltInRegistries.ITEM.getKey(offer.item()).toString(),
-                            1,
-                            sellUnitPrice(player, offer.price()),
-                            rotation.remainingLimit(server, entry.traderId(), player.getUUID(), offer),
+                            offer.itemId().toString(),
+                            offer.count(),
+                            sellUnitPrice(player, offer.minimumPrice()),
+                            rotation.remainingLimit(
+                                    server, entry.traderId(), player.getUUID(), offer.id(), offer.dailyLimit()
+                            ),
                             false
                     ))
                     .toList();
@@ -320,10 +368,45 @@ public final class TraderService {
     }
 
     private static boolean isAvailable(ServerPlayer player, Entity trader) {
-        return trader.isAlive()
-                && !trader.isRemoved()
-                && trader.level() == player.level()
-                && player.distanceToSqr(trader) <= MAX_DISTANCE_SQUARED;
+        if (!trader.isAlive()
+                || trader.isRemoved()
+                || trader.level() != player.level()
+                || player.distanceToSqr(trader) > MAX_DISTANCE_SQUARED) {
+            return false;
+        }
+        if (!(trader instanceof SellerTraderEntity seller)) {
+            return true;
+        }
+        if (seller.traderRole() == SellerTraderRole.PERMANENT) {
+            return true;
+        }
+        long now = System.currentTimeMillis();
+        if (seller.expiresAtMillis() <= now || seller.eventId().isEmpty()) {
+            return false;
+        }
+        TraderWorldData data = TraderWorldData.get(player.getServer());
+        if (seller.traderRole() == SellerTraderRole.CONTRABAND) {
+            return data.contraband()
+                    .filter(active -> active.entityId().equals(seller.getUUID()))
+                    .filter(active -> active.eventId().equals(seller.eventId().orElse(null)))
+                    .filter(active -> active.expiresAt() > now)
+                    .isPresent();
+        }
+        UUID targetFaction = seller.targetFactionId().orElse(null);
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        TraderWorldData.WanderingEvent event = targetFaction == null
+                ? null
+                : data.wandering(targetFaction).orElse(null);
+        return TraderAccessPolicy.canUseWandering(
+                manager.getFactionIdForMember(player.getUUID()).orElse(null),
+                targetFaction,
+                manager.getFactionIdAt(ClaimKey.of(player.level(), seller.blockPosition())).orElse(null),
+                seller.getUUID(),
+                seller.eventId().orElse(null),
+                seller.expiresAtMillis(),
+                event,
+                now
+        );
     }
 
     private static boolean hasInventorySpace(ServerPlayer player, ItemStack product) {
@@ -344,11 +427,8 @@ public final class TraderService {
         if (validation != TradeSessionManager.Validation.ACCEPTED) {
             Entity current = player.serverLevel().getEntity(traderId);
             if (current instanceof SellerTraderEntity trader) {
-                sendSellState(
-                        player,
-                        trader,
-                        Component.translatable("screen.kingdoms.trader.notice.unavailable"),
-                        false
+                sendSellUnavailable(
+                        player, trader.getUUID(), Component.translatable("screen.kingdoms.trader.notice.unavailable")
                 );
             }
             return;
@@ -359,11 +439,8 @@ public final class TraderService {
             return;
         }
         if (!isAvailable(player, trader)) {
-            sendSellState(
-                    player,
-                    trader,
-                    Component.translatable("screen.kingdoms.trader.notice.too_far"),
-                    false
+            sendSellUnavailable(
+                    player, trader.getUUID(), Component.translatable("screen.kingdoms.trader.notice.too_far")
             );
             return;
         }
@@ -379,18 +456,7 @@ public final class TraderService {
 
         MinecraftServer server = player.serverLevel().getServer();
         SellerOfferRotation rotation = SellerOfferRotation.get(server);
-        SellerOfferRotation.Window window = rotation.current(server, trader.getUUID());
-        SellSelection selection = permanentSelection(offerId).orElseGet(() ->
-                window.offer(offerId)
-                        .map(offer -> new SellSelection(
-                                offer.id(),
-                                offer.item(),
-                                offer.price(),
-                                offer.dailyLimit(),
-                                false
-                        ))
-                        .orElse(null)
-        );
+        SellSelection selection = selectionFor(trader, offerId).orElse(null);
         if (selection == null) {
             sendSellState(
                     player,
@@ -401,7 +467,7 @@ public final class TraderService {
             return;
         }
 
-        int owned = countItems(player, selection.item());
+        int owned = countItems(player, selection);
         if (owned <= 0) {
             sendSellState(
                     player,
@@ -446,7 +512,7 @@ public final class TraderService {
                 selection.id(),
                 selection.dailyLimit(),
                 count,
-                allowed -> removeUpTo(player, selection.item(), allowed)
+                allowed -> removeUpTo(player, selection, allowed)
         );
         if (removed <= 0) {
             sendSellState(
@@ -487,38 +553,38 @@ public final class TraderService {
                 ? Component.translatable(
                         "screen.kingdoms.trader.notice.sold_influence",
                         count,
-                        new ItemStack(selection.item()).getHoverName(),
+                        new ItemStack(selection.displayItem()).getHoverName(),
                         NumismaticsEconomy.format(spurs),
                         influenceGained
                 )
                 : Component.translatable(
                         "screen.kingdoms.trader.notice.sold",
                         count,
-                        new ItemStack(selection.item()).getHoverName(),
+                        new ItemStack(selection.displayItem()).getHoverName(),
                         NumismaticsEconomy.format(spurs)
                 );
         sendSellState(player, trader, notice, true);
     }
 
-    private static int countItems(ServerPlayer player, net.minecraft.world.item.Item item) {
+    private static int countItems(ServerPlayer player, SellSelection selection) {
         int count = 0;
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
-            if (!stack.isEmpty() && stack.is(item)) {
+            if (!stack.isEmpty() && selection.matches(stack)) {
                 count += stack.getCount();
             }
         }
         return count;
     }
 
-    private static int removeUpTo(ServerPlayer player, net.minecraft.world.item.Item item, int limit) {
+    private static int removeUpTo(ServerPlayer player, SellSelection selection, int limit) {
         int removed = 0;
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             if (removed >= limit) {
                 break;
             }
             ItemStack stack = player.getInventory().getItem(slot);
-            if (!stack.isEmpty() && stack.is(item)) {
+            if (!stack.isEmpty() && selection.matches(stack)) {
                 int taken = Math.min(stack.getCount(), limit - removed);
                 removed += taken;
                 stack.shrink(taken);
@@ -530,16 +596,66 @@ public final class TraderService {
         return removed;
     }
 
-    private static java.util.Optional<SellSelection> permanentSelection(String offerId) {
-        return TraderCatalogManager.offer(TraderCatalogRole.PERMANENT, offerId)
-                .filter(offer -> offer.itemId() != null)
-                .map(offer -> new SellSelection(
-                        offer.id(),
-                        BuiltInRegistries.ITEM.get(offer.itemId()),
-                        offer.minimumPrice(),
-                        offer.dailyLimit(),
-                        true
-                ));
+    private static java.util.Optional<SellSelection> selectionFor(SellerTraderEntity trader, String offerId) {
+        if (trader.traderRole() == SellerTraderRole.PERMANENT) {
+            java.util.Optional<SellSelection> permanent = catalogSelection(
+                    TraderCatalogRole.PERMANENT, offerId, true, null
+            );
+            if (permanent.isPresent()) {
+                return permanent;
+            }
+            return SellerOfferRotation.get(trader.getServer()).current(trader.getServer(), trader.getUUID())
+                    .offer(offerId)
+                    .flatMap(offer -> catalogSelection(TraderCatalogRole.ROTATING, offer.id(), false, null));
+        }
+        if (trader.traderRole() == SellerTraderRole.CONTRABAND) {
+            return catalogSelection(TraderCatalogRole.CONTRABAND, offerId, false, null);
+        }
+        UUID factionId = trader.targetFactionId().orElse(null);
+        if (factionId == null) {
+            return java.util.Optional.empty();
+        }
+        TraderWorldData.RolledOffer rolled = TraderWorldData.get(trader.getServer())
+                .wandering(factionId)
+                .stream()
+                .flatMap(event -> event.offers().stream())
+                .filter(offer -> offer.id().equals(offerId))
+                .findFirst()
+                .orElse(null);
+        return rolled == null
+                ? java.util.Optional.empty()
+                : catalogSelection(TraderCatalogRole.WANDERING, offerId, false, rolled.price());
+    }
+
+    private static java.util.Optional<SellSelection> catalogSelection(
+            TraderCatalogRole role,
+            String offerId,
+            boolean permanent,
+            @Nullable Long rolledPrice
+    ) {
+        return TraderCatalogManager.offer(role, offerId).flatMap(offer -> {
+            Item item = displayItem(offer).orElse(null);
+            if (item == null) {
+                return java.util.Optional.empty();
+            }
+            TagKey<Item> tag = offer.itemTag() == null
+                    ? null
+                    : TagKey.create(Registries.ITEM, offer.itemTag());
+            return java.util.Optional.of(new SellSelection(
+                    offer.id(), item, tag, rolledPrice == null ? offer.minimumPrice() : rolledPrice,
+                    offer.dailyLimit(), permanent
+            ));
+        });
+    }
+
+    private static java.util.Optional<Item> displayItem(TraderCatalogOffer offer) {
+        if (offer.itemId() != null) {
+            return java.util.Optional.of(BuiltInRegistries.ITEM.get(offer.itemId()));
+        }
+        TagKey<Item> tag = TagKey.create(Registries.ITEM, offer.itemTag());
+        return BuiltInRegistries.ITEM.getTag(tag)
+                .flatMap(values -> values.stream().findFirst())
+                .map(net.minecraft.core.Holder::value);
     }
 
     private static int researchLevels(ServerPlayer player, String tag) {
@@ -626,53 +742,76 @@ public final class TraderService {
     ) {
         MinecraftServer server = player.serverLevel().getServer();
         SellerOfferRotation rotation = SellerOfferRotation.get(server);
-        SellerOfferRotation.Window window = rotation.current(server, trader.getUUID());
-        List<TraderPayloads.OfferInfo> permanentOffers = TraderCatalogManager.offers(TraderCatalogRole.PERMANENT).stream()
-                .filter(offer -> offer.itemId() != null)
-                .map(offer -> new TraderPayloads.OfferInfo(
-                        offer.id(),
-                        offer.itemId().toString(),
-                        offer.count(),
-                        sellUnitPrice(player, offer.minimumPrice()),
-                        rotation.remainingLimit(
-                                server,
-                                trader.getUUID(),
-                                player.getUUID(),
-                                offer.id(),
-                                offer.dailyLimit()
-                        ),
-                        true
-                ))
-                .toList();
-        Set<String> permanentIds = permanentOffers.stream()
-                .map(TraderPayloads.OfferInfo::id)
-                .collect(java.util.stream.Collectors.toSet());
-        List<TraderPayloads.OfferInfo> rotatingOffers = window.offers().stream()
-                .filter(offer -> !permanentIds.contains(offer.id()))
-                .map(offer -> new TraderPayloads.OfferInfo(
-                        offer.id(),
-                        BuiltInRegistries.ITEM.getKey(offer.item()).toString(),
-                        1,
-                        sellUnitPrice(player, offer.price()),
-                        rotation.remainingLimit(server, trader.getUUID(), player.getUUID(), offer),
-                        false
-                ))
-                .toList();
-        List<TraderPayloads.OfferInfo> sellOffers = new ArrayList<>(permanentOffers);
-        sellOffers.addAll(rotatingOffers);
+        List<TraderPayloads.OfferInfo> sellOffers = new ArrayList<>();
+        long refreshAt = trader.expiresAtMillis();
+        String titleKey = "screen.kingdoms.seller.title";
+        if (trader.traderRole() == SellerTraderRole.PERMANENT) {
+            SellerOfferRotation.Window window = rotation.current(server, trader.getUUID());
+            TraderCatalogManager.offers(TraderCatalogRole.PERMANENT).stream()
+                    .map(offer -> sellInfo(player, trader, offer, offer.minimumPrice(), true))
+                    .filter(java.util.Objects::nonNull)
+                    .forEach(sellOffers::add);
+            window.offers().stream()
+                    .map(offer -> sellInfo(player, trader, offer, offer.minimumPrice(), false))
+                    .filter(java.util.Objects::nonNull)
+                    .forEach(sellOffers::add);
+            refreshAt = window.nextRefreshEpochMillis();
+        } else if (trader.traderRole() == SellerTraderRole.CONTRABAND) {
+            titleKey = "screen.kingdoms.contraband.title";
+            TraderCatalogManager.offers(TraderCatalogRole.CONTRABAND).stream()
+                    .map(offer -> sellInfo(player, trader, offer, offer.minimumPrice(), false))
+                    .filter(java.util.Objects::nonNull)
+                    .forEach(sellOffers::add);
+        } else {
+            titleKey = "screen.kingdoms.wandering.title";
+            UUID factionId = trader.targetFactionId().orElse(null);
+            if (factionId != null) {
+                TraderWorldData.get(server).wandering(factionId).stream()
+                        .flatMap(event -> event.offers().stream())
+                        .map(rolled -> TraderCatalogManager.offer(TraderCatalogRole.WANDERING, rolled.id())
+                                .map(offer -> sellInfo(player, trader, offer, rolled.price(), false))
+                                .orElse(null))
+                        .filter(java.util.Objects::nonNull)
+                        .forEach(sellOffers::add);
+            }
+        }
         PacketDistributor.sendToPlayer(
                 player,
                 new TraderPayloads.S2CShopState(
                         trader.getUUID(),
                         TradeSessionManager.snapshot(player, trader.getUUID()).sessionId(),
                         TradeSessionManager.snapshot(player, trader.getUUID()).acknowledgedSequence(),
-                        "screen.kingdoms.seller.title",
+                        titleKey,
                         List.of(),
                         sellOffers,
                         notice,
                         successful,
-                        window.nextRefreshEpochMillis()
+                        refreshAt
                 )
+        );
+    }
+
+    private static TraderPayloads.OfferInfo sellInfo(
+            ServerPlayer player,
+            SellerTraderEntity trader,
+            TraderCatalogOffer offer,
+            long price,
+            boolean permanent
+    ) {
+        Item item = displayItem(offer).orElse(null);
+        if (item == null) {
+            return null;
+        }
+        MinecraftServer server = player.getServer();
+        return new TraderPayloads.OfferInfo(
+                offer.id(),
+                BuiltInRegistries.ITEM.getKey(item).toString(),
+                offer.count(),
+                sellUnitPrice(player, price),
+                SellerOfferRotation.get(server).remainingLimit(
+                        server, trader.getUUID(), player.getUUID(), offer.id(), offer.dailyLimit()
+                ),
+                permanent
         );
     }
 
@@ -696,6 +835,16 @@ public final class TraderService {
     private TraderService() {
     }
 
-    private record SellSelection(String id, Item item, long price, int dailyLimit, boolean permanent) {
+    private record SellSelection(
+            String id,
+            Item displayItem,
+            @Nullable TagKey<Item> tag,
+            long price,
+            int dailyLimit,
+            boolean permanent
+    ) {
+        private boolean matches(ItemStack stack) {
+            return tag == null ? stack.is(displayItem) : stack.is(tag);
+        }
     }
 }

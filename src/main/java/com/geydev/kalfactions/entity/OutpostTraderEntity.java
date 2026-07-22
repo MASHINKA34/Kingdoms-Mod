@@ -71,6 +71,10 @@ public final class OutpostTraderEntity extends PathfinderMob {
         }
         if (player instanceof ServerPlayer serverPlayer) {
             if (serverPlayer.getItemInHand(hand).is(ModItems.TRADER_REMOVER.get())) {
+                if (!serverPlayer.hasPermissions(2)) {
+                    serverPlayer.displayClientMessage(Component.translatable("kingdoms.remover.no_permission"), true);
+                    return InteractionResult.FAIL;
+                }
                 discard();
                 return InteractionResult.SUCCESS;
             }

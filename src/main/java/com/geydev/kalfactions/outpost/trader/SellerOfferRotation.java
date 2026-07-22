@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,7 +30,7 @@ public final class SellerOfferRotation extends SavedData {
             new Factory<>(SellerOfferRotation::new, SellerOfferRotation::load);
 
     private static final ZoneId REFRESH_ZONE = ZoneId.of("Europe/Moscow");
-    private static final int DATA_VERSION = 1;
+    private static final int DATA_VERSION = 2;
     private static final String TAG_VERSION = "formatVersion";
     private static final String TAG_SHOPS = "shops";
     private static final String TAG_TRADER = "trader";
@@ -58,10 +57,6 @@ public final class SellerOfferRotation extends SavedData {
         return new Window(shop.activeOffers(), nextRefreshEpochMillis(nowEpochMillis));
     }
 
-    public synchronized int remainingLimit(MinecraftServer server, UUID traderId, UUID playerId, SellOffer offer) {
-        return remainingLimit(server, traderId, playerId, offer.id(), offer.dailyLimit());
-    }
-
     public synchronized int remainingLimit(
             MinecraftServer server,
             UUID traderId,
@@ -72,10 +67,6 @@ public final class SellerOfferRotation extends SavedData {
         TraderShop shop = shopFor(server, traderId, System.currentTimeMillis());
         int sold = shop.soldByPlayer.getOrDefault(playerId, Map.of()).getOrDefault(offerId, 0);
         return Math.max(0, dailyLimit - sold);
-    }
-
-    public synchronized void recordSale(MinecraftServer server, UUID traderId, UUID playerId, SellOffer offer, int count) {
-        recordSale(server, traderId, playerId, offer.id(), count);
     }
 
     public synchronized void recordSale(
@@ -131,11 +122,22 @@ public final class SellerOfferRotation extends SavedData {
         shopFor(server, traderId, System.currentTimeMillis());
     }
 
+    public synchronized void setCatalogVisible(MinecraftServer server, UUID traderId, boolean visible) {
+        TraderShop shop = shopFor(server, traderId, System.currentTimeMillis());
+        if (shop.catalogVisible != visible) {
+            shop.catalogVisible = visible;
+            setDirty();
+        }
+    }
+
     public synchronized List<ShopEntry> shopEntries(MinecraftServer server) {
         long nowEpochMillis = System.currentTimeMillis();
         List<ShopEntry> entries = new ArrayList<>(shops.size());
         for (UUID traderId : List.copyOf(shops.keySet())) {
             TraderShop shop = shopFor(server, traderId, nowEpochMillis);
+            if (!shop.catalogVisible) {
+                continue;
+            }
             entries.add(new ShopEntry(
                     traderId,
                     shop.displayIndex,
@@ -165,7 +167,7 @@ public final class SellerOfferRotation extends SavedData {
     }
 
     private void roll(MinecraftServer server, TraderShop shop, UUID traderId, long epochDay) {
-        List<SellOffer> pool = new ArrayList<>(Arrays.asList(SellOffer.values()));
+        List<TraderCatalogOffer> pool = new ArrayList<>(TraderCatalogManager.offers(TraderCatalogRole.ROTATING));
         long seed = mix64(server.overworld().getSeed())
                 ^ mix64(epochDay * GOLDEN_GAMMA)
                 ^ mix64(traderId.getMostSignificantBits())
@@ -173,7 +175,7 @@ public final class SellerOfferRotation extends SavedData {
         Collections.shuffle(pool, new Random(seed));
         shop.offerIds = pool.stream()
                 .limit(OFFER_COUNT)
-                .map(SellOffer::id)
+                .map(TraderCatalogOffer::id)
                 .toList();
         shop.epochDay = epochDay;
         shop.soldByPlayer.clear();
@@ -241,24 +243,26 @@ public final class SellerOfferRotation extends SavedData {
         private int displayIndex;
         private List<String> offerIds = List.of();
         private final Map<UUID, Map<String, Integer>> soldByPlayer = new HashMap<>();
+        private boolean catalogVisible = true;
 
         private boolean hasValidOffers() {
-            if (offerIds.size() != OFFER_COUNT) {
+            int expected = Math.min(OFFER_COUNT, TraderCatalogManager.offers(TraderCatalogRole.ROTATING).size());
+            if (offerIds.size() != expected || expected == 0) {
                 return false;
             }
             Set<String> seen = new HashSet<>();
             for (String id : offerIds) {
-                if (!seen.add(id) || SellOffer.byId(id).isEmpty()) {
+                if (!seen.add(id) || TraderCatalogManager.offer(TraderCatalogRole.ROTATING, id).isEmpty()) {
                     return false;
                 }
             }
             return true;
         }
 
-        private List<SellOffer> activeOffers() {
-            List<SellOffer> offers = new ArrayList<>(offerIds.size());
+        private List<TraderCatalogOffer> activeOffers() {
+            List<TraderCatalogOffer> offers = new ArrayList<>(offerIds.size());
             for (String id : offerIds) {
-                SellOffer.byId(id).ifPresent(offers::add);
+                TraderCatalogManager.offer(TraderCatalogRole.ROTATING, id).ifPresent(offers::add);
             }
             return List.copyOf(offers);
         }
@@ -267,6 +271,7 @@ public final class SellerOfferRotation extends SavedData {
             CompoundTag tag = new CompoundTag();
             tag.putLong(TAG_EPOCH_DAY, epochDay);
             tag.putInt(TAG_INDEX, displayIndex);
+            tag.putBoolean("catalogVisible", catalogVisible);
             ListTag offers = new ListTag();
             for (String id : offerIds) {
                 offers.add(StringTag.valueOf(id));
@@ -303,13 +308,14 @@ public final class SellerOfferRotation extends SavedData {
                     ? tag.getLong(TAG_EPOCH_DAY)
                     : Long.MIN_VALUE;
             shop.displayIndex = tag.getInt(TAG_INDEX);
+            shop.catalogVisible = !tag.contains("catalogVisible", Tag.TAG_BYTE) || tag.getBoolean("catalogVisible");
 
             ListTag offers = tag.getList(TAG_OFFERS, Tag.TAG_STRING);
             List<String> ids = new ArrayList<>(offers.size());
             Set<String> seen = new HashSet<>();
             for (int index = 0; index < offers.size(); index++) {
                 String id = offers.getString(index);
-                if (!seen.add(id) || SellOffer.byId(id).isEmpty()) {
+                if (!seen.add(id) || !isSafeOfferId(id)) {
                     continue;
                 }
                 ids.add(id);
@@ -345,18 +351,18 @@ public final class SellerOfferRotation extends SavedData {
         return value != null && value.matches("[a-z0-9_.-]{1,64}");
     }
 
-    public record ShopEntry(UUID traderId, int index, List<SellOffer> offers, long nextRefreshEpochMillis) {
+    public record ShopEntry(UUID traderId, int index, List<TraderCatalogOffer> offers, long nextRefreshEpochMillis) {
         public ShopEntry {
             offers = List.copyOf(offers);
         }
     }
 
-    public record Window(List<SellOffer> offers, long nextRefreshEpochMillis) {
+    public record Window(List<TraderCatalogOffer> offers, long nextRefreshEpochMillis) {
         public Window {
             offers = List.copyOf(offers);
         }
 
-        public Optional<SellOffer> offer(String offerId) {
+        public Optional<TraderCatalogOffer> offer(String offerId) {
             return offers.stream().filter(offer -> offer.id().equals(offerId)).findFirst();
         }
     }

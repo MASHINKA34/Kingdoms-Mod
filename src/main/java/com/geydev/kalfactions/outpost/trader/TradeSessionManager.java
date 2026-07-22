@@ -12,11 +12,15 @@ public final class TradeSessionManager {
     private static final Map<MinecraftServer, Map<UUID, Session>> SESSIONS = new WeakHashMap<>();
 
     public static synchronized UUID open(ServerPlayer player, UUID traderId) {
-        cleanup(player.getServer());
+        return open(player.getServer(), player.getUUID(), traderId, System.currentTimeMillis());
+    }
+
+    static synchronized UUID open(MinecraftServer server, UUID playerId, UUID traderId, long now) {
+        cleanup(server, now);
         UUID sessionId = UUID.randomUUID();
-        sessions(player.getServer()).put(
-                player.getUUID(),
-                new Session(sessionId, traderId, System.currentTimeMillis() + SESSION_TTL_MILLIS, 0L)
+        sessions(server).put(
+                playerId,
+                new Session(sessionId, traderId, now + SESSION_TTL_MILLIS, 0L)
         );
         return sessionId;
     }
@@ -27,11 +31,23 @@ public final class TradeSessionManager {
             UUID sessionId,
             long sequence
     ) {
+        return validate(
+                player.getServer(), player.getUUID(), traderId, sessionId, sequence, System.currentTimeMillis()
+        );
+    }
+
+    static synchronized Validation validate(
+            MinecraftServer server,
+            UUID playerId,
+            UUID traderId,
+            UUID sessionId,
+            long sequence,
+            long now
+    ) {
         if (sequence < 1L) {
             return Validation.INVALID;
         }
-        Session session = sessions(player.getServer()).get(player.getUUID());
-        long now = System.currentTimeMillis();
+        Session session = sessions(server).get(playerId);
         if (session == null || session.expiresAt < now || !session.sessionId.equals(sessionId)
                 || !session.traderId.equals(traderId)) {
             return Validation.INVALID;
@@ -78,8 +94,7 @@ public final class TradeSessionManager {
         return SESSIONS.computeIfAbsent(server, ignored -> new HashMap<>());
     }
 
-    private static void cleanup(MinecraftServer server) {
-        long now = System.currentTimeMillis();
+    private static void cleanup(MinecraftServer server, long now) {
         sessions(server).values().removeIf(session -> session.expiresAt < now);
     }
 

@@ -14,7 +14,7 @@ import net.minecraft.resources.ResourceLocation;
 
 public final class TraderPayloads {
     public static final int MAX_OFFERS = 8;
-    public static final int MAX_SELL_OFFERS = 9;
+    public static final int MAX_SELL_OFFERS = 18;
     public static final int MAX_SELLERS = 32;
     public static final int MAX_OFFER_ID_LENGTH = 64;
     public static final int MAX_TITLE_KEY_LENGTH = 128;
