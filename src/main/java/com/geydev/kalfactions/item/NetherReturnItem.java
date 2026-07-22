@@ -51,7 +51,7 @@ public final class NetherReturnItem extends Item {
         if (entity instanceof ServerPlayer player) {
             ReturnBinding binding = NetherReturnIntegration.binding(stack).orElse(null);
             if (binding != null && ReturnChannelEvents.complete(player, binding)) {
-                DimensionControlEvents.teleportToOverworldSpawn(player);
+                DimensionControlEvents.teleportToOverworldReturn(player, binding.returnPos());
                 stack.shrink(1);
             }
         }

@@ -40,6 +40,11 @@ public final class ReturnChannelEvents {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
+        if (player.level().dimension().equals(net.minecraft.world.level.Level.NETHER)) {
+            DimensionControlManager.get(player.serverLevel().getServer())
+                    .currentReturn(player.getUUID(), Instant.now())
+                    .ifPresent(binding -> NetherReturnIntegration.ensureInInventory(player, binding));
+        }
         Channel channel = CHANNELS.get(player.getUUID());
         if (channel == null) {
             return;

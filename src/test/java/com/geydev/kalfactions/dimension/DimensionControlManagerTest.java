@@ -83,9 +83,17 @@ final class DimensionControlManagerTest {
         UUID player = UUID.randomUUID();
         Instant start = Instant.parse("2026-07-22T15:00:00Z");
         var session = manager.authorizeNetherEntry(faction, player, start, false, LANDING).session();
-        ReturnBinding binding = manager.issueReturn(session.sessionId(), player, start.plusSeconds(1)).orElseThrow();
+        BlockPos returnPos = new BlockPos(12, 70, -8);
+        ReturnBinding binding = manager.issueReturn(
+                session.sessionId(), player, returnPos, start.plusSeconds(1)
+        ).orElseThrow();
 
         assertTrue(manager.isValidReturn(binding, start.plusSeconds(1)));
+        assertEquals(returnPos, manager.currentReturn(player, start.plusSeconds(1)).orElseThrow().returnPos());
+        assertFalse(manager.isValidReturn(
+                new ReturnBinding(player, session.sessionId(), binding.token(), returnPos.above()),
+                start.plusSeconds(1)
+        ));
         assertTrue(manager.consumeReturn(binding, start.plusSeconds(1)));
         assertFalse(manager.consumeReturn(binding, start.plusSeconds(1)));
         assertTrue(manager.issueReturn(session.sessionId(), player, start.plusSeconds(1)).isEmpty());

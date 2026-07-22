@@ -251,10 +251,19 @@ public final class DimensionControlManager {
 
     public synchronized boolean isValidReturn(ReturnBinding binding, Instant now) {
         ActiveSessionData active = activeDataById(binding.sessionId(), now);
-        return active != null && binding.token().toString().equals(active.returnTokens.get(binding.playerId().toString()));
+        return matchesReturn(active, binding);
     }
 
     public synchronized Optional<ReturnBinding> issueReturn(UUID sessionId, UUID playerId, Instant now) {
+        return issueReturn(sessionId, playerId, BlockPos.ZERO, now);
+    }
+
+    public synchronized Optional<ReturnBinding> issueReturn(
+            UUID sessionId,
+            UUID playerId,
+            BlockPos returnPos,
+            Instant now
+    ) {
         ActiveSessionData active = activeDataById(sessionId, now);
         if (active == null || !active.joinedPlayers.contains(playerId.toString())
                 || !active.returnIssuedPlayers.add(playerId.toString())) {
@@ -262,16 +271,40 @@ public final class DimensionControlManager {
         }
         UUID token = UUID.randomUUID();
         active.returnTokens.put(playerId.toString(), token.toString());
+        active.returnPoints.put(playerId.toString(), LandingData.from(returnPos));
         save();
-        return Optional.of(new ReturnBinding(playerId, sessionId, token));
+        return Optional.of(new ReturnBinding(playerId, sessionId, token, returnPos.immutable()));
+    }
+
+    public synchronized Optional<ReturnBinding> currentReturn(UUID playerId, Instant now) {
+        String playerKey = playerId.toString();
+        for (FactionLedger ledger : state.netherFactions.values()) {
+            ActiveSessionData active = activeData(ledger, now);
+            if (active == null) {
+                continue;
+            }
+            String token = active.returnTokens.get(playerKey);
+            if (token == null) {
+                continue;
+            }
+            try {
+                LandingData point = active.returnPoints.get(playerKey);
+                BlockPos returnPos = point == null ? BlockPos.ZERO : point.toValue().blockPos();
+                return Optional.of(new ReturnBinding(playerId, UUID.fromString(active.id), UUID.fromString(token), returnPos));
+            } catch (IllegalArgumentException ignored) {
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
     }
 
     public synchronized boolean consumeReturn(ReturnBinding binding, Instant now) {
         ActiveSessionData active = activeDataById(binding.sessionId(), now);
-        if (active == null || !binding.token().toString().equals(active.returnTokens.get(binding.playerId().toString()))) {
+        if (!matchesReturn(active, binding)) {
             return false;
         }
         active.returnTokens.remove(binding.playerId().toString());
+        active.returnPoints.remove(binding.playerId().toString());
         save();
         return true;
     }
@@ -281,11 +314,21 @@ public final class DimensionControlManager {
         for (FactionLedger ledger : state.netherFactions.values()) {
             if (ledger.active != null) {
                 changed |= ledger.active.returnTokens.remove(playerId.toString()) != null;
+                changed |= ledger.active.returnPoints.remove(playerId.toString()) != null;
             }
         }
         if (changed) {
             save();
         }
+    }
+
+    private static boolean matchesReturn(ActiveSessionData active, ReturnBinding binding) {
+        if (active == null || !binding.token().toString().equals(active.returnTokens.get(binding.playerId().toString()))) {
+            return false;
+        }
+        LandingData point = active.returnPoints.get(binding.playerId().toString());
+        BlockPos expected = point == null ? BlockPos.ZERO : point.toValue().blockPos();
+        return expected.equals(binding.returnPos());
     }
 
     public synchronized int remainingSessions(UUID factionId, Instant now) {
@@ -561,6 +604,7 @@ public final class DimensionControlManager {
                 ledger.active.joinedPlayers.removeIf(player -> !validUuid(player));
                 ledger.active.returnIssuedPlayers.removeIf(player -> !validUuid(player));
                 ledger.active.returnTokens.entrySet().removeIf(entry -> !validUuid(entry.getKey()) || !validUuid(entry.getValue()));
+                ledger.active.returnPoints.entrySet().removeIf(entry -> !validUuid(entry.getKey()) || entry.getValue() == null);
             }
         }
         state.deathLocks.entrySet().removeIf(entry -> !validUuid(entry.getKey()) || !validUuid(entry.getValue()));
@@ -579,6 +623,9 @@ public final class DimensionControlManager {
         }
         if (active.returnTokens == null) {
             active.returnTokens = new HashMap<>();
+        }
+        if (active.returnPoints == null) {
+            active.returnPoints = new HashMap<>();
         }
         return true;
     }
@@ -714,6 +761,7 @@ public final class DimensionControlManager {
         private Set<String> joinedPlayers = new HashSet<>();
         private Set<String> returnIssuedPlayers = new HashSet<>();
         private Map<String, String> returnTokens = new HashMap<>();
+        private Map<String, LandingData> returnPoints = new HashMap<>();
 
         private ActiveSession toValue(UUID factionId) {
             Set<UUID> joined = joinedUuidSet();
@@ -750,6 +798,10 @@ public final class DimensionControlManager {
             data.y = value.y();
             data.z = value.z();
             return data;
+        }
+
+        private static LandingData from(BlockPos value) {
+            return from(new LandingPos(value.getX(), value.getY(), value.getZ()));
         }
 
         private LandingPos toValue() {

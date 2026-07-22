@@ -9,6 +9,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.inventory.Slot;
 import net.neoforged.fml.ModList;
 
 public final class NetherReturnIntegration {
@@ -31,16 +32,54 @@ public final class NetherReturnIntegration {
     }
 
     public static boolean give(ServerPlayer player, ReturnBinding binding) {
+        return ensureInInventory(player, binding);
+    }
+
+    public static boolean hasFreeInventorySlot(ServerPlayer player) {
+        return player.getInventory().getFreeSlot() >= 0;
+    }
+
+    public static boolean ensureInInventory(ServerPlayer player, ReturnBinding required) {
         if (component == null || item.get() == Items.AIR) {
             return false;
         }
-        remove(player, candidate -> candidate.playerId().equals(player.getUUID()));
-        ItemStack stack = new ItemStack(item.get());
-        stack.set(component.get(), binding);
-        if (!player.getInventory().add(stack)) {
-            player.drop(stack, false);
+        boolean retained = false;
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            ItemStack stack = player.getInventory().getItem(slot);
+            Optional<ReturnBinding> existing = binding(stack)
+                    .filter(candidate -> candidate.playerId().equals(player.getUUID()));
+            if (existing.isEmpty()) {
+                continue;
+            }
+            if (!retained && existing.get().equals(required)) {
+                retained = true;
+            } else {
+                player.getInventory().setItem(slot, ItemStack.EMPTY);
+            }
+        }
+        for (Slot slot : player.containerMenu.slots) {
+            if (slot.container == player.getInventory()) {
+                continue;
+            }
+            if (binding(slot.getItem()).filter(candidate -> candidate.playerId().equals(player.getUUID())).isPresent()) {
+                slot.set(ItemStack.EMPTY);
+            }
+        }
+        if (binding(player.containerMenu.getCarried())
+                .filter(candidate -> candidate.playerId().equals(player.getUUID())).isPresent()) {
+            player.containerMenu.setCarried(ItemStack.EMPTY);
+        }
+        removeCurios(player, candidate -> candidate.playerId().equals(player.getUUID()));
+        if (!retained) {
+            ItemStack stack = new ItemStack(item.get());
+            stack.set(component.get(), required);
+            if (!player.getInventory().add(stack)) {
+                KalFactions.LOGGER.error("Could not restore the Nether return item for {}", player.getGameProfile().getName());
+                return false;
+            }
         }
         player.inventoryMenu.broadcastChanges();
+        player.containerMenu.broadcastChanges();
         return true;
     }
 

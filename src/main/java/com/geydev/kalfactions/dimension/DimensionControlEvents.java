@@ -35,6 +35,7 @@ import net.minecraft.world.phys.AABB;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityTravelToDimensionEvent;
+import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
@@ -49,6 +50,7 @@ public final class DimensionControlEvents {
     private static final Map<UUID, ServerBossEvent> SESSION_BARS = new HashMap<>();
     private static final Set<UUID> AUTHORIZED_TRANSFERS = new HashSet<>();
     private static final Set<UUID> EXPECTED_NETHER_ARRIVALS = new HashSet<>();
+    private static final Map<UUID, BlockPos> PENDING_RETURN_POSITIONS = new HashMap<>();
     private static final Set<UUID> CLOSING_WARNED_SESSIONS = new HashSet<>();
     private static int tickCounter;
 
@@ -70,6 +72,7 @@ public final class DimensionControlEvents {
         clearBossBars();
         AUTHORIZED_TRANSFERS.clear();
         EXPECTED_NETHER_ARRIVALS.clear();
+        PENDING_RETURN_POSITIONS.clear();
         CLOSING_WARNED_SESSIONS.clear();
         tickCounter = 0;
     }
@@ -120,6 +123,10 @@ public final class DimensionControlEvents {
             deny(event, player, Component.translatable("kingdoms.nether.session.no_landing"));
             return;
         }
+        if (!NetherReturnIntegration.hasFreeInventorySlot(player)) {
+            deny(event, player, Component.translatable("kingdoms.nether.return.inventory_full"));
+            return;
+        }
         Instant entryTime = Instant.now();
         ActiveSession previousSession = control.activeSession(factionId, entryTime).orElse(null);
         boolean alreadyJoined = previousSession != null && previousSession.joinedPlayers().contains(player.getUUID());
@@ -140,6 +147,7 @@ public final class DimensionControlEvents {
             return;
         }
         BlockPos landing = session.landing().blockPos();
+        PENDING_RETURN_POSITIONS.put(player.getUUID(), player.blockPosition().immutable());
         AUTHORIZED_TRANSFERS.add(player.getUUID());
         EXPECTED_NETHER_ARRIVALS.add(player.getUUID());
         boolean moved;
@@ -153,6 +161,7 @@ public final class DimensionControlEvents {
         } finally {
             AUTHORIZED_TRANSFERS.remove(player.getUUID());
             EXPECTED_NETHER_ARRIVALS.remove(player.getUUID());
+            PENDING_RETURN_POSITIONS.remove(player.getUUID());
         }
         if (!moved) {
             control.rollbackNetherEntry(
@@ -241,6 +250,7 @@ public final class DimensionControlEvents {
         Instant now = Instant.now();
         ActiveSession session = factionId == null ? null : control.activeSession(factionId, now).orElse(null);
         boolean expectedArrival = EXPECTED_NETHER_ARRIVALS.remove(player.getUUID());
+        BlockPos returnPos = PENDING_RETURN_POSITIONS.remove(player.getUUID());
         if (!expectedArrival || session == null || !hasValidNetherSession(player, control, now)) {
             evacuatePlayer(player, "kingdoms.nether.session.expired");
             return;
@@ -250,7 +260,12 @@ public final class DimensionControlEvents {
                 player.serverLevel(), landing.getX() + 0.5D, landing.getY(), landing.getZ() + 0.5D,
                 player.getYRot(), player.getXRot()
         );
-        control.issueReturn(session.sessionId(), player.getUUID(), Instant.now())
+        control.issueReturn(
+                session.sessionId(),
+                player.getUUID(),
+                returnPos == null ? BlockPos.ZERO : returnPos,
+                Instant.now()
+        )
                 .ifPresent(binding -> NetherReturnIntegration.give(player, binding));
     }
 
@@ -268,6 +283,23 @@ public final class DimensionControlEvents {
         }
         DimensionControlManager.get(player.serverLevel().getServer()).invalidateReturnsForPlayer(player.getUUID());
         NetherReturnIntegration.removeForPlayer(player);
+    }
+
+    @SubscribeEvent
+    public static void onItemToss(ItemTossEvent event) {
+        if (!(event.getPlayer() instanceof ServerPlayer player)) {
+            return;
+        }
+        ReturnBinding binding = NetherReturnIntegration.binding(event.getEntity().getItem())
+                .filter(candidate -> candidate.playerId().equals(player.getUUID()))
+                .orElse(null);
+        if (binding == null) {
+            return;
+        }
+        event.setCanceled(true);
+        event.getEntity().setItem(net.minecraft.world.item.ItemStack.EMPTY);
+        NetherReturnIntegration.ensureInInventory(player, binding);
+        player.displayClientMessage(Component.translatable("kingdoms.nether.return.cannot_drop"), true);
     }
 
     @SubscribeEvent
@@ -348,18 +380,48 @@ public final class DimensionControlEvents {
     public static void teleportToOverworldSpawn(ServerPlayer player) {
         ServerLevel overworld = player.serverLevel().getServer().overworld();
         BlockPos spawn = safeOverworldReturn(overworld);
+        teleportToOverworld(player, overworld, spawn);
+    }
+
+    public static void teleportToOverworldReturn(ServerPlayer player, BlockPos preferred) {
+        ServerLevel overworld = player.serverLevel().getServer().overworld();
+        BlockPos destination = preferred.equals(BlockPos.ZERO)
+                ? safeOverworldReturn(overworld)
+                : safeOverworldReturn(overworld, preferred);
+        teleportToOverworld(player, overworld, destination);
+    }
+
+    private static void teleportToOverworld(ServerPlayer player, ServerLevel overworld, BlockPos destination) {
         player.teleportTo(
                 overworld,
-                spawn.getX() + 0.5D,
-                spawn.getY(),
-                spawn.getZ() + 0.5D,
+                destination.getX() + 0.5D,
+                destination.getY(),
+                destination.getZ() + 0.5D,
                 player.getYRot(),
                 player.getXRot()
         );
     }
 
     private static BlockPos safeOverworldReturn(ServerLevel level) {
-        BlockPos origin = level.getSharedSpawnPos();
+        return safeOverworldReturn(level, level.getSharedSpawnPos());
+    }
+
+    private static BlockPos safeOverworldReturn(ServerLevel level, BlockPos origin) {
+        for (int radius = 0; radius <= 8; radius++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) {
+                        continue;
+                    }
+                    for (int dy = -2; dy <= 2; dy++) {
+                        BlockPos feet = origin.offset(dx, dy, dz);
+                        if (safeReturnPosition(level, feet)) {
+                            return feet;
+                        }
+                    }
+                }
+            }
+        }
         for (int radius = 0; radius <= 16; radius++) {
             for (int dx = -radius; dx <= radius; dx++) {
                 for (int dz = -radius; dz <= radius; dz++) {

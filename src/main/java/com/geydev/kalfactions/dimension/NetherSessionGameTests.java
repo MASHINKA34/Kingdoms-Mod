@@ -88,9 +88,16 @@ public final class NetherSessionGameTests {
             UUID firstFaction = UUID.randomUUID();
             UUID firstPlayer = UUID.randomUUID();
             var firstSession = manager.authorizeNetherEntry(firstFaction, firstPlayer, start, false, LANDING).session();
-            ReturnBinding first = manager.issueReturn(firstSession.sessionId(), firstPlayer, start.plusSeconds(1)).orElseThrow();
+            BlockPos returnPos = new BlockPos(20, 72, -15);
+            ReturnBinding first = manager.issueReturn(
+                    firstSession.sessionId(), firstPlayer, returnPos, start.plusSeconds(1)
+            ).orElseThrow();
             ReturnBinding fake = new ReturnBinding(first.playerId(), first.sessionId(), UUID.randomUUID());
             helper.assertTrue(!manager.isValidReturn(fake, start.plusSeconds(2)), "Fake token was accepted");
+            helper.assertTrue(
+                    manager.currentReturn(firstPlayer, start.plusSeconds(2)).orElseThrow().returnPos().equals(returnPos),
+                    "Return position was not persisted"
+            );
             helper.assertTrue(manager.consumeReturn(first, start.plusSeconds(2)), "Valid token was rejected");
             helper.assertTrue(!manager.consumeReturn(first, start.plusSeconds(2)), "Consumed token was replayed");
 
