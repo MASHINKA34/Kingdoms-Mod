@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:remove_features",
+  "biomes": "#minecraft:is_overworld",
+  "features": "#kingdoms:standard_overworld_ores",
+  "steps": "underground_ores"
+}
