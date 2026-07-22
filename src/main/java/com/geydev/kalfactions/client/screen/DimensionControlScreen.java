@@ -9,9 +9,9 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class DimensionControlScreen extends Screen {
     private static final int PANEL_WIDTH = 260;
-    private static final int PANEL_HEIGHT = 196;
+    private static final int PANEL_HEIGHT = 220;
     private static final int SECTION_NETHER_TOP = 26;
-    private static final int SECTION_END_TOP = 88;
+    private static final int SECTION_END_TOP = 108;
 
     private DimensionPayloads.S2CDimensionState state;
     private boolean netherWipeArmed;
@@ -119,8 +119,22 @@ public final class DimensionControlScreen extends Screen {
             int color = state.successful() ? 0xFF8FD98F : 0xFFE07A6B;
             int noticeWidth = Math.min(font.width(notice), PANEL_WIDTH - 16);
             graphics.drawString(font, notice,
-                    panelLeft + (PANEL_WIDTH - noticeWidth) / 2, panelTop + 152, color, true);
+                    panelLeft + (PANEL_WIDTH - noticeWidth) / 2, panelTop + 176, color, true);
         }
+        Component schedule = state.netherScheduleOpen()
+                ? Component.translatable(
+                        "screen.kingdoms.dimension.nether_schedule_open",
+                        formatDuration(state.netherSecondsUntilClose()),
+                        state.netherActiveSessions()
+                )
+                : Component.translatable("screen.kingdoms.dimension.nether_schedule_closed");
+        graphics.drawString(font, schedule, panelLeft + 8, panelTop + SECTION_NETHER_TOP + 50,
+                state.netherScheduleOpen() ? 0xFF8FD98F : 0xFFE07A6B, true);
+        Component portal = Component.translatable(state.netherPortalRegistered()
+                ? "screen.kingdoms.dimension.nether_portal_registered"
+                : "screen.kingdoms.dimension.nether_portal_missing");
+        graphics.drawString(font, portal, panelLeft + 8, panelTop + SECTION_NETHER_TOP + 62,
+                state.netherPortalRegistered() ? 0xFF9A8F7A : 0xFFE07A6B, true);
     }
 
     private void renderSection(
@@ -157,5 +171,10 @@ public final class DimensionControlScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    private static String formatDuration(long seconds) {
+        long safe = Math.max(0L, seconds);
+        return String.format(java.util.Locale.ROOT, "%02d:%02d", safe / 60L, safe % 60L);
     }
 }

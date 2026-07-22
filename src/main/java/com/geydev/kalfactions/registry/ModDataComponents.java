@@ -2,6 +2,7 @@ package com.geydev.kalfactions.registry;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.market.PlotSelection;
+import com.geydev.kalfactions.dimension.ReturnBinding;
 import com.geydev.kalfactions.outpost.trader.TraderPointToolMode;
 import java.util.UUID;
 import net.minecraft.core.UUIDUtil;
@@ -28,6 +29,10 @@ public final class ModDataComponents {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "trader_point_tool_mode");
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<TraderPointToolMode>> TRADER_POINT_TOOL_MODE =
             DeferredHolder.create(Registries.DATA_COMPONENT_TYPE, TRADER_POINT_TOOL_MODE_KEY);
+    public static final ResourceLocation NETHER_RETURN_BINDING_KEY =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "nether_return_binding");
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ReturnBinding>> NETHER_RETURN_BINDING =
+            DeferredHolder.create(Registries.DATA_COMPONENT_TYPE, NETHER_RETURN_BINDING_KEY);
 
     @SubscribeEvent
     public static void register(RegisterEvent event) {
@@ -55,6 +60,15 @@ public final class ModDataComponents {
                 () -> DataComponentType.<TraderPointToolMode>builder()
                         .persistent(TraderPointToolMode.CODEC)
                         .networkSynchronized(TraderPointToolMode.STREAM_CODEC)
+                        .cacheEncoding()
+                        .build()
+        );
+        event.register(
+                Registries.DATA_COMPONENT_TYPE,
+                NETHER_RETURN_BINDING_KEY,
+                () -> DataComponentType.<ReturnBinding>builder()
+                        .persistent(ReturnBinding.CODEC)
+                        .networkSynchronized(ReturnBinding.STREAM_CODEC)
                         .cacheEncoding()
                         .build()
         );

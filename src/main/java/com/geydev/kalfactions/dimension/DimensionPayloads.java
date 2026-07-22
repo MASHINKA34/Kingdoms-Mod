@@ -42,6 +42,10 @@ public final class DimensionPayloads {
             boolean netherClosed,
             boolean netherWipePending,
             int netherPlayers,
+            boolean netherScheduleOpen,
+            long netherSecondsUntilClose,
+            int netherActiveSessions,
+            boolean netherPortalRegistered,
             boolean endClosed,
             boolean endWipePending,
             int endPlayers,
@@ -54,6 +58,10 @@ public final class DimensionPayloads {
                     buffer.writeBoolean(payload.netherClosed);
                     buffer.writeBoolean(payload.netherWipePending);
                     buffer.writeVarInt(payload.netherPlayers);
+                    buffer.writeBoolean(payload.netherScheduleOpen);
+                    buffer.writeVarLong(payload.netherSecondsUntilClose);
+                    buffer.writeVarInt(payload.netherActiveSessions);
+                    buffer.writeBoolean(payload.netherPortalRegistered);
                     buffer.writeBoolean(payload.endClosed);
                     buffer.writeBoolean(payload.endWipePending);
                     buffer.writeVarInt(payload.endPlayers);
@@ -64,6 +72,10 @@ public final class DimensionPayloads {
                         buffer.readBoolean(),
                         buffer.readBoolean(),
                         buffer.readVarInt(),
+                        buffer.readBoolean(),
+                        buffer.readVarLong(),
+                        buffer.readVarInt(),
+                        buffer.readBoolean(),
                         buffer.readBoolean(),
                         buffer.readBoolean(),
                         buffer.readVarInt(),

@@ -8,6 +8,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
+import java.time.Instant;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -19,7 +20,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class DimensionNetwork {
-    private static final String PROTOCOL_VERSION = "1";
+    private static final String PROTOCOL_VERSION = "2";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -91,10 +92,15 @@ public final class DimensionNetwork {
     public static void sendState(ServerPlayer player, Component notice, boolean successful) {
         MinecraftServer server = player.serverLevel().getServer();
         DimensionControlManager control = DimensionControlManager.get(server);
+        Instant now = Instant.now();
         PacketDistributor.sendToPlayer(player, new DimensionPayloads.S2CDimensionState(
                 control.isClosed(Level.NETHER),
                 control.isWipePending(Level.NETHER),
                 playersIn(server, Level.NETHER),
+                control.isNetherOpenForPlayers(now),
+                NetherSchedulePolicy.secondsUntilClose(now),
+                control.activeSessions(now).size(),
+                control.netherPortal().isPresent(),
                 control.isClosed(Level.END),
                 control.isWipePending(Level.END),
                 playersIn(server, Level.END),

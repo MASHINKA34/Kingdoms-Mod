@@ -2,6 +2,7 @@ package com.geydev.kalfactions;
 
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.dimension.NetherReturnIntegration;
 import com.geydev.kalfactions.registry.ModBlocks;
 import com.geydev.kalfactions.registry.ModCreativeTabs;
 import com.geydev.kalfactions.registry.ModEntities;
@@ -24,6 +25,7 @@ public final class KalFactions {
         ModItems.register(modBus);
         ModEntities.register(modBus);
         ModCreativeTabs.register(modBus);
+        NetherReturnIntegration.install(ModItems.NETHER_RETURN::get, com.geydev.kalfactions.registry.ModDataComponents.NETHER_RETURN_BINDING::get);
         modBus.addListener(FactionManager::registerChunkTicketController);
         if (FMLEnvironment.dist.isClient()) {
             ClientOnly.register(modBus);

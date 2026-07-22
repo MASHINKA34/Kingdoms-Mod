@@ -2,6 +2,7 @@ package com.geydev.kalfactions.config;
 
 import net.neoforged.neoforge.common.ModConfigSpec.Builder;
 import net.neoforged.neoforge.common.ModConfigSpec.BooleanValue;
+import net.neoforged.neoforge.common.ModConfigSpec.ConfigValue;
 import net.neoforged.neoforge.common.ModConfigSpec.DoubleValue;
 import net.neoforged.neoforge.common.ModConfigSpec.IntValue;
 import net.neoforged.neoforge.common.ModConfigSpec.LongValue;
@@ -129,6 +130,15 @@ public final class ModConfigSpec {
     public static final IntValue WANDERING_OFFER_COUNT_MAX;
     public static final IntValue WANDERING_SPAWN_ATTEMPTS;
     public static final IntValue TRADER_WORLD_BORDER_MARGIN;
+    public static final IntValue NETHER_SESSION_DURATION_MINUTES;
+    public static final BooleanValue NETHER_REQUIRE_FULL_SESSION_BEFORE_CLOSE;
+    public static final IntValue NETHER_LANDING_MIN_RADIUS;
+    public static final IntValue NETHER_LANDING_MAX_RADIUS;
+    public static final IntValue NETHER_LANDING_ATTEMPTS;
+    public static final IntValue NETHER_LANDING_MINIMUM_SEPARATION;
+    public static final IntValue NETHER_WIPE_INTERVAL_DAYS;
+    public static final IntValue NETHER_WIPE_HOUR;
+    public static final ConfigValue<String> NETHER_WIPE_TIMEZONE;
 
     static {
         Builder builder = new Builder();
@@ -182,6 +192,22 @@ public final class ModConfigSpec {
         WANDERING_OFFER_COUNT_MAX = builder.defineInRange("wanderingOfferCountMax", 6, 1, 16);
         WANDERING_SPAWN_ATTEMPTS = builder.defineInRange("wanderingSpawnAttempts", 8, 1, 128);
         TRADER_WORLD_BORDER_MARGIN = builder.defineInRange("traderWorldBorderMargin", 16, 1, 512);
+        builder.pop();
+
+        builder.push("netherSessions");
+        NETHER_SESSION_DURATION_MINUTES = builder.defineInRange("sessionDurationMinutes", 90, 1, 300);
+        NETHER_REQUIRE_FULL_SESSION_BEFORE_CLOSE = builder.define("requireFullSessionBeforeClose", true);
+        NETHER_LANDING_MIN_RADIUS = builder.defineInRange("landingMinRadius", 1000, 0, 100000);
+        NETHER_LANDING_MAX_RADIUS = builder.defineInRange("landingMaxRadius", 5000, 1, 100000);
+        NETHER_LANDING_ATTEMPTS = builder.defineInRange("landingAttempts", 8, 1, 64);
+        NETHER_LANDING_MINIMUM_SEPARATION = builder.defineInRange("landingMinimumSeparation", 512, 0, 100000);
+        NETHER_WIPE_INTERVAL_DAYS = builder.defineInRange("wipeIntervalDays", 7, 1, 3650);
+        NETHER_WIPE_HOUR = builder.defineInRange("wipeHour", 23, 0, 23);
+        NETHER_WIPE_TIMEZONE = builder.define(
+                "wipeTimezone",
+                "Europe/Moscow",
+                value -> value instanceof String id && isTimezone(id)
+        );
         builder.pop();
 
         builder.push("resourceDeposits");
@@ -423,5 +449,14 @@ public final class ModConfigSpec {
     }
 
     private ModConfigSpec() {
+    }
+
+    private static boolean isTimezone(String id) {
+        try {
+            java.time.ZoneId.of(id);
+            return true;
+        } catch (RuntimeException exception) {
+            return false;
+        }
     }
 }

@@ -7,6 +7,7 @@ import com.geydev.kalfactions.item.AdminAnalyzerItem;
 import com.geydev.kalfactions.item.BankerSpawnEggItem;
 import com.geydev.kalfactions.item.DimensionKeyItem;
 import com.geydev.kalfactions.item.FactionMeterItem;
+import com.geydev.kalfactions.item.NetherReturnItem;
 import com.geydev.kalfactions.item.PlotWandItem;
 import com.geydev.kalfactions.item.SellerCatalogItem;
 import com.geydev.kalfactions.item.SellerSpawnEggItem;
@@ -87,6 +88,11 @@ public final class ModItems {
     public static final DeferredItem<DimensionKeyItem> DIMENSION_KEY = ITEMS.register(
             "dimension_key",
             () -> new DimensionKeyItem(new Item.Properties().stacksTo(1))
+    );
+
+    public static final DeferredItem<NetherReturnItem> NETHER_RETURN = ITEMS.register(
+            "nether_return",
+            () -> new NetherReturnItem(new Item.Properties().stacksTo(1))
     );
 
     public static final DeferredItem<PlotWandItem> PLOT_WAND = ITEMS.register(
