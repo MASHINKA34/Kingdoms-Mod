@@ -12,6 +12,7 @@ import com.geydev.kalfactions.protection.FactionAccess;
 import com.geydev.kalfactions.registry.ModEntities;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
@@ -22,6 +23,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class TraderService {
@@ -104,6 +108,7 @@ public final class TraderService {
     }
 
     public static void open(ServerPlayer player, OutpostTraderEntity trader) {
+        TradeSessionManager.open(player, trader.getUUID());
         if (!isAvailable(player, trader)) {
             sendBuyState(
                     player,
@@ -118,6 +123,7 @@ public final class TraderService {
     }
 
     public static void openBanker(ServerPlayer player, BankerEntity banker) {
+        TradeSessionManager.open(player, banker.getUUID());
         if (!isAvailable(player, banker)) {
             sendBuyState(
                     player,
@@ -132,6 +138,7 @@ public final class TraderService {
     }
 
     public static void openSeller(ServerPlayer player, SellerTraderEntity trader) {
+        TradeSessionManager.open(player, trader.getUUID());
         if (!isAvailable(player, trader)) {
             sendSellState(
                     player,
@@ -144,7 +151,10 @@ public final class TraderService {
         sendSellState(player, trader, Component.empty(), true);
     }
 
-    public static void refreshSeller(ServerPlayer player, UUID traderId) {
+    public static void refreshSeller(ServerPlayer player, UUID traderId, UUID sessionId) {
+        if (!TradeSessionManager.refresh(player, traderId, sessionId)) {
+            return;
+        }
         Entity entity = player.serverLevel().getEntity(traderId);
         if (!(entity instanceof SellerTraderEntity trader)) {
             sendSellUnavailable(player, traderId, Component.translatable("screen.kingdoms.trader.notice.too_far"));
@@ -157,7 +167,23 @@ public final class TraderService {
         sendSellState(player, trader, Component.empty(), true);
     }
 
-    public static void buy(ServerPlayer player, UUID traderId, String offerId) {
+    public static void buy(ServerPlayer player, UUID traderId, UUID sessionId, long sequence, String offerId) {
+        TradeSessionManager.Validation validation =
+                TradeSessionManager.validate(player, traderId, sessionId, sequence);
+        if (validation != TradeSessionManager.Validation.ACCEPTED) {
+            Entity current = player.serverLevel().getEntity(traderId);
+            TraderOffer.Shop currentShop = current instanceof BankerEntity
+                    ? TraderOffer.Shop.BANKER
+                    : TraderOffer.Shop.KINGDOMS;
+            sendBuyState(
+                    player,
+                    traderId,
+                    currentShop,
+                    Component.translatable("screen.kingdoms.trader.notice.unavailable"),
+                    false
+            );
+            return;
+        }
         Entity entity = player.serverLevel().getEntity(traderId);
         TraderOffer.Shop shop;
         if (entity instanceof OutpostTraderEntity) {
@@ -276,8 +302,11 @@ public final class TraderService {
             List<TraderPayloads.OfferInfo> offers = entry.offers().stream()
                     .map(offer -> new TraderPayloads.OfferInfo(
                             offer.id(),
+                            BuiltInRegistries.ITEM.getKey(offer.item()).toString(),
+                            1,
                             sellUnitPrice(player, offer.price()),
-                            rotation.remainingLimit(server, entry.traderId(), player.getUUID(), offer)
+                            rotation.remainingLimit(server, entry.traderId(), player.getUUID(), offer),
+                            false
                     ))
                     .toList();
             sellers.add(new TraderPayloads.SellerInfo(
@@ -302,7 +331,28 @@ public final class TraderService {
                 || player.getInventory().getFreeSlot() >= 0;
     }
 
-    public static void sell(ServerPlayer player, UUID traderId, String offerId, int requestedCount) {
+    public static void sell(
+            ServerPlayer player,
+            UUID traderId,
+            UUID sessionId,
+            long sequence,
+            String offerId,
+            int requestedCount
+    ) {
+        TradeSessionManager.Validation validation =
+                TradeSessionManager.validate(player, traderId, sessionId, sequence);
+        if (validation != TradeSessionManager.Validation.ACCEPTED) {
+            Entity current = player.serverLevel().getEntity(traderId);
+            if (current instanceof SellerTraderEntity trader) {
+                sendSellState(
+                        player,
+                        trader,
+                        Component.translatable("screen.kingdoms.trader.notice.unavailable"),
+                        false
+                );
+            }
+            return;
+        }
         Entity entity = player.serverLevel().getEntity(traderId);
         if (!(entity instanceof SellerTraderEntity trader)) {
             sendSellUnavailable(player, traderId, Component.translatable("screen.kingdoms.trader.notice.too_far"));
@@ -330,8 +380,18 @@ public final class TraderService {
         MinecraftServer server = player.serverLevel().getServer();
         SellerOfferRotation rotation = SellerOfferRotation.get(server);
         SellerOfferRotation.Window window = rotation.current(server, trader.getUUID());
-        SellOffer offer = window.offer(offerId).orElse(null);
-        if (offer == null) {
+        SellSelection selection = permanentSelection(offerId).orElseGet(() ->
+                window.offer(offerId)
+                        .map(offer -> new SellSelection(
+                                offer.id(),
+                                offer.item(),
+                                offer.price(),
+                                offer.dailyLimit(),
+                                false
+                        ))
+                        .orElse(null)
+        );
+        if (selection == null) {
             sendSellState(
                     player,
                     trader,
@@ -341,7 +401,7 @@ public final class TraderService {
             return;
         }
 
-        int owned = countItems(player, offer.item());
+        int owned = countItems(player, selection.item());
         if (owned <= 0) {
             sendSellState(
                     player,
@@ -351,7 +411,13 @@ public final class TraderService {
             );
             return;
         }
-        int remainingLimit = rotation.remainingLimit(server, trader.getUUID(), player.getUUID(), offer);
+        int remainingLimit = rotation.remainingLimit(
+                server,
+                trader.getUUID(),
+                player.getUUID(),
+                selection.id(),
+                selection.dailyLimit()
+        );
         if (remainingLimit <= 0) {
             sendSellState(
                     player,
@@ -362,8 +428,26 @@ public final class TraderService {
             return;
         }
 
-        int count = Math.min(Math.min(owned, remainingLimit), requestedCount);
-        int removed = removeUpTo(player, offer.item(), count);
+        int count = Math.min(owned, Math.min(requestedCount, 4096));
+        long maximumPayout = PriceMath.saturatedMultiply(sellUnitPrice(player, selection.price()), count);
+        if (!NumismaticsEconomy.canGive(maximumPayout)) {
+            sendSellState(
+                    player,
+                    trader,
+                    Component.translatable("screen.kingdoms.trader.notice.invalid_offer"),
+                    false
+            );
+            return;
+        }
+        int removed = rotation.transactSale(
+                server,
+                trader.getUUID(),
+                player.getUUID(),
+                selection.id(),
+                selection.dailyLimit(),
+                count,
+                allowed -> removeUpTo(player, selection.item(), allowed)
+        );
         if (removed <= 0) {
             sendSellState(
                     player,
@@ -377,9 +461,8 @@ public final class TraderService {
 
         FactionManager manager = FactionManager.get(player.serverLevel());
         UUID factionId = manager.getFactionIdForMember(player.getUUID()).orElse(null);
-        long spurs = PriceMath.saturatedMultiply(sellUnitPrice(player, offer.price()), count);
+        long spurs = PriceMath.saturatedMultiply(sellUnitPrice(player, selection.price()), count);
         NumismaticsEconomy.give(player, spurs);
-        rotation.recordSale(server, trader.getUUID(), player.getUUID(), offer, count);
         player.inventoryMenu.broadcastChanges();
 
         long influenceGained = 0L;
@@ -404,14 +487,14 @@ public final class TraderService {
                 ? Component.translatable(
                         "screen.kingdoms.trader.notice.sold_influence",
                         count,
-                        new ItemStack(offer.item()).getHoverName(),
+                        new ItemStack(selection.item()).getHoverName(),
                         NumismaticsEconomy.format(spurs),
                         influenceGained
                 )
                 : Component.translatable(
                         "screen.kingdoms.trader.notice.sold",
                         count,
-                        new ItemStack(offer.item()).getHoverName(),
+                        new ItemStack(selection.item()).getHoverName(),
                         NumismaticsEconomy.format(spurs)
                 );
         sendSellState(player, trader, notice, true);
@@ -445,6 +528,18 @@ public final class TraderService {
             }
         }
         return removed;
+    }
+
+    private static java.util.Optional<SellSelection> permanentSelection(String offerId) {
+        return TraderCatalogManager.offer(TraderCatalogRole.PERMANENT, offerId)
+                .filter(offer -> offer.itemId() != null)
+                .map(offer -> new SellSelection(
+                        offer.id(),
+                        BuiltInRegistries.ITEM.get(offer.itemId()),
+                        offer.minimumPrice(),
+                        offer.dailyLimit(),
+                        true
+                ));
     }
 
     private static int researchLevels(ServerPlayer player, String tag) {
@@ -492,12 +587,21 @@ public final class TraderService {
             boolean successful
     ) {
         List<TraderPayloads.OfferInfo> offers = TraderOffer.forShop(shop).stream()
-                .map(offer -> new TraderPayloads.OfferInfo(offer.id(), buyUnitPrice(player, offer), 0))
+                .map(offer -> new TraderPayloads.OfferInfo(
+                        offer.id(),
+                        BuiltInRegistries.ITEM.getKey(offer.item()).toString(),
+                        1,
+                        buyUnitPrice(player, offer),
+                        0,
+                        false
+                ))
                 .toList();
         PacketDistributor.sendToPlayer(
                 player,
                 new TraderPayloads.S2CShopState(
                         traderId,
+                        TradeSessionManager.snapshot(player, traderId).sessionId(),
+                        TradeSessionManager.snapshot(player, traderId).acknowledgedSequence(),
                         titleKey(shop),
                         offers,
                         List.of(),
@@ -523,17 +627,45 @@ public final class TraderService {
         MinecraftServer server = player.serverLevel().getServer();
         SellerOfferRotation rotation = SellerOfferRotation.get(server);
         SellerOfferRotation.Window window = rotation.current(server, trader.getUUID());
-        List<TraderPayloads.OfferInfo> sellOffers = window.offers().stream()
+        List<TraderPayloads.OfferInfo> permanentOffers = TraderCatalogManager.offers(TraderCatalogRole.PERMANENT).stream()
+                .filter(offer -> offer.itemId() != null)
                 .map(offer -> new TraderPayloads.OfferInfo(
                         offer.id(),
-                        sellUnitPrice(player, offer.price()),
-                        rotation.remainingLimit(server, trader.getUUID(), player.getUUID(), offer)
+                        offer.itemId().toString(),
+                        offer.count(),
+                        sellUnitPrice(player, offer.minimumPrice()),
+                        rotation.remainingLimit(
+                                server,
+                                trader.getUUID(),
+                                player.getUUID(),
+                                offer.id(),
+                                offer.dailyLimit()
+                        ),
+                        true
                 ))
                 .toList();
+        Set<String> permanentIds = permanentOffers.stream()
+                .map(TraderPayloads.OfferInfo::id)
+                .collect(java.util.stream.Collectors.toSet());
+        List<TraderPayloads.OfferInfo> rotatingOffers = window.offers().stream()
+                .filter(offer -> !permanentIds.contains(offer.id()))
+                .map(offer -> new TraderPayloads.OfferInfo(
+                        offer.id(),
+                        BuiltInRegistries.ITEM.getKey(offer.item()).toString(),
+                        1,
+                        sellUnitPrice(player, offer.price()),
+                        rotation.remainingLimit(server, trader.getUUID(), player.getUUID(), offer),
+                        false
+                ))
+                .toList();
+        List<TraderPayloads.OfferInfo> sellOffers = new ArrayList<>(permanentOffers);
+        sellOffers.addAll(rotatingOffers);
         PacketDistributor.sendToPlayer(
                 player,
                 new TraderPayloads.S2CShopState(
                         trader.getUUID(),
+                        TradeSessionManager.snapshot(player, trader.getUUID()).sessionId(),
+                        TradeSessionManager.snapshot(player, trader.getUUID()).acknowledgedSequence(),
                         "screen.kingdoms.seller.title",
                         List.of(),
                         sellOffers,
@@ -549,6 +681,8 @@ public final class TraderService {
                 player,
                 new TraderPayloads.S2CShopState(
                         traderId,
+                        TradeSessionManager.snapshot(player, traderId).sessionId(),
+                        TradeSessionManager.snapshot(player, traderId).acknowledgedSequence(),
                         "screen.kingdoms.seller.title",
                         List.of(),
                         List.of(),
@@ -560,5 +694,8 @@ public final class TraderService {
     }
 
     private TraderService() {
+    }
+
+    private record SellSelection(String id, Item item, long price, int dailyLimit, boolean permanent) {
     }
 }

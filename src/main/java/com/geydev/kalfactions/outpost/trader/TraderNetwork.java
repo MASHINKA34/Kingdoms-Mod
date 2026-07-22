@@ -14,7 +14,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class TraderNetwork {
-    private static final String PROTOCOL_VERSION = "6";
+    private static final String PROTOCOL_VERSION = "7";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -34,6 +34,11 @@ public final class TraderNetwork {
                 TraderPayloads.C2SRefreshSeller.STREAM_CODEC,
                 TraderNetwork::handleRefreshSeller
         );
+        registrar.playToServer(
+                TraderPayloads.C2SCloseTrader.TYPE,
+                TraderPayloads.C2SCloseTrader.STREAM_CODEC,
+                TraderNetwork::handleClose
+        );
         registrar.playToClient(
                 TraderPayloads.S2CShopState.TYPE,
                 TraderPayloads.S2CShopState.STREAM_CODEC,
@@ -48,19 +53,32 @@ public final class TraderNetwork {
 
     private static void handleBuy(TraderPayloads.C2SBuy payload, IPayloadContext context) {
         if (context.player() instanceof ServerPlayer player) {
-            TraderService.buy(player, payload.traderId(), payload.offerId());
+            TraderService.buy(player, payload.traderId(), payload.sessionId(), payload.sequence(), payload.offerId());
         }
     }
 
     private static void handleSell(TraderPayloads.C2SSell payload, IPayloadContext context) {
         if (context.player() instanceof ServerPlayer player) {
-            TraderService.sell(player, payload.traderId(), payload.offerId(), payload.amount());
+            TraderService.sell(
+                    player,
+                    payload.traderId(),
+                    payload.sessionId(),
+                    payload.sequence(),
+                    payload.offerId(),
+                    payload.amount()
+            );
         }
     }
 
     private static void handleRefreshSeller(TraderPayloads.C2SRefreshSeller payload, IPayloadContext context) {
         if (context.player() instanceof ServerPlayer player) {
-            TraderService.refreshSeller(player, payload.traderId());
+            TraderService.refreshSeller(player, payload.traderId(), payload.sessionId());
+        }
+    }
+
+    private static void handleClose(TraderPayloads.C2SCloseTrader payload, IPayloadContext context) {
+        if (context.player() instanceof ServerPlayer player) {
+            TradeSessionManager.close(player, payload.traderId(), payload.sessionId());
         }
     }
 

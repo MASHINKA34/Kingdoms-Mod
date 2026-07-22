@@ -1,7 +1,6 @@
 package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.KalFactions;
-import com.geydev.kalfactions.outpost.trader.SellOffer;
 import com.geydev.kalfactions.outpost.trader.TraderPayloads;
 import java.util.List;
 import java.util.Locale;
@@ -13,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 public final class SellerCatalogScreen extends Screen {
     private static final ResourceLocation PANEL_TEXTURE =
@@ -155,9 +155,10 @@ public final class SellerCatalogScreen extends Screen {
             int x = left + CONTENT_LEFT + col * OFFER_CELL_WIDTH;
             int y = top + OFFER_GRID_TOP + row * OFFER_CELL_HEIGHT;
             TraderPayloads.OfferInfo offer = offers.get(i);
-            ItemStack stack = SellOffer.byId(offer.id())
-                    .map(found -> new ItemStack(found.item()))
-                    .orElse(new ItemStack(Items.AIR));
+            ResourceLocation itemId = ResourceLocation.tryParse(offer.itemId());
+            ItemStack stack = itemId == null
+                    ? new ItemStack(Items.AIR)
+                    : new ItemStack(BuiltInRegistries.ITEM.get(itemId));
             boolean active = offer.remainingLimit() > 0;
             boolean mouseOver = mouseX >= x && mouseX < x + OFFER_CELL_WIDTH - 4
                     && mouseY >= y && mouseY < y + OFFER_CELL_HEIGHT - 4;

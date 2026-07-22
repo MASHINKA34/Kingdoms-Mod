@@ -16,18 +16,23 @@ public final class TraderPayloads {
     public static final int MAX_OFFERS = 8;
     public static final int MAX_SELL_OFFERS = 9;
     public static final int MAX_SELLERS = 32;
-    public static final int MAX_OFFER_ID_LENGTH = 32;
+    public static final int MAX_OFFER_ID_LENGTH = 64;
     public static final int MAX_TITLE_KEY_LENGTH = 128;
+    public static final int MAX_ITEM_ID_LENGTH = 128;
 
-    public record C2SBuy(UUID traderId, String offerId) implements CustomPacketPayload {
+    public record C2SBuy(UUID traderId, UUID sessionId, long sequence, String offerId) implements CustomPacketPayload {
         public static final Type<C2SBuy> TYPE = payloadType("trader_buy");
         public static final StreamCodec<RegistryFriendlyByteBuf, C2SBuy> STREAM_CODEC = StreamCodec.of(
                 (buffer, payload) -> {
                     buffer.writeUUID(payload.traderId);
+                    buffer.writeUUID(payload.sessionId);
+                    buffer.writeVarLong(payload.sequence);
                     buffer.writeUtf(payload.offerId, MAX_OFFER_ID_LENGTH);
                 },
                 buffer -> new C2SBuy(
                         buffer.readUUID(),
+                        buffer.readUUID(),
+                        buffer.readVarLong(),
                         buffer.readUtf(MAX_OFFER_ID_LENGTH)
                 )
         );
@@ -38,16 +43,20 @@ public final class TraderPayloads {
         }
     }
 
-    public record C2SSell(UUID traderId, String offerId, int amount) implements CustomPacketPayload {
+    public record C2SSell(UUID traderId, UUID sessionId, long sequence, String offerId, int amount) implements CustomPacketPayload {
         public static final Type<C2SSell> TYPE = payloadType("trader_sell");
         public static final StreamCodec<RegistryFriendlyByteBuf, C2SSell> STREAM_CODEC = StreamCodec.of(
                 (buffer, payload) -> {
                     buffer.writeUUID(payload.traderId);
+                    buffer.writeUUID(payload.sessionId);
+                    buffer.writeVarLong(payload.sequence);
                     buffer.writeUtf(payload.offerId, MAX_OFFER_ID_LENGTH);
                     buffer.writeVarInt(payload.amount);
                 },
                 buffer -> new C2SSell(
                         buffer.readUUID(),
+                        buffer.readUUID(),
+                        buffer.readVarLong(),
                         buffer.readUtf(MAX_OFFER_ID_LENGTH),
                         buffer.readVarInt()
                 )
@@ -59,11 +68,30 @@ public final class TraderPayloads {
         }
     }
 
-    public record C2SRefreshSeller(UUID traderId) implements CustomPacketPayload {
+    public record C2SRefreshSeller(UUID traderId, UUID sessionId) implements CustomPacketPayload {
         public static final Type<C2SRefreshSeller> TYPE = payloadType("trader_seller_refresh");
         public static final StreamCodec<RegistryFriendlyByteBuf, C2SRefreshSeller> STREAM_CODEC = StreamCodec.of(
-                (buffer, payload) -> buffer.writeUUID(payload.traderId),
-                buffer -> new C2SRefreshSeller(buffer.readUUID())
+                (buffer, payload) -> {
+                    buffer.writeUUID(payload.traderId);
+                    buffer.writeUUID(payload.sessionId);
+                },
+                buffer -> new C2SRefreshSeller(buffer.readUUID(), buffer.readUUID())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SCloseTrader(UUID traderId, UUID sessionId) implements CustomPacketPayload {
+        public static final Type<C2SCloseTrader> TYPE = payloadType("trader_close");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SCloseTrader> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeUUID(payload.traderId);
+                    buffer.writeUUID(payload.sessionId);
+                },
+                buffer -> new C2SCloseTrader(buffer.readUUID(), buffer.readUUID())
         );
 
         @Override
@@ -74,6 +102,8 @@ public final class TraderPayloads {
 
     public record S2CShopState(
             UUID traderId,
+            UUID sessionId,
+            long acknowledgedSequence,
             String titleKey,
             List<OfferInfo> offers,
             List<OfferInfo> sellOffers,
@@ -85,6 +115,8 @@ public final class TraderPayloads {
         public static final StreamCodec<RegistryFriendlyByteBuf, S2CShopState> STREAM_CODEC = StreamCodec.of(
                 (buffer, payload) -> {
                     buffer.writeUUID(payload.traderId);
+                    buffer.writeUUID(payload.sessionId);
+                    buffer.writeVarLong(payload.acknowledgedSequence);
                     buffer.writeUtf(payload.titleKey, MAX_TITLE_KEY_LENGTH);
                     int size = Math.min(payload.offers.size(), MAX_OFFERS);
                     buffer.writeVarInt(size);
@@ -102,6 +134,8 @@ public final class TraderPayloads {
                 },
                 buffer -> {
                     UUID traderId = buffer.readUUID();
+                    UUID sessionId = buffer.readUUID();
+                    long acknowledgedSequence = buffer.readVarLong();
                     String titleKey = buffer.readUtf(MAX_TITLE_KEY_LENGTH);
                     int size = buffer.readVarInt();
                     if (size < 0 || size > MAX_OFFERS) {
@@ -121,6 +155,8 @@ public final class TraderPayloads {
                     }
                     return new S2CShopState(
                             traderId,
+                            sessionId,
+                            acknowledgedSequence,
                             titleKey,
                             List.copyOf(offers),
                             List.copyOf(sellOffers),
@@ -213,18 +249,31 @@ public final class TraderPayloads {
         }
     }
 
-    public record OfferInfo(String id, long price, int remainingLimit) {
+    public record OfferInfo(
+            String id,
+            String itemId,
+            int itemCount,
+            long price,
+            int remainingLimit,
+            boolean permanent
+    ) {
         private static void encode(RegistryFriendlyByteBuf buffer, OfferInfo offer) {
             buffer.writeUtf(offer.id, MAX_OFFER_ID_LENGTH);
+            buffer.writeUtf(offer.itemId, MAX_ITEM_ID_LENGTH);
+            buffer.writeVarInt(offer.itemCount);
             buffer.writeLong(offer.price);
             buffer.writeVarInt(offer.remainingLimit);
+            buffer.writeBoolean(offer.permanent);
         }
 
         private static OfferInfo decode(RegistryFriendlyByteBuf buffer) {
             return new OfferInfo(
                     buffer.readUtf(MAX_OFFER_ID_LENGTH),
+                    buffer.readUtf(MAX_ITEM_ID_LENGTH),
+                    Math.clamp(buffer.readVarInt(), 1, 64),
                     buffer.readLong(),
-                    buffer.readVarInt()
+                    buffer.readVarInt(),
+                    buffer.readBoolean()
             );
         }
     }

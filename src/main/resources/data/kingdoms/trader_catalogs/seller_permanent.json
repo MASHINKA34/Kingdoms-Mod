@@ -1,0 +1,13 @@
+{
+  "role": "permanent",
+  "offers": [
+    { "id": "coal", "item": "minecraft:coal", "price": 4, "daily_limit": 256 },
+    { "id": "raw_iron", "item": "minecraft:raw_iron", "price": 5, "daily_limit": 192 },
+    { "id": "raw_copper", "item": "minecraft:raw_copper", "price": 4, "daily_limit": 256 },
+    { "id": "redstone", "item": "minecraft:redstone", "price": 5, "daily_limit": 256 },
+    { "id": "lapis", "item": "minecraft:lapis_lazuli", "price": 5, "daily_limit": 192 },
+    { "id": "raw_gold", "item": "minecraft:raw_gold", "price": 8, "daily_limit": 128 },
+    { "id": "diamond", "item": "minecraft:diamond", "price": 28, "daily_limit": 48 },
+    { "id": "raw_zinc", "item": "create:raw_zinc", "price": 5, "daily_limit": 192 }
+  ]
+}

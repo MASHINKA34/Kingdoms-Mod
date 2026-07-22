@@ -2,7 +2,6 @@ package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.KingdomsNoticeToast;
-import com.geydev.kalfactions.outpost.trader.TraderOffer;
 import com.geydev.kalfactions.outpost.trader.TraderPayloads;
 import java.util.List;
 import java.util.UUID;
@@ -12,6 +11,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class TraderShopScreen extends Screen {
@@ -26,6 +26,8 @@ public final class TraderShopScreen extends Screen {
     private static final int VISIBLE_OFFERS = 5;
 
     private final UUID traderId;
+    private UUID sessionId;
+    private long nextSequence;
     private List<TraderPayloads.OfferInfo> offers;
     private String pendingOfferId = "";
     private int scroll;
@@ -35,6 +37,8 @@ public final class TraderShopScreen extends Screen {
     public TraderShopScreen(TraderPayloads.S2CShopState state) {
         super(Component.translatable(state.titleKey()));
         traderId = state.traderId();
+        sessionId = state.sessionId();
+        nextSequence = Math.max(1L, state.acknowledgedSequence() + 1L);
         offers = state.offers();
     }
 
@@ -54,6 +58,8 @@ public final class TraderShopScreen extends Screen {
     }
 
     private void acceptState(TraderPayloads.S2CShopState state) {
+        sessionId = state.sessionId();
+        nextSequence = Math.max(nextSequence, state.acknowledgedSequence() + 1L);
         offers = state.offers();
         pendingOfferId = "";
         scroll = Math.clamp(scroll, 0, maxScroll());
@@ -97,7 +103,13 @@ public final class TraderShopScreen extends Screen {
         }
         pendingOfferId = offerId;
         rebuildWidgets();
-        PacketDistributor.sendToServer(new TraderPayloads.C2SBuy(traderId, offerId));
+        PacketDistributor.sendToServer(new TraderPayloads.C2SBuy(traderId, sessionId, nextSequence++, offerId));
+    }
+
+    @Override
+    public void onClose() {
+        PacketDistributor.sendToServer(new TraderPayloads.C2SCloseTrader(traderId, sessionId));
+        super.onClose();
     }
 
     @Override
@@ -158,8 +170,9 @@ public final class TraderShopScreen extends Screen {
             TraderPayloads.OfferInfo offerInfo,
             int rowTop
     ) {
-        TraderOffer.byId(offerInfo.id()).ifPresent(offer -> {
-            ItemStack stack = new ItemStack(offer.item());
+        ResourceLocation itemId = ResourceLocation.tryParse(offerInfo.itemId());
+        if (itemId != null) {
+            ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.get(itemId), offerInfo.itemCount());
             graphics.renderItem(stack, left + 24, rowTop + 4);
             Component name = Component.literal(font.plainSubstrByWidth(
                     stack.getHoverName().getString(),
@@ -174,7 +187,7 @@ public final class TraderShopScreen extends Screen {
                     TEXT_MUTED,
                     false
             );
-        });
+        }
     }
 
     static Component formatPrice(long spurs) {

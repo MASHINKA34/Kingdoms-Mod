@@ -6,6 +6,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class SellerShopEvents {
@@ -15,6 +16,11 @@ public final class SellerShopEvents {
                 && event.getLevel() instanceof ServerLevel level) {
             SellerOfferRotation.get(level.getServer()).ensureShop(level.getServer(), trader.getUUID());
         }
+    }
+
+    @SubscribeEvent
+    public static void onServerStopping(ServerStoppingEvent event) {
+        TradeSessionManager.clear(event.getServer());
     }
 
     private SellerShopEvents() {

@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.IntUnaryOperator;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -29,7 +30,9 @@ public final class SellerOfferRotation extends SavedData {
     public static final Factory<SellerOfferRotation> FACTORY =
             new Factory<>(SellerOfferRotation::new, SellerOfferRotation::load);
 
-    private static final ZoneId REFRESH_ZONE = ZoneId.systemDefault();
+    private static final ZoneId REFRESH_ZONE = ZoneId.of("Europe/Moscow");
+    private static final int DATA_VERSION = 1;
+    private static final String TAG_VERSION = "formatVersion";
     private static final String TAG_SHOPS = "shops";
     private static final String TAG_TRADER = "trader";
     private static final String TAG_INDEX = "index";
@@ -56,19 +59,66 @@ public final class SellerOfferRotation extends SavedData {
     }
 
     public synchronized int remainingLimit(MinecraftServer server, UUID traderId, UUID playerId, SellOffer offer) {
+        return remainingLimit(server, traderId, playerId, offer.id(), offer.dailyLimit());
+    }
+
+    public synchronized int remainingLimit(
+            MinecraftServer server,
+            UUID traderId,
+            UUID playerId,
+            String offerId,
+            int dailyLimit
+    ) {
         TraderShop shop = shopFor(server, traderId, System.currentTimeMillis());
-        int sold = shop.soldByPlayer.getOrDefault(playerId, Map.of()).getOrDefault(offer.id(), 0);
-        return Math.max(0, offer.dailyLimit() - sold);
+        int sold = shop.soldByPlayer.getOrDefault(playerId, Map.of()).getOrDefault(offerId, 0);
+        return Math.max(0, dailyLimit - sold);
     }
 
     public synchronized void recordSale(MinecraftServer server, UUID traderId, UUID playerId, SellOffer offer, int count) {
+        recordSale(server, traderId, playerId, offer.id(), count);
+    }
+
+    public synchronized void recordSale(
+            MinecraftServer server,
+            UUID traderId,
+            UUID playerId,
+            String offerId,
+            int count
+    ) {
         if (count <= 0) {
             return;
         }
         TraderShop shop = shopFor(server, traderId, System.currentTimeMillis());
         Map<String, Integer> playerSales = shop.soldByPlayer.computeIfAbsent(playerId, ignored -> new HashMap<>());
-        playerSales.merge(offer.id(), count, SellerOfferRotation::saturatedIntAdd);
+        playerSales.merge(offerId, count, SellerOfferRotation::saturatedIntAdd);
         setDirty();
+    }
+
+    public synchronized int transactSale(
+            MinecraftServer server,
+            UUID traderId,
+            UUID playerId,
+            String offerId,
+            int dailyLimit,
+            int requestedCount,
+            IntUnaryOperator transaction
+    ) {
+        if (requestedCount <= 0) {
+            return 0;
+        }
+        TraderShop shop = shopFor(server, traderId, System.currentTimeMillis());
+        Map<String, Integer> playerSales = shop.soldByPlayer.computeIfAbsent(playerId, ignored -> new HashMap<>());
+        int sold = playerSales.getOrDefault(offerId, 0);
+        int allowed = Math.min(requestedCount, Math.max(0, dailyLimit - sold));
+        if (allowed <= 0) {
+            return 0;
+        }
+        int committed = Math.clamp(transaction.applyAsInt(allowed), 0, allowed);
+        if (committed > 0) {
+            playerSales.merge(offerId, committed, SellerOfferRotation::saturatedIntAdd);
+            setDirty();
+        }
+        return committed;
     }
 
     public synchronized void removeShop(UUID traderId) {
@@ -105,7 +155,7 @@ public final class SellerOfferRotation extends SavedData {
         });
         long today = epochDay(nowEpochMillis);
         if (shop.epochDay != today || !shop.hasValidOffers()) {
-            roll(server, shop, traderId, today, nowEpochMillis);
+            roll(server, shop, traderId, today);
         }
         return shop;
     }
@@ -114,13 +164,12 @@ public final class SellerOfferRotation extends SavedData {
         return shops.values().stream().mapToInt(shop -> shop.displayIndex).max().orElse(0) + 1;
     }
 
-    private void roll(MinecraftServer server, TraderShop shop, UUID traderId, long epochDay, long nowEpochMillis) {
+    private void roll(MinecraftServer server, TraderShop shop, UUID traderId, long epochDay) {
         List<SellOffer> pool = new ArrayList<>(Arrays.asList(SellOffer.values()));
         long seed = mix64(server.overworld().getSeed())
                 ^ mix64(epochDay * GOLDEN_GAMMA)
                 ^ mix64(traderId.getMostSignificantBits())
-                ^ mix64(traderId.getLeastSignificantBits())
-                ^ mix64(nowEpochMillis);
+                ^ mix64(traderId.getLeastSignificantBits());
         Collections.shuffle(pool, new Random(seed));
         shop.offerIds = pool.stream()
                 .limit(OFFER_COUNT)
@@ -151,6 +200,7 @@ public final class SellerOfferRotation extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        tag.putInt(TAG_VERSION, DATA_VERSION);
         ListTag shopsTag = new ListTag();
         for (Map.Entry<UUID, TraderShop> entry : shops.entrySet()) {
             CompoundTag shopTag = entry.getValue().save();
@@ -230,7 +280,7 @@ public final class SellerOfferRotation extends SavedData {
                 ListTag sales = new ListTag();
                 for (Map.Entry<String, Integer> saleEntry : playerEntry.getValue().entrySet()) {
                     int count = saleEntry.getValue();
-                    if (count <= 0 || SellOffer.byId(saleEntry.getKey()).isEmpty()) {
+                    if (count <= 0 || !isSafeOfferId(saleEntry.getKey())) {
                         continue;
                     }
                     CompoundTag saleTag = new CompoundTag();
@@ -278,7 +328,7 @@ public final class SellerOfferRotation extends SavedData {
                     CompoundTag saleTag = salesTag.getCompound(saleIndex);
                     String offerId = saleTag.getString(TAG_OFFER);
                     int count = saleTag.getInt(TAG_COUNT);
-                    if (count <= 0 || SellOffer.byId(offerId).isEmpty()) {
+                    if (count <= 0 || !isSafeOfferId(offerId)) {
                         continue;
                     }
                     sales.merge(offerId, count, SellerOfferRotation::saturatedIntAdd);
@@ -289,6 +339,10 @@ public final class SellerOfferRotation extends SavedData {
             }
             return shop;
         }
+    }
+
+    private static boolean isSafeOfferId(String value) {
+        return value != null && value.matches("[a-z0-9_.-]{1,64}");
     }
 
     public record ShopEntry(UUID traderId, int index, List<SellOffer> offers, long nextRefreshEpochMillis) {

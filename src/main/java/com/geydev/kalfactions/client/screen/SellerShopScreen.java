@@ -3,7 +3,6 @@ package com.geydev.kalfactions.client.screen;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.KingdomsNoticeToast;
 import com.geydev.kalfactions.economy.PriceMath;
-import com.geydev.kalfactions.outpost.trader.SellOffer;
 import com.geydev.kalfactions.outpost.trader.TraderPayloads;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +17,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class SellerShopScreen extends Screen {
@@ -32,6 +32,8 @@ public final class SellerShopScreen extends Screen {
     private static final int SELL_CELL_HEIGHT = 24;
 
     private final UUID traderId;
+    private UUID sessionId;
+    private long nextSequence;
     private List<TraderPayloads.OfferInfo> sellOffers;
     private long nextRefreshEpochMillis;
     private long lastRefreshRequestEpochMillis;
@@ -44,12 +46,16 @@ public final class SellerShopScreen extends Screen {
     private EditBox amountBox;
     private KingdomsButton maxButton;
     private KingdomsButton sellButton;
+    private boolean permanentTab;
 
     public SellerShopScreen(TraderPayloads.S2CShopState state) {
         super(Component.translatable(state.titleKey()));
         traderId = state.traderId();
+        sessionId = state.sessionId();
+        nextSequence = Math.max(1L, state.acknowledgedSequence() + 1L);
         sellOffers = state.sellOffers();
         nextRefreshEpochMillis = state.nextSellRefreshEpochMillis();
+        permanentTab = sellOffers.stream().anyMatch(TraderPayloads.OfferInfo::permanent);
     }
 
     public static void handle(TraderPayloads.S2CShopState state) {
@@ -66,6 +72,8 @@ public final class SellerShopScreen extends Screen {
     }
 
     private void acceptState(TraderPayloads.S2CShopState state) {
+        sessionId = state.sessionId();
+        nextSequence = Math.max(nextSequence, state.acknowledgedSequence() + 1L);
         sellOffers = state.sellOffers();
         nextRefreshEpochMillis = state.nextSellRefreshEpochMillis();
         pendingOfferId = "";
@@ -80,14 +88,33 @@ public final class SellerShopScreen extends Screen {
         left = (width - PANEL_WIDTH) / 2;
         top = (height - PANEL_HEIGHT) / 2;
         sellCells.clear();
+        List<TraderPayloads.OfferInfo> visibleOffers = sellOffers.stream()
+                .filter(offer -> offer.permanent() == permanentTab)
+                .toList();
         int sellLeft = left + 35;
-        for (int i = 0; i < sellOffers.size(); i++) {
+        for (int i = 0; i < visibleOffers.size(); i++) {
             int col = i % SELL_COLUMNS;
             int rowIndex = i / SELL_COLUMNS;
             int cellX = sellLeft + col * SELL_CELL_WIDTH;
             int cellY = top + 80 + rowIndex * SELL_CELL_HEIGHT;
-            sellCells.add(new SellCell(sellOffers.get(i), cellX, cellY));
+            sellCells.add(new SellCell(visibleOffers.get(i), cellX, cellY));
         }
+        addRenderableWidget(KingdomsButton.create(
+                Component.translatable("screen.kingdoms.seller.permanent_tab"),
+                button -> switchTab(true),
+                left + 35,
+                top + 56,
+                112,
+                20
+        ));
+        addRenderableWidget(KingdomsButton.create(
+                Component.translatable("screen.kingdoms.seller.rotating_tab"),
+                button -> switchTab(false),
+                left + 151,
+                top + 56,
+                112,
+                20
+        ));
         selectedCell = findSelectedCell();
         amountBox = new EditBox(
                 font,
@@ -139,7 +166,23 @@ public final class SellerShopScreen extends Screen {
         }
         pendingOfferId = offerId;
         updateSellControls();
-        PacketDistributor.sendToServer(new TraderPayloads.C2SSell(traderId, offerId, amount));
+        PacketDistributor.sendToServer(new TraderPayloads.C2SSell(
+                traderId,
+                sessionId,
+                nextSequence++,
+                offerId,
+                Math.clamp(amount, 1, 4096)
+        ));
+    }
+
+    private void switchTab(boolean permanent) {
+        if (permanentTab == permanent) {
+            return;
+        }
+        permanentTab = permanent;
+        selectedOfferId = "";
+        selectedCell = null;
+        rebuildWidgets();
     }
 
     @Override
@@ -149,8 +192,14 @@ public final class SellerShopScreen extends Screen {
                 && remainingRefreshSeconds() <= 0L
                 && lastRefreshRequestEpochMillis != nextRefreshEpochMillis) {
             lastRefreshRequestEpochMillis = nextRefreshEpochMillis;
-            PacketDistributor.sendToServer(new TraderPayloads.C2SRefreshSeller(traderId));
+            PacketDistributor.sendToServer(new TraderPayloads.C2SRefreshSeller(traderId, sessionId));
         }
+    }
+
+    @Override
+    public void onClose() {
+        PacketDistributor.sendToServer(new TraderPayloads.C2SCloseTrader(traderId, sessionId));
+        super.onClose();
     }
 
     @Override
@@ -176,12 +225,14 @@ public final class SellerShopScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
         graphics.drawString(font, title, left + (PANEL_WIDTH - font.width(title)) / 2, top + 42, TEXT_DARK, false);
-        Component timer = Component.translatable(
-                "screen.kingdoms.seller.refresh_timer",
-                formatDuration(remainingRefreshSeconds())
-        );
-        graphics.drawString(font, timer, left + (PANEL_WIDTH - font.width(timer)) / 2, top + 57, TEXT_MUTED, false);
-        graphics.drawString(font, Component.translatable("screen.kingdoms.trader.sell_section"), left + 35, top + 69, TEXT_MUTED, false);
+        if (!permanentTab) {
+            Component timer = Component.translatable(
+                    "screen.kingdoms.seller.refresh_timer",
+                    formatDuration(remainingRefreshSeconds())
+            );
+            graphics.drawString(font, timer, left + 268, top + 78, TEXT_MUTED, false);
+        }
+        graphics.drawString(font, Component.translatable("screen.kingdoms.trader.sell_section"), left + 35, top + 78, TEXT_MUTED, false);
         ItemStack hovered = null;
         for (SellCell cell : sellCells) {
             boolean hover = cell.contains(mouseX, mouseY);
@@ -364,7 +415,8 @@ public final class SellerShopScreen extends Screen {
 
     private record SellCell(TraderPayloads.OfferInfo offer, int x, int y) {
         private Item item() {
-            return SellOffer.byId(offer.id()).map(SellOffer::item).orElse(Items.AIR);
+            ResourceLocation id = ResourceLocation.tryParse(offer.itemId());
+            return id == null ? Items.AIR : BuiltInRegistries.ITEM.get(id);
         }
 
         private boolean contains(double mouseX, double mouseY) {

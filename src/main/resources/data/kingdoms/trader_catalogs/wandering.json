@@ -1,0 +1,13 @@
+{
+  "role": "wandering",
+  "offers": [
+    { "id": "coal", "item": "minecraft:coal", "min_price": 4, "max_price": 7, "daily_limit": 192 },
+    { "id": "raw_iron", "item": "minecraft:raw_iron", "min_price": 5, "max_price": 9, "daily_limit": 128 },
+    { "id": "raw_copper", "item": "minecraft:raw_copper", "min_price": 4, "max_price": 8, "daily_limit": 192 },
+    { "id": "raw_zinc", "item": "create:raw_zinc", "min_price": 5, "max_price": 9, "daily_limit": 128 },
+    { "id": "redstone", "item": "minecraft:redstone", "min_price": 5, "max_price": 9, "daily_limit": 192 },
+    { "id": "lapis", "item": "minecraft:lapis_lazuli", "min_price": 5, "max_price": 9, "daily_limit": 128 },
+    { "id": "raw_gold", "item": "minecraft:raw_gold", "min_price": 8, "max_price": 14, "daily_limit": 96 },
+    { "id": "diamond", "item": "minecraft:diamond", "min_price": 28, "max_price": 42, "daily_limit": 32 }
+  ]
+}

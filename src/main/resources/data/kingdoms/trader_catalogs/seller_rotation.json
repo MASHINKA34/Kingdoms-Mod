@@ -1,0 +1,14 @@
+{
+  "role": "rotating",
+  "offers": [
+    { "id": "wheat", "item": "minecraft:wheat", "price": 5, "daily_limit": 128 },
+    { "id": "leather", "item": "minecraft:leather", "price": 12, "daily_limit": 64 },
+    { "id": "gunpowder", "item": "minecraft:gunpowder", "price": 15, "daily_limit": 64 },
+    { "id": "ender_pearl", "item": "minecraft:ender_pearl", "price": 32, "daily_limit": 32 },
+    { "id": "quartz", "item": "minecraft:quartz", "price": 7, "daily_limit": 128 },
+    { "id": "amethyst", "item": "minecraft:amethyst_shard", "price": 11, "daily_limit": 64 },
+    { "id": "slime", "item": "minecraft:slime_ball", "price": 5, "daily_limit": 128 },
+    { "id": "blaze_rod", "item": "minecraft:blaze_rod", "price": 32, "daily_limit": 32 },
+    { "id": "echo_shard", "item": "minecraft:echo_shard", "price": 50, "daily_limit": 24 }
+  ]
+}

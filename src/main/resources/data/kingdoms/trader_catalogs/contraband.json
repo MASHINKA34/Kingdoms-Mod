@@ -1,0 +1,9 @@
+{
+  "role": "contraband",
+  "offers": [
+    { "id": "science_crystal", "item": "kingdoms:crystal_science", "price": 40, "daily_limit": 64 },
+    { "id": "economic_crystal", "item": "kingdoms:crystal_economic", "price": 40, "daily_limit": 64 },
+    { "id": "military_crystal", "item": "kingdoms:crystal_military", "price": 40, "daily_limit": 64 },
+    { "id": "pvp_loot", "tag": "kingdoms:contraband_pvp_loot", "price": 75, "daily_limit": 32 }
+  ]
+}
