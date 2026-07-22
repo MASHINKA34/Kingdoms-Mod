@@ -1,6 +1,10 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "kingdoms:block/faction_table",
   "textures": {
-    "all": "kingdoms:block/xaero_map_archive"
+    "particle": "kingdoms:block/xaero_map_archive_side",
+    "top": "kingdoms:block/xaero_map_archive_top",
+    "side": "kingdoms:block/xaero_map_archive_side",
+    "bottom": "kingdoms:block/xaero_map_archive_leg",
+    "leg": "kingdoms:block/xaero_map_archive_leg"
   }
 }

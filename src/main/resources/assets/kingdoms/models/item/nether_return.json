@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "kingdoms:item/nether_return"
+    "layer0": "kingdoms:item/nether_return_sigil"
   }
 }

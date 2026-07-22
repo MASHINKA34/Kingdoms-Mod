@@ -115,7 +115,8 @@ public final class ModBlocks {
             () -> new XaeroMapArchiveBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.WOOD)
                     .strength(3.0F, 6.0F)
-                    .sound(SoundType.WOOD))
+                    .sound(SoundType.WOOD)
+                    .noOcclusion())
     );
 
     public static void register(IEventBus bus) {
