@@ -26,6 +26,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.NEWS_BOARD.get());
                         output.accept(ModItems.SANCTUARY_CORE.get());
                         output.accept(ModItems.WORLD_MAP.get());
+                        output.accept(ModItems.XAERO_MAP_ARCHIVE.get());
                         output.accept(ModItems.ACCESS_TOOL.get());
                         output.accept(ModItems.OUTPOST_CHARTER.get());
                         output.accept(ModItems.DRILL.get());

@@ -9,6 +9,7 @@ import com.geydev.kalfactions.block.OutpostCoreBlock;
 import com.geydev.kalfactions.block.SanctuaryCoreBlock;
 import com.geydev.kalfactions.block.WarArchiveBlock;
 import com.geydev.kalfactions.block.WorldMapBlock;
+import com.geydev.kalfactions.block.XaeroMapArchiveBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -107,6 +108,14 @@ public final class ModBlocks {
                     .mapColor(MapColor.STONE)
                     .strength(3.0F, 6.0F)
                     .sound(SoundType.STONE))
+    );
+
+    public static final DeferredBlock<XaeroMapArchiveBlock> XAERO_MAP_ARCHIVE = BLOCKS.register(
+            "xaero_map_archive",
+            () -> new XaeroMapArchiveBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.WOOD)
+                    .strength(3.0F, 6.0F)
+                    .sound(SoundType.WOOD))
     );
 
     public static void register(IEventBus bus) {
