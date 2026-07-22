@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.client.EmblemTextures;
+import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.net.FactionPayloads;
 import java.util.List;
 import java.util.Locale;
@@ -67,6 +68,7 @@ public final class FactionDetailsScreen extends Screen {
         Component stats = Component.translatable(
                 "screen.kingdoms.flist.stats",
                 info.memberCount(),
+                FactionManager.MAX_FACTION_MEMBERS,
                 info.influence()
         );
         graphics.drawString(font, stats, panelLeft + 38, panelTop + 20, alpha | 0x9A8F7A, true);

@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.client.screen;
 
+import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
 import java.util.List;
@@ -72,6 +73,19 @@ public final class FactionMembersScreen extends FactionScreen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
         List<FactionSnapshot.Member> members = snapshot.members();
+        Component count = text(
+                "screen.kingdoms.members_count",
+                members.size(),
+                FactionManager.MAX_FACTION_MEMBERS
+        );
+        graphics.drawString(
+                font,
+                count,
+                left + CONTENT_RIGHT - font.width(count),
+                top + 45,
+                TEXT_HINT,
+                false
+        );
         int listTop = top + 62;
         int shown = Math.min(VISIBLE_ROWS, members.size() - scrollOffset);
         for (int index = 0; index < shown; index++) {

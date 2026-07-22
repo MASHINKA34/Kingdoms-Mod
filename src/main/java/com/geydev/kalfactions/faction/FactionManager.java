@@ -43,6 +43,7 @@ import org.slf4j.Logger;
 public final class FactionManager extends SavedData {
     public static final String DATA_NAME = "kingdoms_factions";
     public static final int DEFAULT_STARTER_SIZE = 3;
+    public static final int MAX_FACTION_MEMBERS = 4;
     public static final int MAX_NAME_LENGTH = 32;
     public static final int MAX_RGB_COLOR = 0xFFFFFF;
     public static final int DEFAULT_COLOR = 0xFFFFFF;
@@ -622,6 +623,9 @@ public final class FactionManager extends SavedData {
         }
         if (memberIndex.containsKey(playerId)) {
             return OperationResult.failure(Status.PLAYER_ALREADY_MEMBER);
+        }
+        if (faction.memberCount() >= MAX_FACTION_MEMBERS) {
+            return OperationResult.failure(Status.FACTION_FULL);
         }
         faction.addMember(playerId);
         memberIndex.put(playerId, factionId);
@@ -1340,6 +1344,8 @@ public final class FactionManager extends SavedData {
             || !isValidColor(faction.color())
             || factions.containsKey(faction.id())
             || nameIndex.containsKey(normalizedName)
+            || faction.memberCount() < 1
+            || faction.memberCount() > MAX_FACTION_MEMBERS
             || faction.members().keySet().stream().anyMatch(memberIndex::containsKey)
             || faction.claims().stream().anyMatch(claimIndex::containsKey)
             || faction.outpostChunks().stream().anyMatch(claimIndex::containsKey)
@@ -1450,6 +1456,7 @@ public final class FactionManager extends SavedData {
         NAME_TAKEN,
         INVALID_STARTER_SIZE,
         PLAYER_ALREADY_MEMBER,
+        FACTION_FULL,
         PLAYER_NOT_MEMBER,
         OWNER_CANNOT_LEAVE,
         INVALID_ROLE_CHANGE,

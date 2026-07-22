@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.net;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.faction.FactionManager;
 import io.netty.handler.codec.DecoderException;
 import java.util.ArrayList;
 import java.util.List;
@@ -911,7 +912,7 @@ public final class FactionPayloads {
             String emblemUrl,
             List<MemberInfo> members
     ) {
-        public static final int MAX_LIST_MEMBERS = 64;
+        public static final int MAX_LIST_MEMBERS = FactionManager.MAX_FACTION_MEMBERS;
         public static final int MAX_ALLIES = 64;
 
         private static void encode(RegistryFriendlyByteBuf buffer, FactionInfo info) {

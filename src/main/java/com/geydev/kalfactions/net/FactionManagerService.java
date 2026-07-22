@@ -939,8 +939,25 @@ public final class FactionManagerService implements FactionServerHooks.Service {
                     view(player, tablePos)
             );
         }
+        if (faction.memberCount() >= FactionManager.MAX_FACTION_MEMBERS) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.faction_full"),
+                    view(player, tablePos)
+            );
+        }
 
-        PendingFactionInvites.put(player.getServer(), faction.id(), player.getUUID(), target.getUUID());
+        PendingFactionInvites.PutResult inviteResult = PendingFactionInvites.put(
+                player.getServer(),
+                faction.id(),
+                player.getUUID(),
+                target.getUUID()
+        );
+        if (inviteResult != PendingFactionInvites.PutResult.CREATED) {
+            Component error = inviteResult == PendingFactionInvites.PutResult.FACTION_FULL
+                    ? Component.translatable("kingdoms.error.faction_full")
+                    : Component.translatable("kingdoms.error.faction_data_not_found");
+            return FactionServerHooks.Result.denied(error, view(player, tablePos));
+        }
         FactionServerHooks.pushInviteBadge(target);
         FactionServerHooks.sendNotice(
                 target,
@@ -1526,6 +1543,7 @@ public final class FactionManagerService implements FactionServerHooks.Service {
             case INVALID_NAME -> "kingdoms.error.invalid_name";
             case NAME_TAKEN -> "kingdoms.error.name_taken";
             case PLAYER_ALREADY_MEMBER -> "kingdoms.error.already_in_faction";
+            case FACTION_FULL -> "kingdoms.error.faction_full";
             case CLAIM_ALREADY_OWNED -> "kingdoms.error.claim_already_owned";
             case CLAIM_NOT_OWNED -> "kingdoms.error.claim_not_owned";
             case CLAIM_NOT_ADJACENT -> "kingdoms.error.claim_not_adjacent";

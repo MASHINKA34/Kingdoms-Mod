@@ -2,6 +2,7 @@ package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.EmblemTextures;
+import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.net.FactionPayloads;
 import java.util.ArrayList;
 import java.util.List;
@@ -195,7 +196,11 @@ public final class FactionListScreen extends Screen {
         renderEmblem(graphics, info.id(), info.emblem(), info.emblemUrl(), info.color(), rowLeft + 3, rowTop + 4);
 
         int textAlpha = alpha << 24;
-        Component membersLabel = Component.translatable("screen.kingdoms.flist.members", info.memberCount());
+        Component membersLabel = Component.translatable(
+                "screen.kingdoms.flist.members",
+                info.memberCount(),
+                FactionManager.MAX_FACTION_MEMBERS
+        );
         int membersX = rowRight - 6 - font.width(membersLabel);
         String name = font.plainSubstrByWidth(info.name(), Math.max(20, membersX - rowLeft - 34));
         graphics.drawString(font, name, rowLeft + 28, rowTop + 5, textAlpha | (TEXT_DARK & 0xFFFFFF), false);
@@ -244,7 +249,8 @@ public final class FactionListScreen extends Screen {
         renderEmblem(graphics, info.factionId(), info.emblem(), info.emblemUrl(), info.color(), rowLeft + 3, rowTop + 4);
 
         int textAlpha = alpha << 24;
-        String name = info.factionName() + " (" + info.memberCount() + ")";
+        String name = info.factionName() + " (" + info.memberCount() + "/"
+                + FactionManager.MAX_FACTION_MEMBERS + ")";
         graphics.drawString(font, name, rowLeft + 28, rowTop + 5, textAlpha | (TEXT_DARK & 0xFFFFFF), false);
         graphics.drawString(font, bonusLine(info.bonuses()), rowLeft + 28, rowTop + 17,
                 textAlpha | (TEXT_MUTED & 0xFFFFFF), false);

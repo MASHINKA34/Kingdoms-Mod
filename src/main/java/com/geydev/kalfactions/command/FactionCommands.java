@@ -182,13 +182,22 @@ public final class FactionCommands {
         if (manager(context).getFactionForMember(target.getUUID()).isPresent()) {
             return failure(context, "kingdoms.error.player_already_member");
         }
+        if (faction.memberCount() >= FactionManager.MAX_FACTION_MEMBERS) {
+            return failure(context, "kingdoms.error.faction_full");
+        }
 
-        PendingFactionInvites.put(
+        PendingFactionInvites.PutResult inviteResult = PendingFactionInvites.put(
             context.getSource().getServer(),
             faction.id(),
             actor.getUUID(),
             target.getUUID()
         );
+        if (inviteResult == PendingFactionInvites.PutResult.FACTION_FULL) {
+            return failure(context, "kingdoms.error.faction_full");
+        }
+        if (inviteResult != PendingFactionInvites.PutResult.CREATED) {
+            return failure(context, "kingdoms.error.faction_not_found");
+        }
         com.geydev.kalfactions.net.FactionServerHooks.pushInviteBadge(target);
         success(
             context,
@@ -992,6 +1001,7 @@ public final class FactionCommands {
             case NAME_TAKEN -> "kingdoms.error.name_taken";
             case INVALID_STARTER_SIZE -> "kingdoms.error.invalid_starter_size";
             case PLAYER_ALREADY_MEMBER -> "kingdoms.error.player_already_member";
+            case FACTION_FULL -> "kingdoms.error.faction_full";
             case PLAYER_NOT_MEMBER -> "kingdoms.error.player_not_member";
             case OWNER_CANNOT_LEAVE -> "kingdoms.error.owner_cannot_leave";
             case INVALID_ROLE_CHANGE -> "kingdoms.error.invalid_role_change";

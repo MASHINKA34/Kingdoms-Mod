@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.client.EmblemTextures;
+import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.integration.xaero.XaeroMaps;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
@@ -93,7 +94,11 @@ public final class FactionManageScreen extends FactionScreen {
         pvp.active = snapshot.isOfficer();
 
         addRenderableWidget(KingdomsButton.create(
-                text("screen.kingdoms.members_count", snapshot.members().size()),
+                text(
+                        "screen.kingdoms.members_count",
+                        snapshot.members().size(),
+                        FactionManager.MAX_FACTION_MEMBERS
+                ),
                 button -> FactionScreens.openMembers(snapshot, true, ""),
                 rightColumn, row0, columnWidth, 20
         ));

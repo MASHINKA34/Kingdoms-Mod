@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.net;
 
+import com.geydev.kalfactions.faction.FactionManager;
 import io.netty.handler.codec.DecoderException;
 import java.util.List;
 import java.util.UUID;
@@ -48,7 +49,7 @@ public record FactionSnapshot(
 ) {
     public static final UUID NO_FACTION = new UUID(0L, 0L);
     public static final int MAX_RESEARCH_NODES = 64;
-    public static final int MAX_MEMBERS = 256;
+    public static final int MAX_MEMBERS = FactionManager.MAX_FACTION_MEMBERS;
     public static final int MAX_CLAIMS = 1024;
     public static final int MAX_KNOWN_FACTIONS = 512;
     public static final int MAX_ONLINE_PLAYERS = 128;

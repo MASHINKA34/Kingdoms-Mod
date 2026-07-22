@@ -130,6 +130,11 @@ configurations {
     runtimeClasspath.extendsFrom localRuntime
 }
 
+sourceSets.test {
+    compileClasspath += sourceSets.main.compileClasspath
+    runtimeClasspath += sourceSets.main.runtimeClasspath
+}
+
 dependencies {
     implementation files("libs/CreateNumismatics-${numismatics_version}.jar")
 

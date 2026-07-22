@@ -764,7 +764,10 @@ public final class FactionServerHooks {
         }
         FactionManager.OperationResult result = manager.addMember(factionId, player.getUUID());
         if (!result.successful()) {
-            sendNotice(player, Component.translatable("kingdoms.error.faction_action_rejected"), false);
+            Component error = result.status() == FactionManager.Status.FACTION_FULL
+                    ? Component.translatable("kingdoms.error.faction_full")
+                    : Component.translatable("kingdoms.error.faction_action_rejected");
+            sendNotice(player, error, false);
             sendFactionList(player);
             return;
         }
