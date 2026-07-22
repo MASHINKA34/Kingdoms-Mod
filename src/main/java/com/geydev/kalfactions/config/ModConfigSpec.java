@@ -111,6 +111,12 @@ public final class ModConfigSpec {
     public static final IntValue RESOURCE_MIN_RESERVE;
     public static final IntValue RESOURCE_MAX_RESERVE;
     public static final IntValue RESOURCE_MAX_PHYSICAL_BLOCKS;
+    public static final IntValue RESEARCH_CRYSTAL_COST_TIER_1;
+    public static final IntValue RESEARCH_CRYSTAL_COST_TIER_2;
+    public static final IntValue RESEARCH_CRYSTAL_COST_TIER_3;
+    public static final IntValue RESEARCH_CRYSTAL_COST_TIER_4;
+    public static final IntValue RESEARCH_CRYSTAL_COST_TIER_5;
+    public static final IntValue RESEARCH_CRYSTAL_COST_TIER_6_PLUS;
 
     static {
         Builder builder = new Builder();
@@ -140,6 +146,15 @@ public final class ModConfigSpec {
         ENCHANTER_ANVIL_MAX_COST = builder.defineInRange("enchanterAnvilMaxCost", 60, 1, Integer.MAX_VALUE);
         ENCHANTER_PRIOR_WORK_MAX_COST = builder.defineInRange("enchanterPriorWorkMaxCost", 12, 0, Integer.MAX_VALUE);
         ENCHANTER_LEVEL_COST_CAP = builder.defineInRange("enchanterLevelCostCap", 12, 1, Integer.MAX_VALUE);
+        builder.pop();
+
+        builder.push("research");
+        RESEARCH_CRYSTAL_COST_TIER_1 = builder.defineInRange("crystalCostTier1", 12, 0, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_2 = builder.defineInRange("crystalCostTier2", 24, 0, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_3 = builder.defineInRange("crystalCostTier3", 36, 0, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_4 = builder.defineInRange("crystalCostTier4", 48, 0, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_5 = builder.defineInRange("crystalCostTier5", 64, 0, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_6_PLUS = builder.defineInRange("crystalCostTier6Plus", 96, 0, 4096);
         builder.pop();
 
         builder.push("resourceDeposits");

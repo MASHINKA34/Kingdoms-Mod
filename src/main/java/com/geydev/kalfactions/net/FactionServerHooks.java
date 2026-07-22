@@ -1112,6 +1112,10 @@ public final class FactionServerHooks {
                 snapshot.completedResearch(),
                 snapshot.activeResearchNode(),
                 snapshot.activeResearchEndMillis(),
+                snapshot.researchCrystalCosts(),
+                snapshot.crystalScience(),
+                snapshot.crystalEconomic(),
+                snapshot.crystalMilitary(),
                 snapshot.pendingWarSpoils(),
                 snapshot.claimCount(),
                 snapshot.forceLoadUsed()

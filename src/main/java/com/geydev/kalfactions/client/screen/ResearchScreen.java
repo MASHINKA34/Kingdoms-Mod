@@ -241,7 +241,10 @@ public final class ResearchScreen extends FactionScreen {
                 "screen.kingdoms.research_cost",
                 selectedNode.cost(),
                 text(selectedNode.type().translationKey()),
-                effectiveDurationHours(selectedNode)
+                effectiveDurationHours(selectedNode),
+                crystalCost(selectedNode),
+                crystalName(selectedNode.type()),
+                crystalsOf(selectedNode.type())
         );
         graphics.drawString(font, name, left + TREE_LEFT, top + 218, 0xFFFFE8AA, true);
         graphics.drawString(font, cost, left + TREE_LEFT + 150, top + 218, 0xFFD7C57C, true);
@@ -264,7 +267,7 @@ public final class ResearchScreen extends FactionScreen {
         );
         int descBlock = desc.size() * 11;
         int effectBlock = effect.size() * 11;
-        int boxHeight = 74 + descBlock + effectBlock;
+        int boxHeight = 85 + descBlock + effectBlock;
         int x = Math.min(mouseX + 14, width - boxWidth - 6);
         int y = mouseY + 12;
         int bottomLimit = top + TREE_TOP + TREE_HEIGHT;
@@ -290,9 +293,22 @@ public final class ResearchScreen extends FactionScreen {
                 0xFFE6CE7E,
                 true
         );
-        graphics.drawString(font, statusText(node), x + 10, lineY + 15, statusColor(node), true);
+        graphics.drawString(
+                font,
+                text(
+                        "screen.kingdoms.research_crystal_cost_short",
+                        crystalCost(node),
+                        crystalName(node.type()),
+                        crystalsOf(node.type())
+                ),
+                x + 10,
+                lineY + 12,
+                0xFFB9CFF6,
+                true
+        );
+        graphics.drawString(font, statusText(node), x + 10, lineY + 26, statusColor(node), true);
         for (int i = 0; i < effect.size(); i++) {
-            graphics.drawString(font, effect.get(i), x + 10, lineY + 30 + i * 11, 0xFFCBD6F0, true);
+            graphics.drawString(font, effect.get(i), x + 10, lineY + 41 + i * 11, 0xFFCBD6F0, true);
         }
     }
 
@@ -495,8 +511,17 @@ public final class ResearchScreen extends FactionScreen {
         if (nodeState == NodeState.LOCKED) {
             return text("screen.kingdoms.research_need_previous");
         }
+        if (!snapshot.activeResearchNode().isEmpty()) {
+            return text("screen.kingdoms.research_other_active");
+        }
+        if (!snapshot.canManage() && !snapshot.isOfficer()) {
+            return text("screen.kingdoms.research_officer_required");
+        }
         if (influenceOf(node.type()) < node.cost()) {
-            return text("screen.kingdoms.research_not_enough");
+            return text("screen.kingdoms.research_not_enough_influence");
+        }
+        if (crystalsOf(node.type()) < crystalCost(node)) {
+            return text("screen.kingdoms.research_not_enough_crystals");
         }
         return text("screen.kingdoms.research_available");
     }
@@ -509,7 +534,9 @@ public final class ResearchScreen extends FactionScreen {
         if (nodeState == NodeState.ACTIVE) {
             return 0xFFFFCE4A;
         }
-        if (nodeState == NodeState.AVAILABLE && influenceOf(node.type()) >= node.cost()) {
+        if (nodeState == NodeState.AVAILABLE
+                && influenceOf(node.type()) >= node.cost()
+                && crystalsOf(node.type()) >= crystalCost(node)) {
             return 0xFF5AFF8A;
         }
         return 0xFFFF9E9E;
@@ -533,7 +560,25 @@ public final class ResearchScreen extends FactionScreen {
         return state(node) == NodeState.AVAILABLE
                 && (snapshot.canManage() || snapshot.isOfficer())
                 && snapshot.activeResearchNode().isEmpty()
-                && influenceOf(node.type()) >= node.cost();
+                && influenceOf(node.type()) >= node.cost()
+                && crystalsOf(node.type()) >= crystalCost(node);
+    }
+
+    private int crystalCost(ResearchNode node) {
+        int index = Math.clamp(node.tier(), 1, snapshot.researchCrystalCosts().size()) - 1;
+        return snapshot.researchCrystalCosts().get(index);
+    }
+
+    private int crystalsOf(InfluenceType type) {
+        return switch (type) {
+            case SCIENCE -> snapshot.crystalScience();
+            case ECONOMIC -> snapshot.crystalEconomic();
+            case MILITARY -> snapshot.crystalMilitary();
+        };
+    }
+
+    private Component crystalName(InfluenceType type) {
+        return text("item.kingdoms.crystal_" + type.id());
     }
 
     @Override

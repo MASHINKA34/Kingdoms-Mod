@@ -14,6 +14,7 @@ import com.geydev.kalfactions.faction.FactionRole;
 import com.geydev.kalfactions.faction.InfluenceType;
 import com.geydev.kalfactions.faction.ResearchManager;
 import com.geydev.kalfactions.faction.ResearchNode;
+import com.geydev.kalfactions.faction.ResearchCrystalCosts;
 import com.geydev.kalfactions.integration.IntegrationManager;
 import com.geydev.kalfactions.registry.ModItems;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
@@ -90,6 +91,10 @@ public final class FactionManagerService implements FactionServerHooks.Service {
                 researchNames(faction),
                 faction.activeResearch().map(active -> active.node().name()).orElse(""),
                 faction.activeResearch().map(faction::researchEndMillis).orElse(0L),
+                ResearchCrystalCosts.configured(),
+                countCrystals(player.getInventory(), InfluenceType.SCIENCE),
+                countCrystals(player.getInventory(), InfluenceType.ECONOMIC),
+                countCrystals(player.getInventory(), InfluenceType.MILITARY),
                 pendingWarSpoils(player, faction),
                 faction.claimCount(),
                 faction.forceLoadedCount()
@@ -118,6 +123,20 @@ public final class FactionManagerService implements FactionServerHooks.Service {
                 .map(Enum::name)
                 .sorted()
                 .toList();
+    }
+
+    private static int countCrystals(Inventory inventory, InfluenceType type) {
+        int count = 0;
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack.is(ModItems.crystalFor(type))) {
+                if (count > Integer.MAX_VALUE - stack.getCount()) {
+                    return Integer.MAX_VALUE;
+                }
+                count += stack.getCount();
+            }
+        }
+        return count;
     }
 
     static List<String> bonusNames(Faction faction) {
@@ -583,7 +602,7 @@ public final class FactionManagerService implements FactionServerHooks.Service {
                     view(player, tablePos)
             );
         }
-        FactionManager.StartResearchResult result = ResearchManager.start(manager, faction.id(), node);
+        FactionManager.StartResearchResult result = ResearchManager.start(manager, faction.id(), node, player);
         return switch (result) {
             case STARTED -> new FactionServerHooks.Result(
                     true,
@@ -603,6 +622,18 @@ public final class FactionManagerService implements FactionServerHooks.Service {
             );
             case INSUFFICIENT_INFLUENCE -> FactionServerHooks.Result.denied(
                     Component.translatable("kingdoms.error.research_influence"),
+                    view(player, tablePos)
+            );
+            case INSUFFICIENT_CRYSTALS -> FactionServerHooks.Result.denied(
+                    Component.translatable(
+                            "kingdoms.error.research_crystals",
+                            ResearchCrystalCosts.forTier(node.tier()),
+                            Component.translatable(ModItems.crystalFor(node.type()).getDescriptionId())
+                    ),
+                    view(player, tablePos)
+            );
+            case CRYSTAL_PAYMENT_CHANGED -> FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.research_payment_changed"),
                     view(player, tablePos)
             );
             case NO_FACTION -> FactionServerHooks.Result.denied(

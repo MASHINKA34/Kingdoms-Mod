@@ -785,7 +785,9 @@ public final class FactionManager extends SavedData {
         NO_FACTION,
         ALREADY_ACTIVE,
         UNAVAILABLE,
-        INSUFFICIENT_INFLUENCE
+        INSUFFICIENT_INFLUENCE,
+        INSUFFICIENT_CRYSTALS,
+        CRYSTAL_PAYMENT_CHANGED
     }
 
     public enum ForceLoadResult {
@@ -1035,7 +1037,13 @@ public final class FactionManager extends SavedData {
         }
     }
 
-    public synchronized StartResearchResult startResearch(UUID factionId, ResearchNode node, long nowMillis) {
+    public synchronized StartResearchResult startResearch(
+            UUID factionId,
+            ResearchNode node,
+            long nowMillis,
+            int crystalCost,
+            ResearchCrystalPayment crystalPayment
+    ) {
         Faction faction = factions.get(factionId);
         if (faction == null) {
             return StartResearchResult.NO_FACTION;
@@ -1048,6 +1056,12 @@ public final class FactionManager extends SavedData {
         }
         if (faction.influence(node.type()) < node.cost()) {
             return StartResearchResult.INSUFFICIENT_INFLUENCE;
+        }
+        if (crystalCost < 0 || crystalPayment.available(node.type()) < crystalCost) {
+            return StartResearchResult.INSUFFICIENT_CRYSTALS;
+        }
+        if (!crystalPayment.consumeExact(node.type(), crystalCost)) {
+            return StartResearchResult.CRYSTAL_PAYMENT_CHANGED;
         }
         faction.spendInfluence(node.type(), node.cost());
         faction.startResearch(node, nowMillis);

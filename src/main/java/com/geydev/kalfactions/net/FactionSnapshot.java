@@ -43,12 +43,17 @@ public record FactionSnapshot(
         List<String> completedResearch,
         String activeResearchNode,
         long activeResearchEndMillis,
+        List<Integer> researchCrystalCosts,
+        int crystalScience,
+        int crystalEconomic,
+        int crystalMilitary,
         WarSpoils pendingWarSpoils,
         int claimCount,
         int forceLoadUsed
 ) {
     public static final UUID NO_FACTION = new UUID(0L, 0L);
     public static final int MAX_RESEARCH_NODES = 64;
+    public static final int RESEARCH_CRYSTAL_COST_TIERS = 6;
     public static final int MAX_MEMBERS = FactionManager.MAX_FACTION_MEMBERS;
     public static final int MAX_CLAIMS = 1024;
     public static final int MAX_KNOWN_FACTIONS = 512;
@@ -95,6 +100,12 @@ public record FactionSnapshot(
         completedResearch = completedResearch == null ? List.of() : List.copyOf(completedResearch);
         activeResearchNode = activeResearchNode == null ? "" : limit(activeResearchNode, 32);
         activeResearchEndMillis = Math.max(0L, activeResearchEndMillis);
+        researchCrystalCosts = researchCrystalCosts == null || researchCrystalCosts.size() != RESEARCH_CRYSTAL_COST_TIERS
+                ? List.of(0, 0, 0, 0, 0, 0)
+                : researchCrystalCosts.stream().map(cost -> Math.clamp(cost, 0, 4096)).toList();
+        crystalScience = Math.max(0, crystalScience);
+        crystalEconomic = Math.max(0, crystalEconomic);
+        crystalMilitary = Math.max(0, crystalMilitary);
         pendingWarSpoils = pendingWarSpoils == null ? WarSpoils.EMPTY : pendingWarSpoils;
         claimCount = Math.max(0, claimCount);
         forceLoadUsed = Math.max(0, forceLoadUsed);
@@ -106,7 +117,7 @@ public record FactionSnapshot(
                 centerChunkX, centerChunkZ, 6, List.of(), List.of(),
                 0L, 0L, 0L, 0L, 0L, false, creationCost, NO_FACTION, false,
                 "", 0L, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), "",
-                List.of(), "", 0L, WarSpoils.EMPTY, 0, 0
+                List.of(), "", 0L, List.of(0, 0, 0, 0, 0, 0), 0, 0, 0, WarSpoils.EMPTY, 0, 0
         );
     }
 
@@ -178,6 +189,15 @@ public record FactionSnapshot(
         );
         buffer.writeUtf(snapshot.activeResearchNode, 32);
         buffer.writeLong(snapshot.activeResearchEndMillis);
+        writeBoundedList(
+                buffer,
+                snapshot.researchCrystalCosts,
+                RESEARCH_CRYSTAL_COST_TIERS,
+                RegistryFriendlyByteBuf::writeVarInt
+        );
+        buffer.writeVarInt(snapshot.crystalScience);
+        buffer.writeVarInt(snapshot.crystalEconomic);
+        buffer.writeVarInt(snapshot.crystalMilitary);
         snapshot.pendingWarSpoils.encode(buffer);
         buffer.writeVarInt(snapshot.claimCount);
         buffer.writeVarInt(snapshot.forceLoadUsed);
@@ -218,6 +238,14 @@ public record FactionSnapshot(
         List<String> completedResearch = readBoundedList(buffer, MAX_RESEARCH_NODES, target -> target.readUtf(32));
         String activeResearchNode = buffer.readUtf(32);
         long activeResearchEndMillis = buffer.readLong();
+        List<Integer> researchCrystalCosts = readBoundedList(
+                buffer,
+                RESEARCH_CRYSTAL_COST_TIERS,
+                RegistryFriendlyByteBuf::readVarInt
+        );
+        int crystalScience = readNonNegativeVarInt(buffer, "science crystal count");
+        int crystalEconomic = readNonNegativeVarInt(buffer, "economic crystal count");
+        int crystalMilitary = readNonNegativeVarInt(buffer, "military crystal count");
         WarSpoils pendingWarSpoils = WarSpoils.decode(buffer);
         int claimCount = buffer.readVarInt();
         int forceLoadUsed = buffer.readVarInt();
@@ -228,7 +256,8 @@ public record FactionSnapshot(
                 internalPvp, creationCost, viewerId, isOfficer,
                 warWith, warDeclareCooldownSeconds, knownFactions, allianceCandidates, allies, joinableAllies,
                 onlinePlayers, bonuses, emblem, emblemUrl,
-                completedResearch, activeResearchNode, activeResearchEndMillis, pendingWarSpoils,
+                completedResearch, activeResearchNode, activeResearchEndMillis,
+                researchCrystalCosts, crystalScience, crystalEconomic, crystalMilitary, pendingWarSpoils,
                 claimCount, forceLoadUsed
         );
     }
@@ -267,6 +296,14 @@ public record FactionSnapshot(
             return "";
         }
         return value.length() <= maxLength ? value : value.substring(0, maxLength);
+    }
+
+    private static int readNonNegativeVarInt(RegistryFriendlyByteBuf buffer, String field) {
+        int value = buffer.readVarInt();
+        if (value < 0) {
+            throw new DecoderException("Negative " + field);
+        }
+        return value;
     }
 
     public record FactionRef(UUID id, String name, int color, List<Integer> emblem, String emblemUrl) {
