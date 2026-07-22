@@ -952,6 +952,8 @@
   "kingdoms.nether.session.started": "Адская сессия фракции началась. Осталось сессий сегодня: %s.",
   "kingdoms.nether.session.bossbar": "Ад %1$s · сессии %2$s/%3$s · до закрытия %4$s",
   "kingdoms.nether.session.daily_reset": "Адские сессии фракций обновились с наступлением нового московского дня.",
+  "kingdoms.nether.session.death_notice": "Вы погибли во время этой адской сессии и не сможете войти до её завершения.",
+  "kingdoms.nether.session.closing_soon": "Адская сессия фракции закроется через %s.",
   "kingdoms.nether.return.cancelled": "Возврат отменён.",
   "kingdoms.nether.return.invalid": "Этот сигил возврата недействителен или просрочен.",
   "commands.kingdoms.nether.portal.set": "Границы портала в Ад заданы: %s %s %s — %s %s %s.",

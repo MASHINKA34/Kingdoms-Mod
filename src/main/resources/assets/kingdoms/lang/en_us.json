@@ -952,6 +952,8 @@
   "kingdoms.nether.session.started": "Faction Nether session started. Sessions remaining today: %s.",
   "kingdoms.nether.session.bossbar": "Nether %1$s · sessions %2$s/%3$s · closes in %4$s",
   "kingdoms.nether.session.daily_reset": "Faction Nether sessions have reset for the new Moscow day.",
+  "kingdoms.nether.session.death_notice": "You died during this Nether session and are locked out until it ends.",
+  "kingdoms.nether.session.closing_soon": "The faction Nether session closes in %s.",
   "kingdoms.nether.return.cancelled": "Return channel cancelled.",
   "kingdoms.nether.return.invalid": "This return sigil is invalid or expired.",
   "commands.kingdoms.nether.portal.set": "Nether portal bounds set: %s %s %s to %s %s %s.",

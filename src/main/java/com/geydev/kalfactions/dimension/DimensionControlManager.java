@@ -202,6 +202,27 @@ public final class DimensionControlManager {
         return active == null ? Optional.empty() : Optional.of(active.toValue(factionId));
     }
 
+    public synchronized void rollbackNetherEntry(
+            UUID factionId,
+            UUID playerId,
+            UUID sessionId,
+            boolean startedSession,
+            boolean joinedNow
+    ) {
+        FactionLedger ledger = state.netherFactions.get(factionId.toString());
+        if (ledger == null || ledger.active == null || !ledger.active.id.equals(sessionId.toString())) {
+            return;
+        }
+        if (startedSession) {
+            ledger.active = null;
+            ledger.sessionsUsed = Math.max(0, ledger.sessionsUsed - 1);
+        } else if (joinedNow) {
+            ledger.active.joinedPlayers.remove(playerId.toString());
+        }
+        state.deathLocks.remove(playerId.toString());
+        save();
+    }
+
     public synchronized Optional<ActiveSession> activeSessionById(UUID sessionId, Instant now) {
         for (Map.Entry<String, FactionLedger> entry : state.netherFactions.entrySet()) {
             ActiveSessionData active = activeData(entry.getValue(), now);
@@ -340,8 +361,14 @@ public final class DimensionControlManager {
         if (today.equals(state.lastDailyResetNotification)) {
             return false;
         }
+        boolean initialized = state.lastDailyResetNotification == null
+                || state.lastDailyResetNotification.isBlank();
         state.lastDailyResetNotification = today;
         save();
+        if (initialized) {
+            ZonedDateTime local = now.atZone(rules.wipeTimezone());
+            return local.getHour() == 0 && local.getMinute() == 0;
+        }
         return true;
     }
 

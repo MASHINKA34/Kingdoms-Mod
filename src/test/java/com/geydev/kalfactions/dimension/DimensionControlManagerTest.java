@@ -123,6 +123,15 @@ final class DimensionControlManagerTest {
         assertTrue(manager.claimDailyResetNotification(Instant.parse("2026-07-22T21:00:00Z")));
     }
 
+    @Test
+    void firstDailyNotificationDoesNotFireAtArbitraryStartupTime() {
+        DimensionControlManager manager = manager();
+
+        assertFalse(manager.claimDailyResetNotification(Instant.parse("2026-07-22T10:00:00Z")));
+        assertFalse(manager.claimDailyResetNotification(Instant.parse("2026-07-22T20:59:59Z")));
+        assertTrue(manager.claimDailyResetNotification(Instant.parse("2026-07-22T21:00:00Z")));
+    }
+
     private DimensionControlManager manager() {
         return DimensionControlManager.forTesting(temporary.resolve("dimension-control.json"));
     }

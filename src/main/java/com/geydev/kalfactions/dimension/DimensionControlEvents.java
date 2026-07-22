@@ -31,6 +31,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityTravelToDimensionEvent;
@@ -48,6 +49,7 @@ public final class DimensionControlEvents {
     private static final Map<UUID, ServerBossEvent> SESSION_BARS = new HashMap<>();
     private static final Set<UUID> AUTHORIZED_TRANSFERS = new HashSet<>();
     private static final Set<UUID> EXPECTED_NETHER_ARRIVALS = new HashSet<>();
+    private static final Set<UUID> CLOSING_WARNED_SESSIONS = new HashSet<>();
     private static int tickCounter;
 
     @SubscribeEvent
@@ -68,6 +70,7 @@ public final class DimensionControlEvents {
         clearBossBars();
         AUTHORIZED_TRANSFERS.clear();
         EXPECTED_NETHER_ARRIVALS.clear();
+        CLOSING_WARNED_SESSIONS.clear();
         tickCounter = 0;
     }
 
@@ -117,10 +120,13 @@ public final class DimensionControlEvents {
             deny(event, player, Component.translatable("kingdoms.nether.session.no_landing"));
             return;
         }
+        Instant entryTime = Instant.now();
+        ActiveSession previousSession = control.activeSession(factionId, entryTime).orElse(null);
+        boolean alreadyJoined = previousSession != null && previousSession.joinedPlayers().contains(player.getUUID());
         EntryResult result = control.authorizeNetherEntry(
                 factionId,
                 player.getUUID(),
-                Instant.now(),
+                entryTime,
                 false,
                 (occupied, previous, rules) -> NetherLandingFinder.find(nether, occupied, previous, rules)
         );
@@ -136,14 +142,28 @@ public final class DimensionControlEvents {
         BlockPos landing = session.landing().blockPos();
         AUTHORIZED_TRANSFERS.add(player.getUUID());
         EXPECTED_NETHER_ARRIVALS.add(player.getUUID());
+        boolean moved;
         try {
             player.teleportTo(
                     nether, landing.getX() + 0.5D, landing.getY(), landing.getZ() + 0.5D,
                     player.getYRot(), player.getXRot()
             );
+            moved = player.level() == nether
+                    && player.blockPosition().closerThan(landing, 4.0D);
         } finally {
             AUTHORIZED_TRANSFERS.remove(player.getUUID());
             EXPECTED_NETHER_ARRIVALS.remove(player.getUUID());
+        }
+        if (!moved) {
+            control.rollbackNetherEntry(
+                    factionId,
+                    player.getUUID(),
+                    session.sessionId(),
+                    result.status() == DimensionControlManager.EntryStatus.STARTED_SESSION,
+                    !alreadyJoined
+            );
+            player.displayClientMessage(Component.translatable("kingdoms.nether.session.no_landing"), true);
+            return;
         }
         if (result.status() == DimensionControlManager.EntryStatus.STARTED_SESSION) {
             notifyFaction(server, factionId, Component.translatable(
@@ -160,6 +180,10 @@ public final class DimensionControlEvents {
         MinecraftServer server = level.getServer();
         DimensionControlManager control = DimensionControlManager.get(server);
         if (Level.OVERWORLD.equals(level.dimension()) && control.isInsideRegisteredPortal(event.getPos())) {
+            return;
+        }
+        AABB operatorRange = new AABB(event.getPos()).inflate(8.0D);
+        if (!level.getEntitiesOfClass(ServerPlayer.class, operatorRange, player -> player.hasPermissions(2)).isEmpty()) {
             return;
         }
         event.setCanceled(true);
@@ -240,6 +264,7 @@ public final class DimensionControlEvents {
         if (factionId != null) {
             DimensionControlManager.get(player.serverLevel().getServer())
                     .markDeath(factionId, player.getUUID(), Instant.now());
+            player.sendSystemMessage(Component.translatable("kingdoms.nether.session.death_notice"));
         }
         DimensionControlManager.get(player.serverLevel().getServer()).invalidateReturnsForPlayer(player.getUUID());
         NetherReturnIntegration.removeForPlayer(player);
@@ -261,6 +286,15 @@ public final class DimensionControlEvents {
         }
         if (!control.isNetherOpenForPlayers(now)) {
             evacuateOrdinaryNetherPlayers(server);
+        } else {
+            ServerLevel nether = server.getLevel(Level.NETHER);
+            if (nether != null) {
+                for (ServerPlayer player : List.copyOf(nether.players())) {
+                    if (!player.hasPermissions(2) && !hasValidNetherSession(player, control, now)) {
+                        evacuatePlayer(player, "kingdoms.nether.session.expired");
+                    }
+                }
+            }
         }
         if (control.updateWipeSchedule(now)) {
             notifyOperators(server, Component.translatable("kingdoms.dimension.wipe_scheduled", "nether"));
@@ -270,7 +304,16 @@ public final class DimensionControlEvents {
                 player.sendSystemMessage(Component.translatable("kingdoms.nether.session.daily_reset"));
             }
         }
-        updateBossBars(server, control.activeSessions(now), factions, now);
+        List<ActiveSession> activeSessions = control.activeSessions(now);
+        for (ActiveSession session : activeSessions) {
+            long remaining = Duration.between(now, session.endsAt()).getSeconds();
+            if (remaining > 0L && remaining <= 900L && CLOSING_WARNED_SESSIONS.add(session.sessionId())) {
+                notifyFaction(server, session.factionId(), Component.translatable(
+                        "kingdoms.nether.session.closing_soon", formatDuration(remaining)
+                ));
+            }
+        }
+        updateBossBars(server, activeSessions, factions, now);
     }
 
     public static int evacuate(MinecraftServer server, ResourceKey<Level> dimension) {
@@ -371,6 +414,7 @@ public final class DimensionControlEvents {
     }
 
     private static void endSession(MinecraftServer server, EndedSession session) {
+        CLOSING_WARNED_SESSIONS.remove(session.sessionId());
         for (UUID playerId : session.joinedPlayers()) {
             ServerPlayer player = server.getPlayerList().getPlayer(playerId);
             if (player == null) {
