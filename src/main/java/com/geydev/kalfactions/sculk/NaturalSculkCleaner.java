@@ -23,17 +23,13 @@ public final class NaturalSculkCleaner {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "natural_sculk")
     );
     private static final int BLOCK_BUDGET_PER_TICK = 8192;
-    private static final int MAX_QUEUED_CHUNKS = 4096;
+    private static final int JOB_VISIT_BUDGET_PER_TICK = 256;
     private static final Map<ResourceKey<Level>, LinkedHashMap<Long, ChunkJob>> JOBS = new LinkedHashMap<>();
 
     public static void enqueue(ServerLevel level, LevelChunk chunk) {
         LinkedHashMap<Long, ChunkJob> jobs = JOBS.computeIfAbsent(level.dimension(), ignored -> new LinkedHashMap<>());
         long key = chunk.getPos().toLong();
         if (jobs.containsKey(key)) {
-            return;
-        }
-        if (jobs.size() >= MAX_QUEUED_CHUNKS) {
-            cleanChunk(level, chunk, Integer.MAX_VALUE, new ChunkJob(chunk.getPos()));
             return;
         }
         jobs.put(key, new ChunkJob(chunk.getPos()));
@@ -55,28 +51,35 @@ public final class NaturalSculkCleaner {
 
     public static void tick(Iterable<ServerLevel> levels) {
         int remaining = BLOCK_BUDGET_PER_TICK;
+        int remainingVisits = JOB_VISIT_BUDGET_PER_TICK;
         for (ServerLevel level : levels) {
             LinkedHashMap<Long, ChunkJob> jobs = JOBS.get(level.dimension());
             if (jobs == null || jobs.isEmpty()) {
                 continue;
             }
-            Iterator<ChunkJob> iterator = jobs.values().iterator();
-            while (iterator.hasNext() && remaining > 0) {
-                ChunkJob job = iterator.next();
+            int visits = Math.min(jobs.size(), remainingVisits);
+            while (visits-- > 0 && remaining > 0) {
+                Iterator<Map.Entry<Long, ChunkJob>> iterator = jobs.entrySet().iterator();
+                Map.Entry<Long, ChunkJob> entry = iterator.next();
+                long key = entry.getKey();
+                ChunkJob job = entry.getValue();
+                iterator.remove();
+                remainingVisits--;
                 LevelChunk chunk = level.getChunkSource().getChunkNow(job.pos.x, job.pos.z);
                 if (chunk == null) {
+                    jobs.put(key, job);
                     continue;
                 }
                 int used = cleanChunk(level, chunk, remaining, job);
                 remaining -= used;
-                if (job.complete(chunk)) {
-                    iterator.remove();
+                if (!job.complete(chunk)) {
+                    jobs.put(key, job);
                 }
             }
             if (jobs.isEmpty()) {
                 JOBS.remove(level.dimension());
             }
-            if (remaining <= 0) {
+            if (remaining <= 0 || remainingVisits <= 0) {
                 return;
             }
         }
