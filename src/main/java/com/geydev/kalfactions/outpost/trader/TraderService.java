@@ -467,8 +467,8 @@ public final class TraderService {
             return;
         }
 
-        int owned = countItems(player, selection);
-        if (owned <= 0) {
+        int ownedItems = countItems(player, selection);
+        if (ownedItems < selection.batchSize()) {
             sendSellState(
                     player,
                     trader,
@@ -494,9 +494,14 @@ public final class TraderService {
             return;
         }
 
-        int count = Math.min(owned, Math.min(requestedCount, 4096));
-        long maximumPayout = PriceMath.saturatedMultiply(sellUnitPrice(player, selection.price()), count);
-        if (!NumismaticsEconomy.canGive(maximumPayout)) {
+        int batchCount = Math.min(
+                TradeBatchMath.availableBatches(ownedItems, selection.batchSize(), remainingLimit),
+                Math.min(requestedCount, 4096)
+        );
+        int requestedItems = TradeBatchMath.itemsForBatches(batchCount, selection.batchSize());
+        long unitPrice = sellUnitPrice(player, selection.price());
+        long maximumPayout = TradeBatchMath.payout(unitPrice, batchCount);
+        if (batchCount <= 0 || !NumismaticsEconomy.canGive(maximumPayout)) {
             sendSellState(
                     player,
                     trader,
@@ -505,30 +510,60 @@ public final class TraderService {
             );
             return;
         }
-        int removed = rotation.transactSale(
+        if (!NumismaticsEconomy.canFitPayoutAfterRemoving(
+                player, maximumPayout, selection::matches, requestedItems
+        )) {
+            sendSellState(
+                    player,
+                    trader,
+                    Component.translatable("screen.kingdoms.trader.notice.inventory_full"),
+                    false
+            );
+            return;
+        }
+        boolean[] payoutBlocked = {false};
+        int committedBatches = rotation.transactSale(
                 server,
                 trader.getUUID(),
                 player.getUUID(),
                 selection.id(),
                 selection.dailyLimit(),
-                count,
-                allowed -> removeUpTo(player, selection, allowed)
+                batchCount,
+                allowedBatches -> {
+                    int items = TradeBatchMath.itemsForBatches(allowedBatches, selection.batchSize());
+                    long payout = TradeBatchMath.payout(unitPrice, allowedBatches);
+                    if (!NumismaticsEconomy.canFitPayoutAfterRemoving(player, payout, selection::matches, items)) {
+                        payoutBlocked[0] = true;
+                        return 0;
+                    }
+                    InventoryRemoval removal = removeExact(player, selection, items);
+                    if (removal == null) {
+                        return 0;
+                    }
+                    if (!NumismaticsEconomy.giveToInventory(player, payout)) {
+                        removal.rollback(player);
+                        payoutBlocked[0] = true;
+                        return 0;
+                    }
+                    return allowedBatches;
+                }
         );
-        if (removed <= 0) {
+        if (committedBatches <= 0) {
             sendSellState(
                     player,
                     trader,
-                    Component.translatable("screen.kingdoms.trader.notice.nothing_to_sell"),
+                    Component.translatable(payoutBlocked[0]
+                            ? "screen.kingdoms.trader.notice.inventory_full"
+                            : "screen.kingdoms.trader.notice.nothing_to_sell"),
                     false
             );
             return;
         }
-        count = removed;
 
         FactionManager manager = FactionManager.get(player.serverLevel());
         UUID factionId = manager.getFactionIdForMember(player.getUUID()).orElse(null);
-        long spurs = PriceMath.saturatedMultiply(sellUnitPrice(player, selection.price()), count);
-        NumismaticsEconomy.give(player, spurs);
+        int soldItems = TradeBatchMath.itemsForBatches(committedBatches, selection.batchSize());
+        long spurs = TradeBatchMath.payout(unitPrice, committedBatches);
         player.inventoryMenu.broadcastChanges();
 
         long influenceGained = 0L;
@@ -551,15 +586,15 @@ public final class TraderService {
 
         Component notice = influenceGained > 0L
                 ? Component.translatable(
-                        "screen.kingdoms.trader.notice.sold_influence",
-                        count,
+                         "screen.kingdoms.trader.notice.sold_influence",
+                         soldItems,
                         new ItemStack(selection.displayItem()).getHoverName(),
                         NumismaticsEconomy.format(spurs),
                         influenceGained
                 )
                 : Component.translatable(
-                        "screen.kingdoms.trader.notice.sold",
-                        count,
+                         "screen.kingdoms.trader.notice.sold",
+                         soldItems,
                         new ItemStack(selection.displayItem()).getHoverName(),
                         NumismaticsEconomy.format(spurs)
                 );
@@ -577,15 +612,20 @@ public final class TraderService {
         return count;
     }
 
-    private static int removeUpTo(ServerPlayer player, SellSelection selection, int limit) {
+    private static InventoryRemoval removeExact(ServerPlayer player, SellSelection selection, int required) {
+        if (required <= 0 || countItems(player, selection) < required) {
+            return null;
+        }
+        List<InventorySnapshot> snapshots = new ArrayList<>();
         int removed = 0;
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
-            if (removed >= limit) {
+            if (removed >= required) {
                 break;
             }
             ItemStack stack = player.getInventory().getItem(slot);
             if (!stack.isEmpty() && selection.matches(stack)) {
-                int taken = Math.min(stack.getCount(), limit - removed);
+                snapshots.add(new InventorySnapshot(slot, stack.copy()));
+                int taken = Math.min(stack.getCount(), required - removed);
                 removed += taken;
                 stack.shrink(taken);
                 if (stack.isEmpty()) {
@@ -593,7 +633,7 @@ public final class TraderService {
                 }
             }
         }
-        return removed;
+        return removed == required ? new InventoryRemoval(List.copyOf(snapshots)) : null;
     }
 
     private static java.util.Optional<SellSelection> selectionFor(SellerTraderEntity trader, String offerId) {
@@ -643,7 +683,7 @@ public final class TraderService {
                     : TagKey.create(Registries.ITEM, offer.itemTag());
             return java.util.Optional.of(new SellSelection(
                     offer.id(), item, tag, rolledPrice == null ? offer.minimumPrice() : rolledPrice,
-                    offer.dailyLimit(), permanent
+                    offer.count(), offer.dailyLimit(), permanent
             ));
         });
     }
@@ -666,24 +706,32 @@ public final class TraderService {
     }
 
     static long sellUnitPrice(ServerPlayer player, long basePrice) {
-        long price = basePrice;
-        int levels = researchLevels(player, "BUY_RATE");
+        return sellUnitPrice(
+                basePrice,
+                researchLevels(player, "BUY_RATE"),
+                FactionAccess.hasAnyBonus(player, FactionBonus.MERCHANTS),
+                ModConfigSpec.MERCHANT_SELL_BONUS_PERCENT.getAsDouble()
+        );
+    }
+
+    static long sellUnitPrice(long basePrice, int levels, boolean merchantBonus, double merchantPercent) {
+        long price = Math.max(0L, basePrice);
         if (levels > 0 && price > 0L) {
             price = PriceMath.increaseByPercentCeil(price, 0.10D * levels);
         }
-        if (FactionAccess.hasAnyBonus(player, FactionBonus.MERCHANTS) && price > 0L) {
-            price = PriceMath.increaseByPercentCeil(
-                    price,
-                    ModConfigSpec.MERCHANT_SELL_BONUS_PERCENT.getAsDouble()
-            );
+        if (merchantBonus && price > 0L) {
+            price = PriceMath.increaseByPercentCeil(price, Math.max(0.0D, merchantPercent));
         }
         return price;
     }
 
     static long buyUnitPrice(ServerPlayer player, long basePrice) {
-        int levels = researchLevels(player, "OUTPOST_DISCOUNT");
+        return buyUnitPrice(basePrice, researchLevels(player, "OUTPOST_DISCOUNT"));
+    }
+
+    static long buyUnitPrice(long basePrice, int levels) {
         if (levels <= 0 || basePrice <= 0L) {
-            return basePrice;
+            return Math.max(0L, basePrice);
         }
         double factor = 1.0D - Math.min(0.90D, 0.10D * levels);
         return (long) Math.ceil(basePrice * factor);
@@ -840,11 +888,23 @@ public final class TraderService {
             Item displayItem,
             @Nullable TagKey<Item> tag,
             long price,
+            int batchSize,
             int dailyLimit,
             boolean permanent
     ) {
         private boolean matches(ItemStack stack) {
             return tag == null ? stack.is(displayItem) : stack.is(tag);
+        }
+    }
+
+    private record InventorySnapshot(int slot, ItemStack stack) {
+    }
+
+    private record InventoryRemoval(List<InventorySnapshot> snapshots) {
+        private void rollback(ServerPlayer player) {
+            for (InventorySnapshot snapshot : snapshots) {
+                player.getInventory().setItem(snapshot.slot(), snapshot.stack().copy());
+            }
         }
     }
 }

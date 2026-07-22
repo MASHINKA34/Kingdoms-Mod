@@ -5,9 +5,12 @@ import dev.ithundxr.createnumismatics.content.backend.BankAccount;
 import dev.ithundxr.createnumismatics.content.backend.Coin;
 import dev.ithundxr.createnumismatics.content.coins.CoinItem;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -109,8 +112,71 @@ public final class NumismaticsEconomy {
         stacksFor(amount).forEach(player.getInventory()::placeItemBackInInventory);
     }
 
+    public static boolean canFitPayoutAfterRemoving(
+            ServerPlayer player,
+            long amount,
+            Predicate<ItemStack> removable,
+            int removalCount
+    ) {
+        if (!canGive(amount) || removalCount < 0) {
+            return false;
+        }
+        List<ItemStack> mainItems = copyStacks(player.getInventory().items);
+        int remaining = removalCount;
+        for (int slot = 0; slot < player.getInventory().getContainerSize() && remaining > 0; slot++) {
+            ItemStack stack = player.getInventory().getItem(slot);
+            if (stack.isEmpty() || !removable.test(stack)) {
+                continue;
+            }
+            int taken = Math.min(stack.getCount(), remaining);
+            remaining -= taken;
+            if (slot < mainItems.size()) {
+                mainItems.get(slot).shrink(taken);
+            }
+        }
+        return remaining == 0 && fitStacks(mainItems, stacksFor(amount)) != null;
+    }
+
+    public static boolean giveToInventory(ServerPlayer player, long amount) {
+        if (!canGive(amount)) {
+            return false;
+        }
+        List<ItemStack> fitted = fitStacks(copyStacks(player.getInventory().items), stacksFor(amount));
+        if (fitted == null) {
+            return false;
+        }
+        for (int slot = 0; slot < fitted.size(); slot++) {
+            player.getInventory().setItem(slot, fitted.get(slot));
+        }
+        return true;
+    }
+
     public static boolean canGive(long amount) {
         return amount >= 0L && amount <= MAX_SINGLE_PAYOUT;
+    }
+
+    static boolean canFitStacksAfterRemoving(
+            List<ItemStack> inventory,
+            Predicate<ItemStack> removable,
+            int removalCount,
+            List<ItemStack> additions
+    ) {
+        if (removalCount < 0) {
+            return false;
+        }
+        List<ItemStack> simulated = copyStacks(inventory);
+        int remaining = removalCount;
+        for (ItemStack stack : simulated) {
+            if (remaining <= 0) {
+                break;
+            }
+            if (!stack.isEmpty() && removable.test(stack)) {
+                int taken = Math.min(stack.getCount(), remaining);
+                stack.shrink(taken);
+                remaining -= taken;
+            }
+        }
+        return remaining == 0 && fitStacks(simulated, additions) != null;
     }
 
     public static Component format(long spurs) {
@@ -180,6 +246,40 @@ public final class NumismaticsEconomy {
             throw new IllegalStateException("Numismatics has no spur denomination");
         }
         return stacks;
+    }
+
+    private static List<ItemStack> copyStacks(List<ItemStack> stacks) {
+        return stacks.stream().map(ItemStack::copy).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+    }
+
+    private static List<ItemStack> fitStacks(List<ItemStack> inventory, List<ItemStack> additions) {
+        List<ItemStack> fitted = copyStacks(inventory);
+        for (ItemStack addition : additions) {
+            ItemStack remaining = addition.copy();
+            for (ItemStack existing : fitted) {
+                if (remaining.isEmpty()) {
+                    break;
+                }
+                if (!existing.isEmpty() && ItemStack.isSameItemSameComponents(existing, remaining)) {
+                    int moved = Math.min(remaining.getCount(), existing.getMaxStackSize() - existing.getCount());
+                    if (moved > 0) {
+                        existing.grow(moved);
+                        remaining.shrink(moved);
+                    }
+                }
+            }
+            for (int slot = 0; slot < fitted.size() && !remaining.isEmpty(); slot++) {
+                if (fitted.get(slot).isEmpty()) {
+                    int moved = Math.min(remaining.getCount(), remaining.getMaxStackSize());
+                    fitted.set(slot, remaining.copyWithCount(moved));
+                    remaining.shrink(moved);
+                }
+            }
+            if (!remaining.isEmpty()) {
+                return null;
+            }
+        }
+        return fitted;
     }
 
     private static long saturatedAdd(long left, long right) {

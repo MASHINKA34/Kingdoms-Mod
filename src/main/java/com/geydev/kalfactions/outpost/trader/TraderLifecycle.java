@@ -173,10 +173,17 @@ public final class TraderLifecycle {
     private static void rollWandering(MinecraftServer server, TraderWorldData data, long now) {
         List<Faction> factions = FactionManager.get(server).factions().stream()
                 .sorted(java.util.Comparator.comparing(Faction::id))
-                .limit(MAX_FACTIONS_PER_ROLL)
                 .toList();
+        if (factions.isEmpty()) {
+            data.setWanderingRollCursor(0);
+            return;
+        }
+        List<Integer> indices = fairWindowIndices(
+                factions.size(), data.wanderingRollCursor(), MAX_FACTIONS_PER_ROLL
+        );
         Random random = new Random(server.overworld().getSeed() ^ now);
-        for (Faction faction : factions) {
+        for (int index : indices) {
+            Faction faction = factions.get(index);
             TraderWorldData.WanderingEvent current = data.wandering(faction.id()).orElse(null);
             if (current != null && (current.active() || now < current.cooldownUntil())) {
                 continue;
@@ -186,6 +193,20 @@ public final class TraderLifecycle {
             }
             spawnWandering(server, data, faction, now, random);
         }
+        data.setWanderingRollCursor((indices.getLast() + 1) % factions.size());
+    }
+
+    static List<Integer> fairWindowIndices(int factionCount, int cursor, int limit) {
+        if (factionCount <= 0 || limit <= 0) {
+            return List.of();
+        }
+        int count = Math.min(factionCount, limit);
+        int start = Math.floorMod(cursor, factionCount);
+        List<Integer> indices = new ArrayList<>(count);
+        for (int offset = 0; offset < count; offset++) {
+            indices.add((start + offset) % factionCount);
+        }
+        return List.copyOf(indices);
     }
 
     private static void spawnWandering(

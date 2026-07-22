@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.gson.JsonParser;
 import com.google.gson.JsonParseException;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
 
 final class TraderCatalogParserTest {
@@ -47,5 +49,31 @@ final class TraderCatalogParserTest {
                 """).getAsJsonObject();
 
         assertThrows(JsonParseException.class, () -> TraderCatalogParser.parse(root, id -> true));
+    }
+
+    @Test
+    void roleBoundsMatchOutboundShopCapacity() {
+        JsonObject permanent = catalog("permanent", 10);
+        JsonObject contraband = catalog("contraband", TraderPayloads.MAX_SELL_OFFERS + 1);
+        JsonObject rotating = catalog("rotating", 64);
+
+        assertThrows(JsonParseException.class, () -> TraderCatalogParser.parse(permanent, id -> true));
+        assertThrows(JsonParseException.class, () -> TraderCatalogParser.parse(contraband, id -> true));
+        assertEquals(64, TraderCatalogParser.parse(rotating, id -> true).offers().size());
+    }
+
+    private static JsonObject catalog(String role, int count) {
+        JsonObject root = new JsonObject();
+        root.addProperty("role", role);
+        JsonArray offers = new JsonArray();
+        for (int index = 0; index < count; index++) {
+            JsonObject offer = new JsonObject();
+            offer.addProperty("id", "offer_" + index);
+            offer.addProperty("item", "minecraft:stone");
+            offer.addProperty("price", 1);
+            offers.add(offer);
+        }
+        root.add("offers", offers);
+        return root;
     }
 }

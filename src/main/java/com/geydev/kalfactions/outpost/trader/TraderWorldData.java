@@ -22,7 +22,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
 
 public final class TraderWorldData extends SavedData {
-    public static final int FORMAT_VERSION = 1;
+    public static final int FORMAT_VERSION = 2;
     public static final int MAX_POINTS = 128;
     public static final int MAX_WANDERING_EVENTS = 2048;
     public static final int MAX_ROLLED_OFFERS = 16;
@@ -35,6 +35,7 @@ public final class TraderWorldData extends SavedData {
     private ActiveContraband contraband;
     private long contrabandCooldownUntil;
     private long wanderingNextRollAt;
+    private int wanderingRollCursor;
 
     public static TraderWorldData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
@@ -97,6 +98,15 @@ public final class TraderWorldData extends SavedData {
 
     public synchronized void setWanderingNextRollAt(long value) {
         wanderingNextRollAt = Math.max(0L, value);
+        setDirty();
+    }
+
+    public synchronized int wanderingRollCursor() {
+        return wanderingRollCursor;
+    }
+
+    public synchronized void setWanderingRollCursor(int value) {
+        wanderingRollCursor = Math.max(0, value);
         setDirty();
     }
 
@@ -164,6 +174,7 @@ public final class TraderWorldData extends SavedData {
         tag.putInt("formatVersion", FORMAT_VERSION);
         tag.putLong("contrabandCooldownUntil", contrabandCooldownUntil);
         tag.putLong("wanderingNextRollAt", wanderingNextRollAt);
+        tag.putInt("wanderingRollCursor", wanderingRollCursor);
         ListTag pointTags = new ListTag();
         for (SpawnPoint point : points.values()) {
             pointTags.add(point.save());
@@ -185,6 +196,7 @@ public final class TraderWorldData extends SavedData {
         boolean repaired = tag.getInt("formatVersion") != FORMAT_VERSION;
         data.contrabandCooldownUntil = Math.max(0L, tag.getLong("contrabandCooldownUntil"));
         data.wanderingNextRollAt = Math.max(0L, tag.getLong("wanderingNextRollAt"));
+        data.wanderingRollCursor = Math.max(0, tag.getInt("wanderingRollCursor"));
         ListTag points = tag.getList("points", Tag.TAG_COMPOUND);
         for (int index = 0; index < Math.min(points.size(), MAX_POINTS); index++) {
             Optional<SpawnPoint> loaded = SpawnPoint.load(points.getCompound(index));

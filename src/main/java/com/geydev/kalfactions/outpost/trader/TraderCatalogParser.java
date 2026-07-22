@@ -17,8 +17,9 @@ public final class TraderCatalogParser {
         TraderCatalogRole role = TraderCatalogRole.parse(GsonHelper.getAsString(root, "role"))
                 .orElseThrow(() -> new JsonParseException("Unknown trader role"));
         JsonArray array = GsonHelper.getAsJsonArray(root, "offers");
-        if (array.size() > 64) {
-            throw new JsonParseException("Catalog exceeds 64 offers");
+        int maximumOffers = TraderCatalogManager.maximumOffers(role);
+        if (array.size() > maximumOffers) {
+            throw new JsonParseException("Catalog exceeds " + maximumOffers + " offers for " + role.id());
         }
         List<TraderCatalogOffer> offers = new ArrayList<>();
         Set<String> ids = new HashSet<>();

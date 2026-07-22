@@ -3,6 +3,7 @@ package com.geydev.kalfactions.client.screen;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.KingdomsNoticeToast;
 import com.geydev.kalfactions.economy.PriceMath;
+import com.geydev.kalfactions.outpost.trader.TradeBatchMath;
 import com.geydev.kalfactions.outpost.trader.TraderPayloads;
 import java.util.ArrayList;
 import java.util.List;
@@ -239,6 +240,7 @@ public final class SellerShopScreen extends Screen {
             renderSellCell(graphics, cell, hover);
             if (hover) {
                 hovered = new ItemStack(cell.item());
+                hovered.setCount(cell.offer().itemCount());
             }
         }
         renderSelectionInfo(graphics);
@@ -271,7 +273,9 @@ public final class SellerShopScreen extends Screen {
             graphics.renderOutline(cell.x(), cell.y(), SELL_CELL_WIDTH - 4, SELL_CELL_HEIGHT - 2, 0xFFD8B25A);
         }
         ItemStack stack = new ItemStack(cell.item());
+        stack.setCount(cell.offer().itemCount());
         graphics.renderItem(stack, cell.x() + 3, cell.y() + 4);
+        graphics.renderItemDecorations(font, stack, cell.x() + 3, cell.y() + 4);
         int textColor = available > 0 ? TEXT_DARK : 0xFF8A7A66;
         graphics.drawString(font, TraderShopScreen.formatPrice(cell.offer().price()), cell.x() + 23, cell.y() + 3, textColor, false);
         graphics.drawString(font, "x" + owned, cell.x() + 23, cell.y() + 13, available > 0 ? 0xFFC9921F : TEXT_MUTED, false);
@@ -335,7 +339,11 @@ public final class SellerShopScreen extends Screen {
     }
 
     private int maxSellable(SellCell cell) {
-        return Math.min(ownedCount(cell.item()), Math.max(0, cell.offer().remainingLimit()));
+        return TradeBatchMath.availableBatches(
+                ownedCount(cell.item()),
+                cell.offer().itemCount(),
+                Math.max(0, cell.offer().remainingLimit())
+        );
     }
 
     private void selectCell(SellCell cell) {

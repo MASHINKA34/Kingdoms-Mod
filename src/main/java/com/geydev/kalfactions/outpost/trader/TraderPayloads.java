@@ -2,6 +2,7 @@ package com.geydev.kalfactions.outpost.trader;
 
 import com.geydev.kalfactions.KalFactions;
 import io.netty.handler.codec.DecoderException;
+import io.netty.handler.codec.EncoderException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -123,7 +124,7 @@ public final class TraderPayloads {
                     for (int i = 0; i < size; i++) {
                         OfferInfo.encode(buffer, payload.offers.get(i));
                     }
-                    int sellSize = Math.min(payload.sellOffers.size(), MAX_SELL_OFFERS);
+                    int sellSize = checkedSize(payload.sellOffers.size(), MAX_SELL_OFFERS, "Trader sell offer");
                     buffer.writeVarInt(sellSize);
                     for (int i = 0; i < sellSize; i++) {
                         OfferInfo.encode(buffer, payload.sellOffers.get(i));
@@ -221,7 +222,7 @@ public final class TraderPayloads {
         private static void encode(RegistryFriendlyByteBuf buffer, SellerInfo seller) {
             buffer.writeUUID(seller.sellerId);
             buffer.writeVarInt(seller.index);
-            int size = Math.min(seller.offers.size(), MAX_SELL_OFFERS);
+            int size = checkedSize(seller.offers.size(), MAX_SELL_OFFERS, "Seller catalog offer");
             buffer.writeVarInt(size);
             for (int i = 0; i < size; i++) {
                 OfferInfo.encode(buffer, seller.offers.get(i));
@@ -282,6 +283,13 @@ public final class TraderPayloads {
         return new CustomPacketPayload.Type<>(
                 ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, path)
         );
+    }
+
+    private static int checkedSize(int size, int maximum, String name) {
+        if (size < 0 || size > maximum) {
+            throw new EncoderException(name + " count " + size + " exceeds " + maximum);
+        }
+        return size;
     }
 
     private TraderPayloads() {

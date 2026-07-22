@@ -172,14 +172,19 @@ public final class SellerOfferRotation extends SavedData {
                 ^ mix64(epochDay * GOLDEN_GAMMA)
                 ^ mix64(traderId.getMostSignificantBits())
                 ^ mix64(traderId.getLeastSignificantBits());
-        Collections.shuffle(pool, new Random(seed));
-        shop.offerIds = pool.stream()
-                .limit(OFFER_COUNT)
-                .map(TraderCatalogOffer::id)
-                .toList();
+        shop.offerIds = selectOfferIds(pool, seed);
         shop.epochDay = epochDay;
         shop.soldByPlayer.clear();
         setDirty();
+    }
+
+    static List<String> selectOfferIds(List<TraderCatalogOffer> offers, long seed) {
+        List<TraderCatalogOffer> shuffled = new ArrayList<>(offers);
+        Collections.shuffle(shuffled, new Random(seed));
+        return shuffled.stream()
+                .limit(OFFER_COUNT)
+                .map(TraderCatalogOffer::id)
+                .toList();
     }
 
     private static long epochDay(long epochMillis) {

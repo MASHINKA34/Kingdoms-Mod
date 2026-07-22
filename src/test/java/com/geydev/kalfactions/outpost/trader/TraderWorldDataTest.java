@@ -44,6 +44,7 @@ class TraderWorldDataTest {
         TraderWorldData.ActiveContraband active = active(point, 90_000L);
         assertTrue(data.beginContraband(active));
         data.setWanderingNextRollAt(80_000L);
+        data.setWanderingRollCursor(513);
         UUID factionId = UUID.randomUUID();
         TraderWorldData.WanderingEvent wandering = new TraderWorldData.WanderingEvent(
                 factionId,
@@ -65,6 +66,7 @@ class TraderWorldDataTest {
         assertEquals(active, loaded.contraband().orElseThrow());
         assertEquals(wandering, loaded.wandering(factionId).orElseThrow());
         assertEquals(80_000L, loaded.wanderingNextRollAt());
+        assertEquals(513, loaded.wanderingRollCursor());
     }
 
     @Test

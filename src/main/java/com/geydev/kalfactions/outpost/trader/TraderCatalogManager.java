@@ -44,20 +44,28 @@ public final class TraderCatalogManager extends SimpleJsonResourceReloadListener
     protected void apply(Map<ResourceLocation, JsonElement> resources, ResourceManager manager, ProfilerFiller profiler) {
         EnumMap<TraderCatalogRole, List<TraderCatalogOffer>> loaded = new EnumMap<>(TraderCatalogRole.class);
         Set<String> globalIds = new HashSet<>();
-        for (Map.Entry<ResourceLocation, JsonElement> entry : resources.entrySet()) {
+        List<Map.Entry<ResourceLocation, JsonElement>> entries = resources.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .toList();
+        for (Map.Entry<ResourceLocation, JsonElement> entry : entries) {
             try {
                 TraderCatalogParser.ParsedCatalog parsed = TraderCatalogParser.parse(
                         entry.getValue().getAsJsonObject(),
                         BuiltInRegistries.ITEM::containsKey
                 );
                 List<TraderCatalogOffer> roleOffers = loaded.computeIfAbsent(parsed.role(), ignored -> new ArrayList<>());
+                if (roleOffers.size() + parsed.offers().size() > maximumOffers(parsed.role())) {
+                    throw new IllegalArgumentException("Trader role " + parsed.role().id() + " exceeds offer limit");
+                }
+                Set<String> incomingIds = new HashSet<>();
                 for (TraderCatalogOffer offer : parsed.offers()) {
                     String key = parsed.role().id() + ":" + offer.id();
-                    if (!globalIds.add(key)) {
+                    if (globalIds.contains(key) || !incomingIds.add(key)) {
                         throw new IllegalArgumentException("Duplicate offer " + key);
                     }
-                    roleOffers.add(offer);
                 }
+                globalIds.addAll(incomingIds);
+                roleOffers.addAll(parsed.offers());
             } catch (RuntimeException exception) {
                 KalFactions.LOGGER.error("Rejected trader catalog {}", entry.getKey(), exception);
             }
@@ -66,5 +74,13 @@ public final class TraderCatalogManager extends SimpleJsonResourceReloadListener
         loaded.forEach((role, offers) -> immutable.put(role, List.copyOf(offers)));
         catalogs = Map.copyOf(immutable);
         KalFactions.LOGGER.info("Loaded {} trader catalog offers", globalIds.size());
+    }
+
+    static int maximumOffers(TraderCatalogRole role) {
+        return switch (role) {
+            case PERMANENT -> TraderPayloads.MAX_SELL_OFFERS - SellerOfferRotation.OFFER_COUNT;
+            case CONTRABAND -> TraderPayloads.MAX_SELL_OFFERS;
+            case ROTATING, WANDERING -> 64;
+        };
     }
 }
