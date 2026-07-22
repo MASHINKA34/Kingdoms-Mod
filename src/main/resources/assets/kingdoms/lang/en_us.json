@@ -897,5 +897,15 @@
   "kingdoms.xaero_map.chunkload.buy": "Load chunk %s h (%s)",
   "kingdoms.xaero_map.chunkload.extend": "Extend loading %s h (%s)",
   "kingdoms.xaero.frozen_label": "Frozen for non-payment",
-  "kingdoms.lagtax.notice.billing_soon": "The lag tax will be collected in %s min: %s. Top up the treasury if needed."
+  "kingdoms.lagtax.notice.billing_soon": "The lag tax will be collected in %s min: %s. Top up the treasury if needed.",
+  "screen.kingdoms.drill.reserve": "Deposit reserve: %s/%s",
+  "screen.kingdoms.drill.depleted": "Deposit depleted",
+  "commands.kingdoms.resource.zone": "Zone: %s, distance: %s blocks, shared spawn: %s, %s",
+  "commands.kingdoms.resource.stats": "Cycle %s: active %s, depleted %s; zones %s; resources %s",
+  "commands.kingdoms.resource.nearest.none": "No known resource deposit within 20,000 blocks.",
+  "commands.kingdoms.resource.nearest": "%s deposit at %s %s %s: %s/%s, zone %s, state %s",
+  "commands.kingdoms.resource.next": "Resource cycle advanced to %s. Old deposits entered bounded cleanup.",
+  "commands.kingdoms.resource.paused": "Resource generation and cleanup queues paused.",
+  "commands.kingdoms.resource.resumed": "Resource generation and cleanup queues resumed.",
+  "commands.kingdoms.resource.verify": "Integrity: deposits %s, tracked blocks %s, generation queue %s, cleanup queue %s, issues %s"
 }

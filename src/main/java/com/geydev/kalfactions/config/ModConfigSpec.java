@@ -99,6 +99,18 @@ public final class ModConfigSpec {
     public static final LongValue FACTION_METER_COST;
     public static final IntValue NEWS_MAX_ARTICLES_PER_FACTION;
     public static final IntValue NEWS_PUBLISH_COOLDOWN_MINUTES;
+    public static final IntValue RESOURCE_BLUE_RADIUS;
+    public static final IntValue RESOURCE_YELLOW_RADIUS;
+    public static final IntValue RESOURCE_CELL_SIZE;
+    public static final DoubleValue RESOURCE_BASE_DENSITY;
+    public static final BooleanValue RESOURCE_AUTO_CYCLE;
+    public static final IntValue RESOURCE_CYCLE_DAYS;
+    public static final IntValue RESOURCE_CYCLE_RESET_HOUR;
+    public static final IntValue RESOURCE_GENERATION_BLOCKS_PER_TICK;
+    public static final IntValue RESOURCE_CLEANUP_BLOCKS_PER_TICK;
+    public static final IntValue RESOURCE_MIN_RESERVE;
+    public static final IntValue RESOURCE_MAX_RESERVE;
+    public static final IntValue RESOURCE_MAX_PHYSICAL_BLOCKS;
 
     static {
         Builder builder = new Builder();
@@ -128,6 +140,21 @@ public final class ModConfigSpec {
         ENCHANTER_ANVIL_MAX_COST = builder.defineInRange("enchanterAnvilMaxCost", 60, 1, Integer.MAX_VALUE);
         ENCHANTER_PRIOR_WORK_MAX_COST = builder.defineInRange("enchanterPriorWorkMaxCost", 12, 0, Integer.MAX_VALUE);
         ENCHANTER_LEVEL_COST_CAP = builder.defineInRange("enchanterLevelCostCap", 12, 1, Integer.MAX_VALUE);
+        builder.pop();
+
+        builder.push("resourceDeposits");
+        RESOURCE_BLUE_RADIUS = builder.defineInRange("blueRadius", 5000, 0, 1000000);
+        RESOURCE_YELLOW_RADIUS = builder.defineInRange("yellowRadius", 8000, 1, 1000000);
+        RESOURCE_CELL_SIZE = builder.defineInRange("cellSizeBlocks", 256, 64, 4096);
+        RESOURCE_BASE_DENSITY = builder.defineInRange("baseDensity", 0.40D, 0.0D, 1.0D);
+        RESOURCE_AUTO_CYCLE = builder.define("automaticCycle", true);
+        RESOURCE_CYCLE_DAYS = builder.defineInRange("cycleDays", 7, 1, 365);
+        RESOURCE_CYCLE_RESET_HOUR = builder.defineInRange("cycleResetHour", 0, 0, 23);
+        RESOURCE_GENERATION_BLOCKS_PER_TICK = builder.defineInRange("generationBlocksPerTick", 24, 1, 4096);
+        RESOURCE_CLEANUP_BLOCKS_PER_TICK = builder.defineInRange("cleanupBlocksPerTick", 24, 1, 4096);
+        RESOURCE_MIN_RESERVE = builder.defineInRange("minimumBaseReserve", 100, 1, 1000000);
+        RESOURCE_MAX_RESERVE = builder.defineInRange("maximumBaseReserve", 200, 1, 1000000);
+        RESOURCE_MAX_PHYSICAL_BLOCKS = builder.defineInRange("maximumPhysicalBlocks", 120, 8, 4096);
         builder.pop();
 
         builder.push("raids");

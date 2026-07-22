@@ -147,6 +147,16 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
         graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, 0xFFE8D6A0, true);
+        if (menu.hasFiniteDeposit()) {
+            Component reserve = menu.depositRemaining() == 0
+                    ? Component.translatable("screen.kingdoms.drill.depleted")
+                    : Component.translatable(
+                            "screen.kingdoms.drill.reserve",
+                            menu.depositRemaining(),
+                            menu.depositOriginal()
+                    );
+            graphics.drawCenteredString(font, reserve, imageWidth / 2, 34, 0xFFE8D6A0);
+        }
     }
 
     private static String formatTicks(int ticks) {

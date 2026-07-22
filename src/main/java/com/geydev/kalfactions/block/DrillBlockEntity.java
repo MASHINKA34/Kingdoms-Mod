@@ -22,6 +22,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -42,6 +45,8 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
             return switch (index) {
                 case 0 -> progress;
                 case 1 -> interval;
+                case 2 -> depositRemaining;
+                case 3 -> depositOriginal;
                 default -> 0;
             };
         }
@@ -55,13 +60,15 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
 
         @Override
         public int getCount() {
-            return 2;
+            return 4;
         }
     };
     private int progress;
     private int interval = baseIntervalTicks();
     private long lastProduceMillis;
     private int sinceCheck = CHECK_INTERVAL_TICKS - 1;
+    private int depositRemaining = -1;
+    private int depositOriginal = -1;
 
     public DrillBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.DRILL.get(), pos, state);
@@ -117,14 +124,39 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
             return ProduceResult.INVALID;
         }
         ResourceClusterManager clusters = ResourceClusterManager.get(level);
+        if (!clusters.isBoundDrill(chunk, pos) && !clusters.bindDrill(chunk, pos)) {
+            return ProduceResult.INVALID;
+        }
+        ResourceClusterManager.OreDepositView oreDeposit = clusters.oreDepositAt(chunk).orElse(null);
+        int amount = BASE_OUTPUT + 16 * faction.researchBonusCount("DRILL_OUTPUT");
+        if (oreDeposit != null) {
+            depositRemaining = oreDeposit.remaining();
+            depositOriginal = oreDeposit.originalReserve();
+            if (oreDeposit.remaining() <= 0) {
+                return ProduceResult.INVALID;
+            }
+            int requested = Math.min(amount, oreDeposit.remaining());
+            ItemStack output = new ItemStack(resourceItem(oreDeposit.resource()), requested);
+            if (!canFit(output)) {
+                return ProduceResult.FULL;
+            }
+            ResourceClusterManager.DrillExtraction extraction = clusters.extractForDrill(chunk, requested);
+            if (!extraction.successful()) {
+                return ProduceResult.INVALID;
+            }
+            output.setCount(extraction.amount());
+            insert(output);
+            depositRemaining = extraction.remaining();
+            depositOriginal = extraction.originalReserve();
+            setChanged();
+            return ProduceResult.PRODUCED;
+        }
+        depositRemaining = -1;
+        depositOriginal = -1;
         ResourceClusterManager.ClusterView cluster = clusters.clusterAt(chunk).orElse(null);
         if (cluster == null) {
             return ProduceResult.INVALID;
         }
-        if (!clusters.isBoundDrill(chunk, pos) && !clusters.bindDrill(chunk, pos)) {
-            return ProduceResult.INVALID;
-        }
-        int amount = BASE_OUTPUT + 16 * faction.researchBonusCount("DRILL_OUTPUT");
         ItemStack output = new ItemStack(cluster.type().displayItem(), amount);
         if (!canFit(output)) {
             return ProduceResult.FULL;
@@ -132,6 +164,21 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         insert(output);
         setChanged();
         return ProduceResult.PRODUCED;
+    }
+
+    private static net.minecraft.world.item.Item resourceItem(
+            com.geydev.kalfactions.outpost.cluster.distribution.ClusterResource resource
+    ) {
+        return switch (resource) {
+            case COAL -> Items.COAL;
+            case COPPER -> Items.RAW_COPPER;
+            case ZINC -> BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("create", "raw_zinc"));
+            case IRON -> Items.RAW_IRON;
+            case LAPIS -> Items.LAPIS_LAZULI;
+            case REDSTONE -> Items.REDSTONE;
+            case GOLD -> Items.RAW_GOLD;
+            case DIAMOND -> Items.DIAMOND;
+        };
     }
 
     private boolean canFit(ItemStack stack) {

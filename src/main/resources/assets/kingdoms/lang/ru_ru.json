@@ -897,5 +897,15 @@
   "kingdoms.xaero_map.chunkload.buy": "Прогрузить %s ч (%s)",
   "kingdoms.xaero_map.chunkload.extend": "Продлить прогрузку %s ч (%s)",
   "kingdoms.xaero.frozen_label": "Заморожено за неуплату",
-  "kingdoms.lagtax.notice.billing_soon": "Через %s мин спишется налог на лаги: %s. Пополните казну, если не хватает."
+  "kingdoms.lagtax.notice.billing_soon": "Через %s мин спишется налог на лаги: %s. Пополните казну, если не хватает.",
+  "screen.kingdoms.drill.reserve": "Запас залежи: %s/%s",
+  "screen.kingdoms.drill.depleted": "Залежь истощена",
+  "commands.kingdoms.resource.zone": "Зона: %s, расстояние: %s блоков, общий спавн: %s, %s",
+  "commands.kingdoms.resource.stats": "Цикл %s: активных %s, истощённых %s; зоны %s; ресурсы %s",
+  "commands.kingdoms.resource.nearest.none": "В пределах 20 000 блоков нет известной ресурсной залежи.",
+  "commands.kingdoms.resource.nearest": "Залежь %s в %s %s %s: %s/%s, зона %s, состояние %s",
+  "commands.kingdoms.resource.next": "Ресурсный цикл переключён на %s. Старые залежи поставлены в ограниченную очередь очистки.",
+  "commands.kingdoms.resource.paused": "Очереди генерации и очистки ресурсов приостановлены.",
+  "commands.kingdoms.resource.resumed": "Очереди генерации и очистки ресурсов продолжены.",
+  "commands.kingdoms.resource.verify": "Целостность: залежей %s, учтённых блоков %s, очередь генерации %s, очередь очистки %s, проблем %s"
 }

@@ -89,7 +89,7 @@ public final class OutpostInteractions {
         }
         com.geydev.kalfactions.outpost.cluster.ResourceClusterManager clusters =
                 com.geydev.kalfactions.outpost.cluster.ResourceClusterManager.get(level);
-        if (clusters.clusterAt(chunk).isEmpty()) {
+        if (clusters.clusterAt(chunk).isEmpty() && clusters.oreDepositAt(chunk).isEmpty()) {
             event.setCanceled(true);
             FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.drill.no_cluster"), false);
             return;

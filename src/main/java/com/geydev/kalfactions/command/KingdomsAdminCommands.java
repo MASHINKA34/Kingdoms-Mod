@@ -7,6 +7,8 @@ import com.geydev.kalfactions.faction.ResearchNode;
 import com.geydev.kalfactions.news.NewsManager;
 import com.geydev.kalfactions.news.NewsService;
 import com.geydev.kalfactions.outpost.trader.TraderService;
+import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager;
+import com.geydev.kalfactions.outpost.cluster.distribution.ResourceZone;
 import com.geydev.kalfactions.sanctuary.SanctuaryExecutionManager;
 import com.geydev.kalfactions.worldmap.WorldMapRenderManager;
 import com.mojang.brigadier.CommandDispatcher;
@@ -27,6 +29,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.border.WorldBorder;
+import net.minecraft.core.BlockPos;
 
 public final class KingdomsAdminCommands {
     private static final SuggestionProvider<CommandSourceStack> NODE_SUGGESTIONS = (context, builder) ->
@@ -79,6 +82,15 @@ public final class KingdomsAdminCommands {
                                 .then(Commands.argument("faction", StringArgumentType.string())
                                         .suggests(FACTION_SUGGESTIONS)
                                         .executes(KingdomsAdminCommands::listNews))))
+                .then(Commands.literal("resource")
+                        .then(Commands.literal("zone").executes(KingdomsAdminCommands::resourceZone))
+                        .then(Commands.literal("stats").executes(KingdomsAdminCommands::resourceStats))
+                        .then(Commands.literal("nearest").executes(KingdomsAdminCommands::resourceNearest))
+                        .then(Commands.literal("next")
+                                .then(Commands.literal("confirm").executes(KingdomsAdminCommands::resourceNext)))
+                        .then(Commands.literal("pause").executes(context -> resourcePause(context, true)))
+                        .then(Commands.literal("resume").executes(context -> resourcePause(context, false)))
+                        .then(Commands.literal("verify").executes(KingdomsAdminCommands::resourceVerify)))
                 .then(Commands.literal("map")
                         .then(Commands.literal("render")
                                 .executes(context -> startRender(context, DEFAULT_MAP_RESOLUTION))
@@ -89,6 +101,94 @@ public final class KingdomsAdminCommands {
                                 .executes(KingdomsAdminCommands::cancelRender))
                         .then(Commands.literal("status")
                                 .executes(KingdomsAdminCommands::mapStatus))));
+    }
+
+    private static int resourceZone(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ServerLevel level = source.getLevel();
+        BlockPos spawn = level.getSharedSpawnPos();
+        double dx = source.getPosition().x - spawn.getX();
+        double dz = source.getPosition().z - spawn.getZ();
+        double distance = Math.hypot(dx, dz);
+        int blue = com.geydev.kalfactions.config.ModConfigSpec.RESOURCE_BLUE_RADIUS.getAsInt();
+        int yellow = Math.max(blue, com.geydev.kalfactions.config.ModConfigSpec.RESOURCE_YELLOW_RADIUS.getAsInt());
+        ResourceZone zone = ResourceZone.fromDistance(distance, blue, yellow);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.resource.zone",
+                zone.name(),
+                String.format(java.util.Locale.ROOT, "%.1f", distance),
+                spawn.getX(),
+                spawn.getZ()
+        ), false);
+        return 1;
+    }
+
+    private static int resourceStats(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ResourceClusterManager.ResourceStatistics stats = ResourceClusterManager.get(source.getLevel()).statistics();
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.resource.stats",
+                stats.cycleId(),
+                stats.active(),
+                stats.depleted(),
+                stats.byZone().toString(),
+                stats.byResource().toString()
+        ), false);
+        return 1;
+    }
+
+    private static int resourceNearest(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        BlockPos origin = BlockPos.containing(source.getPosition());
+        ResourceClusterManager.OreDepositView deposit = ResourceClusterManager.get(source.getLevel())
+                .nearestDeposit(origin, 20_000)
+                .orElse(null);
+        if (deposit == null) {
+            source.sendFailure(Component.translatable("commands.kingdoms.resource.nearest.none"));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.resource.nearest",
+                deposit.resource().id(),
+                deposit.center().getX(),
+                deposit.center().getY(),
+                deposit.center().getZ(),
+                deposit.remaining(),
+                deposit.originalReserve(),
+                deposit.zone().name(),
+                deposit.state()
+        ), false);
+        return 1;
+    }
+
+    private static int resourceNext(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        long cycle = ResourceClusterManager.get(source.getLevel()).advanceResourceCycle(System.currentTimeMillis());
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.resource.next", cycle), true);
+        return 1;
+    }
+
+    private static int resourcePause(CommandContext<CommandSourceStack> context, boolean paused) {
+        CommandSourceStack source = context.getSource();
+        ResourceClusterManager.get(source.getLevel()).setResourceQueuePaused(paused);
+        source.sendSuccess(() -> Component.translatable(
+                paused ? "commands.kingdoms.resource.paused" : "commands.kingdoms.resource.resumed"
+        ), true);
+        return 1;
+    }
+
+    private static int resourceVerify(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ResourceClusterManager.IntegrityReport report = ResourceClusterManager.get(source.getLevel()).verifyIntegrity();
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.resource.verify",
+                report.deposits(),
+                report.trackedBlocks(),
+                report.generationQueued(),
+                report.cleanupQueued(),
+                report.issues()
+        ), false);
+        return report.issues() == 0 ? 1 : 0;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> dimensionBranch(
