@@ -131,9 +131,7 @@ configurations {
 }
 
 dependencies {
-    implementation("dev.ithundxr.createnumismatics:CreateNumismatics-neoforge-${minecraft_version}:${numismatics_version}") {
-        transitive = false
-    }
+    implementation files("libs/CreateNumismatics-${numismatics_version}.jar")
 
     compileOnly("com.simibubi.create:create-${minecraft_version}:${create_version}:slim") {
         transitive = false
@@ -148,7 +146,7 @@ dependencies {
     compileOnly files("libs/ScorchedGuns-1.5.jar")
     compileOnly files("libs/xaerominimap-neoforge-${minecraft_version}-${xaero_minimap_version}.jar")
     compileOnly files("libs/xaeroworldmap-neoforge-${minecraft_version}-${xaero_worldmap_version}.jar")
-    compileOnly files("libs/xaerolib-neoforge-${minecraft_version}-1.1.15.jar")
+    compileOnly files("libs/xaerolib-neoforge-${minecraft_version}-${xaero_lib_version}.jar")
     localRuntime files("libs/xaerominimap-neoforge-${minecraft_version}-${xaero_minimap_version}.jar")
     localRuntime files("libs/xaeroworldmap-neoforge-${minecraft_version}-${xaero_worldmap_version}.jar")
     localRuntime files("libs/ScorchedGuns-1.5.jar")
@@ -156,9 +154,7 @@ dependencies {
     localRuntime files("libs/curios-neoforge-9.5.1+${minecraft_version}.jar")
     localRuntime files("libs/geckolib-neoforge-${minecraft_version}-4.9.2.jar")
 
-    localRuntime("dev.ithundxr.createnumismatics:CreateNumismatics-neoforge-${minecraft_version}:${numismatics_version}") {
-        transitive = false
-    }
+    localRuntime files("libs/CreateNumismatics-${numismatics_version}.jar")
     localRuntime("com.simibubi.create:create-${minecraft_version}:${create_version}:slim") {
         transitive = false
     }
