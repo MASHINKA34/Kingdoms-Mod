@@ -16,6 +16,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -117,6 +118,90 @@ class XaeroRegionCodecTest {
         assertEquals(manifest, XaeroArchiveManifest.read(path, "server-id", factionId, "minecraft:overworld"));
         assertThrows(IOException.class,
                 () -> XaeroArchiveManifest.read(path, "other-server", factionId, "minecraft:overworld"));
+    }
+
+    @Test
+    void storeRejectsAggregateRegionOverflowWithoutReplacingManifest() throws IOException {
+        UUID factionId = UUID.randomUUID();
+        XaeroArchiveStore.ArchiveLocation location = new XaeroArchiveStore.ArchiveLocation(
+                temporary.resolve("archive-regions"), "server-id", factionId, "minecraft:overworld"
+        );
+        List<ArchiveRegionDescriptor> descriptors = java.util.stream.IntStream.range(0, XaeroArchiveLimits.MAX_REGIONS)
+                .mapToObj(index -> new ArchiveRegionDescriptor(
+                        index + "_0.zip", 1, 1, 1, String.format("%064x", index + 1)
+                ))
+                .toList();
+        new XaeroArchiveManifest(
+                XaeroArchiveLimits.FORMAT_VERSION,
+                XaeroArchiveLimits.XAERO_WORLD_MAP_VERSION,
+                location.serverIdentity(),
+                location.factionId(),
+                location.dimension(),
+                1,
+                descriptors
+        ).writeAtomic(location.root().resolve("manifest.json"));
+        Path incoming = region("overflow.zip", Set.of(0), 12);
+
+        assertThrows(IOException.class, () -> XaeroArchiveStore.merge(
+                location, List.of(new XaeroArchiveStore.IncomingRegion("3000_0.zip", incoming))
+        ));
+
+        assertEquals(XaeroArchiveLimits.MAX_REGIONS, XaeroArchiveStore.load(location).regions().size());
+    }
+
+    @Test
+    void storeRejectsAggregateByteOverflowWithoutReplacingManifest() throws IOException {
+        UUID factionId = UUID.randomUUID();
+        XaeroArchiveStore.ArchiveLocation location = new XaeroArchiveStore.ArchiveLocation(
+                temporary.resolve("archive-bytes"), "server-id", factionId, "minecraft:overworld"
+        );
+        List<ArchiveRegionDescriptor> descriptors = java.util.stream.IntStream.range(0, 8)
+                .mapToObj(index -> new ArchiveRegionDescriptor(
+                        index + "_0.zip", XaeroArchiveLimits.MAX_REGION_COMPRESSED_SIZE, 1, 1,
+                        String.format("%064x", index + 1)
+                ))
+                .toList();
+        new XaeroArchiveManifest(
+                XaeroArchiveLimits.FORMAT_VERSION,
+                XaeroArchiveLimits.XAERO_WORLD_MAP_VERSION,
+                location.serverIdentity(),
+                location.factionId(),
+                location.dimension(),
+                1,
+                descriptors
+        ).writeAtomic(location.root().resolve("manifest.json"));
+        Path incoming = region("overflow.zip", Set.of(0), 12);
+
+        assertThrows(IOException.class, () -> XaeroArchiveStore.merge(
+                location, List.of(new XaeroArchiveStore.IncomingRegion("9_0.zip", incoming))
+        ));
+
+        assertEquals(8, XaeroArchiveStore.load(location).regions().size());
+    }
+
+    @Test
+    void storeCollectsReplacedBlobAfterActiveSnapshotCloses() throws IOException {
+        UUID factionId = UUID.randomUUID();
+        XaeroArchiveStore.ArchiveLocation location = new XaeroArchiveStore.ArchiveLocation(
+                temporary.resolve("archive-gc"), "server-id", factionId, "minecraft:overworld"
+        );
+        Path first = region("first.zip", Set.of(0), 10);
+        Path second = region("second.zip", Set.of(0), 20);
+        XaeroArchiveManifest initial = XaeroArchiveStore.merge(
+                location, List.of(new XaeroArchiveStore.IncomingRegion("0_0.zip", first))
+        );
+        String oldChecksum = initial.regions().getFirst().checksum();
+        Path oldBlob = location.root().resolve("blobs").resolve(oldChecksum + ".zip");
+
+        try (XaeroArchiveStore.Snapshot ignored = XaeroArchiveStore.snapshot(location)) {
+            XaeroArchiveManifest updated = XaeroArchiveStore.merge(
+                    location, List.of(new XaeroArchiveStore.IncomingRegion("0_0.zip", second))
+            );
+            assertFalse(oldChecksum.equals(updated.regions().getFirst().checksum()));
+            assertTrue(Files.isRegularFile(oldBlob));
+        }
+
+        assertFalse(Files.exists(oldBlob));
     }
 
     private Path region(String name, Set<Integer> tiles, int height) throws IOException {

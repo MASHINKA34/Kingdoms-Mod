@@ -1,8 +1,11 @@
 package com.geydev.kalfactions.integration.xaero.archive;
 
+import com.geydev.kalfactions.KalFactions;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.LevelResource;
+import com.geydev.kalfactions.dimension.DimensionControlManager;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -15,16 +18,23 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class XaeroArchiveStore {
     private static final Map<Path, Object> LOCKS = new ConcurrentHashMap<>();
+    private static final Map<Path, Integer> ACTIVE_BLOBS = new ConcurrentHashMap<>();
 
     public static ArchiveLocation location(MinecraftServer server, UUID factionId, ResourceLocation dimension) throws IOException {
         Path worldRoot = server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize();
         String serverIdentity = serverIdentity(server, worldRoot);
-        String dimensionName = ArchiveHashing.sha256(dimension.toString().getBytes(StandardCharsets.UTF_8)).substring(0, 32);
+        String dimensionScope = dimension.toString();
+        if (Level.NETHER.location().equals(dimension)) {
+            dimensionScope += "#wipe=" + DimensionControlManager.get(server).wipeGeneration(Level.NETHER);
+        }
+        String dimensionName = ArchiveHashing.sha256(dimensionScope.getBytes(StandardCharsets.UTF_8)).substring(0, 32);
         Path root = worldRoot.resolve("kingdoms").resolve("xaero_maps").resolve(serverIdentity)
                 .resolve(factionId.toString()).resolve(dimensionName).normalize();
         Path expected = worldRoot.resolve("kingdoms").resolve("xaero_maps").normalize();
@@ -80,6 +90,7 @@ public final class XaeroArchiveStore {
                 }
                 ArrayList<ArchiveRegionDescriptor> sorted = new ArrayList<>(entries.values());
                 sorted.sort(Comparator.comparing(ArchiveRegionDescriptor::name));
+                validateAggregate(sorted);
                 XaeroArchiveManifest updated = new XaeroArchiveManifest(
                         XaeroArchiveLimits.FORMAT_VERSION,
                         XaeroArchiveLimits.XAERO_WORLD_MAP_VERSION,
@@ -90,7 +101,11 @@ public final class XaeroArchiveStore {
                         sorted
                 );
                 updated.writeAtomic(location.root.resolve("manifest.json"));
+                collectOrphanBlobs(location, updated);
                 return updated;
+            } catch (IOException | RuntimeException exception) {
+                collectOrphanBlobs(location, current);
+                throw exception;
             } finally {
                 for (Path temporary : temporaryFiles) {
                     Files.deleteIfExists(temporary);
@@ -113,17 +128,21 @@ public final class XaeroArchiveStore {
                 }
                 regions.add(new SnapshotRegion(descriptor, blob));
             }
-            return new Snapshot(manifest, List.copyOf(regions));
+            Set<Path> leased = regions.stream().map(SnapshotRegion::path).collect(java.util.stream.Collectors.toUnmodifiableSet());
+            leased.forEach(path -> ACTIVE_BLOBS.merge(path, 1, Integer::sum));
+            return new Snapshot(location, manifest, List.copyOf(regions), leased);
         }
     }
 
     public static XaeroArchiveManifest load(ArchiveLocation location) throws IOException {
-        return XaeroArchiveManifest.read(
+        XaeroArchiveManifest manifest = XaeroArchiveManifest.read(
                 location.root.resolve("manifest.json"),
                 location.serverIdentity,
                 location.factionId,
                 location.dimension
         );
+        validateAggregate(manifest.regions());
+        return manifest;
     }
 
     private static Path checkedBlob(Path blobs, String checksum) throws IOException {
@@ -138,6 +157,69 @@ public final class XaeroArchiveStore {
         return blob;
     }
 
+    private static void validateAggregate(List<ArchiveRegionDescriptor> regions) throws IOException {
+        if (regions.size() > XaeroArchiveLimits.MAX_REGIONS) {
+            throw new IOException("Xaero archive region count exceeds the limit");
+        }
+        long compressed = 0;
+        long uncompressed = 0;
+        try {
+            for (ArchiveRegionDescriptor descriptor : regions) {
+                compressed = Math.addExact(compressed, descriptor.compressedSize());
+                uncompressed = Math.addExact(uncompressed, descriptor.uncompressedSize());
+            }
+        } catch (ArithmeticException exception) {
+            throw new IOException("Xaero archive aggregate size overflow", exception);
+        }
+        if (compressed > XaeroArchiveLimits.MAX_SESSION_COMPRESSED_SIZE
+                || uncompressed > XaeroArchiveLimits.MAX_SESSION_UNCOMPRESSED_SIZE) {
+            throw new IOException("Xaero archive aggregate size exceeds the limit");
+        }
+    }
+
+    private static void collectOrphanBlobs(ArchiveLocation location, XaeroArchiveManifest manifest) {
+        Path blobs = location.root.resolve("blobs").toAbsolutePath().normalize();
+        if (!Files.isDirectory(blobs)) {
+            return;
+        }
+        Set<Path> referenced = manifest.regions().stream().map(descriptor -> {
+            try {
+                return checkedBlob(blobs, descriptor.checksum());
+            } catch (IOException exception) {
+                throw new IllegalStateException(exception);
+            }
+        }).collect(java.util.stream.Collectors.toUnmodifiableSet());
+        try (var paths = Files.list(blobs)) {
+            paths.filter(path -> Files.isRegularFile(path, java.nio.file.LinkOption.NOFOLLOW_LINKS))
+                    .filter(path -> path.getFileName().toString().matches("[0-9a-f]{64}\\.zip"))
+                    .filter(path -> !referenced.contains(path.toAbsolutePath().normalize()))
+                    .filter(path -> !ACTIVE_BLOBS.containsKey(path.toAbsolutePath().normalize()))
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException exception) {
+                            KalFactions.LOGGER.warn("Could not remove orphaned Xaero archive blob {}", path, exception);
+                        }
+                    });
+        } catch (IOException | IllegalStateException exception) {
+            KalFactions.LOGGER.warn("Could not collect orphaned Xaero archive blobs under {}", blobs, exception);
+        }
+    }
+
+    private static void releaseSnapshot(Snapshot snapshot) {
+        Object lock = LOCKS.computeIfAbsent(snapshot.location.root, ignored -> new Object());
+        synchronized (lock) {
+            for (Path path : snapshot.leased) {
+                ACTIVE_BLOBS.computeIfPresent(path, (ignored, count) -> count <= 1 ? null : count - 1);
+            }
+            try {
+                collectOrphanBlobs(snapshot.location, load(snapshot.location));
+            } catch (IOException exception) {
+                KalFactions.LOGGER.warn("Could not collect Xaero archive blobs after download", exception);
+            }
+        }
+    }
+
     private static String serverIdentity(MinecraftServer server, Path worldRoot) {
         String identitySource = worldRoot + "\n" + server.overworld().getSeed();
         return ArchiveHashing.sha256(identitySource.getBytes(StandardCharsets.UTF_8)).substring(0, 32);
@@ -149,7 +231,33 @@ public final class XaeroArchiveStore {
     public record IncomingRegion(String name, Path path) {
     }
 
-    public record Snapshot(XaeroArchiveManifest manifest, List<SnapshotRegion> regions) {
+    public static final class Snapshot implements AutoCloseable {
+        private final ArchiveLocation location;
+        private final XaeroArchiveManifest manifest;
+        private final List<SnapshotRegion> regions;
+        private final Set<Path> leased;
+        private final AtomicBoolean closed = new AtomicBoolean();
+
+        private Snapshot(
+                ArchiveLocation location,
+                XaeroArchiveManifest manifest,
+                List<SnapshotRegion> regions,
+                Set<Path> leased
+        ) {
+            this.location = location;
+            this.manifest = manifest;
+            this.regions = regions;
+            this.leased = leased;
+        }
+
+        public XaeroArchiveManifest manifest() {
+            return manifest;
+        }
+
+        public List<SnapshotRegion> regions() {
+            return regions;
+        }
+
         public long compressedSize() {
             return regions.stream().mapToLong(region -> region.descriptor.compressedSize()).sum();
         }
@@ -160,6 +268,13 @@ public final class XaeroArchiveStore {
 
         public int tileCount() {
             return regions.stream().mapToInt(region -> region.descriptor.tileCount()).sum();
+        }
+
+        @Override
+        public void close() {
+            if (closed.compareAndSet(false, true)) {
+                releaseSnapshot(this);
+            }
         }
     }
 

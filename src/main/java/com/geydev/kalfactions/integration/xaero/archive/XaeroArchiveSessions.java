@@ -30,6 +30,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import net.minecraft.world.level.storage.LevelResource;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
@@ -39,9 +40,17 @@ public final class XaeroArchiveSessions {
     private static final Map<UUID, UUID> DOWNLOAD_RESERVATIONS = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> LAST_STATS_REQUEST = new ConcurrentHashMap<>();
     private static final Object CAPACITY_LOCK = new Object();
+    private static final Object LIFECYCLE_COMMIT_LOCK = new Object();
     private static final ExecutorService IO_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
+    private static final AtomicLong SERVER_GENERATION = new AtomicLong();
+    private static volatile MinecraftServer activeServer;
 
     public static void beginUpload(ServerPlayer player, XaeroArchivePayloads.C2SBeginUpload payload) {
+        ServerLifecycle lifecycle = lifecycle(player);
+        if (lifecycle == null) {
+            fail(player, payload.sessionId(), "upload", "kingdoms.xaero_archive.error.session");
+            return;
+        }
         if (!XaeroArchiveLimits.XAERO_WORLD_MAP_VERSION.equals(payload.xaeroVersion())
                 || !ArchiveHashing.isSha256(payload.checksum())) {
             fail(player, payload.sessionId(), "upload", "kingdoms.xaero_archive.error.version");
@@ -55,7 +64,7 @@ public final class XaeroArchiveSessions {
         try {
             validateMetadata(payload.regions(), payload.compressedSize(), payload.uncompressedSize(), payload.totalParts());
             XaeroArchiveStore.ArchiveLocation location = XaeroArchiveStore.location(
-                    player.getServer(), access.factionId(), payload.dimension()
+                    lifecycle.server(), access.factionId(), payload.dimension()
             );
             Path sessionRoot = location.root().resolve("sessions").resolve(player.getUUID().toString())
                     .resolve(payload.sessionId().toString()).normalize();
@@ -74,7 +83,8 @@ public final class XaeroArchiveSessions {
                     payload.uncompressedSize(),
                     payload.totalParts(),
                     payload.checksum(),
-                    sessionRoot
+                    sessionRoot,
+                    lifecycle
             );
             if (!registerUpload(session)) {
                 fail(player, payload.sessionId(), "upload", "kingdoms.xaero_archive.error.busy");
@@ -89,7 +99,7 @@ public final class XaeroArchiveSessions {
 
     public static void uploadPart(ServerPlayer player, XaeroArchivePayloads.C2SUploadPart payload) {
         UploadSession session = UPLOADS.get(payload.sessionId());
-        if (session == null || !session.playerId.equals(player.getUUID())) {
+        if (session == null || !session.playerId.equals(player.getUUID()) || !isLive(session.lifecycle)) {
             fail(player, payload.sessionId(), "upload", "kingdoms.xaero_archive.error.session");
             return;
         }
@@ -105,7 +115,8 @@ public final class XaeroArchiveSessions {
 
     public static void finishUpload(ServerPlayer player, XaeroArchivePayloads.C2SFinishUpload payload) {
         UploadSession session = UPLOADS.get(payload.sessionId());
-        if (session == null || !session.playerId.equals(player.getUUID()) || !ArchiveHashing.isSha256(payload.checksum())) {
+        if (session == null || !session.playerId.equals(player.getUUID()) || !isLive(session.lifecycle)
+                || !ArchiveHashing.isSha256(payload.checksum())) {
             fail(player, payload.sessionId(), "merge", "kingdoms.xaero_archive.error.session");
             return;
         }
@@ -129,19 +140,22 @@ public final class XaeroArchiveSessions {
                 for (ArchiveRegionDescriptor descriptor : session.descriptors) {
                     incoming.add(new XaeroArchiveStore.IncomingRegion(descriptor.name(), session.path(descriptor.name())));
                 }
-                XaeroArchiveStore.merge(session.location, incoming);
-                status(player, session.id, "complete", session.compressedSize, session.compressedSize, true, true,
-                        "kingdoms.xaero_archive.status.upload_complete");
+                executeIfLive(session.lifecycle, () -> authorizeUploadCommit(session, incoming));
             } catch (IOException | RuntimeException exception) {
                 KalFactions.LOGGER.warn("Xaero archive upload {} failed", session.id, exception);
-                fail(player, session.id, "merge", "kingdoms.xaero_archive.error.merge");
-            } finally {
                 cancelUpload(session);
+                sendStatusIfLive(session.lifecycle, session.playerId, session.id, "merge", 0, 0, true, false,
+                        "kingdoms.xaero_archive.error.merge");
             }
         });
     }
 
     public static void requestDownload(ServerPlayer player, XaeroArchivePayloads.C2SRequestDownload payload) {
+        ServerLifecycle lifecycle = lifecycle(player);
+        if (lifecycle == null) {
+            fail(player, payload.sessionId(), "download", "kingdoms.xaero_archive.error.session");
+            return;
+        }
         XaeroArchiveAccess.AccessResult access = XaeroArchiveAccess.authorize(player, payload.anchor(), payload.dimension());
         if (!access.allowed()) {
             fail(player, payload.sessionId(), "download", access.errorKey());
@@ -153,15 +167,16 @@ public final class XaeroArchiveSessions {
         }
         XaeroArchiveStore.ArchiveLocation location;
         try {
-            location = XaeroArchiveStore.location(player.getServer(), access.factionId(), payload.dimension());
+            location = XaeroArchiveStore.location(lifecycle.server(), access.factionId(), payload.dimension());
         } catch (IOException exception) {
             DOWNLOAD_RESERVATIONS.remove(payload.sessionId(), player.getUUID());
             fail(player, payload.sessionId(), "download", "kingdoms.xaero_archive.error.read");
             return;
         }
         IO_EXECUTOR.execute(() -> {
+            XaeroArchiveStore.Snapshot snapshot = null;
             try {
-                XaeroArchiveStore.Snapshot snapshot = XaeroArchiveStore.snapshot(location);
+                snapshot = XaeroArchiveStore.snapshot(location);
                 if (snapshot.regions().isEmpty()) {
                     throw new EmptyArchiveException();
                 }
@@ -174,35 +189,41 @@ public final class XaeroArchiveSessions {
                 String checksum = combinedChecksum(snapshot.regions());
                 OutboundSession session = new OutboundSession(
                         payload.sessionId(), player.getUUID(), payload.anchor(), payload.dimension(), access.factionId(), location.serverIdentity(),
-                        snapshot.regions(), compressedSize, uncompressedSize, totalParts, checksum
+                        snapshot, compressedSize, uncompressedSize, totalParts, checksum, lifecycle
                 );
-                if (DOWNLOADS.putIfAbsent(payload.sessionId(), session) != null) {
-                    throw new IOException("Duplicate Xaero download session");
-                }
-                session.startPreparing();
-                PacketDistributor.sendToPlayer(player, new XaeroArchivePayloads.S2CBeginDownload(
-                        session.id,
-                        session.serverIdentity,
-                        session.dimension,
-                        session.factionId,
-                        session.compressedSize,
-                        session.uncompressedSize,
-                        session.totalParts,
-                        session.checksum,
-                        descriptors
-                ));
+                snapshot = null;
+                executeWithLifecycle(
+                        lifecycle,
+                        () -> registerPreparedDownload(session, descriptors),
+                        () -> {
+                            DOWNLOAD_RESERVATIONS.remove(session.id, session.playerId);
+                            session.close();
+                        }
+                );
             } catch (EmptyArchiveException exception) {
-                fail(player, payload.sessionId(), "download", "kingdoms.xaero_archive.error.no_data");
+                DOWNLOAD_RESERVATIONS.remove(payload.sessionId(), player.getUUID());
+                sendStatusIfLive(lifecycle, player.getUUID(), payload.sessionId(), "download", 0, 0, true, false,
+                        "kingdoms.xaero_archive.error.no_data");
             } catch (IOException | RuntimeException exception) {
                 KalFactions.LOGGER.warn("Xaero archive download {} failed to start", payload.sessionId(), exception);
-                fail(player, payload.sessionId(), "download", "kingdoms.xaero_archive.error.read");
-            } finally {
                 DOWNLOAD_RESERVATIONS.remove(payload.sessionId(), player.getUUID());
+                sendStatusIfLive(lifecycle, player.getUUID(), payload.sessionId(), "download", 0, 0, true, false,
+                        "kingdoms.xaero_archive.error.read");
+            } finally {
+                if (snapshot != null) {
+                    snapshot.close();
+                }
             }
         });
     }
 
     public static void requestStats(ServerPlayer player, XaeroArchivePayloads.C2SRequestStats payload) {
+        ServerLifecycle lifecycle = lifecycle(player);
+        if (lifecycle == null) {
+            stats(player, payload.requestId(), payload.dimension(), 0, 0, 0, 0, false,
+                    "kingdoms.xaero_archive.error.session");
+            return;
+        }
         long now = System.currentTimeMillis();
         Long previous = LAST_STATS_REQUEST.put(player.getUUID(), now);
         if (previous != null && now - previous < 1000L) {
@@ -217,7 +238,7 @@ public final class XaeroArchiveSessions {
         }
         XaeroArchiveStore.ArchiveLocation location;
         try {
-            location = XaeroArchiveStore.location(player.getServer(), access.factionId(), payload.dimension());
+            location = XaeroArchiveStore.location(lifecycle.server(), access.factionId(), payload.dimension());
         } catch (IOException exception) {
             stats(player, payload.requestId(), payload.dimension(), 0, 0, 0, 0, false,
                     "kingdoms.xaero_archive.error.read");
@@ -234,11 +255,16 @@ public final class XaeroArchiveSessions {
                     uncompressed = Math.addExact(uncompressed, descriptor.uncompressedSize());
                     tiles = Math.addExact(tiles, descriptor.tileCount());
                 }
-                stats(player, payload.requestId(), payload.dimension(), compressed, uncompressed,
-                        manifest.regions().size(), tiles, true, "kingdoms.xaero_archive.status.ready");
+                long finalCompressed = compressed;
+                long finalUncompressed = uncompressed;
+                int finalTiles = tiles;
+                executeIfLive(lifecycle, () -> completeStatsRequest(
+                        lifecycle, player.getUUID(), payload, access.factionId(), finalCompressed, finalUncompressed,
+                        manifest.regions().size(), finalTiles
+                ));
             } catch (IOException | ArithmeticException exception) {
-                stats(player, payload.requestId(), payload.dimension(), 0, 0, 0, 0, false,
-                        "kingdoms.xaero_archive.error.read");
+                sendStatsIfLive(lifecycle, player.getUUID(), payload.requestId(), payload.dimension(), 0, 0, 0, 0,
+                        false, "kingdoms.xaero_archive.error.read");
             }
         });
     }
@@ -261,14 +287,17 @@ public final class XaeroArchiveSessions {
     public static void onServerTick(ServerTickEvent.Post event) {
         long now = System.currentTimeMillis();
         for (UploadSession upload : List.copyOf(UPLOADS.values())) {
-            if (!upload.finishing.get() && now - upload.lastActivity > XaeroArchiveLimits.SESSION_TIMEOUT_MILLIS) {
+            if (!isLive(upload.lifecycle)
+                    || !upload.finishing.get() && now - upload.lastActivity > XaeroArchiveLimits.SESSION_TIMEOUT_MILLIS) {
                 cancelUpload(upload);
             }
         }
         MinecraftServer server = event.getServer();
         for (OutboundSession download : List.copyOf(DOWNLOADS.values())) {
             ServerPlayer player = server.getPlayerList().getPlayer(download.playerId);
-            if (player == null || now - download.lastActivity > XaeroArchiveLimits.SESSION_TIMEOUT_MILLIS) {
+            if (!isLive(download.lifecycle)
+                    || player == null
+                    || now - download.lastActivity > XaeroArchiveLimits.SESSION_TIMEOUT_MILLIS) {
                 DOWNLOADS.remove(download.id, download);
                 download.close();
                 continue;
@@ -310,6 +339,10 @@ public final class XaeroArchiveSessions {
 
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
+        synchronized (LIFECYCLE_COMMIT_LOCK) {
+            activeServer = event.getServer();
+            SERVER_GENERATION.incrementAndGet();
+        }
         Path root = event.getServer().getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize()
                 .resolve("kingdoms").resolve("xaero_maps").normalize();
         IO_EXECUTOR.execute(() -> cleanupOrphanSessions(root));
@@ -317,6 +350,12 @@ public final class XaeroArchiveSessions {
 
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
+        synchronized (LIFECYCLE_COMMIT_LOCK) {
+            if (activeServer == event.getServer()) {
+                activeServer = null;
+                SERVER_GENERATION.incrementAndGet();
+            }
+        }
         UPLOADS.values().stream().toList().forEach(XaeroArchiveSessions::cancelUpload);
         DOWNLOADS.values().stream().toList().forEach(session -> {
             DOWNLOADS.remove(session.id, session);
@@ -324,6 +363,211 @@ public final class XaeroArchiveSessions {
         });
         DOWNLOAD_RESERVATIONS.clear();
         LAST_STATS_REQUEST.clear();
+    }
+
+    private static void authorizeUploadCommit(
+            UploadSession session,
+            List<XaeroArchiveStore.IncomingRegion> incoming
+    ) {
+        if (!isLive(session.lifecycle) || UPLOADS.get(session.id) != session || session.isCancelled()) {
+            cancelUpload(session);
+            return;
+        }
+        ServerPlayer player = session.lifecycle.server().getPlayerList().getPlayer(session.playerId);
+        if (player == null) {
+            cancelUpload(session);
+            return;
+        }
+        XaeroArchiveAccess.AccessResult access = XaeroArchiveAccess.authorize(player, session.anchor, session.dimension);
+        if (!access.allowed() || !session.factionId.equals(access.factionId())) {
+            cancelUpload(session);
+            fail(player, session.id, "merge", access.allowed()
+                    ? "kingdoms.xaero_archive.error.faction_changed" : access.errorKey());
+            return;
+        }
+        UUID token = session.grantCommit();
+        if (token == null) {
+            cancelUpload(session);
+            fail(player, session.id, "merge", "kingdoms.xaero_archive.error.session");
+            return;
+        }
+        IO_EXECUTOR.execute(() -> commitUpload(session, incoming, token));
+    }
+
+    private static void commitUpload(
+            UploadSession session,
+            List<XaeroArchiveStore.IncomingRegion> incoming,
+            UUID token
+    ) {
+        try {
+            synchronized (LIFECYCLE_COMMIT_LOCK) {
+                if (!isLive(session.lifecycle) || UPLOADS.get(session.id) != session || !session.consumeCommit(token)) {
+                    return;
+                }
+                XaeroArchiveStore.merge(session.location, incoming);
+            }
+            sendStatusIfLive(
+                    session.lifecycle,
+                    session.playerId,
+                    session.id,
+                    "complete",
+                    session.compressedSize,
+                    session.compressedSize,
+                    true,
+                    true,
+                    "kingdoms.xaero_archive.status.upload_complete"
+            );
+        } catch (IOException | RuntimeException exception) {
+            KalFactions.LOGGER.warn("Xaero archive upload {} failed to commit", session.id, exception);
+            sendStatusIfLive(session.lifecycle, session.playerId, session.id, "merge", 0, 0, true, false,
+                    "kingdoms.xaero_archive.error.merge");
+        } finally {
+            cancelUpload(session);
+        }
+    }
+
+    private static void registerPreparedDownload(
+            OutboundSession session,
+            List<ArchiveRegionDescriptor> descriptors
+    ) {
+        try {
+            if (!isLive(session.lifecycle)
+                    || !session.playerId.equals(DOWNLOAD_RESERVATIONS.get(session.id))) {
+                session.close();
+                return;
+            }
+            ServerPlayer player = session.lifecycle.server().getPlayerList().getPlayer(session.playerId);
+            if (player == null) {
+                session.close();
+                return;
+            }
+            XaeroArchiveAccess.AccessResult access = XaeroArchiveAccess.authorize(player, session.anchor, session.dimension);
+            if (!access.allowed() || !session.factionId.equals(access.factionId())) {
+                session.close();
+                fail(player, session.id, "download", access.allowed()
+                        ? "kingdoms.xaero_archive.error.faction_changed" : access.errorKey());
+                return;
+            }
+            if (DOWNLOADS.putIfAbsent(session.id, session) != null) {
+                session.close();
+                fail(player, session.id, "download", "kingdoms.xaero_archive.error.busy");
+                return;
+            }
+            session.startPreparing();
+            PacketDistributor.sendToPlayer(player, new XaeroArchivePayloads.S2CBeginDownload(
+                    session.id,
+                    session.serverIdentity,
+                    session.dimension,
+                    session.factionId,
+                    session.compressedSize,
+                    session.uncompressedSize,
+                    session.totalParts,
+                    session.checksum,
+                    descriptors
+            ));
+        } finally {
+            DOWNLOAD_RESERVATIONS.remove(session.id, session.playerId);
+        }
+    }
+
+    private static void completeStatsRequest(
+            ServerLifecycle lifecycle,
+            UUID playerId,
+            XaeroArchivePayloads.C2SRequestStats payload,
+            UUID factionId,
+            long compressed,
+            long uncompressed,
+            int regions,
+            int tiles
+    ) {
+        if (!isLive(lifecycle)) {
+            return;
+        }
+        ServerPlayer player = lifecycle.server().getPlayerList().getPlayer(playerId);
+        if (player == null) {
+            return;
+        }
+        XaeroArchiveAccess.AccessResult access = XaeroArchiveAccess.authorize(player, payload.anchor(), payload.dimension());
+        if (!access.allowed() || !factionId.equals(access.factionId())) {
+            stats(player, payload.requestId(), payload.dimension(), 0, 0, 0, 0, false,
+                    access.allowed() ? "kingdoms.xaero_archive.error.faction_changed" : access.errorKey());
+            return;
+        }
+        stats(player, payload.requestId(), payload.dimension(), compressed, uncompressed, regions, tiles, true,
+                "kingdoms.xaero_archive.status.ready");
+    }
+
+    private static ServerLifecycle lifecycle(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server == null || activeServer != server
+                || server.getPlayerList().getPlayer(player.getUUID()) != player) {
+            return null;
+        }
+        return new ServerLifecycle(server, SERVER_GENERATION.get());
+    }
+
+    private static boolean isLive(ServerLifecycle lifecycle) {
+        return lifecycle != null
+                && activeServer == lifecycle.server()
+                && SERVER_GENERATION.get() == lifecycle.generation();
+    }
+
+    private static void executeIfLive(ServerLifecycle lifecycle, Runnable action) {
+        executeWithLifecycle(lifecycle, action, () -> {
+        });
+    }
+
+    private static void executeWithLifecycle(ServerLifecycle lifecycle, Runnable action, Runnable stale) {
+        if (!isLive(lifecycle)) {
+            stale.run();
+            return;
+        }
+        lifecycle.server().execute(() -> {
+            if (isLive(lifecycle)) {
+                action.run();
+            } else {
+                stale.run();
+            }
+        });
+    }
+
+    private static void sendStatusIfLive(
+            ServerLifecycle lifecycle,
+            UUID playerId,
+            UUID sessionId,
+            String phase,
+            long completed,
+            long total,
+            boolean terminal,
+            boolean successful,
+            String messageKey
+    ) {
+        executeIfLive(lifecycle, () -> {
+            ServerPlayer player = lifecycle.server().getPlayerList().getPlayer(playerId);
+            if (player != null) {
+                status(player, sessionId, phase, completed, total, terminal, successful, messageKey);
+            }
+        });
+    }
+
+    private static void sendStatsIfLive(
+            ServerLifecycle lifecycle,
+            UUID playerId,
+            UUID requestId,
+            ResourceLocation dimension,
+            long compressed,
+            long uncompressed,
+            int regions,
+            int tiles,
+            boolean successful,
+            String messageKey
+    ) {
+        executeIfLive(lifecycle, () -> {
+            ServerPlayer player = lifecycle.server().getPlayerList().getPlayer(playerId);
+            if (player != null) {
+                stats(player, requestId, dimension, compressed, uncompressed, regions, tiles, successful, messageKey);
+            }
+        });
     }
 
     private static boolean hasCapacity(UUID playerId) {
@@ -504,6 +748,7 @@ public final class XaeroArchiveSessions {
         private final int totalParts;
         private final String checksum;
         private final Path root;
+        private final ServerLifecycle lifecycle;
         private final MessageDigest digest = ArchiveHashing.sha256();
         private final AtomicBoolean finishing = new AtomicBoolean();
         private final long startedAt = System.currentTimeMillis();
@@ -514,6 +759,7 @@ public final class XaeroArchiveSessions {
         private long receivedBytes;
         private int queuedParts;
         private volatile boolean cancelled;
+        private UUID commitToken;
         private CompletableFuture<Void> writes = CompletableFuture.completedFuture(null);
 
         private UploadSession(
@@ -528,7 +774,8 @@ public final class XaeroArchiveSessions {
                 long uncompressedSize,
                 int totalParts,
                 String checksum,
-                Path root
+                Path root,
+                ServerLifecycle lifecycle
         ) {
             this.id = id;
             this.playerId = playerId;
@@ -542,6 +789,7 @@ public final class XaeroArchiveSessions {
             this.totalParts = totalParts;
             this.checksum = checksum;
             this.root = root;
+            this.lifecycle = lifecycle;
         }
 
         private synchronized void accept(XaeroArchivePayloads.C2SUploadPart part) throws IOException {
@@ -645,8 +893,29 @@ public final class XaeroArchiveSessions {
 
         private synchronized void cancel() {
             cancelled = true;
+            commitToken = null;
             finishing.set(true);
             writes.whenCompleteAsync((ignored, throwable) -> cleanup(root), IO_EXECUTOR);
+        }
+
+        private synchronized boolean isCancelled() {
+            return cancelled;
+        }
+
+        private synchronized UUID grantCommit() {
+            if (cancelled || commitToken != null) {
+                return null;
+            }
+            commitToken = UUID.randomUUID();
+            return commitToken;
+        }
+
+        private synchronized boolean consumeCommit(UUID token) {
+            if (cancelled || commitToken == null || !commitToken.equals(token)) {
+                return false;
+            }
+            commitToken = null;
+            return true;
         }
 
         private Path path(String name) throws IOException {
@@ -668,11 +937,13 @@ public final class XaeroArchiveSessions {
         private final ResourceLocation dimension;
         private final UUID factionId;
         private final String serverIdentity;
+        private final XaeroArchiveStore.Snapshot snapshot;
         private final List<XaeroArchiveStore.SnapshotRegion> regions;
         private final long compressedSize;
         private final long uncompressedSize;
         private final int totalParts;
         private final String checksum;
+        private final ServerLifecycle lifecycle;
         private volatile long lastActivity = System.currentTimeMillis();
         private int sequence;
         private int regionIndex;
@@ -692,11 +963,12 @@ public final class XaeroArchiveSessions {
                 ResourceLocation dimension,
                 UUID factionId,
                 String serverIdentity,
-                List<XaeroArchiveStore.SnapshotRegion> regions,
+                XaeroArchiveStore.Snapshot snapshot,
                 long compressedSize,
                 long uncompressedSize,
                 int totalParts,
-                String checksum
+                String checksum,
+                ServerLifecycle lifecycle
         ) {
             this.id = id;
             this.playerId = playerId;
@@ -704,11 +976,13 @@ public final class XaeroArchiveSessions {
             this.dimension = dimension;
             this.factionId = factionId;
             this.serverIdentity = serverIdentity;
-            this.regions = List.copyOf(regions);
+            this.snapshot = snapshot;
+            this.regions = snapshot.regions();
             this.compressedSize = compressedSize;
             this.uncompressedSize = uncompressedSize;
             this.totalParts = totalParts;
             this.checksum = checksum;
+            this.lifecycle = lifecycle;
         }
 
         private void startPreparing() {
@@ -772,6 +1046,7 @@ public final class XaeroArchiveSessions {
             if (preparation != null) {
                 preparation.cancel(true);
             }
+            IO_EXECUTOR.execute(snapshot::close);
         }
 
         private record PreparedPart(int sequence, int regionIndex, long offset, byte[] data) {
@@ -779,6 +1054,9 @@ public final class XaeroArchiveSessions {
     }
 
     private static final class EmptyArchiveException extends IOException {
+    }
+
+    private record ServerLifecycle(MinecraftServer server, long generation) {
     }
 
     private XaeroArchiveSessions() {
