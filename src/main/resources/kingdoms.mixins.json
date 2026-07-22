@@ -18,7 +18,10 @@
     "ScorchedOsborneProjectileMixin",
     "ScorchedBeamMiningMixin",
     "BlockBreakingMovementBehaviourMixin",
-    "BlockBreakingKineticBlockEntityMixin"
+    "BlockBreakingKineticBlockEntityMixin",
+    "SculkCatalystListenerMixin",
+    "ScorchedGunBenchBlueprintSlotMixin",
+    "ScorchedGunBenchResultSlotMixin"
   ],
   "client": [
     "XaeroCommonMinimapRadarListMixin",

@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "scguns:echoes_2", "required": false },
+    { "id": "scguns:forlorn_hope", "required": false },
+    { "id": "scguns:sculk_resonator", "required": false },
+    { "id": "scguns:whispers", "required": false }
+  ]
+}

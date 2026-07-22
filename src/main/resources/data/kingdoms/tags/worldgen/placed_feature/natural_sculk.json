@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:sculk_patch_deep_dark",
+    "minecraft:sculk_vein",
+    "minecraft:sculk_patch_ancient_city"
+  ]
+}
