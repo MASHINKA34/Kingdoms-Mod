@@ -944,6 +944,8 @@
   "kingdoms.nether.session.faction_required": "Join a faction before entering the Nether.",
   "kingdoms.nether.session.no_landing": "No safe faction landing could be prepared. Try again later.",
   "kingdoms.nether.session.closed": "Nether access is open daily from 18:00 to 23:00 Moscow time.",
+  "kingdoms.nether.access.opened": "The Nether is open! Entry is available until 23:00 Moscow time.",
+  "kingdoms.nether.access.enabled": "Nether access was enabled by an administrator. The daily entry window opens at 18:00 Moscow time.",
   "kingdoms.nether.session.too_late": "There is not enough time before closing for a full session.",
   "kingdoms.nether.session.limit": "Your faction has used both Nether sessions for today.",
   "kingdoms.nether.session.death_locked": "You died in this session and cannot return for %s.",

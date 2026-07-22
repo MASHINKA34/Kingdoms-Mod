@@ -14,7 +14,6 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -329,33 +328,6 @@ public final class DimensionControlManager {
         return List.copyOf(result);
     }
 
-    public synchronized boolean updateWipeSchedule(Instant now) {
-        LocalDate today = now.atZone(rules.wipeTimezone()).toLocalDate();
-        if (state.lastNetherWipeBaseline == null) {
-            state.lastNetherWipeBaseline = today.toString();
-            save();
-            return false;
-        }
-        LocalDate baseline;
-        try {
-            baseline = LocalDate.parse(state.lastNetherWipeBaseline);
-        } catch (RuntimeException exception) {
-            baseline = today;
-            state.lastNetherWipeBaseline = today.toString();
-            save();
-            return false;
-        }
-        ZonedDateTime local = now.atZone(rules.wipeTimezone());
-        boolean due = !today.isBefore(baseline.plusDays(rules.wipeIntervalDays()))
-                && !local.toLocalTime().isBefore(LocalTime.of(rules.wipeHour(), 0));
-        if (due && !state.netherWipePending) {
-            state.netherWipePending = true;
-            save();
-            return true;
-        }
-        return false;
-    }
-
     public synchronized boolean claimDailyResetNotification(Instant now) {
         String today = NetherSchedulePolicy.date(now).toString();
         if (today.equals(state.lastDailyResetNotification)) {
@@ -366,9 +338,26 @@ public final class DimensionControlManager {
         state.lastDailyResetNotification = today;
         save();
         if (initialized) {
-            ZonedDateTime local = now.atZone(rules.wipeTimezone());
+            ZonedDateTime local = now.atZone(NetherSchedulePolicy.MOSCOW);
             return local.getHour() == 0 && local.getMinute() == 0;
         }
+        return true;
+    }
+
+    public synchronized boolean claimNetherOpenNotification(Instant now) {
+        if (state.netherClosed || !NetherSchedulePolicy.isOpen(now)) {
+            return false;
+        }
+        ZonedDateTime local = now.atZone(NetherSchedulePolicy.MOSCOW);
+        if (local.getHour() != NetherSchedulePolicy.OPENS_AT.getHour() || local.getMinute() != 0) {
+            return false;
+        }
+        String today = local.toLocalDate().toString();
+        if (today.equals(state.lastNetherOpenNotification)) {
+            return false;
+        }
+        state.lastNetherOpenNotification = today;
+        save();
         return true;
     }
 
@@ -428,7 +417,6 @@ public final class DimensionControlManager {
             state.netherSeed = nextSeed(generationSeed(Level.NETHER, server.getWorldData().worldGenOptions().seed()));
             state.netherFactions.clear();
             state.deathLocks.clear();
-            state.lastNetherWipeBaseline = Instant.now().atZone(rules.wipeTimezone()).toLocalDate().toString();
             wipedThisStartup.add(Level.NETHER);
             changed = true;
         }
@@ -707,7 +695,7 @@ public final class DimensionControlManager {
         private PortalBoundsData netherPortal;
         private Map<String, FactionLedger> netherFactions = new HashMap<>();
         private Map<String, String> deathLocks = new HashMap<>();
-        private String lastNetherWipeBaseline;
+        private String lastNetherOpenNotification;
         private String lastDailyResetNotification;
     }
 

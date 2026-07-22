@@ -50,6 +50,7 @@ public final class DimensionNetwork {
         switch (payload.action()) {
             case DimensionPayloads.ACTION_OPEN -> {
                 if (control.setClosed(dimension, false)) {
+                    DimensionControlEvents.broadcastOpened(server, dimension);
                     notice = Component.translatable("kingdoms.dimension.notice.opened", name);
                 } else {
                     notice = Component.translatable("kingdoms.dimension.notice.no_change");

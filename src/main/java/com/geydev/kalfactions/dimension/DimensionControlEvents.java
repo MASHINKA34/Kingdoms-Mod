@@ -296,13 +296,15 @@ public final class DimensionControlEvents {
                 }
             }
         }
-        if (control.updateWipeSchedule(now)) {
-            notifyOperators(server, Component.translatable("kingdoms.dimension.wipe_scheduled", "nether"));
-        }
         if (control.claimDailyResetNotification(now)) {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 player.sendSystemMessage(Component.translatable("kingdoms.nether.session.daily_reset"));
             }
+        }
+        if (control.claimNetherOpenNotification(now)) {
+            server.getPlayerList().broadcastSystemMessage(
+                    Component.translatable("kingdoms.nether.access.opened"), false
+            );
         }
         List<ActiveSession> activeSessions = control.activeSessions(now);
         for (ActiveSession session : activeSessions) {
@@ -326,6 +328,21 @@ public final class DimensionControlEvents {
             evacuatePlayer(player, "kingdoms.dimension.evicted");
         }
         return players.size();
+    }
+
+    public static void broadcastOpened(MinecraftServer server, ResourceKey<Level> dimension) {
+        Component message;
+        if (Level.NETHER.equals(dimension)) {
+            message = DimensionControlManager.get(server).isNetherOpenForPlayers(Instant.now())
+                    ? Component.translatable("kingdoms.nether.access.opened")
+                    : Component.translatable("kingdoms.nether.access.enabled");
+        } else {
+            message = Component.translatable(
+                    "kingdoms.dimension.notice.opened",
+                    Component.translatable("kingdoms.dimension.name.end")
+            );
+        }
+        server.getPlayerList().broadcastSystemMessage(message, false);
     }
 
     public static void teleportToOverworldSpawn(ServerPlayer player) {

@@ -944,6 +944,8 @@
   "kingdoms.nether.session.faction_required": "Вступите во фракцию перед входом в Ад.",
   "kingdoms.nether.session.no_landing": "Не удалось подготовить безопасную точку фракции. Попробуйте позже.",
   "kingdoms.nether.session.closed": "Доступ в Ад открыт ежедневно с 18:00 до 23:00 по московскому времени.",
+  "kingdoms.nether.access.opened": "Ад открыт! Вход доступен до 23:00 по московскому времени.",
+  "kingdoms.nether.access.enabled": "Доступ в Ад разрешён администратором. Ежедневное окно входа откроется в 18:00 по московскому времени.",
   "kingdoms.nether.session.too_late": "До закрытия недостаточно времени для полной сессии.",
   "kingdoms.nether.session.limit": "Ваша фракция уже использовала обе адские сессии сегодня.",
   "kingdoms.nether.session.death_locked": "Вы погибли в этой сессии и не сможете вернуться ещё %s.",

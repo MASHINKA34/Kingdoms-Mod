@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -104,13 +105,14 @@ final class DimensionControlManagerTest {
     }
 
     @Test
-    void wipeBecomesPendingAtTwentyThreeAfterSevenCalendarDays() {
+    void netherWipeIsOnlyScheduledExplicitly() {
         DimensionControlManager manager = manager();
 
-        assertFalse(manager.updateWipeSchedule(Instant.parse("2026-07-01T20:00:00Z")));
-        assertFalse(manager.updateWipeSchedule(Instant.parse("2026-07-08T19:59:59Z")));
-        assertTrue(manager.updateWipeSchedule(Instant.parse("2026-07-08T20:00:00Z")));
-        assertFalse(manager.updateWipeSchedule(Instant.parse("2026-07-08T20:00:01Z")));
+        assertFalse(manager.isWipePending(Level.NETHER));
+        assertTrue(manager.setWipePending(Level.NETHER, true));
+        assertTrue(manager.isWipePending(Level.NETHER));
+        assertTrue(manager.setWipePending(Level.NETHER, false));
+        assertFalse(manager.isWipePending(Level.NETHER));
     }
 
     @Test
@@ -130,6 +132,25 @@ final class DimensionControlManagerTest {
         assertFalse(manager.claimDailyResetNotification(Instant.parse("2026-07-22T10:00:00Z")));
         assertFalse(manager.claimDailyResetNotification(Instant.parse("2026-07-22T20:59:59Z")));
         assertTrue(manager.claimDailyResetNotification(Instant.parse("2026-07-22T21:00:00Z")));
+    }
+
+    @Test
+    void netherOpenNotificationFiresOnceAtMoscowOpeningMinute() {
+        DimensionControlManager manager = manager();
+
+        assertFalse(manager.claimNetherOpenNotification(Instant.parse("2026-07-22T14:59:59Z")));
+        assertTrue(manager.claimNetherOpenNotification(Instant.parse("2026-07-22T15:00:00Z")));
+        assertFalse(manager.claimNetherOpenNotification(Instant.parse("2026-07-22T15:00:30Z")));
+        assertFalse(manager.claimNetherOpenNotification(Instant.parse("2026-07-22T16:00:00Z")));
+        assertTrue(manager.claimNetherOpenNotification(Instant.parse("2026-07-23T15:00:00Z")));
+    }
+
+    @Test
+    void closedNetherDoesNotAnnounceScheduledOpening() {
+        DimensionControlManager manager = manager();
+        manager.setClosed(Level.NETHER, true);
+
+        assertFalse(manager.claimNetherOpenNotification(Instant.parse("2026-07-22T15:00:00Z")));
     }
 
     private DimensionControlManager manager() {

@@ -314,6 +314,7 @@ public final class KingdomsAdminCommands {
             return 0;
         }
         if (!closed) {
+            DimensionControlEvents.broadcastOpened(source.getServer(), dimension);
             source.sendSuccess(() -> Component.literal(displayName + " открыт."), true);
             return 1;
         }
