@@ -1,7 +1,9 @@
 package com.geydev.kalfactions.outpost.cluster;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.outpost.cluster.distribution.ClusterResource;
 import com.geydev.kalfactions.outpost.cluster.distribution.ResourceDistribution;
 import com.geydev.kalfactions.outpost.cluster.distribution.ResourceDistributionConfig;
@@ -10,7 +12,6 @@ import com.geydev.kalfactions.outpost.cluster.distribution.ResourceCycleSchedule
 import com.geydev.kalfactions.outpost.cluster.distribution.FiniteResourceLedger;
 import com.mojang.logging.LogUtils;
 import java.nio.charset.StandardCharsets;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -68,7 +69,6 @@ public final class ResourceClusterManager extends SavedData {
     private static final String TAG_CYCLE = "resourceCycleId";
     private static final String TAG_NEXT_CYCLE = "nextResourceCycle";
     private static final String TAG_PAUSED = "resourceQueuePaused";
-    private static final ZoneId RESOURCE_ZONE_ID = ZoneId.of("Europe/Moscow");
     private static final String ENTITY_CLUSTER_KEY = KalFactions.MOD_ID + "ResourceCluster";
     private static final String ENTITY_ROLE_KEY = KalFactions.MOD_ID + "ResourceClusterRole";
     private static final String ITEM_ROLE = "item";
@@ -173,6 +173,7 @@ public final class ResourceClusterManager extends SavedData {
     public synchronized long advanceResourceCycle(long nowMillis) {
         resourceCycleId++;
         nextResourceCycleMillis = calculateNextCycleMillis(nowMillis);
+        oreDeposits.values().removeIf(deposit -> deposit.state == DepositState.CLEANED);
         for (OreDeposit deposit : oreDeposits.values()) {
             if (deposit.state != DepositState.CLEANED) {
                 deposit.state = DepositState.CLEANING;
@@ -377,7 +378,7 @@ public final class ResourceClusterManager extends SavedData {
                 nowMillis,
                 ModConfigSpec.RESOURCE_CYCLE_DAYS.getAsInt(),
                 ModConfigSpec.RESOURCE_CYCLE_RESET_HOUR.getAsInt(),
-                RESOURCE_ZONE_ID
+                java.time.ZoneId.of(ModConfigSpec.RESOURCE_CYCLE_TIMEZONE.get())
         );
     }
 
@@ -392,7 +393,8 @@ public final class ResourceClusterManager extends SavedData {
                 resourceCycleId,
                 level.getSharedSpawnPos().getX(),
                 level.getSharedSpawnPos().getZ(),
-                config
+                config,
+                distributionZoneMultipliers()
         );
         ResourceDistribution.CellCandidate candidate = distribution.candidateForCell(cellX, cellZ).orElse(null);
         if (candidate == null) {
@@ -404,11 +406,16 @@ public final class ResourceClusterManager extends SavedData {
         }
         int depth = chooseDepth(level, candidate);
         BlockPos center = new BlockPos(candidate.blockX(), depth, candidate.blockZ());
+        if (!level.getWorldBorder().isWithinBounds(center)) {
+            return;
+        }
         UUID id = namedUuid(level.getSeed() + ":ore:" + resourceCycleId + ":" + cellX + ":" + cellZ);
         if (oreDeposits.containsKey(id)) {
             return;
         }
-        List<Long> planned = planShape(center, candidate.size(), candidate.shapeSeed(), candidateChunk);
+        List<Long> planned = planShape(center, candidate.size(), candidate.shapeSeed(), candidateChunk).stream()
+                .filter(value -> level.getWorldBorder().isWithinBounds(BlockPos.of(value)))
+                .toList();
         if (planned.isEmpty()) {
             return;
         }
@@ -441,7 +448,17 @@ public final class ResourceClusterManager extends SavedData {
         int yellow = Math.max(blue, ModConfigSpec.RESOURCE_YELLOW_RADIUS.getAsInt());
         int minReserve = ModConfigSpec.RESOURCE_MIN_RESERVE.getAsInt();
         int maxReserve = Math.max(minReserve, ModConfigSpec.RESOURCE_MAX_RESERVE.getAsInt());
+        int minPhysical = ModConfigSpec.RESOURCE_MIN_PHYSICAL_BLOCKS.getAsInt();
+        int baseMaxPhysical = Math.max(minPhysical, ModConfigSpec.RESOURCE_BASE_MAX_PHYSICAL_BLOCKS.getAsInt());
         int maxPhysical = ModConfigSpec.RESOURCE_MAX_PHYSICAL_BLOCKS.getAsInt();
+        baseMaxPhysical = Math.min(baseMaxPhysical, maxPhysical);
+        double maxReserveMultiplier = Math.max(
+                ModConfigSpec.RESOURCE_BLUE_RESERVE_MULTIPLIER.getAsDouble(),
+                Math.max(
+                        ModConfigSpec.RESOURCE_YELLOW_RESERVE_MULTIPLIER.getAsDouble(),
+                        ModConfigSpec.RESOURCE_BLACK_RESERVE_MULTIPLIER.getAsDouble()
+                )
+        );
         return new ResourceDistributionConfig(
                 blue,
                 yellow,
@@ -449,11 +466,34 @@ public final class ResourceClusterManager extends SavedData {
                 ModConfigSpec.RESOURCE_BASE_DENSITY.getAsDouble(),
                 minReserve,
                 maxReserve,
-                Math.max(maxReserve, (int) Math.ceil(maxReserve * 1.5D)),
-                20,
-                Math.min(80, maxPhysical),
-                maxPhysical
+                Math.max(maxReserve, (int) Math.ceil(maxReserve * maxReserveMultiplier)),
+                Math.min(minPhysical, baseMaxPhysical),
+                baseMaxPhysical,
+                maxPhysical,
+                ModConfigSpec.RESOURCE_RARE_SIZE_MULTIPLIER.getAsDouble()
         );
+    }
+
+    private static java.util.Map<ResourceZone, com.geydev.kalfactions.outpost.cluster.distribution.ZoneMultipliers>
+    distributionZoneMultipliers() {
+        java.util.EnumMap<ResourceZone, com.geydev.kalfactions.outpost.cluster.distribution.ZoneMultipliers> profiles =
+                new java.util.EnumMap<>(ResourceZone.class);
+        profiles.put(ResourceZone.BLUE, new com.geydev.kalfactions.outpost.cluster.distribution.ZoneMultipliers(
+                ModConfigSpec.RESOURCE_BLUE_DENSITY_MULTIPLIER.getAsDouble(),
+                ModConfigSpec.RESOURCE_BLUE_RESERVE_MULTIPLIER.getAsDouble(),
+                ModConfigSpec.RESOURCE_BLUE_SIZE_MULTIPLIER.getAsDouble()
+        ));
+        profiles.put(ResourceZone.YELLOW, new com.geydev.kalfactions.outpost.cluster.distribution.ZoneMultipliers(
+                ModConfigSpec.RESOURCE_YELLOW_DENSITY_MULTIPLIER.getAsDouble(),
+                ModConfigSpec.RESOURCE_YELLOW_RESERVE_MULTIPLIER.getAsDouble(),
+                ModConfigSpec.RESOURCE_YELLOW_SIZE_MULTIPLIER.getAsDouble()
+        ));
+        profiles.put(ResourceZone.BLACK, new com.geydev.kalfactions.outpost.cluster.distribution.ZoneMultipliers(
+                ModConfigSpec.RESOURCE_BLACK_DENSITY_MULTIPLIER.getAsDouble(),
+                ModConfigSpec.RESOURCE_BLACK_RESERVE_MULTIPLIER.getAsDouble(),
+                ModConfigSpec.RESOURCE_BLACK_SIZE_MULTIPLIER.getAsDouble()
+        ));
+        return java.util.Map.copyOf(profiles);
     }
 
     private static int chooseDepth(ServerLevel level, ResourceDistribution.CellCandidate candidate) {
@@ -559,7 +599,13 @@ public final class ResourceClusterManager extends SavedData {
                 budget--;
             }
             if (deposit.generationIndex >= deposit.plannedPositions.size()) {
-                deposit.state = deposit.remaining > 0 ? DepositState.ACTIVE : DepositState.DEPLETED;
+                if (deposit.createdPositions.isEmpty()) {
+                    depositCenters.remove(new ChunkPos(deposit.center).toLong(), deposit.id);
+                    oreDeposits.remove(deposit.id);
+                    queue(new ChunkPos(deposit.center), level.getGameTime());
+                } else {
+                    deposit.state = deposit.remaining > 0 ? DepositState.ACTIVE : DepositState.DEPLETED;
+                }
             } else {
                 generationQueue.addLast(id);
             }
@@ -609,7 +655,9 @@ public final class ResourceClusterManager extends SavedData {
     }
 
     private static boolean canReplaceForDeposit(ServerLevel level, BlockPos pos) {
-        return level.getBlockEntity(pos) == null
+        return level.getWorldBorder().isWithinBounds(pos)
+                && FactionManager.get(level).getFactionAt(ClaimKey.of(level, new ChunkPos(pos))).isEmpty()
+                && level.getBlockEntity(pos) == null
                 && level.getFluidState(pos).isEmpty()
                 && level.getBlockState(pos).is(BlockTags.BASE_STONE_OVERWORLD);
     }
@@ -684,7 +732,8 @@ public final class ResourceClusterManager extends SavedData {
             deposit.depletedAt = nowMillis;
         }
         if (deposit.state != DepositState.CLEANING && deposit.state != DepositState.CLEANED) {
-            deposit.state = DepositState.DEPLETED;
+            deposit.state = DepositState.CLEANING;
+            enqueueUnique(cleanupQueue, deposit.id);
         }
     }
 
@@ -979,6 +1028,10 @@ public final class ResourceClusterManager extends SavedData {
                 continue;
             }
             OreDeposit deposit = loaded.get();
+            if (deposit.state == DepositState.CLEANED && deposit.cycleId < manager.resourceCycleId) {
+                manager.setDirty();
+                continue;
+            }
             if (manager.oreDeposits.putIfAbsent(deposit.id, deposit) != null) {
                 LOGGER.warn("Skipped duplicate ore deposit {}", deposit.id);
                 manager.setDirty();

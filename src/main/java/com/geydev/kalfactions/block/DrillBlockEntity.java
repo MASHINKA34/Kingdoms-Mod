@@ -153,17 +153,7 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         }
         depositRemaining = -1;
         depositOriginal = -1;
-        ResourceClusterManager.ClusterView cluster = clusters.clusterAt(chunk).orElse(null);
-        if (cluster == null) {
-            return ProduceResult.INVALID;
-        }
-        ItemStack output = new ItemStack(cluster.type().displayItem(), amount);
-        if (!canFit(output)) {
-            return ProduceResult.FULL;
-        }
-        insert(output);
-        setChanged();
-        return ProduceResult.PRODUCED;
+        return ProduceResult.INVALID;
     }
 
     private static net.minecraft.world.item.Item resourceItem(

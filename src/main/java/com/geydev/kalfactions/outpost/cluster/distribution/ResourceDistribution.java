@@ -121,6 +121,9 @@ public final class ResourceDistribution {
                 rangedInt(cellSeed ^ SIZE_SALT, config.minBaseSize(), config.maxBaseSize()),
                 config.maxSize()
         );
+        if (resource.isRare()) {
+            size = Math.max(1, (int) Math.round(size * config.rareSizeMultiplier()));
+        }
         return Optional.of(new CellCandidate(
                 cellX,
                 cellZ,

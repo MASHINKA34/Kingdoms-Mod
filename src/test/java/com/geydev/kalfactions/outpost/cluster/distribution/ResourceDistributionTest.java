@@ -92,6 +92,33 @@ final class ResourceDistributionTest {
         }
     }
 
+    @Test
+    void rareResourcesProduceSmallerDepositsWithTheConfiguredMultiplier() {
+        ResourceDistributionConfig scaledConfig = ResourceDistributionConfig.defaults();
+        ResourceDistributionConfig unscaledConfig = new ResourceDistributionConfig(
+                scaledConfig.blueRadius(), scaledConfig.yellowRadius(), scaledConfig.cellSize(),
+                scaledConfig.baseDensityProbability(), scaledConfig.minBaseReserve(), scaledConfig.maxBaseReserve(),
+                scaledConfig.maxReserve(), scaledConfig.minBaseSize(), scaledConfig.maxBaseSize(),
+                scaledConfig.maxSize(), 1.0D
+        );
+        ResourceDistribution scaled = new ResourceDistribution(12_345L, 6L, 0, 0, scaledConfig);
+        ResourceDistribution unscaled = new ResourceDistribution(12_345L, 6L, 0, 0, unscaledConfig);
+        boolean verified = false;
+        for (int x = 35; x <= 200 && !verified; x++) {
+            for (int z = -100; z <= 100 && !verified; z++) {
+                ResourceDistribution.CellCandidate candidate = scaled.candidateForCell(x, z).orElse(null);
+                if (candidate == null || !candidate.resource().isRare()) {
+                    continue;
+                }
+                ResourceDistribution.CellCandidate comparison = unscaled.candidateForCell(x, z).orElseThrow();
+                assertEquals(candidate.resource(), comparison.resource());
+                assertTrue(candidate.size() < comparison.size());
+                verified = true;
+            }
+        }
+        assertTrue(verified);
+    }
+
     private static ResourceDistribution distribution(long seed, long cycle) {
         return new ResourceDistribution(seed, cycle, 0, 0, ResourceDistributionConfig.defaults());
     }

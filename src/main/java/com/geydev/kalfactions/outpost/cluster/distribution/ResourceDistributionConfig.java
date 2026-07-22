@@ -10,7 +10,8 @@ public record ResourceDistributionConfig(
         int maxReserve,
         int minBaseSize,
         int maxBaseSize,
-        int maxSize
+        int maxSize,
+        double rareSizeMultiplier
 ) {
     public static final double DEFAULT_BLUE_RADIUS = 5_000.0D;
     public static final double DEFAULT_YELLOW_RADIUS = 8_000.0D;
@@ -22,6 +23,7 @@ public record ResourceDistributionConfig(
     public static final int DEFAULT_MIN_BASE_SIZE = 20;
     public static final int DEFAULT_MAX_BASE_SIZE = 80;
     public static final int DEFAULT_MAX_SIZE = 120;
+    public static final double DEFAULT_RARE_SIZE_MULTIPLIER = 0.65D;
 
     public ResourceDistributionConfig {
         ResourceZone.validateRadii(blueRadius, yellowRadius);
@@ -35,6 +37,11 @@ public record ResourceDistributionConfig(
         }
         validateRange(minBaseReserve, maxBaseReserve, maxReserve, "reserve");
         validateRange(minBaseSize, maxBaseSize, maxSize, "size");
+        if (!Double.isFinite(rareSizeMultiplier)
+                || rareSizeMultiplier <= 0.0D
+                || rareSizeMultiplier > 1.0D) {
+            throw new IllegalArgumentException("rareSizeMultiplier must be finite and between 0 exclusive and 1 inclusive");
+        }
     }
 
     public static ResourceDistributionConfig defaults() {
@@ -52,7 +59,8 @@ public record ResourceDistributionConfig(
                 DEFAULT_MAX_RESERVE,
                 DEFAULT_MIN_BASE_SIZE,
                 DEFAULT_MAX_BASE_SIZE,
-                DEFAULT_MAX_SIZE
+                DEFAULT_MAX_SIZE,
+                DEFAULT_RARE_SIZE_MULTIPLIER
         );
     }
 

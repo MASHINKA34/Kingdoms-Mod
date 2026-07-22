@@ -14,7 +14,7 @@ public final class ResearchCrystalCosts {
         if (costs == null || costs.size() < MAX_SYNCED_TIERS) {
             throw new IllegalArgumentException("Six research crystal costs are required");
         }
-        return Math.max(0, costs.get(Math.clamp(tier, 1, MAX_SYNCED_TIERS) - 1));
+        return Math.max(1, costs.get(Math.clamp(tier, 1, MAX_SYNCED_TIERS) - 1));
     }
 
     public static List<Integer> configured() {

@@ -104,13 +104,26 @@ public final class ModConfigSpec {
     public static final IntValue RESOURCE_YELLOW_RADIUS;
     public static final IntValue RESOURCE_CELL_SIZE;
     public static final DoubleValue RESOURCE_BASE_DENSITY;
+    public static final DoubleValue RESOURCE_BLUE_DENSITY_MULTIPLIER;
+    public static final DoubleValue RESOURCE_BLUE_RESERVE_MULTIPLIER;
+    public static final DoubleValue RESOURCE_BLUE_SIZE_MULTIPLIER;
+    public static final DoubleValue RESOURCE_YELLOW_DENSITY_MULTIPLIER;
+    public static final DoubleValue RESOURCE_YELLOW_RESERVE_MULTIPLIER;
+    public static final DoubleValue RESOURCE_YELLOW_SIZE_MULTIPLIER;
+    public static final DoubleValue RESOURCE_BLACK_DENSITY_MULTIPLIER;
+    public static final DoubleValue RESOURCE_BLACK_RESERVE_MULTIPLIER;
+    public static final DoubleValue RESOURCE_BLACK_SIZE_MULTIPLIER;
+    public static final DoubleValue RESOURCE_RARE_SIZE_MULTIPLIER;
     public static final BooleanValue RESOURCE_AUTO_CYCLE;
     public static final IntValue RESOURCE_CYCLE_DAYS;
     public static final IntValue RESOURCE_CYCLE_RESET_HOUR;
+    public static final ConfigValue<String> RESOURCE_CYCLE_TIMEZONE;
     public static final IntValue RESOURCE_GENERATION_BLOCKS_PER_TICK;
     public static final IntValue RESOURCE_CLEANUP_BLOCKS_PER_TICK;
     public static final IntValue RESOURCE_MIN_RESERVE;
     public static final IntValue RESOURCE_MAX_RESERVE;
+    public static final IntValue RESOURCE_MIN_PHYSICAL_BLOCKS;
+    public static final IntValue RESOURCE_BASE_MAX_PHYSICAL_BLOCKS;
     public static final IntValue RESOURCE_MAX_PHYSICAL_BLOCKS;
     public static final IntValue RESEARCH_CRYSTAL_COST_TIER_1;
     public static final IntValue RESEARCH_CRYSTAL_COST_TIER_2;
@@ -171,12 +184,12 @@ public final class ModConfigSpec {
         builder.pop();
 
         builder.push("research");
-        RESEARCH_CRYSTAL_COST_TIER_1 = builder.defineInRange("crystalCostTier1", 12, 0, 4096);
-        RESEARCH_CRYSTAL_COST_TIER_2 = builder.defineInRange("crystalCostTier2", 24, 0, 4096);
-        RESEARCH_CRYSTAL_COST_TIER_3 = builder.defineInRange("crystalCostTier3", 36, 0, 4096);
-        RESEARCH_CRYSTAL_COST_TIER_4 = builder.defineInRange("crystalCostTier4", 48, 0, 4096);
-        RESEARCH_CRYSTAL_COST_TIER_5 = builder.defineInRange("crystalCostTier5", 64, 0, 4096);
-        RESEARCH_CRYSTAL_COST_TIER_6_PLUS = builder.defineInRange("crystalCostTier6Plus", 96, 0, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_1 = builder.defineInRange("crystalCostTier1", 12, 1, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_2 = builder.defineInRange("crystalCostTier2", 24, 1, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_3 = builder.defineInRange("crystalCostTier3", 36, 1, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_4 = builder.defineInRange("crystalCostTier4", 48, 1, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_5 = builder.defineInRange("crystalCostTier5", 64, 1, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_6_PLUS = builder.defineInRange("crystalCostTier6Plus", 96, 1, 4096);
         builder.pop();
 
         builder.push("traderEvents");
@@ -199,7 +212,7 @@ public final class ModConfigSpec {
         NETHER_REQUIRE_FULL_SESSION_BEFORE_CLOSE = builder.define("requireFullSessionBeforeClose", true);
         NETHER_LANDING_MIN_RADIUS = builder.defineInRange("landingMinRadius", 1000, 0, 100000);
         NETHER_LANDING_MAX_RADIUS = builder.defineInRange("landingMaxRadius", 5000, 1, 100000);
-        NETHER_LANDING_ATTEMPTS = builder.defineInRange("landingAttempts", 8, 1, 64);
+        NETHER_LANDING_ATTEMPTS = builder.defineInRange("landingAttempts", 8, 1, 8);
         NETHER_LANDING_MINIMUM_SEPARATION = builder.defineInRange("landingMinimumSeparation", 512, 0, 100000);
         NETHER_WIPE_INTERVAL_DAYS = builder.defineInRange("wipeIntervalDays", 7, 1, 3650);
         NETHER_WIPE_HOUR = builder.defineInRange("wipeHour", 23, 0, 23);
@@ -215,14 +228,31 @@ public final class ModConfigSpec {
         RESOURCE_YELLOW_RADIUS = builder.defineInRange("yellowRadius", 8000, 1, 1000000);
         RESOURCE_CELL_SIZE = builder.defineInRange("cellSizeBlocks", 256, 64, 4096);
         RESOURCE_BASE_DENSITY = builder.defineInRange("baseDensity", 0.40D, 0.0D, 1.0D);
+        RESOURCE_BLUE_DENSITY_MULTIPLIER = builder.defineInRange("blueDensityMultiplier", 0.45D, 0.0D, 10.0D);
+        RESOURCE_BLUE_RESERVE_MULTIPLIER = builder.defineInRange("blueReserveMultiplier", 0.60D, 0.0D, 10.0D);
+        RESOURCE_BLUE_SIZE_MULTIPLIER = builder.defineInRange("blueSizeMultiplier", 0.65D, 0.0D, 10.0D);
+        RESOURCE_YELLOW_DENSITY_MULTIPLIER = builder.defineInRange("yellowDensityMultiplier", 1.00D, 0.0D, 10.0D);
+        RESOURCE_YELLOW_RESERVE_MULTIPLIER = builder.defineInRange("yellowReserveMultiplier", 1.00D, 0.0D, 10.0D);
+        RESOURCE_YELLOW_SIZE_MULTIPLIER = builder.defineInRange("yellowSizeMultiplier", 1.00D, 0.0D, 10.0D);
+        RESOURCE_BLACK_DENSITY_MULTIPLIER = builder.defineInRange("blackDensityMultiplier", 1.65D, 0.0D, 10.0D);
+        RESOURCE_BLACK_RESERVE_MULTIPLIER = builder.defineInRange("blackReserveMultiplier", 1.50D, 0.0D, 10.0D);
+        RESOURCE_BLACK_SIZE_MULTIPLIER = builder.defineInRange("blackSizeMultiplier", 1.45D, 0.0D, 10.0D);
+        RESOURCE_RARE_SIZE_MULTIPLIER = builder.defineInRange("rareResourceSizeMultiplier", 0.65D, 0.01D, 1.0D);
         RESOURCE_AUTO_CYCLE = builder.define("automaticCycle", true);
         RESOURCE_CYCLE_DAYS = builder.defineInRange("cycleDays", 7, 1, 365);
         RESOURCE_CYCLE_RESET_HOUR = builder.defineInRange("cycleResetHour", 0, 0, 23);
+        RESOURCE_CYCLE_TIMEZONE = builder.define(
+                "cycleTimezone",
+                "Europe/Moscow",
+                value -> value instanceof String id && isTimezone(id)
+        );
         RESOURCE_GENERATION_BLOCKS_PER_TICK = builder.defineInRange("generationBlocksPerTick", 24, 1, 4096);
         RESOURCE_CLEANUP_BLOCKS_PER_TICK = builder.defineInRange("cleanupBlocksPerTick", 24, 1, 4096);
         RESOURCE_MIN_RESERVE = builder.defineInRange("minimumBaseReserve", 100, 1, 1000000);
         RESOURCE_MAX_RESERVE = builder.defineInRange("maximumBaseReserve", 200, 1, 1000000);
-        RESOURCE_MAX_PHYSICAL_BLOCKS = builder.defineInRange("maximumPhysicalBlocks", 120, 8, 4096);
+        RESOURCE_MIN_PHYSICAL_BLOCKS = builder.defineInRange("minimumBasePhysicalBlocks", 20, 1, 512);
+        RESOURCE_BASE_MAX_PHYSICAL_BLOCKS = builder.defineInRange("maximumBasePhysicalBlocks", 80, 1, 512);
+        RESOURCE_MAX_PHYSICAL_BLOCKS = builder.defineInRange("maximumPhysicalBlocks", 120, 8, 512);
         builder.pop();
 
         builder.push("raids");
