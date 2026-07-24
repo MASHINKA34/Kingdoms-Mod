@@ -119,10 +119,11 @@ public final class KingdomsAdminCommands {
         BlockPos spawn = level.getSharedSpawnPos();
         double dx = source.getPosition().x - spawn.getX();
         double dz = source.getPosition().z - spawn.getZ();
-        double distance = Math.hypot(dx, dz);
+        double distance = Math.max(Math.abs(dx), Math.abs(dz));
         int blue = com.geydev.kalfactions.config.ModConfigSpec.RESOURCE_BLUE_RADIUS.getAsInt();
         int yellow = Math.max(blue, com.geydev.kalfactions.config.ModConfigSpec.RESOURCE_YELLOW_RADIUS.getAsInt());
-        ResourceZone zone = ResourceZone.fromDistance(distance, blue, yellow);
+        int red = Math.max(yellow, com.geydev.kalfactions.config.ModConfigSpec.RESOURCE_RED_RADIUS.getAsInt());
+        ResourceZone zone = ResourceZone.fromDistance(distance, blue, yellow, red);
         source.sendSuccess(() -> Component.translatable(
                 "commands.kingdoms.resource.zone",
                 zone.name(),

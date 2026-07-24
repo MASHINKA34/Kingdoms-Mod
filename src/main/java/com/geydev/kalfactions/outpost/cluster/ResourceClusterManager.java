@@ -10,6 +10,7 @@ import com.geydev.kalfactions.outpost.cluster.distribution.ResourceDistributionC
 import com.geydev.kalfactions.outpost.cluster.distribution.ResourceZone;
 import com.geydev.kalfactions.outpost.cluster.distribution.ResourceCycleSchedule;
 import com.geydev.kalfactions.outpost.cluster.distribution.FiniteResourceLedger;
+import com.geydev.kalfactions.outpost.cluster.distribution.SurfaceClusterDistribution;
 import com.mojang.logging.LogUtils;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -55,12 +56,8 @@ public final class ResourceClusterManager extends SavedData {
             new Factory<>(ResourceClusterManager::new, ResourceClusterManager::load);
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final int CELL_SIZE_CHUNKS = 16;
     private static final int LOAD_DELAY_TICKS = 20;
     private static final int MAX_PLACEMENTS_PER_TICK = 16;
-    private static final long GOLDEN_GAMMA = 0x9E3779B97F4A7C15L;
-    private static final long CELL_X_SALT = 0x632BE59BD9B4E019L;
-    private static final long CELL_Z_SALT = 0x8CB92BA72F3D8DD7L;
     private static final String TAG_CLUSTERS = "clusters";
     private static final String TAG_REMOVED = "removed";
     private static final int DATA_VERSION = 2;
@@ -446,6 +443,7 @@ public final class ResourceClusterManager extends SavedData {
     private static ResourceDistributionConfig distributionConfig() {
         int blue = ModConfigSpec.RESOURCE_BLUE_RADIUS.getAsInt();
         int yellow = Math.max(blue, ModConfigSpec.RESOURCE_YELLOW_RADIUS.getAsInt());
+        int red = Math.max(yellow, ModConfigSpec.RESOURCE_RED_RADIUS.getAsInt());
         int minReserve = ModConfigSpec.RESOURCE_MIN_RESERVE.getAsInt();
         int maxReserve = Math.max(minReserve, ModConfigSpec.RESOURCE_MAX_RESERVE.getAsInt());
         int minPhysical = ModConfigSpec.RESOURCE_MIN_PHYSICAL_BLOCKS.getAsInt();
@@ -456,12 +454,16 @@ public final class ResourceClusterManager extends SavedData {
                 ModConfigSpec.RESOURCE_BLUE_RESERVE_MULTIPLIER.getAsDouble(),
                 Math.max(
                         ModConfigSpec.RESOURCE_YELLOW_RESERVE_MULTIPLIER.getAsDouble(),
-                        ModConfigSpec.RESOURCE_BLACK_RESERVE_MULTIPLIER.getAsDouble()
+                        Math.max(
+                                ModConfigSpec.RESOURCE_RED_RESERVE_MULTIPLIER.getAsDouble(),
+                                ModConfigSpec.RESOURCE_BLACK_RESERVE_MULTIPLIER.getAsDouble()
+                        )
                 )
         );
         return new ResourceDistributionConfig(
                 blue,
                 yellow,
+                red,
                 ModConfigSpec.RESOURCE_CELL_SIZE.getAsInt(),
                 ModConfigSpec.RESOURCE_BASE_DENSITY.getAsDouble(),
                 minReserve,
@@ -487,6 +489,11 @@ public final class ResourceClusterManager extends SavedData {
                 ModConfigSpec.RESOURCE_YELLOW_DENSITY_MULTIPLIER.getAsDouble(),
                 ModConfigSpec.RESOURCE_YELLOW_RESERVE_MULTIPLIER.getAsDouble(),
                 ModConfigSpec.RESOURCE_YELLOW_SIZE_MULTIPLIER.getAsDouble()
+        ));
+        profiles.put(ResourceZone.RED, new com.geydev.kalfactions.outpost.cluster.distribution.ZoneMultipliers(
+                ModConfigSpec.RESOURCE_RED_DENSITY_MULTIPLIER.getAsDouble(),
+                ModConfigSpec.RESOURCE_RED_RESERVE_MULTIPLIER.getAsDouble(),
+                ModConfigSpec.RESOURCE_RED_SIZE_MULTIPLIER.getAsDouble()
         ));
         profiles.put(ResourceZone.BLACK, new com.geydev.kalfactions.outpost.cluster.distribution.ZoneMultipliers(
                 ModConfigSpec.RESOURCE_BLACK_DENSITY_MULTIPLIER.getAsDouble(),
@@ -931,34 +938,32 @@ public final class ResourceClusterManager extends SavedData {
     }
 
     private static Plan plan(ServerLevel level, ChunkPos loadedChunk) {
-        int cellX = Math.floorDiv(loadedChunk.x, CELL_SIZE_CHUNKS);
-        int cellZ = Math.floorDiv(loadedChunk.z, CELL_SIZE_CHUNKS);
-        long seed = mix64(
-                level.getSeed()
-                        ^ ((long) cellX * CELL_X_SALT)
-                        ^ ((long) cellZ * CELL_Z_SALT)
-                        ^ level.dimension().location().hashCode()
+        int blue = ModConfigSpec.RESOURCE_BLUE_RADIUS.getAsInt();
+        int yellow = Math.max(blue, ModConfigSpec.RESOURCE_YELLOW_RADIUS.getAsInt());
+        int red = Math.max(yellow, ModConfigSpec.RESOURCE_RED_RADIUS.getAsInt());
+        SurfaceClusterDistribution distribution = new SurfaceClusterDistribution(
+                level.getSeed() ^ level.dimension().location().hashCode(),
+                level.getSharedSpawnPos().getX(),
+                level.getSharedSpawnPos().getZ(),
+                blue,
+                yellow,
+                red,
+                ModConfigSpec.RESOURCE_YELLOW_CLUSTER_SPACING_CHUNKS.getAsInt(),
+                ModConfigSpec.RESOURCE_RED_CLUSTER_SPACING_CHUNKS.getAsInt()
         );
-        if (unsignedMod(seed, 4) != 0) {
+        SurfaceClusterDistribution.Candidate candidate =
+                distribution.candidateForChunk(loadedChunk.x, loadedChunk.z).orElse(null);
+        if (candidate == null) {
             return null;
         }
-
-        int chunkX = cellX * CELL_SIZE_CHUNKS + unsignedMod(mix64(seed + GOLDEN_GAMMA), CELL_SIZE_CHUNKS);
-        int chunkZ = cellZ * CELL_SIZE_CHUNKS + unsignedMod(mix64(seed + GOLDEN_GAMMA * 2L), CELL_SIZE_CHUNKS);
-        int localX = 2 + unsignedMod(mix64(seed + GOLDEN_GAMMA * 3L), 12);
-        int localZ = 2 + unsignedMod(mix64(seed + GOLDEN_GAMMA * 4L), 12);
-        ResourceClusterType type = ResourceClusterType.weighted(
-                unsignedMod(mix64(seed + GOLDEN_GAMMA * 5L), 100)
-        );
-        int richness = 1 + unsignedMod(mix64(seed + GOLDEN_GAMMA * 6L), 3);
         return new Plan(
-                cellX,
-                cellZ,
-                new ChunkPos(chunkX, chunkZ),
-                (chunkX << 4) + localX,
-                (chunkZ << 4) + localZ,
-                type,
-                richness
+                loadedChunk.x,
+                loadedChunk.z,
+                loadedChunk,
+                loadedChunk.getMinBlockX() + candidate.localX(),
+                loadedChunk.getMinBlockZ() + candidate.localZ(),
+                ResourceClusterType.weighted(candidate.typeRoll()),
+                candidate.richness()
         );
     }
 

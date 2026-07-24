@@ -21,9 +21,11 @@ final class ResourceDistributionTest {
                 ResourceDistributionConfig.defaults()
         );
 
-        assertEquals(ResourceZone.BLUE, distribution.zoneAt(spawnX + 5_000, spawnZ));
-        assertEquals(ResourceZone.YELLOW, distribution.zoneAt(spawnX + 5_001, spawnZ));
-        assertEquals(ResourceZone.YELLOW, distribution.zoneAt(spawnX, spawnZ - 8_000));
+        assertEquals(ResourceZone.BLUE, distribution.zoneAt(spawnX + 200, spawnZ));
+        assertEquals(ResourceZone.YELLOW, distribution.zoneAt(spawnX + 201, spawnZ));
+        assertEquals(ResourceZone.YELLOW, distribution.zoneAt(spawnX + 5_000, spawnZ - 5_000));
+        assertEquals(ResourceZone.RED, distribution.zoneAt(spawnX + 5_001, spawnZ));
+        assertEquals(ResourceZone.RED, distribution.zoneAt(spawnX, spawnZ - 8_000));
         assertEquals(ResourceZone.BLACK, distribution.zoneAt(spawnX, spawnZ - 8_001));
     }
 
@@ -59,18 +61,28 @@ final class ResourceDistributionTest {
     @Test
     void densityRichnessAndRareShareGrowOutward() {
         ResourceDistribution distribution = distribution(7_654_321L, 2L);
-        ZoneStats blue = collect(distribution, ResourceZone.BLUE, -15, 15, -15, 15);
-        ZoneStats yellow = collect(distribution, ResourceZone.YELLOW, 21, 30, -15, 15);
-        ZoneStats black = collect(distribution, ResourceZone.BLACK, 35, 65, -15, 15);
+        ZoneStats yellow = collect(distribution, ResourceZone.YELLOW, 2, 18, -18, 18);
+        ZoneStats red = collect(distribution, ResourceZone.RED, 21, 30, -18, 18);
+        ZoneStats black = collect(distribution, ResourceZone.BLACK, 35, 65, -18, 18);
 
-        assertTrue(blue.density() < yellow.density());
-        assertTrue(yellow.density() < black.density());
-        assertTrue(blue.averageReserve() < yellow.averageReserve());
-        assertTrue(yellow.averageReserve() < black.averageReserve());
-        assertTrue(blue.averageSize() < yellow.averageSize());
-        assertTrue(yellow.averageSize() < black.averageSize());
-        assertTrue(blue.rareShare() < yellow.rareShare());
-        assertTrue(yellow.rareShare() < black.rareShare());
+        assertTrue(yellow.density() < red.density());
+        assertTrue(red.density() < black.density());
+        assertTrue(yellow.averageReserve() < red.averageReserve());
+        assertTrue(red.averageReserve() < black.averageReserve());
+        assertTrue(yellow.averageSize() < red.averageSize());
+        assertTrue(red.averageSize() < black.averageSize());
+        assertTrue(yellow.rareShare() < red.rareShare());
+        assertTrue(red.rareShare() < black.rareShare());
+    }
+
+    @Test
+    void blueZoneNeverProducesUndergroundDeposits() {
+        ResourceDistribution distribution = distribution(77L, 1L);
+        for (int x = -1; x <= 0; x++) {
+            for (int z = -1; z <= 0; z++) {
+                assertTrue(distribution.candidateForCell(x, z).isEmpty());
+            }
+        }
     }
 
     @Test
@@ -96,7 +108,7 @@ final class ResourceDistributionTest {
     void rareResourcesProduceSmallerDepositsWithTheConfiguredMultiplier() {
         ResourceDistributionConfig scaledConfig = ResourceDistributionConfig.defaults();
         ResourceDistributionConfig unscaledConfig = new ResourceDistributionConfig(
-                scaledConfig.blueRadius(), scaledConfig.yellowRadius(), scaledConfig.cellSize(),
+                scaledConfig.blueRadius(), scaledConfig.yellowRadius(), scaledConfig.redRadius(), scaledConfig.cellSize(),
                 scaledConfig.baseDensityProbability(), scaledConfig.minBaseReserve(), scaledConfig.maxBaseReserve(),
                 scaledConfig.maxReserve(), scaledConfig.minBaseSize(), scaledConfig.maxBaseSize(),
                 scaledConfig.maxSize(), 1.0D

@@ -3,6 +3,7 @@ package com.geydev.kalfactions.outpost.cluster.distribution;
 public record ResourceDistributionConfig(
         double blueRadius,
         double yellowRadius,
+        double redRadius,
         int cellSize,
         double baseDensityProbability,
         int minBaseReserve,
@@ -13,8 +14,9 @@ public record ResourceDistributionConfig(
         int maxSize,
         double rareSizeMultiplier
 ) {
-    public static final double DEFAULT_BLUE_RADIUS = 5_000.0D;
-    public static final double DEFAULT_YELLOW_RADIUS = 8_000.0D;
+    public static final double DEFAULT_BLUE_RADIUS = 200.0D;
+    public static final double DEFAULT_YELLOW_RADIUS = 5_000.0D;
+    public static final double DEFAULT_RED_RADIUS = 8_000.0D;
     public static final int DEFAULT_CELL_SIZE = 256;
     public static final double DEFAULT_BASE_DENSITY_PROBABILITY = 0.40D;
     public static final int DEFAULT_MIN_BASE_RESERVE = 100;
@@ -22,11 +24,11 @@ public record ResourceDistributionConfig(
     public static final int DEFAULT_MAX_RESERVE = 300;
     public static final int DEFAULT_MIN_BASE_SIZE = 20;
     public static final int DEFAULT_MAX_BASE_SIZE = 80;
-    public static final int DEFAULT_MAX_SIZE = 120;
+    public static final int DEFAULT_MAX_SIZE = 160;
     public static final double DEFAULT_RARE_SIZE_MULTIPLIER = 0.65D;
 
     public ResourceDistributionConfig {
-        ResourceZone.validateRadii(blueRadius, yellowRadius);
+        ResourceZone.validateRadii(blueRadius, yellowRadius, redRadius);
         if (cellSize < 1 || cellSize > 4_096) {
             throw new IllegalArgumentException("cellSize must be between 1 and 4096");
         }
@@ -45,13 +47,14 @@ public record ResourceDistributionConfig(
     }
 
     public static ResourceDistributionConfig defaults() {
-        return defaults(DEFAULT_BLUE_RADIUS, DEFAULT_YELLOW_RADIUS);
+        return defaults(DEFAULT_BLUE_RADIUS, DEFAULT_YELLOW_RADIUS, DEFAULT_RED_RADIUS);
     }
 
-    public static ResourceDistributionConfig defaults(double blueRadius, double yellowRadius) {
+    public static ResourceDistributionConfig defaults(double blueRadius, double yellowRadius, double redRadius) {
         return new ResourceDistributionConfig(
                 blueRadius,
                 yellowRadius,
+                redRadius,
                 DEFAULT_CELL_SIZE,
                 DEFAULT_BASE_DENSITY_PROBABILITY,
                 DEFAULT_MIN_BASE_RESERVE,

@@ -85,7 +85,8 @@ public final class ResourceDistribution {
                 spawnX,
                 spawnZ,
                 config.blueRadius(),
-                config.yellowRadius()
+                config.yellowRadius(),
+                config.redRadius()
         );
     }
 

@@ -102,6 +102,7 @@ public final class ModConfigSpec {
     public static final IntValue NEWS_PUBLISH_COOLDOWN_MINUTES;
     public static final IntValue RESOURCE_BLUE_RADIUS;
     public static final IntValue RESOURCE_YELLOW_RADIUS;
+    public static final IntValue RESOURCE_RED_RADIUS;
     public static final IntValue RESOURCE_CELL_SIZE;
     public static final DoubleValue RESOURCE_BASE_DENSITY;
     public static final DoubleValue RESOURCE_BLUE_DENSITY_MULTIPLIER;
@@ -110,9 +111,14 @@ public final class ModConfigSpec {
     public static final DoubleValue RESOURCE_YELLOW_DENSITY_MULTIPLIER;
     public static final DoubleValue RESOURCE_YELLOW_RESERVE_MULTIPLIER;
     public static final DoubleValue RESOURCE_YELLOW_SIZE_MULTIPLIER;
+    public static final DoubleValue RESOURCE_RED_DENSITY_MULTIPLIER;
+    public static final DoubleValue RESOURCE_RED_RESERVE_MULTIPLIER;
+    public static final DoubleValue RESOURCE_RED_SIZE_MULTIPLIER;
     public static final DoubleValue RESOURCE_BLACK_DENSITY_MULTIPLIER;
     public static final DoubleValue RESOURCE_BLACK_RESERVE_MULTIPLIER;
     public static final DoubleValue RESOURCE_BLACK_SIZE_MULTIPLIER;
+    public static final IntValue RESOURCE_YELLOW_CLUSTER_SPACING_CHUNKS;
+    public static final IntValue RESOURCE_RED_CLUSTER_SPACING_CHUNKS;
     public static final DoubleValue RESOURCE_RARE_SIZE_MULTIPLIER;
     public static final BooleanValue RESOURCE_AUTO_CYCLE;
     public static final IntValue RESOURCE_CYCLE_DAYS;
@@ -214,19 +220,27 @@ public final class ModConfigSpec {
         builder.pop();
 
         builder.push("resourceDeposits");
-        RESOURCE_BLUE_RADIUS = builder.defineInRange("blueRadius", 5000, 0, 1000000);
-        RESOURCE_YELLOW_RADIUS = builder.defineInRange("yellowRadius", 8000, 1, 1000000);
+        RESOURCE_BLUE_RADIUS = builder.defineInRange("blueRadius", 200, 0, 1000000);
+        RESOURCE_YELLOW_RADIUS = builder.defineInRange("yellowRadius", 5000, 1, 1000000);
+        RESOURCE_RED_RADIUS = builder.defineInRange("redRadius", 8000, 1, 1000000);
         RESOURCE_CELL_SIZE = builder.defineInRange("cellSizeBlocks", 256, 64, 4096);
         RESOURCE_BASE_DENSITY = builder.defineInRange("baseDensity", 0.40D, 0.0D, 1.0D);
-        RESOURCE_BLUE_DENSITY_MULTIPLIER = builder.defineInRange("blueDensityMultiplier", 0.45D, 0.0D, 10.0D);
-        RESOURCE_BLUE_RESERVE_MULTIPLIER = builder.defineInRange("blueReserveMultiplier", 0.60D, 0.0D, 10.0D);
-        RESOURCE_BLUE_SIZE_MULTIPLIER = builder.defineInRange("blueSizeMultiplier", 0.65D, 0.0D, 10.0D);
-        RESOURCE_YELLOW_DENSITY_MULTIPLIER = builder.defineInRange("yellowDensityMultiplier", 1.00D, 0.0D, 10.0D);
-        RESOURCE_YELLOW_RESERVE_MULTIPLIER = builder.defineInRange("yellowReserveMultiplier", 1.00D, 0.0D, 10.0D);
-        RESOURCE_YELLOW_SIZE_MULTIPLIER = builder.defineInRange("yellowSizeMultiplier", 1.00D, 0.0D, 10.0D);
-        RESOURCE_BLACK_DENSITY_MULTIPLIER = builder.defineInRange("blackDensityMultiplier", 1.65D, 0.0D, 10.0D);
-        RESOURCE_BLACK_RESERVE_MULTIPLIER = builder.defineInRange("blackReserveMultiplier", 1.50D, 0.0D, 10.0D);
-        RESOURCE_BLACK_SIZE_MULTIPLIER = builder.defineInRange("blackSizeMultiplier", 1.45D, 0.0D, 10.0D);
+        RESOURCE_BLUE_DENSITY_MULTIPLIER = builder.defineInRange("blueDensityMultiplier", 0.00D, 0.0D, 10.0D);
+        RESOURCE_BLUE_RESERVE_MULTIPLIER = builder.defineInRange("blueReserveMultiplier", 0.00D, 0.0D, 10.0D);
+        RESOURCE_BLUE_SIZE_MULTIPLIER = builder.defineInRange("blueSizeMultiplier", 0.00D, 0.0D, 10.0D);
+        RESOURCE_YELLOW_DENSITY_MULTIPLIER = builder.defineInRange("yellowDensityMultiplier", 0.50D, 0.0D, 10.0D);
+        RESOURCE_YELLOW_RESERVE_MULTIPLIER = builder.defineInRange("yellowReserveMultiplier", 0.50D, 0.0D, 10.0D);
+        RESOURCE_YELLOW_SIZE_MULTIPLIER = builder.defineInRange("yellowSizeMultiplier", 0.50D, 0.0D, 10.0D);
+        RESOURCE_RED_DENSITY_MULTIPLIER = builder.defineInRange("redDensityMultiplier", 1.10D, 0.0D, 10.0D);
+        RESOURCE_RED_RESERVE_MULTIPLIER = builder.defineInRange("redReserveMultiplier", 1.10D, 0.0D, 10.0D);
+        RESOURCE_RED_SIZE_MULTIPLIER = builder.defineInRange("redSizeMultiplier", 1.10D, 0.0D, 10.0D);
+        RESOURCE_BLACK_DENSITY_MULTIPLIER = builder.defineInRange("blackDensityMultiplier", 1.70D, 0.0D, 10.0D);
+        RESOURCE_BLACK_RESERVE_MULTIPLIER = builder.defineInRange("blackReserveMultiplier", 1.70D, 0.0D, 10.0D);
+        RESOURCE_BLACK_SIZE_MULTIPLIER = builder.defineInRange("blackSizeMultiplier", 1.70D, 0.0D, 10.0D);
+        RESOURCE_YELLOW_CLUSTER_SPACING_CHUNKS =
+                builder.defineInRange("yellowSurfaceClusterSpacingChunks", 9, 1, 64);
+        RESOURCE_RED_CLUSTER_SPACING_CHUNKS =
+                builder.defineInRange("redSurfaceClusterSpacingChunks", 4, 1, 64);
         RESOURCE_RARE_SIZE_MULTIPLIER = builder.defineInRange("rareResourceSizeMultiplier", 0.65D, 0.01D, 1.0D);
         RESOURCE_AUTO_CYCLE = builder.define("automaticCycle", true);
         RESOURCE_CYCLE_DAYS = builder.defineInRange("cycleDays", 7, 1, 365);
@@ -242,7 +256,7 @@ public final class ModConfigSpec {
         RESOURCE_MAX_RESERVE = builder.defineInRange("maximumBaseReserve", 200, 1, 1000000);
         RESOURCE_MIN_PHYSICAL_BLOCKS = builder.defineInRange("minimumBasePhysicalBlocks", 20, 1, 512);
         RESOURCE_BASE_MAX_PHYSICAL_BLOCKS = builder.defineInRange("maximumBasePhysicalBlocks", 80, 1, 512);
-        RESOURCE_MAX_PHYSICAL_BLOCKS = builder.defineInRange("maximumPhysicalBlocks", 120, 8, 512);
+        RESOURCE_MAX_PHYSICAL_BLOCKS = builder.defineInRange("maximumPhysicalBlocks", 160, 8, 512);
         builder.pop();
 
         builder.push("raids");
