@@ -27,6 +27,7 @@ public final class QuarryEvents {
         }
         ticksUntilUpdate = 20;
         QuarryManager.get(event.getServer()).tick(event.getServer());
+        QuarryService.tickOpenMenus(event.getServer());
     }
 
     @SubscribeEvent

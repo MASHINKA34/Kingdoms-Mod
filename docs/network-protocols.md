@@ -57,3 +57,13 @@ The channel accepts only Xaero World Map `1.43.0` and Minimap `26.3.0` compatibl
 | S2C | `kingdoms:xaero_archive_stats` | request UUID, dimension, compressed/uncompressed sizes, region/tile counts, success flag, localization key <=128 | Replaces the archive-screen statistics for the matching request only. |
 
 Archive limits also include two concurrent sessions per player, sixteen globally, a 120-second inactivity timeout, and four outgoing parts per server tick. Access is rechecked on upload commit and every download tick. Compression, hashing, merging, cleanup, disk reads/writes, and Xaero reload preparation do not run on the server/client main thread.
+
+## Quarry protocol 1
+
+The quarry core opens a server-backed menu. Every request must match the player's currently open quarry menu, its container ID and exact core position. The server additionally requires the overworld, a live registered quarry core block, and distance no greater than eight blocks. Invalid or distant matching menus are closed.
+
+| Direction | ID | Fields and bounds | Server conditions and result |
+| --- | --- | --- | --- |
+| C2S | `kingdoms:quarry_request_state` | `containerId: int >=0`, `core: BlockPos` | Rate-limited state refresh for the exact open menu. It cannot mutate quarry data. |
+| C2S | `kingdoms:quarry_action` | `containerId: int >=0`, `core: BlockPos`, `stateVersion: long >=0`, `action: int 1..3` | Rechecks menu, block, distance, dimension, exact state version, faction membership, action/state match, territory, role, seal, level, configured cost and treasury. Activation consumes one seal only after ownership is committed. Upgrade withdraws and raises the level in one server-thread operation. Capture cannot be restarted or replaced by a different attacker. Requests are rate-limited and a successful state-version increment makes replay harmless. |
+| S2C | `kingdoms:quarry_state` | Container/core/version, bounded names <=48, colors, status/action/reason enums, level 0..5, non-negative cost/treasury, capture ticks 0..6000 and pause flag | Complete server-derived screen replacement state. It is sent on open/refresh, after mutations, and once per second while the menu remains valid. Client values are display-only. |

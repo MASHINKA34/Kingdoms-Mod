@@ -51,6 +51,7 @@ public final class ClaimSyncManager {
         STATES.remove(event.getEntity().getUUID());
         FactionServerHooks.clearRateLimit(event.getEntity().getUUID());
         com.geydev.kalfactions.outpost.cluster.DrillService.clearRateLimit(event.getEntity().getUUID());
+        com.geydev.kalfactions.quarry.QuarryService.clearRateLimit(event.getEntity().getUUID());
     }
 
     @SubscribeEvent

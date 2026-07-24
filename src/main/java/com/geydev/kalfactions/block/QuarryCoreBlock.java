@@ -1,7 +1,6 @@
 package com.geydev.kalfactions.block;
 
-import com.geydev.kalfactions.quarry.QuarryManager;
-import javax.annotation.Nullable;
+import com.geydev.kalfactions.quarry.QuarryService;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -30,8 +29,7 @@ public final class QuarryCoreBlock extends Block {
             BlockHitResult hit
     ) {
         if (level instanceof ServerLevel && player instanceof ServerPlayer serverPlayer) {
-            QuarryManager.get(serverPlayer.serverLevel())
-                    .interact(serverPlayer, pos, ItemStack.EMPTY, player.isSecondaryUseActive());
+            QuarryService.open(serverPlayer, pos);
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
@@ -47,8 +45,7 @@ public final class QuarryCoreBlock extends Block {
             BlockHitResult hit
     ) {
         if (level instanceof ServerLevel && player instanceof ServerPlayer serverPlayer) {
-            QuarryManager.get(serverPlayer.serverLevel())
-                    .interact(serverPlayer, pos, stack, player.isSecondaryUseActive());
+            QuarryService.open(serverPlayer, pos);
         }
         return ItemInteractionResult.sidedSuccess(level.isClientSide());
     }
@@ -56,7 +53,7 @@ public final class QuarryCoreBlock extends Block {
     @Override
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock()) && level instanceof ServerLevel serverLevel) {
-            QuarryManager.get(serverLevel).removeByCore(serverLevel, pos);
+            com.geydev.kalfactions.quarry.QuarryManager.get(serverLevel).removeByCore(serverLevel, pos);
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
     }

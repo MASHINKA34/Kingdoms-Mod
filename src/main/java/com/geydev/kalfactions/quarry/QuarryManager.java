@@ -1,10 +1,10 @@
 package com.geydev.kalfactions.quarry;
 
 import com.geydev.kalfactions.claim.ClaimKey;
-import com.geydev.kalfactions.command.NumismaticsEconomy;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.faction.FactionRole;
 import com.geydev.kalfactions.net.ClaimSyncManager;
 import com.geydev.kalfactions.net.FactionServerHooks;
 import com.geydev.kalfactions.registry.ModBlocks;
@@ -142,7 +142,7 @@ public final class QuarryManager extends SavedData {
         if (quarries.containsKey(id) || coreIndex.containsKey(core.asLong())) {
             return CreateResult.OVERLAP;
         }
-        Quarry quarry = new Quarry(id, core.immutable(), territory, null, 0, null, CAPTURE_TICKS, false);
+        Quarry quarry = new Quarry(id, core.immutable(), territory, null, 0, null, CAPTURE_TICKS, false, 0L);
         quarries.put(id, quarry);
         coreIndex.put(core.asLong(), id);
         level.setBlockAndUpdate(core, ModBlocks.QUARRY_CORE.get().defaultBlockState());
@@ -152,52 +152,25 @@ public final class QuarryManager extends SavedData {
         return CreateResult.CREATED;
     }
 
-    public synchronized void interact(ServerPlayer player, BlockPos core, ItemStack held, boolean secondaryUse) {
-        if (!player.serverLevel().dimension().equals(Level.OVERWORLD)) {
-            return;
-        }
+    public synchronized ActionResult performAction(ServerPlayer player, BlockPos core, long stateVersion, int action) {
         Quarry quarry = quarry(core);
         if (quarry == null) {
-            return;
+            return ActionResult.NOT_FOUND;
+        }
+        if (stateVersion != quarry.stateVersion) {
+            return ActionResult.STALE_STATE;
         }
         FactionManager factions = FactionManager.get(player.serverLevel());
         Faction faction = factions.getFactionForMember(player.getUUID()).orElse(null);
         if (faction == null) {
-            notice(player, "kingdoms.quarry.not_in_faction", false);
-            return;
+            return ActionResult.NOT_IN_FACTION;
         }
-        if (quarry.ownerFactionId == null) {
-            if (!held.is(ModItems.QUARRY_ACTIVATOR.get())) {
-                notice(player, "kingdoms.quarry.requires_activator", false);
-                return;
-            }
-            quarry.ownerFactionId = faction.id();
-            quarry.level = Math.max(1, quarry.level);
-            if (!player.isCreative()) {
-                held.shrink(1);
-            }
-            setDirty();
-            mapRevision++;
-            sync(player.getServer());
-            notifyFaction(player.getServer(), faction.id(),
-                    Component.translatable("kingdoms.quarry.activated", quarry.core.getX(), quarry.core.getZ()), true);
-            return;
-        }
-        if (quarry.ownerFactionId.equals(faction.id())) {
-            if (secondaryUse) {
-                upgrade(player, factions, faction, quarry);
-            } else {
-                long nextCost = quarry.level >= MAX_LEVEL ? 0L : upgradeCost(quarry.level);
-                FactionServerHooks.sendNotice(player, Component.translatable(
-                        "kingdoms.quarry.status",
-                        quarry.level,
-                        MAX_LEVEL,
-                        nextCost == 0L ? "-" : NumismaticsEconomy.format(nextCost)
-                ), true);
-            }
-            return;
-        }
-        startCapture(player, faction, quarry);
+        return switch (action) {
+            case QuarryPayloads.ACTION_ACTIVATE -> activate(player, faction, quarry);
+            case QuarryPayloads.ACTION_UPGRADE -> upgrade(player, factions, faction, quarry);
+            case QuarryPayloads.ACTION_CAPTURE -> startCapture(player, faction, quarry);
+            default -> ActionResult.INVALID_ACTION;
+        };
     }
 
     public synchronized void tick(MinecraftServer server) {
@@ -209,6 +182,7 @@ public final class QuarryManager extends SavedData {
                 quarry.attackerFactionId = null;
                 quarry.captureTicksRemaining = CAPTURE_TICKS;
                 quarry.capturePaused = false;
+                quarry.stateVersion++;
                 removeBossBar(quarry.id);
                 mapRevision++;
                 sync(server);
@@ -228,43 +202,22 @@ public final class QuarryManager extends SavedData {
             }
             boolean attackersPresent = hasFactionPlayerInTerritory(server, quarry, quarry.attackerFactionId);
             boolean defendersPresent = hasFactionPlayerInTerritory(server, quarry, quarry.ownerFactionId);
-            QuarryCaptureRules.TickResult capture = QuarryCaptureRules.tick(
-                    attackersPresent,
-                    defendersPresent,
-                    quarry.captureTicksRemaining,
-                    20,
-                    CAPTURE_TICKS
-            );
-            if (capture.action() == QuarryCaptureRules.Action.RESET) {
-                resetCapture(server, quarry, true);
-                dirty = true;
-                continue;
-            }
-            boolean paused = capture.action() == QuarryCaptureRules.Action.PAUSED;
-            if (quarry.capturePaused != paused || quarry.captureTicksRemaining != capture.remainingTicks()) {
-                quarry.capturePaused = paused;
-                quarry.captureTicksRemaining = capture.remainingTicks();
-                dirty = true;
-            }
-            updateBossBar(server, quarry);
-            if (capture.action() == QuarryCaptureRules.Action.CAPTURED) {
-                UUID previousOwner = quarry.ownerFactionId;
-                UUID newOwner = quarry.attackerFactionId;
-                quarry.ownerFactionId = newOwner;
-                quarry.attackerFactionId = null;
-                quarry.captureTicksRemaining = CAPTURE_TICKS;
-                quarry.capturePaused = false;
-                removeBossBar(quarry.id);
-                notifyFaction(server, previousOwner,
-                        Component.translatable("kingdoms.quarry.lost", quarry.core.getX(), quarry.core.getZ()), false);
-                notifyFaction(server, newOwner,
-                        Component.translatable("kingdoms.quarry.captured", quarry.core.getX(), quarry.core.getZ()), true);
-                mapRevision++;
-                sync(server);
-                dirty = true;
-            }
+            dirty |= advanceCapture(server, quarry, attackersPresent, defendersPresent);
         }
         if (dirty) {
+            setDirty();
+        }
+    }
+
+    synchronized void tickCaptureForTest(
+            MinecraftServer server,
+            BlockPos core,
+            boolean attackersPresent,
+            boolean defendersPresent
+    ) {
+        Quarry quarry = quarry(core);
+        if (quarry != null && quarry.attackerFactionId != null
+                && advanceCapture(server, quarry, attackersPresent, defendersPresent)) {
             setDirty();
         }
     }
@@ -292,62 +245,95 @@ public final class QuarryManager extends SavedData {
         bossBars.clear();
     }
 
-    private void upgrade(ServerPlayer player, FactionManager factions, Faction faction, Quarry quarry) {
+    private ActionResult activate(ServerPlayer player, Faction faction, Quarry quarry) {
+        if (quarry.ownerFactionId != null) {
+            return ActionResult.WRONG_STATE;
+        }
+        ItemStack activator = findActivator(player);
+        if (activator.isEmpty()) {
+            return ActionResult.REQUIRES_ACTIVATOR;
+        }
+        quarry.ownerFactionId = faction.id();
+        quarry.level = Math.max(1, quarry.level);
+        quarry.stateVersion++;
+        if (!player.isCreative()) {
+            activator.shrink(1);
+        }
+        setDirty();
+        mapRevision++;
+        sync(player.getServer());
+        notifyFaction(player.getServer(), faction.id(),
+                Component.translatable("kingdoms.quarry.activated", quarry.core.getX(), quarry.core.getZ()), true);
+        return ActionResult.SUCCESS;
+    }
+
+    private ActionResult upgrade(ServerPlayer player, FactionManager factions, Faction faction, Quarry quarry) {
+        if (!faction.id().equals(quarry.ownerFactionId) || quarry.attackerFactionId != null) {
+            return ActionResult.WRONG_STATE;
+        }
+        FactionRole role = faction.roleOf(player.getUUID()).orElse(FactionRole.MEMBER);
+        if (!role.canManageTreasury()) {
+            return ActionResult.NO_PERMISSION;
+        }
         if (quarry.level >= MAX_LEVEL) {
-            notice(player, "kingdoms.quarry.max_level", false);
-            return;
+            return ActionResult.MAX_LEVEL;
         }
         long cost = upgradeCost(quarry.level);
         FactionManager.OperationResult result = factions.withdraw(faction.id(), cost);
         if (!result.successful()) {
-            FactionServerHooks.sendNotice(
-                    player,
-                    Component.translatable("kingdoms.quarry.not_enough_money", NumismaticsEconomy.format(cost)),
-                    false
-            );
-            return;
+            return ActionResult.INSUFFICIENT_FUNDS;
         }
         quarry.level++;
+        quarry.stateVersion++;
         setDirty();
         notifyFaction(player.getServer(), faction.id(),
                 Component.translatable("kingdoms.quarry.upgraded", quarry.level), true);
+        return ActionResult.SUCCESS;
     }
 
-    private void startCapture(ServerPlayer player, Faction attacker, Quarry quarry) {
+    private ActionResult startCapture(ServerPlayer player, Faction attacker, Quarry quarry) {
+        if (quarry.ownerFactionId == null || quarry.ownerFactionId.equals(attacker.id())) {
+            return ActionResult.WRONG_STATE;
+        }
+        if (!quarry.chunks.contains(ClaimKey.of(player.serverLevel(), player.blockPosition()))) {
+            return ActionResult.NOT_IN_TERRITORY;
+        }
         if (quarry.attackerFactionId != null && !quarry.attackerFactionId.equals(attacker.id())) {
-            notice(player, "kingdoms.quarry.capture_busy", false);
-            return;
+            return ActionResult.CAPTURE_BUSY;
         }
-        if (quarry.attackerFactionId == null) {
-            quarry.attackerFactionId = attacker.id();
-            quarry.captureTicksRemaining = CAPTURE_TICKS;
-            quarry.capturePaused = false;
-            setDirty();
-            Faction owner = FactionManager.get(player.getServer())
-                    .getFactionById(quarry.ownerFactionId)
-                    .orElse(null);
-            notifyFaction(
-                    player.getServer(),
-                    quarry.ownerFactionId,
-                    Component.translatable(
-                            "kingdoms.quarry.under_attack",
-                            attacker.name(),
-                            quarry.core.getX(),
-                            quarry.core.getZ()
-                    ),
-                    false
-            );
-            notifyFaction(
-                    player.getServer(),
-                    attacker.id(),
-                    Component.translatable(
-                            "kingdoms.quarry.capture_started",
-                            owner == null ? "?" : owner.name()
-                    ),
-                    true
-            );
+        if (quarry.attackerFactionId != null) {
+            return ActionResult.ALREADY_CAPTURING;
         }
+        quarry.attackerFactionId = attacker.id();
+        quarry.captureTicksRemaining = CAPTURE_TICKS;
+        quarry.capturePaused = false;
+        quarry.stateVersion++;
+        setDirty();
+        Faction owner = FactionManager.get(player.getServer())
+                .getFactionById(quarry.ownerFactionId)
+                .orElse(null);
+        notifyFaction(
+                player.getServer(),
+                quarry.ownerFactionId,
+                Component.translatable(
+                        "kingdoms.quarry.under_attack",
+                        attacker.name(),
+                        quarry.core.getX(),
+                        quarry.core.getZ()
+                ),
+                false
+        );
+        notifyFaction(
+                player.getServer(),
+                attacker.id(),
+                Component.translatable(
+                        "kingdoms.quarry.capture_started",
+                        owner == null ? "?" : owner.name()
+                ),
+                true
+        );
         updateBossBar(player.getServer(), quarry);
+        return ActionResult.SUCCESS;
     }
 
     private void resetCapture(MinecraftServer server, Quarry quarry, boolean notify) {
@@ -355,11 +341,58 @@ public final class QuarryManager extends SavedData {
         quarry.attackerFactionId = null;
         quarry.captureTicksRemaining = CAPTURE_TICKS;
         quarry.capturePaused = false;
+        quarry.stateVersion++;
         removeBossBar(quarry.id);
         if (notify && attacker != null) {
             notifyFaction(server, attacker, Component.translatable("kingdoms.quarry.capture_reset"), false);
             notifyFaction(server, quarry.ownerFactionId, Component.translatable("kingdoms.quarry.defended"), true);
         }
+    }
+
+    private boolean advanceCapture(
+            MinecraftServer server,
+            Quarry quarry,
+            boolean attackersPresent,
+            boolean defendersPresent
+    ) {
+        QuarryCaptureRules.TickResult capture = QuarryCaptureRules.tick(
+                attackersPresent,
+                defendersPresent,
+                quarry.captureTicksRemaining,
+                20,
+                CAPTURE_TICKS
+        );
+        if (capture.action() == QuarryCaptureRules.Action.RESET) {
+            resetCapture(server, quarry, true);
+            return true;
+        }
+        if (capture.action() == QuarryCaptureRules.Action.CAPTURED) {
+            UUID previousOwner = quarry.ownerFactionId;
+            UUID newOwner = quarry.attackerFactionId;
+            quarry.ownerFactionId = newOwner;
+            quarry.attackerFactionId = null;
+            quarry.captureTicksRemaining = CAPTURE_TICKS;
+            quarry.capturePaused = false;
+            quarry.stateVersion++;
+            removeBossBar(quarry.id);
+            notifyFaction(server, previousOwner,
+                    Component.translatable("kingdoms.quarry.lost", quarry.core.getX(), quarry.core.getZ()), false);
+            notifyFaction(server, newOwner,
+                    Component.translatable("kingdoms.quarry.captured", quarry.core.getX(), quarry.core.getZ()), true);
+            mapRevision++;
+            sync(server);
+            return true;
+        }
+        boolean changed = false;
+        boolean paused = capture.action() == QuarryCaptureRules.Action.PAUSED;
+        if (quarry.capturePaused != paused || quarry.captureTicksRemaining != capture.remainingTicks()) {
+            quarry.capturePaused = paused;
+            quarry.captureTicksRemaining = capture.remainingTicks();
+            quarry.stateVersion++;
+            changed = true;
+        }
+        updateBossBar(server, quarry);
+        return changed;
     }
 
     private void updateBossBar(MinecraftServer server, Quarry quarry) {
@@ -423,8 +456,14 @@ public final class QuarryManager extends SavedData {
         return Set.copyOf(result);
     }
 
-    private static void notice(ServerPlayer player, String key, boolean successful) {
-        FactionServerHooks.sendNotice(player, Component.translatable(key), successful);
+    private static ItemStack findActivator(ServerPlayer player) {
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            ItemStack stack = player.getInventory().getItem(slot);
+            if (stack.is(ModItems.QUARRY_ACTIVATOR.get())) {
+                return stack;
+            }
+        }
+        return ItemStack.EMPTY;
     }
 
     private static void notifyFaction(MinecraftServer server, UUID factionId, Component message, boolean successful) {
@@ -443,7 +482,7 @@ public final class QuarryManager extends SavedData {
         ClaimSyncManager.resyncAll(server);
     }
 
-    private static long upgradeCost(int currentLevel) {
+    public static long upgradeCost(int currentLevel) {
         return switch (currentLevel) {
             case 1 -> ModConfigSpec.QUARRY_LEVEL_2_COST.getAsLong();
             case 2 -> ModConfigSpec.QUARRY_LEVEL_3_COST.getAsLong();
@@ -463,7 +502,7 @@ public final class QuarryManager extends SavedData {
         return tag;
     }
 
-    private static QuarryManager load(CompoundTag tag, HolderLookup.Provider registries) {
+    static QuarryManager load(CompoundTag tag, HolderLookup.Provider registries) {
         QuarryManager manager = new QuarryManager();
         ListTag list = tag.getList(TAG_QUARRIES, Tag.TAG_COMPOUND);
         for (int index = 0; index < list.size(); index++) {
@@ -486,7 +525,8 @@ public final class QuarryManager extends SavedData {
             int level,
             UUID attackerFactionId,
             int captureTicksRemaining,
-            boolean capturePaused
+            boolean capturePaused,
+            long stateVersion
     ) {
     }
 
@@ -507,6 +547,7 @@ public final class QuarryManager extends SavedData {
         private UUID attackerFactionId;
         private int captureTicksRemaining;
         private boolean capturePaused;
+        private long stateVersion;
 
         private Quarry(
                 UUID id,
@@ -516,7 +557,8 @@ public final class QuarryManager extends SavedData {
                 int level,
                 UUID attackerFactionId,
                 int captureTicksRemaining,
-                boolean capturePaused
+                boolean capturePaused,
+                long stateVersion
         ) {
             this.id = id;
             this.core = core;
@@ -526,6 +568,7 @@ public final class QuarryManager extends SavedData {
             this.attackerFactionId = attackerFactionId;
             this.captureTicksRemaining = captureTicksRemaining;
             this.capturePaused = capturePaused;
+            this.stateVersion = Math.max(0L, stateVersion);
         }
 
         private QuarryView view() {
@@ -537,7 +580,8 @@ public final class QuarryManager extends SavedData {
                     level,
                     attackerFactionId,
                     captureTicksRemaining,
-                    capturePaused
+                    capturePaused,
+                    stateVersion
             );
         }
 
@@ -557,6 +601,7 @@ public final class QuarryManager extends SavedData {
             }
             tag.putInt("captureTicks", captureTicksRemaining);
             tag.putBoolean("capturePaused", capturePaused);
+            tag.putLong("stateVersion", stateVersion);
             return tag;
         }
 
@@ -580,9 +625,29 @@ public final class QuarryManager extends SavedData {
                     Math.clamp(tag.getInt("level"), 0, MAX_LEVEL),
                     tag.hasUUID("attacker") ? tag.getUUID("attacker") : null,
                     Math.clamp(tag.getInt("captureTicks"), 0, CAPTURE_TICKS),
-                    tag.getBoolean("capturePaused")
+                    tag.getBoolean("capturePaused"),
+                    Math.max(0L, tag.getLong("stateVersion"))
             ));
         }
+    }
+
+    public enum ActionResult {
+        SUCCESS,
+        INVALID_ACTION,
+        NOT_FOUND,
+        STALE_STATE,
+        NOT_IN_FACTION,
+        NO_PERMISSION,
+        REQUIRES_ACTIVATOR,
+        WRONG_STATE,
+        INSUFFICIENT_FUNDS,
+        MAX_LEVEL,
+        CAPTURE_BUSY,
+        ALREADY_CAPTURING,
+        NOT_IN_TERRITORY,
+        INVALID_REQUEST,
+        RATE_LIMITED,
+        TOO_FAR
     }
 
     private QuarryManager() {
