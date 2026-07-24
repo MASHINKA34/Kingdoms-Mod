@@ -50,6 +50,7 @@ public final class ClaimSyncManager {
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         STATES.remove(event.getEntity().getUUID());
         FactionServerHooks.clearRateLimit(event.getEntity().getUUID());
+        com.geydev.kalfactions.outpost.cluster.DrillService.clearRateLimit(event.getEntity().getUUID());
     }
 
     @SubscribeEvent

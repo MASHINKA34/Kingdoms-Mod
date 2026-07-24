@@ -13,7 +13,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class DrillNetwork {
-    private static final String PROTOCOL_VERSION = "1";
+    private static final String PROTOCOL_VERSION = "2";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -22,6 +22,11 @@ public final class DrillNetwork {
                 DrillPayloads.C2SSelectTarget.TYPE,
                 DrillPayloads.C2SSelectTarget.STREAM_CODEC,
                 DrillNetwork::handleSelect
+        );
+        registrar.playToServer(
+                DrillPayloads.C2SRequestTargets.TYPE,
+                DrillPayloads.C2SRequestTargets.STREAM_CODEC,
+                DrillNetwork::handleRequest
         );
         registrar.playToClient(
                 DrillPayloads.S2CTargets.TYPE,
@@ -33,6 +38,12 @@ public final class DrillNetwork {
     private static void handleSelect(DrillPayloads.C2SSelectTarget payload, IPayloadContext context) {
         if (context.player() instanceof ServerPlayer player) {
             DrillService.selectTarget(player, payload);
+        }
+    }
+
+    private static void handleRequest(DrillPayloads.C2SRequestTargets payload, IPayloadContext context) {
+        if (context.player() instanceof ServerPlayer player) {
+            DrillService.requestTargets(player, payload);
         }
     }
 

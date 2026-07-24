@@ -31,9 +31,23 @@ public final class DrillPayloads {
         }
     }
 
+    public record C2SRequestTargets(int containerId) implements CustomPacketPayload {
+        public static final Type<C2SRequestTargets> TYPE = payloadType("drill_request_targets");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SRequestTargets> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> buffer.writeVarInt(payload.containerId),
+                buffer -> new C2SRequestTargets(buffer.readVarInt())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record S2CTargets(
             int containerId,
             BlockPos drillPos,
+            boolean hasTarget,
             List<TargetInfo> targets
     ) implements CustomPacketPayload {
         public static final Type<S2CTargets> TYPE = payloadType("drill_targets");
@@ -44,6 +58,7 @@ public final class DrillPayloads {
                     }
                     buffer.writeVarInt(payload.containerId);
                     buffer.writeBlockPos(payload.drillPos);
+                    buffer.writeBoolean(payload.hasTarget);
                     buffer.writeVarInt(payload.targets.size());
                     for (TargetInfo target : payload.targets) {
                         target.encode(buffer);
@@ -52,6 +67,7 @@ public final class DrillPayloads {
                 buffer -> {
                     int containerId = buffer.readVarInt();
                     BlockPos drillPos = buffer.readBlockPos();
+                    boolean hasTarget = buffer.readBoolean();
                     int size = buffer.readVarInt();
                     if (size < 0 || size > MAX_TARGETS) {
                         throw new DecoderException("Drill target count " + size + " exceeds " + MAX_TARGETS);
@@ -60,7 +76,7 @@ public final class DrillPayloads {
                     for (int index = 0; index < size; index++) {
                         targets.add(TargetInfo.decode(buffer));
                     }
-                    return new S2CTargets(containerId, drillPos, List.copyOf(targets));
+                    return new S2CTargets(containerId, drillPos, hasTarget, List.copyOf(targets));
                 }
         );
 

@@ -26,13 +26,13 @@ public final class DrillMenu extends AbstractContainerMenu {
     private final ContainerData data;
 
     public DrillMenu(int containerId, Inventory playerInventory) {
-        this(containerId, playerInventory, new SimpleContainer(SLOTS), new SimpleContainerData(4));
+        this(containerId, playerInventory, new SimpleContainer(SLOTS), new SimpleContainerData(5));
     }
 
     public DrillMenu(int containerId, Inventory playerInventory, Container container, ContainerData data) {
         super(ModMenuTypes.DRILL.get(), containerId);
         checkContainerSize(container, SLOTS);
-        checkContainerDataCount(data, 4);
+        checkContainerDataCount(data, 5);
         this.container = container;
         this.data = data;
         container.startOpen(playerInventory.player);
@@ -119,6 +119,10 @@ public final class DrillMenu extends AbstractContainerMenu {
 
     public boolean hasFiniteDeposit() {
         return data.get(2) >= 0 && data.get(3) > 0;
+    }
+
+    public boolean hasTarget() {
+        return data.get(4) != 0;
     }
 
     public int depositRemaining() {

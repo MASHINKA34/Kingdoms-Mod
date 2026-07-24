@@ -5,14 +5,12 @@ import com.geydev.kalfactions.client.ClientDrillTargets;
 import com.geydev.kalfactions.menu.DrillMenu;
 import com.geydev.kalfactions.outpost.cluster.DrillPayloads;
 import com.geydev.kalfactions.outpost.cluster.ResourceClusterType;
-import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.ChunkPos;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
@@ -31,12 +29,14 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     private static final int FILL_HEIGHT = 8;
     private static final int INVENTORY_PANEL_TOP = 150;
     private static final int INVENTORY_LABEL_Y = 158;
-    private static final int TARGETS_PER_PAGE = 10;
-    private static final int TARGET_START_X = 55;
-    private static final int TARGET_Y = 12;
-    private static final int TARGET_STEP = 26;
-    private static final int TARGET_SIZE = 20;
-    private int targetPage;
+    private static final int TARGET_ICON_X = 82;
+    private static final int TARGET_ICON_Y = 30;
+    private static final int TARGET_ICON_SIZE = 20;
+    private static final int CHANGE_BUTTON_X = 258;
+    private static final int CHANGE_BUTTON_Y = 24;
+    private static final int CHANGE_BUTTON_WIDTH = 96;
+    private static final int CHANGE_BUTTON_HEIGHT = 20;
+    private boolean openingSelector;
 
     public DrillScreen(DrillMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -49,16 +49,34 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     }
 
     @Override
+    protected void init() {
+        super.init();
+        Layout layout = layout();
+        addRenderableWidget(KingdomsButton.create(
+                Component.translatable("screen.kingdoms.drill.change_target"),
+                button -> openSelector(),
+                layout.changeButtonX(),
+                layout.changeButtonY(),
+                CHANGE_BUTTON_WIDTH,
+                CHANGE_BUTTON_HEIGHT
+        ));
+        DrillPayloads.S2CTargets state = ClientDrillTargets.get(menu.containerId);
+        if (state != null && !state.hasTarget() && minecraft != null) {
+            minecraft.execute(this::openSelector);
+        }
+    }
+
+    @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         renderBackground(graphics, mouseX, mouseY, partialTick);
         super.render(graphics, mouseX, mouseY, partialTick);
         renderTooltip(graphics, mouseX, mouseY);
         renderProgressTooltip(graphics, mouseX, mouseY);
-        renderTargetTooltip(graphics, mouseX, mouseY);
     }
 
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
+        graphics.blit(BACKGROUND, leftPos, topPos, 0.0F, 0.0F, BACKGROUND_WIDTH, BACKGROUND_HEIGHT, BACKGROUND_WIDTH, BACKGROUND_HEIGHT);
         graphics.fill(
                 leftPos + PROGRESS_X - 1,
                 topPos + PROGRESS_Y - 1,
@@ -66,7 +84,7 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
                 topPos + PROGRESS_Y + FILL_HEIGHT + 1,
                 0xFF0B0D12
         );
-        float fraction = menu.progressFraction();
+        float fraction = menu.hasTarget() ? menu.progressFraction() : 0.0F;
         int fillWidth = Math.round(FILL_WIDTH * fraction);
         if (fillWidth > 0) {
             int srcWidth = Math.max(1, Math.round(PROGRESS_WIDTH * fraction));
@@ -84,49 +102,42 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
                     PROGRESS_HEIGHT
             );
         }
-        graphics.blit(BACKGROUND, leftPos, topPos, 0.0F, 0.0F, BACKGROUND_WIDTH, BACKGROUND_HEIGHT, BACKGROUND_WIDTH, BACKGROUND_HEIGHT);
-        renderTargets(graphics);
+        renderSelectedTarget(graphics);
         renderDrillSlots(graphics);
         renderPlayerInventoryPanel(graphics);
     }
 
-    private void renderTargets(GuiGraphics graphics) {
+    private void renderSelectedTarget(GuiGraphics graphics) {
+        Layout layout = layout();
         DrillPayloads.S2CTargets state = ClientDrillTargets.get(menu.containerId);
-        if (state == null || state.targets().isEmpty()) {
-            graphics.drawCenteredString(
-                    font,
-                    Component.translatable("screen.kingdoms.drill.no_targets"),
-                    imageWidth / 2,
-                    TARGET_Y + 6,
-                    0xFF9A9A9A
-            );
+        DrillPayloads.TargetInfo selected = selectedTarget(state);
+        graphics.fill(
+                layout.targetIconX() - 2,
+                layout.targetIconY() - 2,
+                layout.targetIconX() + TARGET_ICON_SIZE,
+                layout.targetIconY() + TARGET_ICON_SIZE,
+                0xFF080B10
+        );
+        graphics.fill(
+                layout.targetIconX() - 1,
+                layout.targetIconY() - 1,
+                layout.targetIconX() + TARGET_ICON_SIZE - 1,
+                layout.targetIconY() + TARGET_ICON_SIZE - 1,
+                selected == null ? 0xFF565B62 : 0xFFD3A73D
+        );
+        graphics.fill(
+                layout.targetIconX(),
+                layout.targetIconY(),
+                layout.targetIconX() + 18,
+                layout.targetIconY() + 18,
+                0xFF17202A
+        );
+        if (selected == null) {
             return;
         }
-        int pages = pageCount(state.targets());
-        targetPage = Math.clamp(targetPage, 0, pages - 1);
-        int from = targetPage * TARGETS_PER_PAGE;
-        int to = Math.min(state.targets().size(), from + TARGETS_PER_PAGE);
-        for (int index = from; index < to; index++) {
-            DrillPayloads.TargetInfo target = state.targets().get(index);
-            int x = TARGET_START_X + (index - from) * TARGET_STEP;
-            int color = target.selected() ? 0xFF42B86B : target.available() ? 0xFFD3A73D : 0xFF565B62;
-            graphics.fill(x - 2, TARGET_Y - 2, x + 20, TARGET_Y + 20, 0xFF080B10);
-            graphics.fill(x - 1, TARGET_Y - 1, x + 19, TARGET_Y + 19, color);
-            graphics.fill(x, TARGET_Y, x + 18, TARGET_Y + 18, 0xFF17202A);
-            ResourceClusterType.parse(target.type()).ifPresent(type ->
-                    graphics.renderItem(new ItemStack(type.displayItem()), x + 1, TARGET_Y + 1)
-            );
-        }
-        if (pages > 1) {
-            graphics.drawString(font, "<", TARGET_START_X - 20, TARGET_Y + 5, targetPage > 0 ? 0xFFFFFFFF : 0xFF555555);
-            graphics.drawString(
-                    font,
-                    ">",
-                    TARGET_START_X + TARGETS_PER_PAGE * TARGET_STEP + 1,
-                    TARGET_Y + 5,
-                    targetPage + 1 < pages ? 0xFFFFFFFF : 0xFF555555
-            );
-        }
+        ResourceClusterType.parse(selected.type()).ifPresent(type ->
+                graphics.renderItem(new ItemStack(type.displayItem()), layout.targetIconX() + 1, layout.targetIconY() + 1)
+        );
     }
 
     private void renderDrillSlots(GuiGraphics graphics) {
@@ -184,7 +195,7 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     }
 
     private void renderProgressTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
-        if (!isMouseOverProgress(mouseX, mouseY)) {
+        if (!menu.hasTarget() || !isMouseOverProgress(mouseX, mouseY)) {
             return;
         }
         Component timer = Component.translatable("screen.kingdoms.drill.remaining", formatTicks(menu.remainingTicks()));
@@ -198,85 +209,11 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
                 && mouseY < topPos + PROGRESS_Y + FILL_HEIGHT;
     }
 
-    private void renderTargetTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
-        DrillPayloads.TargetInfo target = targetAt(mouseX, mouseY);
-        if (target == null) {
-            return;
-        }
-        ChunkPos chunk = new ChunkPos(target.chunk());
-        Component resource = ResourceClusterType.parse(target.type())
-                .map(type -> type.displayItem().getDescription())
-                .orElse(Component.literal(target.type()));
-        String statusKey = target.selected()
-                ? "screen.kingdoms.drill.target_selected"
-                : target.available()
-                        ? "screen.kingdoms.drill.target_available"
-                        : "screen.kingdoms.drill.target_busy";
-        graphics.renderTooltip(
-                font,
-                List.of(
-                        resource,
-                        Component.translatable(
-                                "screen.kingdoms.drill.target_details",
-                                chunk.x,
-                                chunk.z,
-                                target.richness()
-                        ),
-                        Component.translatable(statusKey)
-                ),
-                java.util.Optional.empty(),
-                mouseX,
-                mouseY
-        );
-    }
-
-    private DrillPayloads.TargetInfo targetAt(double mouseX, double mouseY) {
-        DrillPayloads.S2CTargets state = ClientDrillTargets.get(menu.containerId);
-        if (state == null || mouseY < topPos + TARGET_Y - 2 || mouseY >= topPos + TARGET_Y + TARGET_SIZE) {
-            return null;
-        }
-        int local = (int) mouseX - leftPos - TARGET_START_X;
-        if (local < -2) {
-            return null;
-        }
-        int column = local / TARGET_STEP;
-        if (column < 0 || column >= TARGETS_PER_PAGE || local % TARGET_STEP >= TARGET_SIZE) {
-            return null;
-        }
-        int index = targetPage * TARGETS_PER_PAGE + column;
-        return index < state.targets().size() ? state.targets().get(index) : null;
-    }
-
-    @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0) {
-            DrillPayloads.S2CTargets state = ClientDrillTargets.get(menu.containerId);
-            if (state != null && pageCount(state.targets()) > 1
-                    && mouseY >= topPos + TARGET_Y - 2
-                    && mouseY < topPos + TARGET_Y + TARGET_SIZE) {
-                if (mouseX >= leftPos + TARGET_START_X - 22 && mouseX < leftPos + TARGET_START_X - 4 && targetPage > 0) {
-                    targetPage--;
-                    return true;
-                }
-                if (mouseX >= leftPos + TARGET_START_X + TARGETS_PER_PAGE * TARGET_STEP
-                        && mouseX < leftPos + TARGET_START_X + TARGETS_PER_PAGE * TARGET_STEP + 18
-                        && targetPage + 1 < pageCount(state.targets())) {
-                    targetPage++;
-                    return true;
-                }
-            }
-            DrillPayloads.TargetInfo target = targetAt(mouseX, mouseY);
-            if (target != null && target.available()) {
-                PacketDistributor.sendToServer(new DrillPayloads.C2SSelectTarget(menu.containerId, target.chunk()));
-                return true;
-            }
-        }
-        return super.mouseClicked(mouseX, mouseY, button);
-    }
-
     @Override
     public void removed() {
-        ClientDrillTargets.clear(menu.containerId);
+        if (!openingSelector) {
+            ClientDrillTargets.clear(menu.containerId);
+        }
         super.removed();
     }
 
@@ -293,6 +230,13 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
                     );
             graphics.drawCenteredString(font, reserve, imageWidth / 2, 34, 0xFFE8D6A0);
         }
+        DrillPayloads.TargetInfo selected = selectedTarget(ClientDrillTargets.get(menu.containerId));
+        Component targetName = selected == null
+                ? Component.translatable("screen.kingdoms.drill.no_target")
+                : ResourceClusterType.parse(selected.type())
+                        .map(type -> type.displayItem().getDescription())
+                        .orElse(Component.literal(selected.type()));
+        graphics.drawString(font, targetName, TARGET_ICON_X + 24, TARGET_ICON_Y + 5, 0xFFE8D6A0, false);
     }
 
     private static String formatTicks(int ticks) {
@@ -303,7 +247,54 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
         return String.format("%02d:%02d:%02d", hours, minutes, seconds);
     }
 
-    private static int pageCount(List<DrillPayloads.TargetInfo> targets) {
-        return Math.max(1, (targets.size() + TARGETS_PER_PAGE - 1) / TARGETS_PER_PAGE);
+    public void acceptState(DrillPayloads.S2CTargets state) {
+        if (!state.hasTarget()) {
+            openSelector();
+        }
+    }
+
+    void returnFromSelector() {
+        openingSelector = false;
+        if (minecraft != null) {
+            minecraft.setScreen(this);
+        }
+    }
+
+    private void openSelector() {
+        if (minecraft == null || minecraft.screen instanceof DrillTargetScreen) {
+            return;
+        }
+        openingSelector = true;
+        PacketDistributor.sendToServer(new DrillPayloads.C2SRequestTargets(menu.containerId));
+        minecraft.setScreen(new DrillTargetScreen(this, ClientDrillTargets.get(menu.containerId)));
+    }
+
+    private Layout layout() {
+        return new Layout(leftPos, topPos);
+    }
+
+    private static DrillPayloads.TargetInfo selectedTarget(DrillPayloads.S2CTargets state) {
+        if (state == null || !state.hasTarget()) {
+            return null;
+        }
+        return state.targets().stream().filter(DrillPayloads.TargetInfo::selected).findFirst().orElse(null);
+    }
+
+    record Layout(int left, int top) {
+        int targetIconX() {
+            return left + TARGET_ICON_X;
+        }
+
+        int targetIconY() {
+            return top + TARGET_ICON_Y;
+        }
+
+        int changeButtonX() {
+            return left + CHANGE_BUTTON_X;
+        }
+
+        int changeButtonY() {
+            return top + CHANGE_BUTTON_Y;
+        }
     }
 }

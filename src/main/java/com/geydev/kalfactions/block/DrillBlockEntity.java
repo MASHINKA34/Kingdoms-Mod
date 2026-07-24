@@ -45,6 +45,7 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
                 case 1 -> interval;
                 case 2 -> depositRemaining;
                 case 3 -> depositOriginal;
+                case 4 -> targetClusterChunk == null ? 0 : 1;
                 default -> 0;
             };
         }
@@ -58,7 +59,7 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
 
         @Override
         public int getCount() {
-            return 4;
+            return 5;
         }
     };
     private int progress;
@@ -86,6 +87,14 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
 
     public void runCheck(ServerLevel serverLevel, BlockPos pos) {
         recomputeInterval(serverLevel, pos);
+        if (targetClusterChunk == null) {
+            resetIdleClock();
+            return;
+        }
+        if (!hasValidTarget(serverLevel, pos)) {
+            releaseTarget(serverLevel);
+            return;
+        }
         long now = System.currentTimeMillis();
         if (lastProduceMillis == 0L) {
             lastProduceMillis = now;
@@ -147,6 +156,22 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         insert(output);
         setChanged();
         return ProduceResult.PRODUCED;
+    }
+
+    private boolean hasValidTarget(ServerLevel level, BlockPos pos) {
+        if (targetClusterChunk == null) {
+            return false;
+        }
+        Faction faction = FactionManager.get(level)
+                .getFactionAt(ClaimKey.of(level, new ChunkPos(pos)))
+                .orElse(null);
+        ChunkPos targetChunk = new ChunkPos(targetClusterChunk);
+        ResourceClusterManager clusters = ResourceClusterManager.get(level);
+        return faction != null
+                && faction.hasClaim(ClaimKey.of(level, targetChunk))
+                && clusters.clusterAt(targetChunk).isPresent()
+                && (clusters.isBoundDrill(targetChunk, worldPosition)
+                        || clusters.bindDrill(targetChunk, worldPosition));
     }
 
     private boolean canFit(ItemStack stack) {
@@ -213,13 +238,32 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
     }
 
     public void releaseTarget(ServerLevel level) {
-        if (targetClusterChunk == null) {
-            return;
+        boolean released = false;
+        if (targetClusterChunk != null) {
+            ResourceClusterManager.get(level).unbindDrill(new ChunkPos(targetClusterChunk), worldPosition);
+            targetClusterChunk = null;
+            released = true;
         }
-        ResourceClusterManager.get(level).unbindDrill(new ChunkPos(targetClusterChunk), worldPosition);
-        targetClusterChunk = null;
-        progress = 0;
-        setChanged();
+        resetIdleClock();
+        if (released) {
+            setChanged();
+        }
+    }
+
+    public int progressTicks() {
+        return progress;
+    }
+
+    public long lastProduceMillis() {
+        return lastProduceMillis;
+    }
+
+    private void resetIdleClock() {
+        if (lastProduceMillis != 0L || progress != 0) {
+            lastProduceMillis = 0L;
+            progress = 0;
+            setChanged();
+        }
     }
 
     @Override
@@ -303,6 +347,10 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         ContainerHelper.loadAllItems(tag, items, registries);
         lastProduceMillis = tag.getLong(TAG_LAST);
         targetClusterChunk = tag.contains(TAG_TARGET) ? tag.getLong(TAG_TARGET) : null;
+        if (targetClusterChunk == null) {
+            lastProduceMillis = 0L;
+            progress = 0;
+        }
     }
 
     @Override
