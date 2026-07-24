@@ -68,12 +68,14 @@ public final class ClaimSyncManager {
         long chunkPos = player.chunkPosition().toLong();
         long revision = IntegrationManager.revision();
         long sanctuaryRevision = SanctuaryManager.get(player.serverLevel()).revision();
+        long quarryRevision = com.geydev.kalfactions.quarry.QuarryManager.get(player.serverLevel()).mapRevision();
         ViewerMembership membership = viewerMembership(player);
         SyncState previous = STATES.get(player.getUUID());
         if (previous != null
                 && previous.dimension.equals(dimension)
                 && previous.revision == revision
                 && previous.sanctuaryRevision == sanctuaryRevision
+                && previous.quarryRevision == quarryRevision
                 && previous.viewerFactionId.equals(membership.factionId())
                 && previous.viewerMemberIds.equals(membership.memberIds())
                 && within(previous.chunkPos, chunkPos)) {
@@ -96,9 +98,60 @@ public final class ClaimSyncManager {
         ResourceKey<Level> dimension = player.level().dimension();
         long revision = IntegrationManager.revision();
         long sanctuaryRevision = SanctuaryManager.get(player.serverLevel()).revision();
+        long quarryRevision = com.geydev.kalfactions.quarry.QuarryManager.get(player.serverLevel()).mapRevision();
         List<FactionPayloads.ClaimEntry> entries = new ArrayList<>();
         java.util.Set<UUID> frozenFactions =
                 com.geydev.kalfactions.tax.LagTaxManager.get(player.getServer()).frozenFactionIds();
+
+        quarry:
+        for (com.geydev.kalfactions.quarry.QuarryManager.QuarryView quarry
+                : com.geydev.kalfactions.quarry.QuarryManager.get(player.serverLevel()).all()) {
+            Faction owner = quarry.ownerFactionId() == null
+                    ? null
+                    : FactionManager.get(player.serverLevel()).getFactionById(quarry.ownerFactionId()).orElse(null);
+            for (ClaimKey chunk : quarry.chunks()) {
+                if (!chunk.dimension().equals(dimension)) {
+                    continue;
+                }
+                if (entries.size() >= FactionPayloads.S2CSyncClaims.MAX_ENTRIES) {
+                    break quarry;
+                }
+                entries.add(new FactionPayloads.ClaimEntry(
+                        chunk.x(),
+                        chunk.z(),
+                        owner == null ? com.geydev.kalfactions.quarry.QuarryManager.NEUTRAL_COLOR : owner.color(),
+                        owner == null ? "" : owner.name(),
+                        owner == null
+                                ? com.geydev.kalfactions.quarry.QuarryManager.NEUTRAL_MAP_ID
+                                : owner.id(),
+                        false,
+                        false,
+                        false,
+                        false,
+                        true
+                ));
+            }
+        }
+
+        sanctuary:
+        for (com.geydev.kalfactions.claim.ClaimKey chunk
+                : SanctuaryManager.get(player.serverLevel()).claimsIn(dimension)) {
+            if (entries.size() >= FactionPayloads.S2CSyncClaims.MAX_ENTRIES) {
+                break sanctuary;
+            }
+            entries.add(new FactionPayloads.ClaimEntry(
+                    chunk.x(),
+                    chunk.z(),
+                    SanctuaryManager.SANCTUARY_COLOR,
+                    SANCTUARY_NAME,
+                    SanctuaryManager.SANCTUARY_FACTION_ID,
+                    false,
+                    false,
+                    true,
+                    false,
+                    false
+            ));
+        }
 
         outer:
         for (FactionMapData faction : IntegrationManager.snapshots()) {
@@ -149,56 +202,6 @@ public final class ClaimSyncManager {
             }
         }
 
-        sanctuary:
-        for (com.geydev.kalfactions.claim.ClaimKey chunk
-                : SanctuaryManager.get(player.serverLevel()).claimsIn(dimension)) {
-            if (entries.size() >= FactionPayloads.S2CSyncClaims.MAX_ENTRIES) {
-                break sanctuary;
-            }
-            entries.add(new FactionPayloads.ClaimEntry(
-                    chunk.x(),
-                    chunk.z(),
-                    SanctuaryManager.SANCTUARY_COLOR,
-                    SANCTUARY_NAME,
-                    SanctuaryManager.SANCTUARY_FACTION_ID,
-                    false,
-                    false,
-                    true,
-                    false,
-                    false
-            ));
-        }
-
-        quarry:
-        for (com.geydev.kalfactions.quarry.QuarryManager.QuarryView quarry
-                : com.geydev.kalfactions.quarry.QuarryManager.get(player.serverLevel()).all()) {
-            Faction owner = quarry.ownerFactionId() == null
-                    ? null
-                    : FactionManager.get(player.serverLevel()).getFactionById(quarry.ownerFactionId()).orElse(null);
-            for (ClaimKey chunk : quarry.chunks()) {
-                if (!chunk.dimension().equals(dimension)) {
-                    continue;
-                }
-                if (entries.size() >= FactionPayloads.S2CSyncClaims.MAX_ENTRIES) {
-                    break quarry;
-                }
-                entries.add(new FactionPayloads.ClaimEntry(
-                        chunk.x(),
-                        chunk.z(),
-                        owner == null ? com.geydev.kalfactions.quarry.QuarryManager.NEUTRAL_COLOR : owner.color(),
-                        owner == null ? "" : owner.name(),
-                        owner == null
-                                ? com.geydev.kalfactions.quarry.QuarryManager.NEUTRAL_MAP_ID
-                                : owner.id(),
-                        false,
-                        false,
-                        false,
-                        false,
-                        true
-                ));
-            }
-        }
-
         Faction viewerFaction = FactionManager.get(player.serverLevel())
                 .getFactionForMember(player.getUUID())
                 .orElse(null);
@@ -220,6 +223,7 @@ public final class ClaimSyncManager {
                 player.chunkPosition().toLong(),
                 revision,
                 sanctuaryRevision,
+                quarryRevision,
                 membership.factionId(),
                 membership.memberIds()
         ));
@@ -259,6 +263,7 @@ public final class ClaimSyncManager {
             long chunkPos,
             long revision,
             long sanctuaryRevision,
+            long quarryRevision,
             UUID viewerFactionId,
             List<UUID> viewerMemberIds
     ) {

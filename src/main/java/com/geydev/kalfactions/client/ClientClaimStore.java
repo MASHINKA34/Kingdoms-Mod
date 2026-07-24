@@ -3,6 +3,7 @@ package com.geydev.kalfactions.client;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -143,7 +144,10 @@ public final class ClientClaimStore {
         Map<Long, Integer> hashes = REGION_HASHES.get(dimension);
         Integer hash = hashes == null ? null : hashes.get(ChunkPos.asLong(regionX, regionZ));
         int explicit = hash == null ? 0 : hash;
-        return regionIntersectsBlack(dimension, regionX, regionZ) ? explicit * 31 + 0x101010 : explicit;
+        ZoneInfo zone = ZONES.get(dimension);
+        return zone != null && regionIntersectsBlack(dimension, regionX, regionZ)
+                ? explicit * 31 + Objects.hash(zone.spawnX(), zone.spawnZ(), zone.redRadius(), 0x080808)
+                : explicit;
     }
 
     public static long revision() {
@@ -171,7 +175,10 @@ public final class ClientClaimStore {
             claimHash = claimHash * 31 + claim.factionId().hashCode();
             claimHash = claimHash * 31 + (claim.forceLoaded() ? 1 : 0);
             claimHash = claimHash * 31 + (claim.outpost() ? 1 : 0);
+            claimHash = claimHash * 31 + (claim.sanctuary() ? 1 : 0);
             claimHash = claimHash * 31 + (claim.frozen() ? 1 : 0);
+            claimHash = claimHash * 31 + (claim.quarry() ? 1 : 0);
+            claimHash = claimHash * 31 + claim.name().hashCode();
             touchedRegions.clear();
             for (int dx = -1; dx <= 1; dx++) {
                 for (int dz = -1; dz <= 1; dz++) {
@@ -208,6 +215,16 @@ public final class ClientClaimStore {
                 || isBlack(dimension, maxChunkX, minChunkZ)
                 || isBlack(dimension, minChunkX, maxChunkZ)
                 || isBlack(dimension, maxChunkX, maxChunkZ);
+    }
+
+    static int priority(ClaimInfo claim) {
+        if (claim.quarry()) {
+            return 3;
+        }
+        if (claim.sanctuary()) {
+            return 2;
+        }
+        return 1;
     }
 
     private ClientClaimStore() {

@@ -139,18 +139,7 @@ public final class ClientFactionPayloadHandler {
     public static void handleSyncClaims(FactionPayloads.S2CSyncClaims payload) {
         Map<Long, ClientClaimStore.ClaimInfo> claims = new HashMap<>();
         for (FactionPayloads.ClaimEntry entry : payload.claims()) {
-            claims.put(
-                    ChunkPos.asLong(entry.chunkX(), entry.chunkZ()),
-                    new ClientClaimStore.ClaimInfo(
-                            entry.color(),
-                            entry.name(),
-                            entry.factionId(),
-                            entry.outpost(),
-                            entry.forceLoaded(),
-                            entry.sanctuary(),
-                            entry.frozen(),
-                            entry.quarry())
-            );
+            mergeClaim(claims, entry);
         }
         ClientClaimStore.ViewerInfo viewer = new ClientClaimStore.ViewerInfo(
                 payload.viewerFactionId(),
@@ -172,6 +161,31 @@ public final class ClientFactionPayloadHandler {
                     )
             );
         });
+    }
+
+    static void mergeClaim(
+            Map<Long, ClientClaimStore.ClaimInfo> claims,
+            FactionPayloads.ClaimEntry entry
+    ) {
+        long chunk = ChunkPos.asLong(entry.chunkX(), entry.chunkZ());
+        ClientClaimStore.ClaimInfo incoming = new ClientClaimStore.ClaimInfo(
+                entry.color(),
+                entry.name(),
+                entry.factionId(),
+                entry.outpost(),
+                entry.forceLoaded(),
+                entry.sanctuary(),
+                entry.frozen(),
+                entry.quarry()
+        );
+        claims.merge(
+                chunk,
+                incoming,
+                (current, replacement) -> ClientClaimStore.priority(replacement)
+                                >= ClientClaimStore.priority(current)
+                        ? replacement
+                        : current
+        );
     }
 
     private ClientFactionPayloadHandler() {

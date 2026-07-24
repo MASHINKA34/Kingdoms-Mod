@@ -39,11 +39,11 @@ final class KingdomsHighlighter extends ChunkHighlighter {
             ResourceKey<Level> dimension,
             int chunkX,
             int chunkZ,
-            int height
+        int height
     ) {
         ClaimInfo claim = ClientClaimStore.get(dimension, chunkX, chunkZ);
-        if (claim != null && !claim.name().isBlank()) {
-            compiler.addLine(claimLabel(claim));
+        if (claim != null) {
+            addMinimapLabels(claim, compiler::addLine);
             if (claim.forceLoaded()) {
                 compiler.addLine(Component.translatable("kingdoms.xaero.forceload_label"));
             }
@@ -53,9 +53,21 @@ final class KingdomsHighlighter extends ChunkHighlighter {
         }
     }
 
+    static void addMinimapLabels(ClaimInfo claim, java.util.function.Consumer<Component> lines) {
+        if (claim.factionId().equals(ClientClaimStore.BLACK_ZONE_ID)) {
+            lines.accept(Component.translatable("kingdoms.xaero.black_zone_title"));
+            lines.accept(Component.translatable("kingdoms.xaero.black_zone_restriction"));
+            return;
+        }
+        Component label = claimLabel(claim);
+        if (label != null) {
+            lines.accept(label);
+        }
+    }
+
     static Component claimLabel(ClaimInfo claim) {
         if (claim.factionId().equals(ClientClaimStore.BLACK_ZONE_ID)) {
-            return Component.translatable("kingdoms.xaero.black_zone_label");
+            return Component.translatable("kingdoms.xaero.black_zone_title");
         }
         if (claim.quarry()) {
             return claim.name().isBlank()
@@ -64,6 +76,9 @@ final class KingdomsHighlighter extends ChunkHighlighter {
         }
         if (claim.sanctuary()) {
             return Component.translatable("kingdoms.xaero.sanctuary_label");
+        }
+        if (claim.name().isBlank()) {
+            return null;
         }
         return claim.outpost()
                 ? Component.translatable("kingdoms.xaero.outpost_label", claim.name())

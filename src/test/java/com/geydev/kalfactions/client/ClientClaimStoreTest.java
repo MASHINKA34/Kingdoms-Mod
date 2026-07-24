@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.geydev.kalfactions.net.FactionPayloads;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.resources.ResourceLocation;
@@ -64,6 +66,50 @@ class ClientClaimStoreTest {
         assertFalse(ClientClaimStore.regionHasClaims(Level.OVERWORLD, 0, 0));
         assertTrue(ClientClaimStore.regionHasClaims(Level.OVERWORLD, 15, 0));
         assertTrue(ClientClaimStore.regionHash(Level.OVERWORLD, 15, 0) != 0);
+    }
+
+    @Test
+    void proceduralZoneGeometryChangesRegionHash() {
+        replace(Map.of());
+        int original = ClientClaimStore.regionHash(Level.OVERWORLD, 15, 0);
+
+        ClientClaimStore.replace(
+                OVERWORLD,
+                Map.of(),
+                new ClientClaimStore.ViewerInfo(new UUID(0L, 0L), 0, 0.0D),
+                new ClientClaimStore.ZoneInfo(16, 0, 7_900, true)
+        );
+
+        assertTrue(original != ClientClaimStore.regionHash(Level.OVERWORLD, 15, 0));
+    }
+
+    @Test
+    void quarryEntryWinsRegardlessOfPayloadOrder() {
+        Map<Long, ClientClaimStore.ClaimInfo> claims = new HashMap<>();
+        FactionPayloads.ClaimEntry quarry = entry(true, false, "");
+        FactionPayloads.ClaimEntry faction = entry(false, false, "Faction");
+        FactionPayloads.ClaimEntry sanctuary = entry(false, true, "Spawn");
+
+        ClientFactionPayloadHandler.mergeClaim(claims, quarry);
+        ClientFactionPayloadHandler.mergeClaim(claims, sanctuary);
+        ClientFactionPayloadHandler.mergeClaim(claims, faction);
+
+        assertTrue(claims.get(ChunkPos.asLong(500, 0)).quarry());
+    }
+
+    private static FactionPayloads.ClaimEntry entry(boolean quarry, boolean sanctuary, String name) {
+        return new FactionPayloads.ClaimEntry(
+                500,
+                0,
+                0x777777,
+                name,
+                UUID.randomUUID(),
+                false,
+                false,
+                sanctuary,
+                false,
+                quarry
+        );
     }
 
     private static void replace(Map<Long, ClientClaimStore.ClaimInfo> claims) {

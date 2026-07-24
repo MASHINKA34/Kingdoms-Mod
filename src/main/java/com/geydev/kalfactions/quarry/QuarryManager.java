@@ -56,6 +56,7 @@ public final class QuarryManager extends SavedData {
     private final Map<UUID, Quarry> quarries = new LinkedHashMap<>();
     private final Map<Long, UUID> coreIndex = new LinkedHashMap<>();
     private final transient Map<UUID, ServerBossEvent> bossBars = new LinkedHashMap<>();
+    private transient long mapRevision;
 
     public static QuarryManager get(MinecraftServer server) {
         Objects.requireNonNull(server, "server");
@@ -77,6 +78,10 @@ public final class QuarryManager extends SavedData {
         UUID id = coreIndex.get(pos.asLong());
         Quarry quarry = id == null ? null : quarries.get(id);
         return quarry == null ? Optional.empty() : Optional.of(quarry.view());
+    }
+
+    public synchronized long mapRevision() {
+        return mapRevision;
     }
 
     public synchronized boolean isQuarry(ServerLevel level, BlockPos pos) {
@@ -142,6 +147,7 @@ public final class QuarryManager extends SavedData {
         coreIndex.put(core.asLong(), id);
         level.setBlockAndUpdate(core, ModBlocks.QUARRY_CORE.get().defaultBlockState());
         setDirty();
+        mapRevision++;
         sync(level.getServer());
         return CreateResult.CREATED;
     }
@@ -171,6 +177,7 @@ public final class QuarryManager extends SavedData {
                 held.shrink(1);
             }
             setDirty();
+            mapRevision++;
             sync(player.getServer());
             notifyFaction(player.getServer(), faction.id(),
                     Component.translatable("kingdoms.quarry.activated", quarry.core.getX(), quarry.core.getZ()), true);
@@ -203,6 +210,7 @@ public final class QuarryManager extends SavedData {
                 quarry.captureTicksRemaining = CAPTURE_TICKS;
                 quarry.capturePaused = false;
                 removeBossBar(quarry.id);
+                mapRevision++;
                 sync(server);
                 dirty = true;
                 continue;
@@ -251,6 +259,7 @@ public final class QuarryManager extends SavedData {
                         Component.translatable("kingdoms.quarry.lost", quarry.core.getX(), quarry.core.getZ()), false);
                 notifyFaction(server, newOwner,
                         Component.translatable("kingdoms.quarry.captured", quarry.core.getX(), quarry.core.getZ()), true);
+                mapRevision++;
                 sync(server);
                 dirty = true;
             }
@@ -271,6 +280,7 @@ public final class QuarryManager extends SavedData {
         quarries.remove(id);
         removeBossBar(id);
         setDirty();
+        mapRevision++;
         sync(level.getServer());
         return true;
     }

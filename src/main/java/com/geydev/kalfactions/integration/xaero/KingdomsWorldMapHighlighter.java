@@ -46,10 +46,7 @@ final class KingdomsWorldMapHighlighter extends ChunkHighlighter {
     @Override
     public Component getChunkHighlightBluntTooltip(ResourceKey<Level> dimension, int chunkX, int chunkZ) {
         ClaimInfo claim = ClientClaimStore.get(dimension, chunkX, chunkZ);
-        if (claim == null || claim.name().isBlank()) {
-            return null;
-        }
-        return KingdomsHighlighter.claimLabel(claim);
+        return claim == null ? null : KingdomsHighlighter.claimLabel(claim);
     }
 
     @Override
@@ -61,8 +58,8 @@ final class KingdomsWorldMapHighlighter extends ChunkHighlighter {
             int height
     ) {
         ClaimInfo claim = ClientClaimStore.get(dimension, blockX >> 4, blockZ >> 4);
-        if (claim != null && !claim.name().isBlank()) {
-            lines.add(KingdomsHighlighter.claimLabel(claim));
+        if (claim != null) {
+            KingdomsHighlighter.addMinimapLabels(claim, lines::add);
             if (claim.forceLoaded()) {
                 lines.add(Component.translatable("kingdoms.xaero.forceload_label"));
             }
