@@ -170,13 +170,12 @@ public final class FactionServerHooks {
         }
         ServerLevel level = player.serverLevel();
         SanctuaryManager manager = SanctuaryManager.get(level);
-        int changed = 0;
+        List<ClaimKey> keys = new ArrayList<>(packedChunks.size());
         for (Long packed : packedChunks) {
             ChunkPos pos = new ChunkPos(packed);
-            if (manager.setClaim(new ClaimKey(level.dimension(), pos), claimed)) {
-                changed++;
-            }
+            keys.add(new ClaimKey(level.dimension(), pos));
         }
+        int changed = manager.setClaims(keys, claimed);
         if (changed > 0) {
             ClaimSyncManager.resyncAll(player.getServer());
         }
@@ -186,6 +185,43 @@ public final class FactionServerHooks {
                         claimed ? "kingdoms.sanctuary.map_marked" : "kingdoms.sanctuary.map_unmarked",
                         changed),
                 changed > 0
+        );
+    }
+
+    public static void clearSanctuaryLayer(ServerPlayer player, boolean automatic) {
+        if (!player.isAlive() || player.isSpectator() || !player.hasPermissions(2)) {
+            sendNotice(player, Component.translatable("kingdoms.sanctuary.not_operator"), false);
+            return;
+        }
+        long now = player.level().getGameTime();
+        Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+        if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
+            sendNotice(player, Component.translatable("kingdoms.error.action_rate_limited"), false);
+            return;
+        }
+        ServerLevel level = player.serverLevel();
+        SanctuaryManager manager = SanctuaryManager.get(level);
+        int changed;
+        boolean updated;
+        if (automatic) {
+            changed = manager.automaticClaimCount(level.dimension());
+            updated = manager.clearAutomaticSpawn();
+        } else {
+            changed = manager.clearManualClaims(level.dimension());
+            updated = changed > 0;
+        }
+        if (updated) {
+            ClaimSyncManager.resyncAll(player.getServer());
+        }
+        sendNotice(
+                player,
+                Component.translatable(
+                        automatic
+                                ? "kingdoms.sanctuary.automatic_cleared"
+                                : "kingdoms.sanctuary.manual_cleared",
+                        changed
+                ),
+                updated
         );
     }
 
@@ -222,7 +258,8 @@ public final class FactionServerHooks {
         ServerLevel level = player.serverLevel();
         ChunkPos center = new ChunkPos(corePos);
         List<Long> chunks = new ArrayList<>();
-        for (ClaimKey key : SanctuaryManager.get(level).claimsIn(level.dimension())) {
+        SanctuaryManager manager = SanctuaryManager.get(level);
+        for (ClaimKey key : manager.claimsIn(level.dimension())) {
             if (Math.abs(key.x() - center.x) <= SANCTUARY_MAP_RADIUS
                     && Math.abs(key.z() - center.z) <= SANCTUARY_MAP_RADIUS) {
                 chunks.add(ChunkPos.asLong(key.x(), key.z()));
@@ -234,6 +271,8 @@ public final class FactionServerHooks {
                 center.z,
                 SANCTUARY_MAP_RADIUS,
                 chunks,
+                manager.manualClaimCount(level.dimension()),
+                manager.automaticClaimCount(level.dimension()),
                 message,
                 successful
         ));

@@ -228,7 +228,7 @@ public final class ModConfigSpec {
         RESOURCE_WORLD_BORDER_SIZE = builder
             .comment("One-time overworld border size in blocks; centered on the shared spawn.")
             .defineInRange("worldBorderSize", 20_000, 1_000, 60_000_000);
-        RESOURCE_BLUE_RADIUS = builder.defineInRange("blueRadius", 200, 0, 1000000);
+        RESOURCE_BLUE_RADIUS = builder.defineInRange("safeZoneRadius", 200, 0, 1000000);
         RESOURCE_YELLOW_RADIUS = builder.defineInRange("yellowRadius", 5000, 1, 1000000);
         RESOURCE_RED_RADIUS = builder.defineInRange("redRadius", 8000, 1, 1000000);
         RESOURCE_CELL_SIZE = builder.defineInRange("cellSizeBlocks", 256, 64, 4096);

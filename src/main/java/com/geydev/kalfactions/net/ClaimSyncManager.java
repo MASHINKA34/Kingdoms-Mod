@@ -67,11 +67,13 @@ public final class ClaimSyncManager {
         ResourceKey<Level> dimension = player.level().dimension();
         long chunkPos = player.chunkPosition().toLong();
         long revision = IntegrationManager.revision();
+        long sanctuaryRevision = SanctuaryManager.get(player.serverLevel()).revision();
         ViewerMembership membership = viewerMembership(player);
         SyncState previous = STATES.get(player.getUUID());
         if (previous != null
                 && previous.dimension.equals(dimension)
                 && previous.revision == revision
+                && previous.sanctuaryRevision == sanctuaryRevision
                 && previous.viewerFactionId.equals(membership.factionId())
                 && previous.viewerMemberIds.equals(membership.memberIds())
                 && within(previous.chunkPos, chunkPos)) {
@@ -93,6 +95,7 @@ public final class ClaimSyncManager {
     private static void sendTo(ServerPlayer player) {
         ResourceKey<Level> dimension = player.level().dimension();
         long revision = IntegrationManager.revision();
+        long sanctuaryRevision = SanctuaryManager.get(player.serverLevel()).revision();
         List<FactionPayloads.ClaimEntry> entries = new ArrayList<>();
         java.util.Set<UUID> frozenFactions =
                 com.geydev.kalfactions.tax.LagTaxManager.get(player.getServer()).frozenFactionIds();
@@ -216,6 +219,7 @@ public final class ClaimSyncManager {
                 dimension,
                 player.chunkPosition().toLong(),
                 revision,
+                sanctuaryRevision,
                 membership.factionId(),
                 membership.memberIds()
         ));
@@ -254,6 +258,7 @@ public final class ClaimSyncManager {
             ResourceKey<Level> dimension,
             long chunkPos,
             long revision,
+            long sanctuaryRevision,
             UUID viewerFactionId,
             List<UUID> viewerMemberIds
     ) {

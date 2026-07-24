@@ -29,12 +29,14 @@ public final class SanctuaryManager extends SavedData {
 
     private static final String TAG_CLAIMS = "claims";
     private static final String TAG_AUTOMATIC_CLAIMS = "automaticClaims";
+    private static final String TAG_AUTOMATIC_EXCLUSIONS = "automaticExclusions";
     private static final String TAG_AUTOMATIC_INITIALIZED = "automaticInitialized";
     private static final String TAG_AUTOMATIC_ANCHOR = "automaticAnchor";
     private static final String TAG_WORLD_BORDER_INITIALIZED = "worldBorderInitialized";
 
     private final Set<ClaimKey> manualClaims = new LinkedHashSet<>();
     private final Set<ClaimKey> automaticClaims = new LinkedHashSet<>();
+    private final Set<ClaimKey> automaticExclusions = new LinkedHashSet<>();
     private boolean automaticInitialized;
     private BlockPos automaticAnchor;
     private boolean worldBorderInitialized;
@@ -51,12 +53,15 @@ public final class SanctuaryManager extends SavedData {
 
     public synchronized Set<ClaimKey> claims() {
         Set<ClaimKey> combined = new LinkedHashSet<>(manualClaims);
-        combined.addAll(automaticClaims);
+        automaticClaims.stream()
+                .filter(key -> !automaticExclusions.contains(key))
+                .forEach(combined::add);
         return Set.copyOf(combined);
     }
 
     public synchronized boolean isSanctuary(ClaimKey key) {
-        return manualClaims.contains(key) || automaticClaims.contains(key);
+        return manualClaims.contains(key)
+                || automaticClaims.contains(key) && !automaticExclusions.contains(key);
     }
 
     public synchronized boolean isSanctuary(Level level, BlockPos pos) {
@@ -78,7 +83,19 @@ public final class SanctuaryManager extends SavedData {
     }
 
     public synchronized boolean setClaim(ClaimKey key, boolean claimed) {
-        boolean updated = claimed ? manualClaims.add(key) : manualClaims.remove(key);
+        boolean updated;
+        if (claimed) {
+            if (automaticClaims.contains(key)) {
+                updated = automaticExclusions.remove(key);
+            } else {
+                updated = manualClaims.add(key);
+            }
+        } else {
+            updated = manualClaims.remove(key);
+            if (automaticClaims.contains(key)) {
+                updated |= automaticExclusions.add(key);
+            }
+        }
         if (updated) {
             revision++;
             setDirty();
@@ -89,8 +106,20 @@ public final class SanctuaryManager extends SavedData {
     public synchronized int setClaims(Collection<ClaimKey> keys, boolean claimed) {
         int changed = 0;
         for (ClaimKey key : keys) {
-            boolean updated = claimed ? manualClaims.add(key) : manualClaims.remove(key);
-            if (updated) {
+            boolean wasClaimed = isSanctuary(key);
+            if (claimed) {
+                if (automaticClaims.contains(key)) {
+                    automaticExclusions.remove(key);
+                } else {
+                    manualClaims.add(key);
+                }
+            } else {
+                manualClaims.remove(key);
+                if (automaticClaims.contains(key)) {
+                    automaticExclusions.add(key);
+                }
+            }
+            if (wasClaimed != isSanctuary(key)) {
                 changed++;
             }
         }
@@ -122,7 +151,9 @@ public final class SanctuaryManager extends SavedData {
         if (!automaticInitialized) {
             automaticInitialized = true;
             automaticAnchor = findCorePosition(level);
-            replaceAutomaticClaims(level, automaticAnchor);
+            replaceAutomaticClaims(level.dimension(), automaticAnchor, automaticRadius(), true);
+        } else if (automaticAnchor != null) {
+            replaceAutomaticClaims(level.dimension(), automaticAnchor, automaticRadius(), false);
         }
         return automaticAnchor;
     }
@@ -135,7 +166,7 @@ public final class SanctuaryManager extends SavedData {
         }
         automaticInitialized = true;
         automaticAnchor = anchor.immutable();
-        replaceAutomaticClaims(level, automaticAnchor);
+        replaceAutomaticClaims(level.dimension(), automaticAnchor, automaticRadius(), true);
         return true;
     }
 
@@ -145,11 +176,44 @@ public final class SanctuaryManager extends SavedData {
                 || !automaticAnchor.equals(anchor)) {
             return false;
         }
+        return clearAutomaticSpawn();
+    }
+
+    public synchronized boolean clearAutomaticSpawn() {
+        if (automaticAnchor == null && automaticClaims.isEmpty() && automaticExclusions.isEmpty()) {
+            return false;
+        }
         automaticClaims.clear();
+        automaticExclusions.clear();
         automaticAnchor = null;
+        automaticInitialized = true;
         revision++;
         setDirty();
         return true;
+    }
+
+    public synchronized int clearManualClaims(ResourceKey<Level> dimension) {
+        int before = manualClaims.size();
+        manualClaims.removeIf(key -> key.dimension().equals(dimension));
+        int changed = before - manualClaims.size();
+        if (changed > 0) {
+            revision++;
+            setDirty();
+        }
+        return changed;
+    }
+
+    public synchronized int manualClaimCount(ResourceKey<Level> dimension) {
+        return (int) manualClaims.stream()
+                .filter(key -> key.dimension().equals(dimension))
+                .count();
+    }
+
+    public synchronized int automaticClaimCount(ResourceKey<Level> dimension) {
+        return (int) automaticClaims.stream()
+                .filter(key -> key.dimension().equals(dimension))
+                .filter(key -> !automaticExclusions.contains(key))
+                .count();
     }
 
     public synchronized boolean isAutomaticAnchor(ServerLevel level, BlockPos pos) {
@@ -158,20 +222,50 @@ public final class SanctuaryManager extends SavedData {
                 && automaticAnchor.equals(pos);
     }
 
-    private void replaceAutomaticClaims(ServerLevel level, BlockPos anchor) {
+    synchronized boolean replaceAutomaticClaims(
+            ResourceKey<Level> dimension,
+            BlockPos anchor,
+            int radius,
+            boolean resetExclusions
+    ) {
+        Set<ClaimKey> expected = calculateAutomaticClaims(dimension, anchor, radius);
+        boolean changed = !automaticClaims.equals(expected);
         automaticClaims.clear();
-        int radius = Math.max(0, com.geydev.kalfactions.config.ModConfigSpec.RESOURCE_BLUE_RADIUS.getAsInt());
+        automaticClaims.addAll(expected);
+        if (resetExclusions) {
+            changed |= !automaticExclusions.isEmpty();
+            automaticExclusions.clear();
+        } else {
+            changed |= automaticExclusions.removeIf(key -> !automaticClaims.contains(key));
+        }
+        if (changed) {
+            revision++;
+            setDirty();
+        }
+        return changed;
+    }
+
+    static Set<ClaimKey> calculateAutomaticClaims(
+            ResourceKey<Level> dimension,
+            BlockPos anchor,
+            int radius
+    ) {
+        Set<ClaimKey> claims = new LinkedHashSet<>();
+        radius = Math.max(0, radius);
         int minChunkX = Math.floorDiv(anchor.getX() - radius, 16);
         int maxChunkX = Math.floorDiv(anchor.getX() + radius, 16);
         int minChunkZ = Math.floorDiv(anchor.getZ() - radius, 16);
         int maxChunkZ = Math.floorDiv(anchor.getZ() + radius, 16);
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
             for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                automaticClaims.add(new ClaimKey(level.dimension(), chunkX, chunkZ));
+                claims.add(new ClaimKey(dimension, chunkX, chunkZ));
             }
         }
-        revision++;
-        setDirty();
+        return Set.copyOf(claims);
+    }
+
+    private static int automaticRadius() {
+        return Math.max(0, com.geydev.kalfactions.config.ModConfigSpec.RESOURCE_BLUE_RADIUS.getAsInt());
     }
 
     private static BlockPos findCorePosition(ServerLevel level) {
@@ -193,6 +287,12 @@ public final class SanctuaryManager extends SavedData {
                 .map(ClaimKey::save)
                 .forEach(automaticTag::add);
         tag.put(TAG_AUTOMATIC_CLAIMS, automaticTag);
+        ListTag exclusionsTag = new ListTag();
+        automaticExclusions.stream()
+                .sorted()
+                .map(ClaimKey::save)
+                .forEach(exclusionsTag::add);
+        tag.put(TAG_AUTOMATIC_EXCLUSIONS, exclusionsTag);
         tag.putBoolean(TAG_AUTOMATIC_INITIALIZED, automaticInitialized);
         tag.putBoolean(TAG_WORLD_BORDER_INITIALIZED, worldBorderInitialized);
         if (automaticAnchor != null) {
@@ -201,7 +301,7 @@ public final class SanctuaryManager extends SavedData {
         return tag;
     }
 
-    private static SanctuaryManager load(CompoundTag tag, HolderLookup.Provider registries) {
+    static SanctuaryManager load(CompoundTag tag, HolderLookup.Provider registries) {
         SanctuaryManager manager = new SanctuaryManager();
         ListTag claimsTag = tag.getList(TAG_CLAIMS, Tag.TAG_COMPOUND);
         for (int index = 0; index < claimsTag.size(); index++) {
@@ -210,6 +310,10 @@ public final class SanctuaryManager extends SavedData {
         ListTag automaticTag = tag.getList(TAG_AUTOMATIC_CLAIMS, Tag.TAG_COMPOUND);
         for (int index = 0; index < automaticTag.size(); index++) {
             ClaimKey.load(automaticTag.getCompound(index)).ifPresent(manager.automaticClaims::add);
+        }
+        ListTag exclusionsTag = tag.getList(TAG_AUTOMATIC_EXCLUSIONS, Tag.TAG_COMPOUND);
+        for (int index = 0; index < exclusionsTag.size(); index++) {
+            ClaimKey.load(exclusionsTag.getCompound(index)).ifPresent(manager.automaticExclusions::add);
         }
         manager.automaticInitialized = tag.getBoolean(TAG_AUTOMATIC_INITIALIZED);
         manager.worldBorderInitialized = tag.getBoolean(TAG_WORLD_BORDER_INITIALIZED);

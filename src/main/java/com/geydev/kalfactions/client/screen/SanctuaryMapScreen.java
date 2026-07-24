@@ -25,6 +25,8 @@ public final class SanctuaryMapScreen extends Screen {
     private int centerChunkX;
     private int centerChunkZ;
     private int radius;
+    private int manualCount;
+    private int automaticCount;
     private String statusMessage = "";
     private boolean statusSuccessful;
     private long statusShownAt;
@@ -48,6 +50,8 @@ public final class SanctuaryMapScreen extends Screen {
         centerChunkX = payload.centerChunkX();
         centerChunkZ = payload.centerChunkZ();
         radius = payload.radius();
+        manualCount = payload.manualCount();
+        automaticCount = payload.automaticCount();
         chunks.clear();
         chunks.addAll(payload.chunks());
         String message = payload.message().getString();
@@ -64,6 +68,22 @@ public final class SanctuaryMapScreen extends Screen {
         panelTop = (height - PANEL_HEIGHT) / 2;
         gridLeft = panelLeft + 18;
         gridTop = panelTop + 40;
+        addRenderableWidget(KingdomsButton.create(
+                Component.translatable("screen.kingdoms.sanctuary.clear_automatic", automaticCount),
+                button -> PacketDistributor.sendToServer(new FactionPayloads.C2SClearSanctuaryLayer(true)),
+                panelLeft + 190,
+                panelTop + 126,
+                124,
+                20
+        ));
+        addRenderableWidget(KingdomsButton.create(
+                Component.translatable("screen.kingdoms.sanctuary.clear_manual", manualCount),
+                button -> PacketDistributor.sendToServer(new FactionPayloads.C2SClearSanctuaryLayer(false)),
+                panelLeft + 190,
+                panelTop + 150,
+                124,
+                20
+        ));
         addRenderableWidget(KingdomsButton.create(
                 Component.translatable("gui.done"),
                 button -> onClose(),
@@ -134,7 +154,7 @@ public final class SanctuaryMapScreen extends Screen {
                 font,
                 font.plainSubstrByWidth(statusMessage, PANEL_WIDTH - 24),
                 panelLeft + 18,
-                panelTop + PANEL_HEIGHT - 22,
+                panelTop + PANEL_HEIGHT - 42,
                 color,
                 true
         );

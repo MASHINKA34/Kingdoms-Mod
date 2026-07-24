@@ -16,7 +16,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class FactionNetwork {
-    private static final String PROTOCOL_VERSION = "10";
+    private static final String PROTOCOL_VERSION = "11";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -150,6 +150,11 @@ public final class FactionNetwork {
                 FactionPayloads.C2SSanctuaryMapSet.TYPE,
                 FactionPayloads.C2SSanctuaryMapSet.STREAM_CODEC,
                 FactionNetwork::handleSanctuaryMapSet
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SClearSanctuaryLayer.TYPE,
+                FactionPayloads.C2SClearSanctuaryLayer.STREAM_CODEC,
+                FactionNetwork::handleClearSanctuaryLayer
         );
         registrar.playToServer(
                 FactionPayloads.C2SToggleForceLoad.TYPE,
@@ -424,6 +429,13 @@ public final class FactionNetwork {
             IPayloadContext context
     ) {
         FactionServerHooks.sanctuaryMapSet(serverPlayer(context), payload.claimed(), payload.chunks());
+    }
+
+    private static void handleClearSanctuaryLayer(
+            FactionPayloads.C2SClearSanctuaryLayer payload,
+            IPayloadContext context
+    ) {
+        FactionServerHooks.clearSanctuaryLayer(serverPlayer(context), payload.automatic());
     }
 
     private static void handleToggleForceLoad(FactionPayloads.C2SToggleForceLoad payload, IPayloadContext context) {

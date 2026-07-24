@@ -1336,12 +1336,29 @@ public final class FactionPayloads {
         }
     }
 
+    public record C2SClearSanctuaryLayer(boolean automatic) implements CustomPacketPayload {
+        public static final Type<C2SClearSanctuaryLayer> TYPE =
+                FactionPayloads.payloadType("sanctuary_clear_layer");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SClearSanctuaryLayer> STREAM_CODEC =
+                StreamCodec.of(
+                        (buffer, payload) -> buffer.writeBoolean(payload.automatic),
+                        buffer -> new C2SClearSanctuaryLayer(buffer.readBoolean())
+                );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record S2COpenSanctuary(
             BlockPos corePos,
             int centerChunkX,
             int centerChunkZ,
             int radius,
             List<Long> chunks,
+            int manualCount,
+            int automaticCount,
             Component message,
             boolean successful
     ) implements CustomPacketPayload {
@@ -1358,6 +1375,8 @@ public final class FactionPayloads {
                     for (int i = 0; i < size; i++) {
                         buffer.writeLong(payload.chunks.get(i));
                     }
+                    buffer.writeVarInt(payload.manualCount);
+                    buffer.writeVarInt(payload.automaticCount);
                     ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buffer, payload.message);
                     buffer.writeBoolean(payload.successful);
                 },
@@ -1380,6 +1399,8 @@ public final class FactionPayloads {
                             centerChunkZ,
                             radius,
                             List.copyOf(chunks),
+                            buffer.readVarInt(),
+                            buffer.readVarInt(),
                             ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer),
                             buffer.readBoolean()
                     );
