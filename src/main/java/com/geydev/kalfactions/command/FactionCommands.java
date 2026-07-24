@@ -1010,6 +1010,7 @@ public final class FactionCommands {
             case CLAIM_NOT_ADJACENT -> "kingdoms.error.claim_not_adjacent";
             case CLAIM_WOULD_DISCONNECT -> "kingdoms.error.claim_would_disconnect";
             case CLAIM_PROTECTED -> "kingdoms.error.claim_protected";
+            case CLAIM_FORBIDDEN_ZONE -> "kingdoms.error.claim_forbidden_zone";
             case CHEST_OUTSIDE_TERRITORY -> "kingdoms.error.chest_outside_territory";
             case INVALID_AMOUNT -> "kingdoms.error.invalid_amount";
             case INSUFFICIENT_FUNDS -> "kingdoms.error.insufficient_funds";

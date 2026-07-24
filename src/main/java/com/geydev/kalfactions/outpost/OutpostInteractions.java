@@ -54,7 +54,10 @@ public final class OutpostInteractions {
         FactionManager.OperationResult result =
                 manager.claimOutpost(faction.id(), level.dimension(), corePos, baseChunk);
         if (!result.successful()) {
-            FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.outpost.overlap"), false);
+            String key = result.status() == FactionManager.Status.CLAIM_FORBIDDEN_ZONE
+                    ? "kingdoms.error.claim_forbidden_zone"
+                    : "kingdoms.outpost.overlap";
+            FactionServerHooks.sendNotice(player, Component.translatable(key), false);
             return;
         }
         level.setBlockAndUpdate(corePos, ModBlocks.OUTPOST_CORE.get().defaultBlockState());

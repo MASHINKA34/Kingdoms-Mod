@@ -10,6 +10,8 @@ import com.geydev.kalfactions.integration.IntegrationManager;
 import com.geydev.kalfactions.outpost.RogueOutpostManager;
 import com.geydev.kalfactions.net.ClaimSyncManager;
 import com.geydev.kalfactions.net.FactionServerHooks;
+import com.geydev.kalfactions.sanctuary.SanctuaryManager;
+import com.geydev.kalfactions.territory.WorldZonePolicy;
 import com.mojang.logging.LogUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -960,6 +962,12 @@ public final class RaidManager extends SavedData {
     private static Optional<TargetSelection> selectMainTarget(MinecraftServer server, Faction faction) {
         Map<ResourceKey<Level>, List<ClaimKey>> byDimension = new HashMap<>();
         for (ClaimKey claim : faction.claims()) {
+            ServerLevel level = server.getLevel(claim.dimension());
+            if (level == null
+                    || SanctuaryManager.get(server).isSanctuary(claim)
+                    || WorldZonePolicy.isBlack(server, claim)) {
+                continue;
+            }
             byDimension.computeIfAbsent(claim.dimension(), ignored -> new ArrayList<>()).add(claim);
         }
         List<ClaimKey> claims = byDimension.entrySet().stream()
@@ -997,7 +1005,7 @@ public final class RaidManager extends SavedData {
 
     private static Optional<TargetSelection> selectTarget(MinecraftServer server, Faction faction, RandomSource random) {
         List<Faction.Outpost> outposts = faction.outposts().stream()
-            .filter(outpost -> server.getLevel(outpost.dimension()) != null)
+            .filter(outpost -> isRaidableOutpost(server, outpost))
             .sorted(Comparator.comparing(outpost -> outpost.id().toString()))
             .toList();
         if (!outposts.isEmpty() && random.nextInt(100) < 40) {
@@ -1015,7 +1023,7 @@ public final class RaidManager extends SavedData {
 
     private static Optional<TargetSelection> selectOutpostTarget(MinecraftServer server, Faction faction) {
         Faction.Outpost outpost = faction.outposts().stream()
-            .filter(candidate -> server.getLevel(candidate.dimension()) != null)
+            .filter(candidate -> isRaidableOutpost(server, candidate))
             .min(Comparator.comparing(candidate -> candidate.id().toString()))
             .orElse(null);
         if (outpost == null) {
@@ -1028,6 +1036,14 @@ public final class RaidManager extends SavedData {
             outpost.core(),
             outpost.id()
         ));
+    }
+
+    private static boolean isRaidableOutpost(MinecraftServer server, Faction.Outpost outpost) {
+        ServerLevel level = server.getLevel(outpost.dimension());
+        ClaimKey coreClaim = new ClaimKey(outpost.dimension(), new ChunkPos(outpost.core()));
+        return level != null
+                && !SanctuaryManager.get(server).isSanctuary(coreClaim)
+                && !WorldZonePolicy.isBlack(server, coreClaim);
     }
 
     private static List<ClaimKey> boundaryClaims(Faction faction, ResourceKey<Level> dimension) {

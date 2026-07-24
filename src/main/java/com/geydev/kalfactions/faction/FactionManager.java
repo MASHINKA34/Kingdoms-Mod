@@ -7,6 +7,8 @@ import com.geydev.kalfactions.chest.ChestLinks;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.economy.PriceMath;
+import com.geydev.kalfactions.sanctuary.SanctuaryManager;
+import com.geydev.kalfactions.territory.WorldZonePolicy;
 import com.mojang.logging.LogUtils;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -72,6 +74,7 @@ public final class FactionManager extends SavedData {
     private boolean chunkTicketsMigrated;
     private final transient Map<ClaimKey, UUID> appliedForceLoads = new HashMap<>();
     private final transient Set<UUID> forceLoadSuspended = new HashSet<>();
+    private transient MinecraftServer server;
 
     public static void registerChunkTicketController(RegisterTicketControllersEvent event) {
         event.register(CHUNK_TICKETS);
@@ -79,7 +82,9 @@ public final class FactionManager extends SavedData {
 
     public static FactionManager get(MinecraftServer server) {
         Objects.requireNonNull(server, "server");
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
+        FactionManager manager = server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
+        manager.server = server;
+        return manager;
     }
 
     public static FactionManager get(ServerLevel level) {
@@ -250,6 +255,9 @@ public final class FactionManager extends SavedData {
         }
 
         Set<ClaimKey> starterClaims = square(center, starterSize);
+        if (starterClaims.stream().anyMatch(this::isForbiddenClaim)) {
+            return OperationResult.failure(Status.CLAIM_FORBIDDEN_ZONE);
+        }
         if (starterClaims.stream().anyMatch(claimIndex::containsKey)) {
             return OperationResult.failure(Status.CLAIM_ALREADY_OWNED);
         }
@@ -457,6 +465,9 @@ public final class FactionManager extends SavedData {
         if (claimIndex.containsKey(key)) {
             return OperationResult.failure(Status.CLAIM_ALREADY_OWNED);
         }
+        if (isForbiddenClaim(key)) {
+            return OperationResult.failure(Status.CLAIM_FORBIDDEN_ZONE);
+        }
 
         Set<ClaimKey> claimsInDimension = claimsInDimension(faction, key.dimension());
         if (!claimsInDimension.isEmpty() && key.cardinalNeighbors().stream().noneMatch(claimsInDimension::contains)) {
@@ -536,6 +547,9 @@ public final class FactionManager extends SavedData {
                 chunks.add(new ClaimKey(dimension, baseChunk.x + dx, baseChunk.z + dz));
             }
         }
+        if (chunks.stream().anyMatch(this::isForbiddenClaim)) {
+            return OperationResult.failure(Status.CLAIM_FORBIDDEN_ZONE);
+        }
         if (chunks.stream().anyMatch(claimIndex::containsKey)) {
             return OperationResult.failure(Status.CLAIM_ALREADY_OWNED);
         }
@@ -567,7 +581,10 @@ public final class FactionManager extends SavedData {
         if (faction == null) {
             return OperationResult.failure(Status.FACTION_NOT_FOUND);
         }
-        if (chunks.isEmpty() || chunks.stream().anyMatch(claimIndex::containsKey)) {
+        if (chunks.isEmpty() || chunks.stream().anyMatch(this::isForbiddenClaim)) {
+            return OperationResult.failure(Status.CLAIM_FORBIDDEN_ZONE);
+        }
+        if (chunks.stream().anyMatch(claimIndex::containsKey)) {
             return OperationResult.failure(Status.CLAIM_ALREADY_OWNED);
         }
         net.minecraft.resources.ResourceKey<Level> dimension = chunks.iterator().next().dimension();
@@ -1462,6 +1479,12 @@ public final class FactionManager extends SavedData {
         return color >= 0 && color <= MAX_RGB_COLOR;
     }
 
+    private boolean isForbiddenClaim(ClaimKey key) {
+        return server != null
+                && (WorldZonePolicy.isBlack(server, key)
+                        || SanctuaryManager.get(server).isSanctuary(key));
+    }
+
     public enum Status {
         SUCCESS,
         FACTION_NOT_FOUND,
@@ -1479,6 +1502,7 @@ public final class FactionManager extends SavedData {
         CLAIM_NOT_ADJACENT,
         CLAIM_WOULD_DISCONNECT,
         CLAIM_PROTECTED,
+        CLAIM_FORBIDDEN_ZONE,
         CHEST_OUTSIDE_TERRITORY,
         INVALID_AMOUNT,
         INSUFFICIENT_FUNDS,

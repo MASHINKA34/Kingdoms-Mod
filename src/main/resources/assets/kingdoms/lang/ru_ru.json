@@ -1,4 +1,6 @@
 {
+  "kingdoms.xaero.black_zone_label": "Чёрная зона · приваты запрещены",
+  "kingdoms.error.claim_forbidden_zone": "На территории спавна и в чёрной зоне нельзя создавать приваты и форпосты.",
   "screen.kingdoms.drill.no_targets": "Нет доступных кластеров на основной территории",
   "screen.kingdoms.drill.target_details": "Чанк: %s, %s · богатство: %s",
   "screen.kingdoms.drill.target_selected": "Выбран этим буром",

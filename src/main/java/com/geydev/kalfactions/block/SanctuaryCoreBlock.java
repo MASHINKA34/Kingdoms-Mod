@@ -1,12 +1,18 @@
 package com.geydev.kalfactions.block;
 
 import com.geydev.kalfactions.net.FactionServerHooks;
+import com.geydev.kalfactions.integration.IntegrationManager;
+import com.geydev.kalfactions.net.ClaimSyncManager;
+import com.geydev.kalfactions.sanctuary.SanctuaryManager;
+import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -65,5 +71,34 @@ public final class SanctuaryCoreBlock extends Block {
             FactionServerHooks.openSanctuary(serverPlayer, pos);
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
+    }
+
+    @Override
+    public void setPlacedBy(
+            Level level,
+            BlockPos pos,
+            BlockState state,
+            @Nullable LivingEntity placer,
+            ItemStack stack
+    ) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        if (level instanceof ServerLevel serverLevel
+                && placer instanceof ServerPlayer player
+                && player.hasPermissions(2)
+                && SanctuaryManager.get(serverLevel).relocateAutomaticSpawn(serverLevel, pos)) {
+            IntegrationManager.refreshFromServer(serverLevel.getServer());
+            ClaimSyncManager.resyncAll(serverLevel.getServer());
+        }
+    }
+
+    @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+        if (!state.is(newState.getBlock())
+                && level instanceof ServerLevel serverLevel
+                && SanctuaryManager.get(serverLevel).clearAutomaticSpawn(serverLevel, pos)) {
+            IntegrationManager.refreshFromServer(serverLevel.getServer());
+            ClaimSyncManager.resyncAll(serverLevel.getServer());
+        }
+        super.onRemove(state, level, pos, newState, movedByPiston);
     }
 }

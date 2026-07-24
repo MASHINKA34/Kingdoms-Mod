@@ -54,6 +54,9 @@ final class KingdomsHighlighter extends ChunkHighlighter {
     }
 
     static Component claimLabel(ClaimInfo claim) {
+        if (claim.factionId().equals(ClientClaimStore.BLACK_ZONE_ID)) {
+            return Component.translatable("kingdoms.xaero.black_zone_label");
+        }
         if (claim.sanctuary()) {
             return Component.translatable("kingdoms.xaero.sanctuary_label");
         }

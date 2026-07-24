@@ -1132,6 +1132,10 @@ public final class FactionPayloads {
 
     public record S2CSyncClaims(
             ResourceLocation dimension,
+            int spawnX,
+            int spawnZ,
+            int redRadius,
+            boolean blackZoneEnabled,
             List<ClaimEntry> claims,
             UUID viewerFactionId,
             List<UUID> viewerMemberIds,
@@ -1143,6 +1147,10 @@ public final class FactionPayloads {
         public static final StreamCodec<RegistryFriendlyByteBuf, S2CSyncClaims> STREAM_CODEC = StreamCodec.of(
                 (buffer, payload) -> {
                     buffer.writeResourceLocation(payload.dimension);
+                    buffer.writeInt(payload.spawnX);
+                    buffer.writeInt(payload.spawnZ);
+                    buffer.writeVarInt(payload.redRadius);
+                    buffer.writeBoolean(payload.blackZoneEnabled);
                     int size = Math.min(payload.claims.size(), MAX_ENTRIES);
                     buffer.writeVarInt(size);
                     for (int i = 0; i < size; i++) {
@@ -1155,6 +1163,10 @@ public final class FactionPayloads {
                 },
                 buffer -> {
                     ResourceLocation dimension = buffer.readResourceLocation();
+                    int spawnX = buffer.readInt();
+                    int spawnZ = buffer.readInt();
+                    int redRadius = Math.clamp(buffer.readVarInt(), 0, 30_000_000);
+                    boolean blackZoneEnabled = buffer.readBoolean();
                     int size = buffer.readVarInt();
                     if (size < 0 || size > MAX_ENTRIES) {
                         throw new DecoderException("Claim sync size " + size + " exceeds " + MAX_ENTRIES);
@@ -1165,6 +1177,10 @@ public final class FactionPayloads {
                     }
                     return new S2CSyncClaims(
                             dimension,
+                            spawnX,
+                            spawnZ,
+                            redRadius,
+                            blackZoneEnabled,
                             List.copyOf(claims),
                             buffer.readUUID(),
                             readMemberIds(buffer),

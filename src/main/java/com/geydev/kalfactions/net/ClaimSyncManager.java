@@ -169,6 +169,10 @@ public final class ClaimSyncManager {
         ViewerMembership membership = viewerMembership(viewerFaction);
         PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CSyncClaims(
                 dimension.location(),
+                player.serverLevel().getSharedSpawnPos().getX(),
+                player.serverLevel().getSharedSpawnPos().getZ(),
+                com.geydev.kalfactions.config.ModConfigSpec.RESOURCE_RED_RADIUS.getAsInt(),
+                dimension.equals(Level.OVERWORLD),
                 entries,
                 membership.factionId(),
                 membership.memberIds(),

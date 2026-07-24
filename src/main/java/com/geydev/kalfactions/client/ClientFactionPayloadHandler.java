@@ -159,7 +159,17 @@ public final class ClientFactionPayloadHandler {
         Set<UUID> memberIds = Set.copyOf(payload.viewerMemberIds());
         Minecraft.getInstance().execute(() -> {
             ClientFactionMembership.accept(payload.viewerFactionId(), memberIds);
-            ClientClaimStore.replace(payload.dimension(), claims, viewer);
+            ClientClaimStore.replace(
+                    payload.dimension(),
+                    claims,
+                    viewer,
+                    new ClientClaimStore.ZoneInfo(
+                            payload.spawnX(),
+                            payload.spawnZ(),
+                            payload.redRadius(),
+                            payload.blackZoneEnabled()
+                    )
+            );
         });
     }
 
