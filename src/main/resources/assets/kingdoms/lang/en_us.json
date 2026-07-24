@@ -1,4 +1,12 @@
 {
+  "screen.kingdoms.drill.no_targets": "No clusters on the main territory",
+  "screen.kingdoms.drill.target_details": "Chunk: %s, %s · richness: %s",
+  "screen.kingdoms.drill.target_selected": "Selected by this drill",
+  "screen.kingdoms.drill.target_available": "Click to select",
+  "screen.kingdoms.drill.target_busy": "Already assigned to another drill",
+  "kingdoms.drill.target_invalid": "This cluster is not on your faction's main territory.",
+  "kingdoms.drill.cluster_taken": "Another drill is already mining this cluster.",
+  "kingdoms.drill.target_selected": "Cluster selected for extraction.",
   "mod.kingdoms.name": "Kingdoms",
   "itemGroup.kingdoms": "Kingdoms",
   "block.kingdoms.faction_table": "Faction Table",

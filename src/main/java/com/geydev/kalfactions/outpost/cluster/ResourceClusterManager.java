@@ -63,6 +63,7 @@ public final class ResourceClusterManager extends SavedData {
     private static final int DATA_VERSION = 2;
     private static final String TAG_VERSION = "formatVersion";
     private static final String TAG_DEPOSITS = "oreDeposits";
+    private static final String TAG_DRILL_BINDINGS = "drillBindings";
     private static final String TAG_CYCLE = "resourceCycleId";
     private static final String TAG_NEXT_CYCLE = "nextResourceCycle";
     private static final String TAG_PAUSED = "resourceQueuePaused";
@@ -94,6 +95,33 @@ public final class ResourceClusterManager extends SavedData {
         return cluster == null
                 ? Optional.empty()
                 : Optional.of(new ClusterView(cluster.type(), cluster.richness()));
+    }
+
+    public synchronized List<SurfaceClusterView> clustersIn(Set<ClaimKey> claims, ResourceLocation dimension) {
+        List<SurfaceClusterView> result = new ArrayList<>();
+        for (Map.Entry<Long, ResourceCluster> entry : clusters.entrySet()) {
+            ChunkPos chunk = new ChunkPos(entry.getKey());
+            ClaimKey key = new ClaimKey(
+                    net.minecraft.resources.ResourceKey.create(
+                            net.minecraft.core.registries.Registries.DIMENSION,
+                            dimension
+                    ),
+                    chunk
+            );
+            if (!claims.contains(key)) {
+                continue;
+            }
+            ResourceCluster cluster = entry.getValue();
+            result.add(new SurfaceClusterView(
+                    entry.getKey(),
+                    cluster.basePos(),
+                    cluster.type(),
+                    cluster.richness(),
+                    boundDrill.get(entry.getKey())
+            ));
+        }
+        result.sort(java.util.Comparator.comparingLong(SurfaceClusterView::chunk));
+        return List.copyOf(result);
     }
 
     public synchronized Optional<OreDepositView> oreDepositAt(ChunkPos chunkPos) {
@@ -296,6 +324,7 @@ public final class ResourceClusterManager extends SavedData {
         }
         if (existing == null) {
             boundDrill.put(key, posLong);
+            setDirty();
         }
         return true;
     }
@@ -305,6 +334,7 @@ public final class ResourceClusterManager extends SavedData {
         Long existing = boundDrill.get(key);
         if (existing != null && existing == drillPos.asLong()) {
             boundDrill.remove(key);
+            setDirty();
         }
     }
 
@@ -989,6 +1019,14 @@ public final class ResourceClusterManager extends SavedData {
             list.add(cluster.save());
         }
         tag.put(TAG_CLUSTERS, list);
+        ListTag drillBindings = new ListTag();
+        for (Map.Entry<Long, Long> binding : boundDrill.entrySet()) {
+            CompoundTag bindingTag = new CompoundTag();
+            bindingTag.putLong("clusterChunk", binding.getKey());
+            bindingTag.putLong("drillPos", binding.getValue());
+            drillBindings.add(bindingTag);
+        }
+        tag.put(TAG_DRILL_BINDINGS, drillBindings);
         tag.putLongArray(TAG_REMOVED, removedChunks.stream().mapToLong(Long::longValue).toArray());
         ListTag deposits = new ListTag();
         for (OreDeposit deposit : oreDeposits.values()) {
@@ -1020,6 +1058,16 @@ public final class ResourceClusterManager extends SavedData {
         }
         for (long key : tag.getLongArray(TAG_REMOVED)) {
             manager.removedChunks.add(key);
+        }
+        ListTag drillBindings = tag.getList(TAG_DRILL_BINDINGS, Tag.TAG_COMPOUND);
+        for (int index = 0; index < drillBindings.size(); index++) {
+            CompoundTag binding = drillBindings.getCompound(index);
+            long clusterChunk = binding.getLong("clusterChunk");
+            if (manager.clusters.containsKey(clusterChunk)) {
+                manager.boundDrill.putIfAbsent(clusterChunk, binding.getLong("drillPos"));
+            } else {
+                manager.setDirty();
+            }
         }
         manager.resourceCycleId = Math.max(0L, tag.getLong(TAG_CYCLE));
         manager.nextResourceCycleMillis = Math.max(0L, tag.getLong(TAG_NEXT_CYCLE));
@@ -1059,6 +1107,15 @@ public final class ResourceClusterManager extends SavedData {
     }
 
     public record ClusterView(ResourceClusterType type, int richness) {
+    }
+
+    public record SurfaceClusterView(
+            long chunk,
+            BlockPos pos,
+            ResourceClusterType type,
+            int richness,
+            Long boundDrill
+    ) {
     }
 
     public record OreDepositView(

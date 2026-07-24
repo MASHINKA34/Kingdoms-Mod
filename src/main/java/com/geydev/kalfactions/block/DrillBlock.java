@@ -1,6 +1,5 @@
 package com.geydev.kalfactions.block;
 
-import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager;
 import com.geydev.kalfactions.registry.ModBlockEntities;
 import com.mojang.serialization.MapCodec;
 import javax.annotation.Nullable;
@@ -71,6 +70,7 @@ public final class DrillBlock extends BaseEntityBlock {
                 && level.getBlockEntity(pos) instanceof DrillBlockEntity drill) {
             drill.runCheck(serverLevel, pos);
             serverPlayer.openMenu(drill);
+            com.geydev.kalfactions.outpost.cluster.DrillService.sendTargets(serverPlayer, drill);
         }
         return InteractionResult.sidedSuccess(false);
     }
@@ -80,9 +80,8 @@ public final class DrillBlock extends BaseEntityBlock {
         if (!state.is(newState.getBlock()) && level instanceof ServerLevel serverLevel) {
             if (level.getBlockEntity(pos) instanceof DrillBlockEntity drill) {
                 drill.dropContents(serverLevel, pos);
+                drill.releaseTarget(serverLevel);
             }
-            ResourceClusterManager.get(serverLevel)
-                    .unbindDrill(new net.minecraft.world.level.ChunkPos(pos), pos);
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
     }

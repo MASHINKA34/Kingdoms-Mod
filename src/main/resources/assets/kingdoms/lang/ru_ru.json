@@ -1,4 +1,12 @@
 {
+  "screen.kingdoms.drill.no_targets": "Нет доступных кластеров на основной территории",
+  "screen.kingdoms.drill.target_details": "Чанк: %s, %s · богатство: %s",
+  "screen.kingdoms.drill.target_selected": "Выбран этим буром",
+  "screen.kingdoms.drill.target_available": "Нажмите, чтобы выбрать",
+  "screen.kingdoms.drill.target_busy": "Уже занят другим буром",
+  "kingdoms.drill.target_invalid": "Этот кластер не относится к основной территории вашей фракции.",
+  "kingdoms.drill.cluster_taken": "Этот кластер уже добывает другой бур.",
+  "kingdoms.drill.target_selected": "Кластер выбран для добычи.",
   "mod.kingdoms.name": "Королевства",
   "itemGroup.kingdoms": "Королевства",
   "block.kingdoms.faction_table": "Стол фракции",

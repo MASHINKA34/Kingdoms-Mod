@@ -1,12 +1,19 @@
 package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.client.ClientDrillTargets;
 import com.geydev.kalfactions.menu.DrillMenu;
+import com.geydev.kalfactions.outpost.cluster.DrillPayloads;
+import com.geydev.kalfactions.outpost.cluster.ResourceClusterType;
+import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ChunkPos;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     private static final ResourceLocation BACKGROUND =
@@ -24,6 +31,12 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     private static final int FILL_HEIGHT = 8;
     private static final int INVENTORY_PANEL_TOP = 150;
     private static final int INVENTORY_LABEL_Y = 158;
+    private static final int TARGETS_PER_PAGE = 10;
+    private static final int TARGET_START_X = 55;
+    private static final int TARGET_Y = 12;
+    private static final int TARGET_STEP = 26;
+    private static final int TARGET_SIZE = 20;
+    private int targetPage;
 
     public DrillScreen(DrillMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -41,6 +54,7 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
         super.render(graphics, mouseX, mouseY, partialTick);
         renderTooltip(graphics, mouseX, mouseY);
         renderProgressTooltip(graphics, mouseX, mouseY);
+        renderTargetTooltip(graphics, mouseX, mouseY);
     }
 
     @Override
@@ -71,8 +85,48 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
             );
         }
         graphics.blit(BACKGROUND, leftPos, topPos, 0.0F, 0.0F, BACKGROUND_WIDTH, BACKGROUND_HEIGHT, BACKGROUND_WIDTH, BACKGROUND_HEIGHT);
+        renderTargets(graphics);
         renderDrillSlots(graphics);
         renderPlayerInventoryPanel(graphics);
+    }
+
+    private void renderTargets(GuiGraphics graphics) {
+        DrillPayloads.S2CTargets state = ClientDrillTargets.get(menu.containerId);
+        if (state == null || state.targets().isEmpty()) {
+            graphics.drawCenteredString(
+                    font,
+                    Component.translatable("screen.kingdoms.drill.no_targets"),
+                    imageWidth / 2,
+                    TARGET_Y + 6,
+                    0xFF9A9A9A
+            );
+            return;
+        }
+        int pages = pageCount(state.targets());
+        targetPage = Math.clamp(targetPage, 0, pages - 1);
+        int from = targetPage * TARGETS_PER_PAGE;
+        int to = Math.min(state.targets().size(), from + TARGETS_PER_PAGE);
+        for (int index = from; index < to; index++) {
+            DrillPayloads.TargetInfo target = state.targets().get(index);
+            int x = TARGET_START_X + (index - from) * TARGET_STEP;
+            int color = target.selected() ? 0xFF42B86B : target.available() ? 0xFFD3A73D : 0xFF565B62;
+            graphics.fill(x - 2, TARGET_Y - 2, x + 20, TARGET_Y + 20, 0xFF080B10);
+            graphics.fill(x - 1, TARGET_Y - 1, x + 19, TARGET_Y + 19, color);
+            graphics.fill(x, TARGET_Y, x + 18, TARGET_Y + 18, 0xFF17202A);
+            ResourceClusterType.parse(target.type()).ifPresent(type ->
+                    graphics.renderItem(new ItemStack(type.displayItem()), x + 1, TARGET_Y + 1)
+            );
+        }
+        if (pages > 1) {
+            graphics.drawString(font, "<", TARGET_START_X - 20, TARGET_Y + 5, targetPage > 0 ? 0xFFFFFFFF : 0xFF555555);
+            graphics.drawString(
+                    font,
+                    ">",
+                    TARGET_START_X + TARGETS_PER_PAGE * TARGET_STEP + 1,
+                    TARGET_Y + 5,
+                    targetPage + 1 < pages ? 0xFFFFFFFF : 0xFF555555
+            );
+        }
     }
 
     private void renderDrillSlots(GuiGraphics graphics) {
@@ -144,6 +198,88 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
                 && mouseY < topPos + PROGRESS_Y + FILL_HEIGHT;
     }
 
+    private void renderTargetTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
+        DrillPayloads.TargetInfo target = targetAt(mouseX, mouseY);
+        if (target == null) {
+            return;
+        }
+        ChunkPos chunk = new ChunkPos(target.chunk());
+        Component resource = ResourceClusterType.parse(target.type())
+                .map(type -> type.displayItem().getDescription())
+                .orElse(Component.literal(target.type()));
+        String statusKey = target.selected()
+                ? "screen.kingdoms.drill.target_selected"
+                : target.available()
+                        ? "screen.kingdoms.drill.target_available"
+                        : "screen.kingdoms.drill.target_busy";
+        graphics.renderTooltip(
+                font,
+                List.of(
+                        resource,
+                        Component.translatable(
+                                "screen.kingdoms.drill.target_details",
+                                chunk.x,
+                                chunk.z,
+                                target.richness()
+                        ),
+                        Component.translatable(statusKey)
+                ),
+                java.util.Optional.empty(),
+                mouseX,
+                mouseY
+        );
+    }
+
+    private DrillPayloads.TargetInfo targetAt(double mouseX, double mouseY) {
+        DrillPayloads.S2CTargets state = ClientDrillTargets.get(menu.containerId);
+        if (state == null || mouseY < topPos + TARGET_Y - 2 || mouseY >= topPos + TARGET_Y + TARGET_SIZE) {
+            return null;
+        }
+        int local = (int) mouseX - leftPos - TARGET_START_X;
+        if (local < -2) {
+            return null;
+        }
+        int column = local / TARGET_STEP;
+        if (column < 0 || column >= TARGETS_PER_PAGE || local % TARGET_STEP >= TARGET_SIZE) {
+            return null;
+        }
+        int index = targetPage * TARGETS_PER_PAGE + column;
+        return index < state.targets().size() ? state.targets().get(index) : null;
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0) {
+            DrillPayloads.S2CTargets state = ClientDrillTargets.get(menu.containerId);
+            if (state != null && pageCount(state.targets()) > 1
+                    && mouseY >= topPos + TARGET_Y - 2
+                    && mouseY < topPos + TARGET_Y + TARGET_SIZE) {
+                if (mouseX >= leftPos + TARGET_START_X - 22 && mouseX < leftPos + TARGET_START_X - 4 && targetPage > 0) {
+                    targetPage--;
+                    return true;
+                }
+                if (mouseX >= leftPos + TARGET_START_X + TARGETS_PER_PAGE * TARGET_STEP
+                        && mouseX < leftPos + TARGET_START_X + TARGETS_PER_PAGE * TARGET_STEP + 18
+                        && targetPage + 1 < pageCount(state.targets())) {
+                    targetPage++;
+                    return true;
+                }
+            }
+            DrillPayloads.TargetInfo target = targetAt(mouseX, mouseY);
+            if (target != null && target.available()) {
+                PacketDistributor.sendToServer(new DrillPayloads.C2SSelectTarget(menu.containerId, target.chunk()));
+                return true;
+            }
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public void removed() {
+        ClientDrillTargets.clear(menu.containerId);
+        super.removed();
+    }
+
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
         graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, 0xFFE8D6A0, true);
@@ -165,5 +301,9 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
         long minutes = (totalSeconds % 3600L) / 60L;
         long seconds = totalSeconds % 60L;
         return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+    }
+
+    private static int pageCount(List<DrillPayloads.TargetInfo> targets) {
+        return Math.max(1, (targets.size() + TARGETS_PER_PAGE - 1) / TARGETS_PER_PAGE);
     }
 }

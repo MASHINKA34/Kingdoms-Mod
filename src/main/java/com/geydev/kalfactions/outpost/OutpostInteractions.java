@@ -80,23 +80,11 @@ public final class OutpostInteractions {
         ClaimKey key = ClaimKey.of(level, chunk);
         FactionManager manager = FactionManager.get(level);
         Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
-        boolean ownClaim = faction != null
-                && manager.getFactionIdAt(key).map(id -> id.equals(faction.id())).orElse(false);
+        boolean ownClaim = faction != null && faction.hasClaim(key);
         if (!ownClaim) {
             event.setCanceled(true);
             FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.drill.not_outpost"), false);
             return;
-        }
-        com.geydev.kalfactions.outpost.cluster.ResourceClusterManager clusters =
-                com.geydev.kalfactions.outpost.cluster.ResourceClusterManager.get(level);
-        if (clusters.clusterAt(chunk).isEmpty() && clusters.oreDepositAt(chunk).isEmpty()) {
-            event.setCanceled(true);
-            FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.drill.no_cluster"), false);
-            return;
-        }
-        if (!clusters.bindDrill(chunk, event.getPos())) {
-            event.setCanceled(true);
-            FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.drill.cluster_taken"), false);
         }
     }
 

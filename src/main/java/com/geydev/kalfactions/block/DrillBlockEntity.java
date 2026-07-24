@@ -22,9 +22,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -32,6 +29,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public final class DrillBlockEntity extends BlockEntity implements Container, MenuProvider {
     private static final String TAG_LAST = "LastProduceMillis";
+    private static final String TAG_TARGET = "TargetClusterChunk";
     private static final int SLOTS = 18;
     private static final int BASE_OUTPUT = 32;
     private static final int HOUR_TICKS = 3600 * 20;
@@ -69,6 +67,7 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
     private int sinceCheck = CHECK_INTERVAL_TICKS - 1;
     private int depositRemaining = -1;
     private int depositOriginal = -1;
+    private Long targetClusterChunk;
 
     public DrillBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.DRILL.get(), pos, state);
@@ -120,55 +119,34 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         ClaimKey key = ClaimKey.of(level, chunk);
         FactionManager manager = FactionManager.get(level);
         Faction faction = manager.getFactionAt(key).orElse(null);
-        if (faction == null) {
+        if (faction == null || !faction.hasClaim(key) || targetClusterChunk == null) {
             return ProduceResult.INVALID;
         }
         ResourceClusterManager clusters = ResourceClusterManager.get(level);
-        if (!clusters.isBoundDrill(chunk, pos) && !clusters.bindDrill(chunk, pos)) {
+        ChunkPos targetChunk = new ChunkPos(targetClusterChunk);
+        ClaimKey targetKey = ClaimKey.of(level, targetChunk);
+        if (!faction.hasClaim(targetKey)) {
+            releaseTarget(level);
             return ProduceResult.INVALID;
         }
-        ResourceClusterManager.OreDepositView oreDeposit = clusters.oreDepositAt(chunk).orElse(null);
+        ResourceClusterManager.ClusterView cluster = clusters.clusterAt(targetChunk).orElse(null);
+        if (cluster == null) {
+            releaseTarget(level);
+            return ProduceResult.INVALID;
+        }
+        if (!clusters.isBoundDrill(targetChunk, pos) && !clusters.bindDrill(targetChunk, pos)) {
+            return ProduceResult.INVALID;
+        }
         int amount = BASE_OUTPUT + 16 * faction.researchBonusCount("DRILL_OUTPUT");
-        if (oreDeposit != null) {
-            depositRemaining = oreDeposit.remaining();
-            depositOriginal = oreDeposit.originalReserve();
-            if (oreDeposit.remaining() <= 0) {
-                return ProduceResult.INVALID;
-            }
-            int requested = Math.min(amount, oreDeposit.remaining());
-            ItemStack output = new ItemStack(resourceItem(oreDeposit.resource()), requested);
-            if (!canFit(output)) {
-                return ProduceResult.FULL;
-            }
-            ResourceClusterManager.DrillExtraction extraction = clusters.extractForDrill(chunk, requested);
-            if (!extraction.successful()) {
-                return ProduceResult.INVALID;
-            }
-            output.setCount(extraction.amount());
-            insert(output);
-            depositRemaining = extraction.remaining();
-            depositOriginal = extraction.originalReserve();
-            setChanged();
-            return ProduceResult.PRODUCED;
+        ItemStack output = new ItemStack(cluster.type().displayItem(), amount);
+        if (!canFit(output)) {
+            return ProduceResult.FULL;
         }
         depositRemaining = -1;
         depositOriginal = -1;
-        return ProduceResult.INVALID;
-    }
-
-    private static net.minecraft.world.item.Item resourceItem(
-            com.geydev.kalfactions.outpost.cluster.distribution.ClusterResource resource
-    ) {
-        return switch (resource) {
-            case COAL -> Items.COAL;
-            case COPPER -> Items.RAW_COPPER;
-            case ZINC -> BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("create", "raw_zinc"));
-            case IRON -> Items.RAW_IRON;
-            case LAPIS -> Items.LAPIS_LAZULI;
-            case REDSTONE -> Items.REDSTONE;
-            case GOLD -> Items.RAW_GOLD;
-            case DIAMOND -> Items.DIAMOND;
-        };
+        insert(output);
+        setChanged();
+        return ProduceResult.PRODUCED;
     }
 
     private boolean canFit(ItemStack stack) {
@@ -209,6 +187,39 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
 
     public void dropContents(ServerLevel level, BlockPos pos) {
         Containers.dropContents(level, pos, this);
+    }
+
+    public Long targetClusterChunk() {
+        return targetClusterChunk;
+    }
+
+    public boolean selectTarget(ServerLevel level, long targetChunk) {
+        ResourceClusterManager clusters = ResourceClusterManager.get(level);
+        if (targetClusterChunk != null && targetClusterChunk == targetChunk
+                && clusters.isBoundDrill(new ChunkPos(targetChunk), worldPosition)) {
+            return true;
+        }
+        if (!clusters.bindDrill(new ChunkPos(targetChunk), worldPosition)) {
+            return false;
+        }
+        if (targetClusterChunk != null) {
+            clusters.unbindDrill(new ChunkPos(targetClusterChunk), worldPosition);
+        }
+        targetClusterChunk = targetChunk;
+        lastProduceMillis = System.currentTimeMillis();
+        progress = 0;
+        setChanged();
+        return true;
+    }
+
+    public void releaseTarget(ServerLevel level) {
+        if (targetClusterChunk == null) {
+            return;
+        }
+        ResourceClusterManager.get(level).unbindDrill(new ChunkPos(targetClusterChunk), worldPosition);
+        targetClusterChunk = null;
+        progress = 0;
+        setChanged();
     }
 
     @Override
@@ -291,6 +302,7 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         items.clear();
         ContainerHelper.loadAllItems(tag, items, registries);
         lastProduceMillis = tag.getLong(TAG_LAST);
+        targetClusterChunk = tag.contains(TAG_TARGET) ? tag.getLong(TAG_TARGET) : null;
     }
 
     @Override
@@ -298,5 +310,8 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         super.saveAdditional(tag, registries);
         ContainerHelper.saveAllItems(tag, items, registries);
         tag.putLong(TAG_LAST, lastProduceMillis);
+        if (targetClusterChunk != null) {
+            tag.putLong(TAG_TARGET, targetClusterChunk);
+        }
     }
 }

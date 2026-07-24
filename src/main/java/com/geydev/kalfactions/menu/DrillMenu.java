@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.menu;
 
 import com.geydev.kalfactions.registry.ModMenuTypes;
+import com.geydev.kalfactions.block.DrillBlockEntity;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
@@ -126,5 +127,9 @@ public final class DrillMenu extends AbstractContainerMenu {
 
     public int depositOriginal() {
         return Math.max(0, data.get(3));
+    }
+
+    public DrillBlockEntity serverDrill() {
+        return container instanceof DrillBlockEntity drill ? drill : null;
     }
 }
