@@ -4,7 +4,6 @@ import com.geydev.kalfactions.KalFactions;
 import java.util.List;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.chunk.LevelChunk;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -18,18 +17,16 @@ public final class ResourceClusterEvents {
     @SubscribeEvent
     public static void onChunkLoad(ChunkEvent.Load event) {
         if (event.getLevel() instanceof ServerLevel level
-                && level.dimension().equals(Level.OVERWORLD)
-                && event.getChunk() instanceof LevelChunk chunk) {
-            ResourceClusterManager.get(level).queue(chunk.getPos(), level.getGameTime());
+                && level.dimension().equals(Level.OVERWORLD)) {
+            ResourceClusterManager.get(level).queue(event.getChunk().getPos(), level.getGameTime());
         }
     }
 
     @SubscribeEvent
     public static void onChunkUnload(ChunkEvent.Unload event) {
         if (event.getLevel() instanceof ServerLevel level
-                && level.dimension().equals(Level.OVERWORLD)
-                && event.getChunk() instanceof LevelChunk chunk) {
-            ResourceClusterManager.get(level).deactivate(chunk.getPos());
+                && level.dimension().equals(Level.OVERWORLD)) {
+            ResourceClusterManager.get(level).deactivate(event.getChunk().getPos());
         }
     }
 

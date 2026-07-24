@@ -229,10 +229,11 @@ public final class ModConfigSpec {
             .comment("One-time overworld border size in blocks; centered on the shared spawn.")
             .defineInRange("worldBorderSize", 20_000, 1_000, 60_000_000);
         RESOURCE_BLUE_RADIUS = builder.defineInRange("safeZoneRadius", 200, 0, 1000000);
-        RESOURCE_YELLOW_RADIUS = builder.defineInRange("yellowRadius", 5000, 1, 1000000);
+        RESOURCE_YELLOW_RADIUS = builder.defineInRange("yellowZoneRadius", 5000, 1, 1000000);
         RESOURCE_RED_RADIUS = builder.defineInRange("redRadius", 8000, 1, 1000000);
         RESOURCE_CELL_SIZE = builder.defineInRange("cellSizeBlocks", 256, 64, 4096);
         RESOURCE_BASE_DENSITY = builder.defineInRange("baseDensity", 0.40D, 0.0D, 1.0D);
+        builder.push("zoneProfiles");
         RESOURCE_BLUE_DENSITY_MULTIPLIER = builder.defineInRange("blueDensityMultiplier", 0.00D, 0.0D, 10.0D);
         RESOURCE_BLUE_RESERVE_MULTIPLIER = builder.defineInRange("blueReserveMultiplier", 0.00D, 0.0D, 10.0D);
         RESOURCE_BLUE_SIZE_MULTIPLIER = builder.defineInRange("blueSizeMultiplier", 0.00D, 0.0D, 10.0D);
@@ -245,6 +246,7 @@ public final class ModConfigSpec {
         RESOURCE_BLACK_DENSITY_MULTIPLIER = builder.defineInRange("blackDensityMultiplier", 1.70D, 0.0D, 10.0D);
         RESOURCE_BLACK_RESERVE_MULTIPLIER = builder.defineInRange("blackReserveMultiplier", 1.70D, 0.0D, 10.0D);
         RESOURCE_BLACK_SIZE_MULTIPLIER = builder.defineInRange("blackSizeMultiplier", 1.70D, 0.0D, 10.0D);
+        builder.pop();
         RESOURCE_YELLOW_CLUSTER_SPACING_CHUNKS =
                 builder.defineInRange("yellowSurfaceClusterSpacingChunks", 9, 1, 64);
         RESOURCE_RED_CLUSTER_SPACING_CHUNKS =
@@ -264,7 +266,7 @@ public final class ModConfigSpec {
         RESOURCE_MAX_RESERVE = builder.defineInRange("maximumBaseReserve", 200, 1, 1000000);
         RESOURCE_MIN_PHYSICAL_BLOCKS = builder.defineInRange("minimumBasePhysicalBlocks", 20, 1, 512);
         RESOURCE_BASE_MAX_PHYSICAL_BLOCKS = builder.defineInRange("maximumBasePhysicalBlocks", 80, 1, 512);
-        RESOURCE_MAX_PHYSICAL_BLOCKS = builder.defineInRange("maximumPhysicalBlocks", 160, 8, 512);
+        RESOURCE_MAX_PHYSICAL_BLOCKS = builder.defineInRange("maximumPhysicalBlocks", 120, 8, 512);
         builder.pop();
 
         builder.push("raids");

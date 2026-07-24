@@ -32,6 +32,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.core.BlockPos;
@@ -96,6 +97,19 @@ public final class KingdomsAdminCommands {
                                         .executes(KingdomsAdminCommands::listNews))))
                 .then(Commands.literal("resource")
                         .then(Commands.literal("zone").executes(KingdomsAdminCommands::resourceZone))
+                        .then(Commands.literal("chunk")
+                                .executes(context -> resourceChunk(context, new ChunkPos(
+                                        BlockPos.containing(context.getSource().getPosition())
+                                )))
+                                .then(Commands.argument("chunkX", IntegerArgumentType.integer())
+                                        .then(Commands.argument("chunkZ", IntegerArgumentType.integer())
+                                                .executes(context -> resourceChunk(
+                                                        context,
+                                                        new ChunkPos(
+                                                                IntegerArgumentType.getInteger(context, "chunkX"),
+                                                                IntegerArgumentType.getInteger(context, "chunkZ")
+                                                        )
+                                                )))))
                         .then(Commands.literal("stats").executes(KingdomsAdminCommands::resourceStats))
                         .then(Commands.literal("nearest").executes(KingdomsAdminCommands::resourceNearest))
                         .then(Commands.literal("next")
@@ -197,6 +211,40 @@ public final class KingdomsAdminCommands {
                 stats.depleted(),
                 stats.byZone().toString(),
                 stats.byResource().toString()
+        ), false);
+        return 1;
+    }
+
+    private static int resourceChunk(CommandContext<CommandSourceStack> context, ChunkPos chunk) {
+        CommandSourceStack source = context.getSource();
+        ResourceClusterManager.ChunkDiagnostic diagnostic =
+                ResourceClusterManager.get(source.getLevel()).diagnoseChunk(source.getLevel(), chunk);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.resource.chunk.zone",
+                chunk.x,
+                chunk.z,
+                diagnostic.zone().name(),
+                diagnostic.cellX(),
+                diagnostic.cellZ(),
+                diagnostic.densityMultiplier(),
+                diagnostic.reserveMultiplier(),
+                diagnostic.sizeMultiplier()
+        ), false);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.resource.chunk.deposit",
+                diagnostic.depositCandidateChunk() == null ? "-" : diagnostic.depositCandidateChunk().toString(),
+                diagnostic.depositCenter() == null ? "-" : diagnostic.depositCenter().toShortString(),
+                diagnostic.depositResource() == null ? "-" : diagnostic.depositResource().id(),
+                diagnostic.plannedDepositBlocks(),
+                diagnostic.depositReason()
+        ), false);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.resource.chunk.surface",
+                diagnostic.surfacePosition() == null ? "-" : diagnostic.surfacePosition().toShortString(),
+                diagnostic.surfaceReason(),
+                diagnostic.pendingChunks(),
+                diagnostic.generationQueued(),
+                diagnostic.cleanupQueued()
         ), false);
         return 1;
     }

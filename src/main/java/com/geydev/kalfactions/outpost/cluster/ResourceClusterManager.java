@@ -11,6 +11,7 @@ import com.geydev.kalfactions.outpost.cluster.distribution.ResourceZone;
 import com.geydev.kalfactions.outpost.cluster.distribution.ResourceCycleSchedule;
 import com.geydev.kalfactions.outpost.cluster.distribution.FiniteResourceLedger;
 import com.geydev.kalfactions.outpost.cluster.distribution.SurfaceClusterDistribution;
+import com.geydev.kalfactions.outpost.cluster.distribution.ZoneMultipliers;
 import com.mojang.logging.LogUtils;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -56,17 +57,18 @@ public final class ResourceClusterManager extends SavedData {
             new Factory<>(ResourceClusterManager::new, ResourceClusterManager::load);
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final int LOAD_DELAY_TICKS = 20;
+    private static final int LOAD_DELAY_TICKS = 1;
     private static final int MAX_PLACEMENTS_PER_TICK = 16;
     private static final String TAG_CLUSTERS = "clusters";
     private static final String TAG_REMOVED = "removed";
-    private static final int DATA_VERSION = 2;
+    private static final int DATA_VERSION = 3;
     private static final String TAG_VERSION = "formatVersion";
     private static final String TAG_DEPOSITS = "oreDeposits";
     private static final String TAG_DRILL_BINDINGS = "drillBindings";
     private static final String TAG_CYCLE = "resourceCycleId";
     private static final String TAG_NEXT_CYCLE = "nextResourceCycle";
     private static final String TAG_PAUSED = "resourceQueuePaused";
+    private static final String TAG_PENDING_CHUNKS = "pendingChunks";
     private static final String ENTITY_CLUSTER_KEY = KalFactions.MOD_ID + "ResourceCluster";
     private static final String ENTITY_ROLE_KEY = KalFactions.MOD_ID + "ResourceClusterRole";
     private static final String ITEM_ROLE = "item";
@@ -94,7 +96,7 @@ public final class ResourceClusterManager extends SavedData {
         ResourceCluster cluster = clusters.get(chunkPos.toLong());
         return cluster == null
                 ? Optional.empty()
-                : Optional.of(new ClusterView(cluster.type(), cluster.richness()));
+                : Optional.of(new ClusterView(cluster.basePos(), cluster.type(), cluster.richness()));
     }
 
     public synchronized List<SurfaceClusterView> clustersIn(Set<ClaimKey> claims, ResourceLocation dimension) {
@@ -188,6 +190,25 @@ public final class ResourceClusterManager extends SavedData {
         return resourceQueuePaused;
     }
 
+    public synchronized int pendingChunkCount() {
+        return pendingChunks.size();
+    }
+
+    public synchronized int physicalOreBlocksInChunk(ServerLevel level, ChunkPos chunk) {
+        int count = 0;
+        for (Map.Entry<Long, UUID> entry : trackedOre.entrySet()) {
+            BlockPos pos = BlockPos.of(entry.getKey());
+            if (!new ChunkPos(pos).equals(chunk)) {
+                continue;
+            }
+            OreDeposit deposit = oreDeposits.get(entry.getValue());
+            if (deposit != null && level.getBlockState(pos).is(oreBlock(deposit.resource, pos.getY()))) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     public synchronized void setResourceQueuePaused(boolean paused) {
         if (resourceQueuePaused != paused) {
             resourceQueuePaused = paused;
@@ -250,6 +271,107 @@ public final class ResourceClusterManager extends SavedData {
             }
         }
         return new IntegrityReport(oreDeposits.size(), trackedOre.size(), generationQueue.size(), cleanupQueue.size(), issues);
+    }
+
+    public synchronized ChunkDiagnostic diagnoseChunk(ServerLevel level, ChunkPos chunkPos) {
+        ResourceDistributionConfig config = distributionConfig();
+        ResourceDistribution distribution = new ResourceDistribution(
+                level.getSeed(),
+                resourceCycleId,
+                level.getSharedSpawnPos().getX(),
+                level.getSharedSpawnPos().getZ(),
+                config,
+                distributionZoneMultipliers()
+        );
+        int cellX = Math.floorDiv(chunkPos.getMiddleBlockX(), config.cellSize());
+        int cellZ = Math.floorDiv(chunkPos.getMiddleBlockZ(), config.cellSize());
+        ResourceZone zone = distribution.zoneAt(chunkPos.getMiddleBlockX(), chunkPos.getMiddleBlockZ());
+        ResourceDistribution.CellCandidate candidate = distribution.candidateForCell(cellX, cellZ).orElse(null);
+        ChunkPos candidateChunk = candidate == null
+                ? null
+                : new ChunkPos(candidate.blockX() >> 4, candidate.blockZ() >> 4);
+        OreDeposit deposit = candidateChunk == null
+                ? null
+                : oreDeposits.get(depositCenters.get(candidateChunk.toLong()));
+        String depositReason;
+        if (deposit != null) {
+            depositReason = "deposit_" + deposit.state.name().toLowerCase(java.util.Locale.ROOT);
+        } else if (zone == ResourceZone.BLUE) {
+            depositReason = "blue_zone_disabled";
+        } else if (candidate == null) {
+            depositReason = "cell_density_rejected";
+        } else if (!candidateChunk.equals(chunkPos)) {
+            depositReason = "candidate_in_other_chunk";
+        } else if (pendingChunks.containsKey(chunkPos.toLong())) {
+            depositReason = "pending";
+        } else if (!level.hasChunk(chunkPos.x, chunkPos.z)) {
+            depositReason = "chunk_not_loaded";
+        } else if (!level.getWorldBorder().isWithinBounds(
+                new BlockPos(candidate.blockX(), level.getMinBuildHeight(), candidate.blockZ()))) {
+            depositReason = "outside_world_border";
+        } else if (resourceQueuePaused) {
+            depositReason = "queue_paused";
+        } else {
+            depositReason = "eligible_not_queued";
+        }
+
+        Plan surfacePlan = plan(level, chunkPos);
+        ResourceCluster surface = clusters.get(chunkPos.toLong());
+        String surfaceReason;
+        if (surface != null) {
+            surfaceReason = "cluster_active";
+        } else if (zone == ResourceZone.BLUE) {
+            surfaceReason = "blue_zone_disabled";
+        } else if (zone == ResourceZone.BLACK) {
+            surfaceReason = "black_zone_disabled";
+        } else if (surfacePlan == null) {
+            surfaceReason = "spacing_rejected";
+        } else if (!surfacePlan.chunk().equals(chunkPos)) {
+            surfaceReason = "candidate_in_other_chunk";
+        } else if (pendingChunks.containsKey(chunkPos.toLong())) {
+            surfaceReason = "pending";
+        } else if (!level.hasChunk(chunkPos.x, chunkPos.z)) {
+            surfaceReason = "chunk_not_loaded";
+        } else {
+            surfaceReason = "eligible_not_queued";
+        }
+
+        ZoneMultipliers profile = distributionZoneMultipliers().get(zone);
+        BlockPos depositCenter = candidate != null
+                        && candidateChunk.equals(chunkPos)
+                        && level.hasChunk(chunkPos.x, chunkPos.z)
+                ? new BlockPos(candidate.blockX(), chooseDepth(level, candidate), candidate.blockZ())
+                : null;
+        return new ChunkDiagnostic(
+                chunkPos,
+                zone,
+                cellX,
+                cellZ,
+                candidateChunk,
+                depositCenter,
+                candidate == null ? null : candidate.resource(),
+                candidate == null ? 0 : candidate.size(),
+                profile.density(),
+                profile.reserve(),
+                profile.size(),
+                depositReason,
+                surfacePlan == null ? null : surfacePlan.chunk(),
+                surfacePlan == null ? null : new BlockPos(
+                        surfacePlan.blockX(),
+                        level.hasChunk(surfacePlan.chunk().x, surfacePlan.chunk().z)
+                                ? level.getHeight(
+                                        Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                                        surfacePlan.blockX(),
+                                        surfacePlan.blockZ()
+                                )
+                                : level.getMinBuildHeight(),
+                        surfacePlan.blockZ()
+                ),
+                surfaceReason,
+                pendingChunks.size(),
+                generationQueue.size(),
+                cleanupQueue.size()
+        );
     }
 
     public synchronized Optional<OreDepositView> nearestDeposit(BlockPos origin, int maxDistance) {
@@ -344,12 +466,22 @@ public final class ResourceClusterManager extends SavedData {
     }
 
     public synchronized void queue(ChunkPos chunkPos, long gameTime) {
-        pendingChunks.merge(chunkPos.toLong(), gameTime + LOAD_DELAY_TICKS, Math::min);
+        long key = chunkPos.toLong();
+        long due = gameTime + LOAD_DELAY_TICKS;
+        Long previous = pendingChunks.putIfAbsent(key, due);
+        if (previous == null) {
+            setDirty();
+        } else if (due < previous) {
+            pendingChunks.put(key, due);
+            setDirty();
+        }
     }
 
     public synchronized void deactivate(ChunkPos chunkPos) {
         long key = chunkPos.toLong();
-        pendingChunks.remove(key);
+        if (pendingChunks.remove(key) != null) {
+            setDirty();
+        }
         activeChunks.remove(key);
     }
 
@@ -386,6 +518,9 @@ public final class ResourceClusterManager extends SavedData {
                 ensureCluster(level, chunkPos);
                 ensureOreDeposit(level, chunkPos);
             }
+        }
+        if (!ready.isEmpty()) {
+            setDirty();
         }
     }
 
@@ -545,7 +680,7 @@ public final class ResourceClusterManager extends SavedData {
             max += 8;
         }
         min = Math.max(min, level.getMinBuildHeight() + 6);
-        int surface = level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, candidate.blockX(), candidate.blockZ());
+        int surface = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, candidate.blockX(), candidate.blockZ());
         max = Math.min(max, Math.min(level.getMaxBuildHeight() - 8, surface - 8));
         if (max < min) {
             max = min;
@@ -1036,10 +1171,18 @@ public final class ResourceClusterManager extends SavedData {
         tag.putLong(TAG_CYCLE, resourceCycleId);
         tag.putLong(TAG_NEXT_CYCLE, nextResourceCycleMillis);
         tag.putBoolean(TAG_PAUSED, resourceQueuePaused);
+        ListTag pending = new ListTag();
+        for (Map.Entry<Long, Long> entry : pendingChunks.entrySet()) {
+            CompoundTag pendingTag = new CompoundTag();
+            pendingTag.putLong("chunk", entry.getKey());
+            pendingTag.putLong("due", entry.getValue());
+            pending.add(pendingTag);
+        }
+        tag.put(TAG_PENDING_CHUNKS, pending);
         return tag;
     }
 
-    private static ResourceClusterManager load(CompoundTag tag, HolderLookup.Provider registries) {
+    static ResourceClusterManager load(CompoundTag tag, HolderLookup.Provider registries) {
         ResourceClusterManager manager = new ResourceClusterManager();
         ListTag list = tag.getList(TAG_CLUSTERS, Tag.TAG_COMPOUND);
         for (int index = 0; index < list.size(); index++) {
@@ -1072,6 +1215,17 @@ public final class ResourceClusterManager extends SavedData {
         manager.resourceCycleId = Math.max(0L, tag.getLong(TAG_CYCLE));
         manager.nextResourceCycleMillis = Math.max(0L, tag.getLong(TAG_NEXT_CYCLE));
         manager.resourceQueuePaused = tag.getBoolean(TAG_PAUSED);
+        ListTag pending = tag.getList(TAG_PENDING_CHUNKS, Tag.TAG_COMPOUND);
+        for (int index = 0; index < pending.size(); index++) {
+            CompoundTag pendingTag = pending.getCompound(index);
+            if (pendingTag.contains("chunk", Tag.TAG_LONG) && pendingTag.contains("due", Tag.TAG_LONG)) {
+                manager.pendingChunks.merge(
+                        pendingTag.getLong("chunk"),
+                        Math.max(0L, pendingTag.getLong("due")),
+                        Math::min
+                );
+            }
+        }
         ListTag deposits = tag.getList(TAG_DEPOSITS, Tag.TAG_COMPOUND);
         for (int index = 0; index < deposits.size(); index++) {
             Optional<OreDeposit> loaded = OreDeposit.load(deposits.getCompound(index));
@@ -1106,7 +1260,7 @@ public final class ResourceClusterManager extends SavedData {
         return manager;
     }
 
-    public record ClusterView(ResourceClusterType type, int richness) {
+    public record ClusterView(BlockPos basePos, ResourceClusterType type, int richness) {
     }
 
     public record SurfaceClusterView(
@@ -1127,6 +1281,7 @@ public final class ResourceClusterManager extends SavedData {
             long cycleId,
             int originalReserve,
             int remaining,
+            int generatedBlocks,
             long createdAt,
             long depletedAt,
             String state
@@ -1158,6 +1313,28 @@ public final class ResourceClusterManager extends SavedData {
     }
 
     public record IntegrityReport(int deposits, int trackedBlocks, int generationQueued, int cleanupQueued, int issues) {
+    }
+
+    public record ChunkDiagnostic(
+            ChunkPos chunk,
+            ResourceZone zone,
+            int cellX,
+            int cellZ,
+            ChunkPos depositCandidateChunk,
+            BlockPos depositCenter,
+            ClusterResource depositResource,
+            int plannedDepositBlocks,
+            double densityMultiplier,
+            double reserveMultiplier,
+            double sizeMultiplier,
+            String depositReason,
+            ChunkPos surfaceCandidateChunk,
+            BlockPos surfacePosition,
+            String surfaceReason,
+            int pendingChunks,
+            int generationQueued,
+            int cleanupQueued
+    ) {
     }
 
     public enum OreConsumption {
@@ -1275,6 +1452,7 @@ public final class ResourceClusterManager extends SavedData {
                     cycleId,
                     originalReserve,
                     remaining,
+                    createdPositions.size(),
                     createdAt,
                     depletedAt,
                     state.name().toLowerCase(java.util.Locale.ROOT)
@@ -1453,6 +1631,6 @@ public final class ResourceClusterManager extends SavedData {
         }
     }
 
-    private ResourceClusterManager() {
+    ResourceClusterManager() {
     }
 }

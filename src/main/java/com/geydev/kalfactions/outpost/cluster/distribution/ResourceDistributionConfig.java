@@ -24,7 +24,7 @@ public record ResourceDistributionConfig(
     public static final int DEFAULT_MAX_RESERVE = 300;
     public static final int DEFAULT_MIN_BASE_SIZE = 20;
     public static final int DEFAULT_MAX_BASE_SIZE = 80;
-    public static final int DEFAULT_MAX_SIZE = 160;
+    public static final int DEFAULT_MAX_SIZE = 120;
     public static final double DEFAULT_RARE_SIZE_MULTIPLIER = 0.65D;
 
     public ResourceDistributionConfig {
