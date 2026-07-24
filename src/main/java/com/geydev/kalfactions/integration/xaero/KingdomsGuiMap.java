@@ -147,7 +147,7 @@ final class KingdomsGuiMap extends GuiMap {
                         : ClientClaimStore.get(clickedDimension, pos.x, pos.z);
                 if (claim == null) {
                     claimable.add(packed);
-                } else if (claim.factionId().equals(viewer.factionId())) {
+                } else if (!claim.quarry() && claim.factionId().equals(viewer.factionId())) {
                     ownClaims.add(packed);
                 }
             }
@@ -158,7 +158,7 @@ final class KingdomsGuiMap extends GuiMap {
                 long packed = selected.getFirst();
                 ChunkPos chunk = new ChunkPos(packed);
                 ClaimInfo claim = ClientClaimStore.get(clickedDimension, chunk.x, chunk.z);
-                if (claim != null && claim.factionId().equals(viewer.factionId())) {
+                if (claim != null && !claim.quarry() && claim.factionId().equals(viewer.factionId())) {
                     boolean loaded = claim.forceLoaded();
                     options.add(chunkLoadOption(options.size(), clickedDimension, packed, 8, loaded, sameDimension));
                     options.add(chunkLoadOption(options.size(), clickedDimension, packed, 24, loaded, sameDimension));

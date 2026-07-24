@@ -27,6 +27,17 @@ final class GameplayTextureAssetsTest {
         assertSquare(read("/assets/kingdoms/textures/block/xaero_map_archive_leg.png"), 32);
     }
 
+    @Test
+    void quarryAssetsAreGameReadyTextures() throws IOException {
+        BufferedImage activator = read("/assets/kingdoms/textures/item/quarry_activator.png");
+        BufferedImage core = read("/assets/kingdoms/textures/block/quarry_core.png");
+
+        assertSquare(activator, 16);
+        assertSquare(core, 16);
+        assertTrue(activator.getColorModel().hasAlpha());
+        assertEquals(0, activator.getRGB(0, 0) >>> 24);
+    }
+
     private static BufferedImage read(String path) throws IOException {
         try (InputStream input = GameplayTextureAssetsTest.class.getResourceAsStream(path)) {
             assertNotNull(input, path);

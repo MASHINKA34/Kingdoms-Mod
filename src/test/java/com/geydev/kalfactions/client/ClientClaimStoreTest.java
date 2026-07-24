@@ -49,6 +49,7 @@ class ClientClaimStoreTest {
                 false,
                 false,
                 false,
+                false,
                 false
         );
         replace(Map.of(packed, faction));

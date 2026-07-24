@@ -31,11 +31,13 @@ public final class SanctuaryManager extends SavedData {
     private static final String TAG_AUTOMATIC_CLAIMS = "automaticClaims";
     private static final String TAG_AUTOMATIC_INITIALIZED = "automaticInitialized";
     private static final String TAG_AUTOMATIC_ANCHOR = "automaticAnchor";
+    private static final String TAG_WORLD_BORDER_INITIALIZED = "worldBorderInitialized";
 
     private final Set<ClaimKey> manualClaims = new LinkedHashSet<>();
     private final Set<ClaimKey> automaticClaims = new LinkedHashSet<>();
     private boolean automaticInitialized;
     private BlockPos automaticAnchor;
+    private boolean worldBorderInitialized;
     private long revision;
 
     public static SanctuaryManager get(MinecraftServer server) {
@@ -107,6 +109,15 @@ public final class SanctuaryManager extends SavedData {
         Objects.requireNonNull(level, "level");
         if (!level.dimension().equals(Level.OVERWORLD)) {
             throw new IllegalArgumentException("Automatic spawn sanctuary must be in the overworld");
+        }
+        if (!worldBorderInitialized) {
+            BlockPos spawn = level.getSharedSpawnPos();
+            level.getWorldBorder().setCenter(spawn.getX(), spawn.getZ());
+            level.getWorldBorder().setSize(
+                    com.geydev.kalfactions.config.ModConfigSpec.RESOURCE_WORLD_BORDER_SIZE.getAsInt()
+            );
+            worldBorderInitialized = true;
+            setDirty();
         }
         if (!automaticInitialized) {
             automaticInitialized = true;
@@ -183,6 +194,7 @@ public final class SanctuaryManager extends SavedData {
                 .forEach(automaticTag::add);
         tag.put(TAG_AUTOMATIC_CLAIMS, automaticTag);
         tag.putBoolean(TAG_AUTOMATIC_INITIALIZED, automaticInitialized);
+        tag.putBoolean(TAG_WORLD_BORDER_INITIALIZED, worldBorderInitialized);
         if (automaticAnchor != null) {
             tag.putLong(TAG_AUTOMATIC_ANCHOR, automaticAnchor.asLong());
         }
@@ -200,6 +212,7 @@ public final class SanctuaryManager extends SavedData {
             ClaimKey.load(automaticTag.getCompound(index)).ifPresent(manager.automaticClaims::add);
         }
         manager.automaticInitialized = tag.getBoolean(TAG_AUTOMATIC_INITIALIZED);
+        manager.worldBorderInitialized = tag.getBoolean(TAG_WORLD_BORDER_INITIALIZED);
         manager.automaticAnchor = tag.contains(TAG_AUTOMATIC_ANCHOR)
                 ? BlockPos.of(tag.getLong(TAG_AUTOMATIC_ANCHOR))
                 : null;

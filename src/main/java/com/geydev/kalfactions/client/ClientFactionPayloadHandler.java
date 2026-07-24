@@ -148,7 +148,8 @@ public final class ClientFactionPayloadHandler {
                             entry.outpost(),
                             entry.forceLoaded(),
                             entry.sanctuary(),
-                            entry.frozen())
+                            entry.frozen(),
+                            entry.quarry())
             );
         }
         ClientClaimStore.ViewerInfo viewer = new ClientClaimStore.ViewerInfo(

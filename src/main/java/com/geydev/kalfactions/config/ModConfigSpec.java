@@ -83,6 +83,10 @@ public final class ModConfigSpec {
     public static final BooleanValue SANCTUARY_DISABLE_PVP;
     public static final BooleanValue SANCTUARY_DISABLE_MOB_SPAWNS;
     public static final BooleanValue SANCTUARY_EXPLOSION_IMMUNITY;
+    public static final LongValue QUARRY_LEVEL_2_COST;
+    public static final LongValue QUARRY_LEVEL_3_COST;
+    public static final LongValue QUARRY_LEVEL_4_COST;
+    public static final LongValue QUARRY_LEVEL_5_COST;
     public static final DoubleValue LAGTAX_QUOTA_MS;
     public static final DoubleValue LAGTAX_TIER1_LIMIT_MS;
     public static final DoubleValue LAGTAX_TIER2_LIMIT_MS;
@@ -100,6 +104,7 @@ public final class ModConfigSpec {
     public static final LongValue FACTION_METER_COST;
     public static final IntValue NEWS_MAX_ARTICLES_PER_FACTION;
     public static final IntValue NEWS_PUBLISH_COOLDOWN_MINUTES;
+    public static final IntValue RESOURCE_WORLD_BORDER_SIZE;
     public static final IntValue RESOURCE_BLUE_RADIUS;
     public static final IntValue RESOURCE_YELLOW_RADIUS;
     public static final IntValue RESOURCE_RED_RADIUS;
@@ -220,6 +225,9 @@ public final class ModConfigSpec {
         builder.pop();
 
         builder.push("resourceDeposits");
+        RESOURCE_WORLD_BORDER_SIZE = builder
+            .comment("One-time overworld border size in blocks; centered on the shared spawn.")
+            .defineInRange("worldBorderSize", 20_000, 1_000, 60_000_000);
         RESOURCE_BLUE_RADIUS = builder.defineInRange("blueRadius", 200, 0, 1000000);
         RESOURCE_YELLOW_RADIUS = builder.defineInRange("yellowRadius", 5000, 1, 1000000);
         RESOURCE_RED_RADIUS = builder.defineInRange("redRadius", 8000, 1, 1000000);
@@ -421,6 +429,21 @@ public final class ModConfigSpec {
         SANCTUARY_EXPLOSION_IMMUNITY = builder
             .comment("Make spawn sanctuary chunks immune to all explosions (creeper, TNT, etc.).")
             .define("explosionImmunity", true);
+        builder.pop();
+
+        builder.push("quarry");
+        QUARRY_LEVEL_2_COST = builder
+            .comment("Treasury cost to upgrade an activated quarry to level 2.")
+            .defineInRange("level2Cost", 10_000L, 0L, Long.MAX_VALUE);
+        QUARRY_LEVEL_3_COST = builder
+            .comment("Treasury cost to upgrade a quarry to level 3.")
+            .defineInRange("level3Cost", 25_000L, 0L, Long.MAX_VALUE);
+        QUARRY_LEVEL_4_COST = builder
+            .comment("Treasury cost to upgrade a quarry to level 4.")
+            .defineInRange("level4Cost", 50_000L, 0L, Long.MAX_VALUE);
+        QUARRY_LEVEL_5_COST = builder
+            .comment("Treasury cost to upgrade a quarry to level 5.")
+            .defineInRange("level5Cost", 100_000L, 0L, Long.MAX_VALUE);
         builder.pop();
 
         builder.push("lagtax");

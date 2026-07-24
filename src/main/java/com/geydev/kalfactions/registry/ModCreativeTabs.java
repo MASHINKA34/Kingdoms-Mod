@@ -29,6 +29,8 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.XAERO_MAP_ARCHIVE.get());
                         output.accept(ModItems.ACCESS_TOOL.get());
                         output.accept(ModItems.OUTPOST_CHARTER.get());
+                        output.accept(ModItems.QUARRY_CORE.get());
+                        output.accept(ModItems.QUARRY_ACTIVATOR.get());
                         output.accept(ModItems.DRILL.get());
                         output.accept(ModItems.TRADER_SPAWN_EGG.get());
                         output.accept(ModItems.SELLER_SPAWN_EGG.get());

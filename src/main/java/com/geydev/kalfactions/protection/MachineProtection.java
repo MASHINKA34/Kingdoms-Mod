@@ -2,6 +2,7 @@ package com.geydev.kalfactions.protection;
 
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.quarry.QuarryManager;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
@@ -46,6 +47,9 @@ public final class MachineProtection {
         if (SanctuaryManager.get(serverLevel).isSanctuary(serverLevel, target)) {
             return false;
         }
+        if (QuarryManager.get(serverLevel).isQuarry(serverLevel, target)) {
+            return false;
+        }
         FactionManager factions = FactionManager.get(serverLevel);
         UUID owner = factions.getFactionIdAt(ClaimKey.of(level, target)).orElse(null);
         if (owner == null) {
@@ -65,6 +69,9 @@ public final class MachineProtection {
         if (SanctuaryManager.get(serverLevel).isSanctuary(serverLevel, target)) {
             return false;
         }
+        if (QuarryManager.get(serverLevel).isQuarry(serverLevel, target)) {
+            return false;
+        }
         FactionManager factions = FactionManager.get(serverLevel);
         UUID owner = factions.getFactionIdAt(ClaimKey.of(level, target)).orElse(null);
         if (owner == null) {
@@ -82,6 +89,9 @@ public final class MachineProtection {
             return true;
         }
         if (SanctuaryManager.get(serverLevel).isSanctuary(serverLevel, target)) {
+            return player.hasPermissions(2);
+        }
+        if (QuarryManager.get(serverLevel).isQuarry(serverLevel, target)) {
             return player.hasPermissions(2);
         }
         return FactionAccess.canBuild(player, serverLevel, target);

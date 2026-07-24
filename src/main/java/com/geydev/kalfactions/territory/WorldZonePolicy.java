@@ -12,14 +12,17 @@ import net.minecraft.world.level.Level;
 public final class WorldZonePolicy {
     public static ResourceZone zoneAt(ServerLevel level, double x, double z) {
         BlockPos spawn = level.getSharedSpawnPos();
+        int blue = ModConfigSpec.RESOURCE_BLUE_RADIUS.getAsInt();
+        int yellow = Math.max(blue, ModConfigSpec.RESOURCE_YELLOW_RADIUS.getAsInt());
+        int red = Math.max(yellow, ModConfigSpec.RESOURCE_RED_RADIUS.getAsInt());
         return ResourceZone.at(
                 x,
                 z,
                 spawn.getX(),
                 spawn.getZ(),
-                ModConfigSpec.RESOURCE_BLUE_RADIUS.getAsInt(),
-                ModConfigSpec.RESOURCE_YELLOW_RADIUS.getAsInt(),
-                ModConfigSpec.RESOURCE_RED_RADIUS.getAsInt()
+                blue,
+                yellow,
+                red
         );
     }
 

@@ -55,6 +55,14 @@ public final class ModItems {
             () -> new Item(new Item.Properties())
     );
 
+    public static final DeferredItem<BlockItem> QUARRY_CORE =
+            ITEMS.registerSimpleBlockItem(ModBlocks.QUARRY_CORE);
+
+    public static final DeferredItem<Item> QUARRY_ACTIVATOR = ITEMS.register(
+            "quarry_activator",
+            () -> new Item(new Item.Properties().stacksTo(1))
+    );
+
     public static final DeferredItem<BlockItem> DRILL =
             ITEMS.registerSimpleBlockItem(ModBlocks.DRILL);
 

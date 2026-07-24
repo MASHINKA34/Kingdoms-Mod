@@ -10,6 +10,7 @@ import com.geydev.kalfactions.outpost.trader.TraderService;
 import com.geydev.kalfactions.outpost.trader.TraderWorldData;
 import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager;
 import com.geydev.kalfactions.outpost.cluster.distribution.ResourceZone;
+import com.geydev.kalfactions.quarry.QuarryManager;
 import com.geydev.kalfactions.sanctuary.SanctuaryExecutionManager;
 import com.geydev.kalfactions.worldmap.WorldMapRenderManager;
 import com.mojang.brigadier.CommandDispatcher;
@@ -20,6 +21,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import java.util.UUID;
+import java.util.Collection;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
@@ -101,6 +103,12 @@ public final class KingdomsAdminCommands {
                         .then(Commands.literal("pause").executes(context -> resourcePause(context, true)))
                         .then(Commands.literal("resume").executes(context -> resourcePause(context, false)))
                         .then(Commands.literal("verify").executes(KingdomsAdminCommands::resourceVerify)))
+                .then(Commands.literal("quarry")
+                        .then(Commands.literal("create").executes(KingdomsAdminCommands::quarryCreate))
+                        .then(Commands.literal("list").executes(KingdomsAdminCommands::quarryList))
+                        .then(Commands.literal("remove")
+                                .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                        .executes(KingdomsAdminCommands::quarryRemove))))
                 .then(Commands.literal("map")
                         .then(Commands.literal("render")
                                 .executes(context -> startRender(context, DEFAULT_MAP_RESOLUTION))
@@ -111,6 +119,51 @@ public final class KingdomsAdminCommands {
                                 .executes(KingdomsAdminCommands::cancelRender))
                         .then(Commands.literal("status")
                                 .executes(KingdomsAdminCommands::mapStatus))));
+    }
+
+    private static int quarryCreate(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ServerLevel level = source.getLevel();
+        QuarryManager.CreateResult result =
+                QuarryManager.get(level).createAtChunk(
+                        level,
+                        new net.minecraft.world.level.ChunkPos(BlockPos.containing(source.getPosition()))
+                );
+        if (result != QuarryManager.CreateResult.CREATED) {
+            source.sendFailure(Component.translatable(
+                    "kingdoms.command.quarry.create_failed." + result.name().toLowerCase(java.util.Locale.ROOT)
+            ));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.translatable("kingdoms.command.quarry.created"), true);
+        return 1;
+    }
+
+    private static int quarryList(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        Collection<com.geydev.kalfactions.quarry.QuarryManager.QuarryView> quarries =
+                QuarryManager.get(source.getServer()).all();
+        source.sendSuccess(() -> Component.translatable("kingdoms.command.quarry.count", quarries.size()), false);
+        for (com.geydev.kalfactions.quarry.QuarryManager.QuarryView quarry : quarries) {
+            source.sendSuccess(() -> Component.literal(
+                    quarry.core().getX() + " " + quarry.core().getY() + " " + quarry.core().getZ()
+                            + " · level " + quarry.level()
+                            + " · owner " + (quarry.ownerFactionId() == null ? "neutral" : quarry.ownerFactionId())
+            ), false);
+        }
+        return quarries.size();
+    }
+
+    private static int quarryRemove(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        BlockPos pos = BlockPosArgument.getLoadedBlockPos(context, "pos");
+        if (!QuarryManager.get(source.getServer()).removeByCore(source.getLevel(), pos)) {
+            source.sendFailure(Component.translatable("kingdoms.command.quarry.not_found"));
+            return 0;
+        }
+        source.getLevel().removeBlock(pos, false);
+        source.sendSuccess(() -> Component.translatable("kingdoms.command.quarry.removed"), true);
+        return 1;
     }
 
     private static int resourceZone(CommandContext<CommandSourceStack> context) {

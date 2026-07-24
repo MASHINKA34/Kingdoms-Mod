@@ -113,7 +113,8 @@ public final class ClaimSyncManager {
                         faction.isOutpost(claim),
                         faction.isForceLoaded(claim),
                         false,
-                        frozen
+                        frozen,
+                        false
                 ));
                 if (entries.size() >= FactionPayloads.S2CSyncClaims.MAX_ENTRIES) {
                     break outer;
@@ -139,6 +140,7 @@ public final class ClaimSyncManager {
                         false,
                         false,
                         false,
+                        false,
                         false
                 ));
             }
@@ -159,8 +161,39 @@ public final class ClaimSyncManager {
                     false,
                     false,
                     true,
+                    false,
                     false
             ));
+        }
+
+        quarry:
+        for (com.geydev.kalfactions.quarry.QuarryManager.QuarryView quarry
+                : com.geydev.kalfactions.quarry.QuarryManager.get(player.serverLevel()).all()) {
+            Faction owner = quarry.ownerFactionId() == null
+                    ? null
+                    : FactionManager.get(player.serverLevel()).getFactionById(quarry.ownerFactionId()).orElse(null);
+            for (ClaimKey chunk : quarry.chunks()) {
+                if (!chunk.dimension().equals(dimension)) {
+                    continue;
+                }
+                if (entries.size() >= FactionPayloads.S2CSyncClaims.MAX_ENTRIES) {
+                    break quarry;
+                }
+                entries.add(new FactionPayloads.ClaimEntry(
+                        chunk.x(),
+                        chunk.z(),
+                        owner == null ? com.geydev.kalfactions.quarry.QuarryManager.NEUTRAL_COLOR : owner.color(),
+                        owner == null ? "" : owner.name(),
+                        owner == null
+                                ? com.geydev.kalfactions.quarry.QuarryManager.NEUTRAL_MAP_ID
+                                : owner.id(),
+                        false,
+                        false,
+                        false,
+                        false,
+                        true
+                ));
+            }
         }
 
         Faction viewerFaction = FactionManager.get(player.serverLevel())

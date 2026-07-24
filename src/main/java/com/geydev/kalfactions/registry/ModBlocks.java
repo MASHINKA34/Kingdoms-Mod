@@ -6,6 +6,7 @@ import com.geydev.kalfactions.block.FactionTableBlock;
 import com.geydev.kalfactions.block.GuideBoardBlock;
 import com.geydev.kalfactions.block.NewsBoardBlock;
 import com.geydev.kalfactions.block.OutpostCoreBlock;
+import com.geydev.kalfactions.block.QuarryCoreBlock;
 import com.geydev.kalfactions.block.SanctuaryCoreBlock;
 import com.geydev.kalfactions.block.WarArchiveBlock;
 import com.geydev.kalfactions.block.WorldMapBlock;
@@ -14,6 +15,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.level.material.PushReaction;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -100,6 +102,16 @@ public final class ModBlocks {
                     .mapColor(MapColor.COLOR_GRAY)
                     .strength(50.0F, 1200.0F)
                     .sound(SoundType.STONE))
+    );
+
+    public static final DeferredBlock<QuarryCoreBlock> QUARRY_CORE = BLOCKS.register(
+            "quarry_core",
+            () -> new QuarryCoreBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_GRAY)
+                    .strength(-1.0F, 3_600_000.0F)
+                    .sound(SoundType.METAL)
+                    .pushReaction(PushReaction.BLOCK)
+                    .noLootTable())
     );
 
     public static final DeferredBlock<WorldMapBlock> WORLD_MAP = BLOCKS.register(

@@ -23,6 +23,7 @@ public final class ClientClaimStore {
             false,
             false,
             false,
+            false,
             false
     );
 
@@ -33,7 +34,8 @@ public final class ClientClaimStore {
             boolean outpost,
             boolean forceLoaded,
             boolean sanctuary,
-            boolean frozen
+            boolean frozen,
+            boolean quarry
     ) {
     }
 
@@ -114,7 +116,8 @@ public final class ClientClaimStore {
                         claim.outpost(),
                         forceLoaded,
                         claim.sanctuary(),
-                        claim.frozen())
+                        claim.frozen(),
+                        claim.quarry())
         );
         BY_DIMENSION.put(dimension, Map.copyOf(updated));
         REGION_HASHES.put(dimension, regionHashes(updated));

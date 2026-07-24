@@ -3,6 +3,7 @@ package com.geydev.kalfactions.mixin;
 import com.geydev.kalfactions.market.MarketPlot;
 import com.geydev.kalfactions.market.MarketPlotManager;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
+import com.geydev.kalfactions.quarry.QuarryManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
@@ -32,6 +33,10 @@ public abstract class FlowingFluidMixin {
             return;
         }
         BlockPos source = pos.relative(direction.getOpposite());
+        if (QuarryManager.get(serverLevel).isQuarry(serverLevel, pos)) {
+            ci.cancel();
+            return;
+        }
         if (!SanctuaryManager.get(serverLevel).isSanctuary(serverLevel, source)) {
             return;
         }
