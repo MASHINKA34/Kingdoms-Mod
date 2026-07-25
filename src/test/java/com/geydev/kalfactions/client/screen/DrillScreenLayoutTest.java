@@ -11,10 +11,10 @@ class DrillScreenLayoutTest {
     void workingLayoutUsesContainerOrigin() {
         DrillScreen.Layout layout = new DrillScreen.Layout(37, 19);
 
-        assertEquals(119, layout.targetIconX());
-        assertEquals(49, layout.targetIconY());
+        assertEquals(49, layout.targetIconX());
+        assertEquals(46, layout.targetIconY());
         assertEquals(295, layout.changeButtonX());
-        assertEquals(43, layout.changeButtonY());
+        assertEquals(45, layout.changeButtonY());
     }
 
     @Test

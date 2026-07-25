@@ -871,8 +871,6 @@
   "kingdoms.sanctuary.manual_cleared": "Cleared %s manually added spawn chunk(s).",
   "kingdoms.xaero_map.sanctuary_mark": "Mark spawn (%s)",
   "kingdoms.xaero_map.sanctuary_unmark": "Unmark spawn (%s)",
-  "kingdoms.xaero_map.sanctuary_clear_automatic": "Clear automatic spawn area",
-  "kingdoms.xaero_map.sanctuary_clear_manual": "Clear manually added spawn areas",
   "screen.kingdoms.sanctuary.clear_automatic": "Clear auto (%s)",
   "screen.kingdoms.sanctuary.clear_manual": "Clear manual (%s)",
   "item.kingdoms.plot_wand": "Market Plot Wand",

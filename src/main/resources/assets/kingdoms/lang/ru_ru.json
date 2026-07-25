@@ -871,8 +871,6 @@
   "kingdoms.sanctuary.manual_cleared": "Очищено добавленных вручную чанков спавна: %s.",
   "kingdoms.xaero_map.sanctuary_mark": "Отметить спавн (%s)",
   "kingdoms.xaero_map.sanctuary_unmark": "Снять спавн (%s)",
-  "kingdoms.xaero_map.sanctuary_clear_automatic": "Очистить автоматическую зону спавна",
-  "kingdoms.xaero_map.sanctuary_clear_manual": "Очистить добавленные вручную зоны",
   "screen.kingdoms.sanctuary.clear_automatic": "Очистить авто (%s)",
   "screen.kingdoms.sanctuary.clear_manual": "Очистить ручные (%s)",
   "item.kingdoms.plot_wand": "Жезл торгового участка",

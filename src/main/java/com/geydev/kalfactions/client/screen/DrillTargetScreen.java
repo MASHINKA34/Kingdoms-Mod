@@ -27,10 +27,14 @@ public final class DrillTargetScreen extends Screen {
     }
 
     @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        graphics.fillGradient(0, 0, width, height, 0xFF101824, 0xFF04080D);
+    }
+
+    @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         renderBackground(graphics, mouseX, mouseY, partialTick);
         Layout layout = layout();
-        graphics.fillGradient(0, 0, width, height, 0xF0101824, 0xF004080D);
         graphics.fill(
                 layout.panelLeft(),
                 layout.panelTop(),

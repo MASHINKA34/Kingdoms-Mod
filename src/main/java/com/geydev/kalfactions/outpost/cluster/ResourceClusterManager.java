@@ -686,7 +686,23 @@ public final class ResourceClusterManager extends SavedData {
             max = min;
         }
         int span = max - min + 1;
-        return min + unsignedMod(mix64(candidate.shapeSeed() ^ 0xC6BC279692B5CC83L), span);
+        int target = min + unsignedMod(mix64(candidate.shapeSeed() ^ 0xC6BC279692B5CC83L), span);
+        return snapToStone(level, candidate.blockX(), candidate.blockZ(), target, min, max);
+    }
+
+    private static int snapToStone(ServerLevel level, int x, int z, int target, int min, int max) {
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int radius = 0; radius <= max - min; radius++) {
+            int down = target - radius;
+            if (down >= min && level.getBlockState(cursor.set(x, down, z)).is(BlockTags.BASE_STONE_OVERWORLD)) {
+                return down;
+            }
+            int up = target + radius;
+            if (up <= max && level.getBlockState(cursor.set(x, up, z)).is(BlockTags.BASE_STONE_OVERWORLD)) {
+                return up;
+            }
+        }
+        return target;
     }
 
     private static int[] depthRange(ClusterResource resource) {

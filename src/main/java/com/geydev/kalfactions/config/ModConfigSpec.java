@@ -231,7 +231,7 @@ public final class ModConfigSpec {
         RESOURCE_BLUE_RADIUS = builder.defineInRange("safeZoneRadius", 200, 0, 1000000);
         RESOURCE_YELLOW_RADIUS = builder.defineInRange("yellowZoneRadius", 5000, 1, 1000000);
         RESOURCE_RED_RADIUS = builder.defineInRange("redRadius", 8000, 1, 1000000);
-        RESOURCE_CELL_SIZE = builder.defineInRange("cellSizeBlocks", 256, 64, 4096);
+        RESOURCE_CELL_SIZE = builder.defineInRange("cellSizeBlocks", 64, 32, 4096);
         RESOURCE_BASE_DENSITY = builder.defineInRange("baseDensity", 0.40D, 0.0D, 1.0D);
         builder.push("zoneProfiles");
         RESOURCE_BLUE_DENSITY_MULTIPLIER = builder.defineInRange("blueDensityMultiplier", 0.00D, 0.0D, 10.0D);

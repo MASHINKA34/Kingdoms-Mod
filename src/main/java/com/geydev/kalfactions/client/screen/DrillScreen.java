@@ -29,11 +29,15 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     private static final int FILL_HEIGHT = 8;
     private static final int INVENTORY_PANEL_TOP = 150;
     private static final int INVENTORY_LABEL_Y = 158;
-    private static final int TARGET_ICON_X = 82;
-    private static final int TARGET_ICON_Y = 30;
-    private static final int TARGET_ICON_SIZE = 20;
+    private static final int READOUT_X = 8;
+    private static final int READOUT_Y = 24;
+    private static final int READOUT_HEIGHT = 24;
+    private static final int READOUT_MAX_RIGHT = 166;
+    private static final int TARGET_ICON_X = 12;
+    private static final int TARGET_ICON_Y = 27;
+    private static final int TARGET_ICON_SIZE = 18;
     private static final int CHANGE_BUTTON_X = 258;
-    private static final int CHANGE_BUTTON_Y = 24;
+    private static final int CHANGE_BUTTON_Y = 26;
     private static final int CHANGE_BUTTON_WIDTH = 96;
     private static final int CHANGE_BUTTON_HEIGHT = 20;
     private boolean openingSelector;
@@ -111,33 +115,56 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
         Layout layout = layout();
         DrillPayloads.S2CTargets state = ClientDrillTargets.get(menu.containerId);
         DrillPayloads.TargetInfo selected = selectedTarget(state);
-        graphics.fill(
-                layout.targetIconX() - 2,
-                layout.targetIconY() - 2,
-                layout.targetIconX() + TARGET_ICON_SIZE,
-                layout.targetIconY() + TARGET_ICON_SIZE,
-                0xFF080B10
-        );
+        Component name = selected == null
+                ? Component.translatable("screen.kingdoms.drill.no_target")
+                : ResourceClusterType.parse(selected.type())
+                        .map(type -> type.displayItem().getDescription())
+                        .orElse(Component.literal(selected.type()));
+        boolean finite = selected != null && menu.hasFiniteDeposit();
+        Component reserve = !finite ? null : menu.depositRemaining() == 0
+                ? Component.translatable("screen.kingdoms.drill.depleted")
+                : Component.translatable(
+                        "screen.kingdoms.drill.reserve",
+                        menu.depositRemaining(),
+                        menu.depositOriginal()
+                );
+
+        int plateLeft = layout.targetIconX() - 4;
+        int plateTop = topPos + READOUT_Y;
+        int textLeft = layout.targetIconX() + TARGET_ICON_SIZE + 5;
+        int textWidth = Math.max(font.width(name), reserve == null ? 0 : font.width(reserve));
+        int plateRight = Math.min(leftPos + READOUT_MAX_RIGHT, textLeft + textWidth + 6);
+        graphics.fill(plateLeft, plateTop, plateRight, plateTop + READOUT_HEIGHT, 0xFF080B10);
+        graphics.fill(plateLeft + 1, plateTop + 1, plateRight - 1, plateTop + READOUT_HEIGHT - 1, 0xFF17222F);
+        graphics.fill(plateLeft, plateTop, plateRight, plateTop + 2, 0xFFC6A24C);
+
         graphics.fill(
                 layout.targetIconX() - 1,
                 layout.targetIconY() - 1,
-                layout.targetIconX() + TARGET_ICON_SIZE - 1,
-                layout.targetIconY() + TARGET_ICON_SIZE - 1,
+                layout.targetIconX() + TARGET_ICON_SIZE + 1,
+                layout.targetIconY() + TARGET_ICON_SIZE + 1,
                 selected == null ? 0xFF565B62 : 0xFFD3A73D
         );
         graphics.fill(
                 layout.targetIconX(),
                 layout.targetIconY(),
-                layout.targetIconX() + 18,
-                layout.targetIconY() + 18,
+                layout.targetIconX() + TARGET_ICON_SIZE,
+                layout.targetIconY() + TARGET_ICON_SIZE,
                 0xFF17202A
         );
-        if (selected == null) {
-            return;
+        if (selected != null) {
+            ResourceClusterType.parse(selected.type()).ifPresent(type ->
+                    graphics.renderItem(new ItemStack(type.displayItem()), layout.targetIconX() + 1, layout.targetIconY() + 1)
+            );
         }
-        ResourceClusterType.parse(selected.type()).ifPresent(type ->
-                graphics.renderItem(new ItemStack(type.displayItem()), layout.targetIconX() + 1, layout.targetIconY() + 1)
-        );
+
+        int nameColor = selected == null ? 0xFF9AA6B2 : 0xFFF0D99D;
+        if (reserve == null) {
+            graphics.drawString(font, name, textLeft, plateTop + 8, nameColor, false);
+        } else {
+            graphics.drawString(font, name, textLeft, plateTop + 3, nameColor, false);
+            graphics.drawString(font, reserve, textLeft, plateTop + 14, 0xFFB9C8D5, false);
+        }
     }
 
     private void renderDrillSlots(GuiGraphics graphics) {
@@ -220,23 +247,6 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
         graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, 0xFFE8D6A0, true);
-        if (menu.hasFiniteDeposit()) {
-            Component reserve = menu.depositRemaining() == 0
-                    ? Component.translatable("screen.kingdoms.drill.depleted")
-                    : Component.translatable(
-                            "screen.kingdoms.drill.reserve",
-                            menu.depositRemaining(),
-                            menu.depositOriginal()
-                    );
-            graphics.drawCenteredString(font, reserve, imageWidth / 2, 34, 0xFFE8D6A0);
-        }
-        DrillPayloads.TargetInfo selected = selectedTarget(ClientDrillTargets.get(menu.containerId));
-        Component targetName = selected == null
-                ? Component.translatable("screen.kingdoms.drill.no_target")
-                : ResourceClusterType.parse(selected.type())
-                        .map(type -> type.displayItem().getDescription())
-                        .orElse(Component.literal(selected.type()));
-        graphics.drawString(font, targetName, TARGET_ICON_X + 24, TARGET_ICON_Y + 5, 0xFFE8D6A0, false);
     }
 
     private static String formatTicks(int ticks) {

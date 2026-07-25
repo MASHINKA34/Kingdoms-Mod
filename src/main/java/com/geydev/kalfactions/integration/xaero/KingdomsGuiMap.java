@@ -131,10 +131,6 @@ final class KingdomsGuiMap extends GuiMap {
                         options.size(), "kingdoms.xaero_map.sanctuary_mark", toMark, true, sameDimension && withinLimit));
                 options.add(sanctuaryOption(
                         options.size(), "kingdoms.xaero_map.sanctuary_unmark", toUnmark, false, sameDimension && withinLimit));
-                options.add(clearSanctuaryOption(
-                        options.size(), "kingdoms.xaero_map.sanctuary_clear_automatic", true, sameDimension));
-                options.add(clearSanctuaryOption(
-                        options.size(), "kingdoms.xaero_map.sanctuary_clear_manual", false, sameDimension));
             }
 
             ViewerInfo viewer = ClientClaimStore.viewer();
@@ -203,17 +199,6 @@ final class KingdomsGuiMap extends GuiMap {
         };
         option.setNameFormatArgs(chunks.size());
         option.setActive(usable && !chunks.isEmpty());
-        return option;
-    }
-
-    private RightClickOption clearSanctuaryOption(int index, String key, boolean automatic, boolean usable) {
-        RightClickOption option = new RightClickOption(key, index, this) {
-            @Override
-            public void onAction(Screen screen) {
-                PacketDistributor.sendToServer(new FactionPayloads.C2SClearSanctuaryLayer(automatic));
-            }
-        };
-        option.setActive(usable);
         return option;
     }
 
