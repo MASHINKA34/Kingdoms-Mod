@@ -19,7 +19,6 @@ import net.minecraft.world.level.levelgen.feature.configurations.OreConfiguratio
 import net.minecraft.world.level.levelgen.structure.templatesystem.TagMatchTest;
 
 public final class ZonedOreFeature extends Feature<NoneFeatureConfiguration> {
-    private static final int MINIMUM_VEIN_SIZE = 4;
     private static List<OreVein> veins;
 
     public enum OreKind {
@@ -56,7 +55,7 @@ public final class ZonedOreFeature extends Feature<NoneFeatureConfiguration> {
             if (countScale <= 0.0D) {
                 continue;
             }
-            int size = Math.max(MINIMUM_VEIN_SIZE, (int) Math.round(vein.size() * multiplier));
+            int size = Math.max(minimumVeinSize(zone), (int) Math.round(vein.size() * multiplier));
             int count = (int) Math.round(vein.count() * countScale);
             if (size <= 0 || count <= 0) {
                 continue;
@@ -110,6 +109,15 @@ public final class ZonedOreFeature extends Feature<NoneFeatureConfiguration> {
         } catch (IllegalStateException | IllegalArgumentException exception) {
             return zone.defaultOreSizeMultiplier();
         }
+    }
+
+    public static int minimumVeinSize(ResourceZone zone) {
+        return switch (zone) {
+            case BLUE -> 0;
+            case YELLOW -> 4;
+            case RED -> 5;
+            case BLACK -> 6;
+        };
     }
 
     public static double countMultiplier(OreKind kind, ResourceZone zone) {

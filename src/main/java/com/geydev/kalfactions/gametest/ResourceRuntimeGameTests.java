@@ -57,6 +57,10 @@ public final class ResourceRuntimeGameTests {
         helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.YELLOW), 0.2D, "yellow ore size");
         helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.RED), 0.5D, "red ore size");
         helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.BLACK), 1.1D, "black ore size");
+
+        helper.assertValueEqual(ZonedOreFeature.minimumVeinSize(ResourceZone.YELLOW), 4, "yellow vein floor");
+        helper.assertValueEqual(ZonedOreFeature.minimumVeinSize(ResourceZone.RED), 5, "red vein floor");
+        helper.assertValueEqual(ZonedOreFeature.minimumVeinSize(ResourceZone.BLACK), 6, "black vein floor");
         helper.succeed();
     }
 
@@ -80,11 +84,15 @@ public final class ResourceRuntimeGameTests {
         helper.assertTrue(yellow.coal() > 0, "yellow zone has coal, was " + yellow.coal());
         helper.assertTrue(yellow.copper() > 0, "yellow zone has copper, was " + yellow.copper());
         helper.assertTrue(
-                yellow.iron() * 3 < yellow.coal(),
-                "yellow iron is scarce: iron " + yellow.iron() + " vs coal " + yellow.coal()
+                yellow.iron() < yellow.copper(),
+                "yellow iron is scarcer than copper: iron " + yellow.iron() + " vs copper " + yellow.copper()
         );
         helper.assertTrue(black.diamond() > 0, "black zone has diamond, was " + black.diamond());
         helper.assertTrue(black.lapis() > 0, "black zone has lapis, was " + black.lapis());
+        helper.assertTrue(
+                red.total() > yellow.total(),
+                "red richer than yellow: " + red.total() + " vs " + yellow.total()
+        );
         helper.assertTrue(
                 black.total() > yellow.total(),
                 "black richer than yellow: " + black.total() + " vs " + yellow.total()
@@ -111,7 +119,7 @@ public final class ResourceRuntimeGameTests {
                 java.util.Optional.empty(),
                 level,
                 level.getChunkSource().getGenerator(),
-                level.getRandom(),
+                net.minecraft.util.RandomSource.create(0x4B494E47444F4DL + offsetX),
                 new BlockPos(chunk.getMinBlockX(), 0, chunk.getMinBlockZ()),
                 NoneFeatureConfiguration.INSTANCE
         ));
