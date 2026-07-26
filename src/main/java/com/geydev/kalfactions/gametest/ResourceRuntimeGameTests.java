@@ -55,11 +55,11 @@ public final class ResourceRuntimeGameTests {
         );
 
         helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.BLUE), 0.0D, "blue has no ore");
-        helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.BLACK), 1.1D, "black ore size");
+        helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.BLACK), 1.2D, "black ore size");
         helper.assertValueEqual(ZonedOreFeature.minVeinSize(ResourceZone.YELLOW), 1, "yellow min vein");
         helper.assertValueEqual(ZonedOreFeature.maxVeinSize(ResourceZone.YELLOW), 4, "yellow max vein");
         helper.assertValueEqual(ZonedOreFeature.minVeinSize(ResourceZone.RED), 5, "red min vein");
-        helper.assertValueEqual(ZonedOreFeature.maxVeinSize(ResourceZone.RED), 9, "red max vein");
+        helper.assertValueEqual(ZonedOreFeature.maxVeinSize(ResourceZone.RED), 7, "red max vein");
 
         RandomSource random = RandomSource.create(0x5A4F4E45L);
         boolean sawYellowBelowMax = false;
@@ -68,8 +68,8 @@ public final class ResourceRuntimeGameTests {
             int redSize = ZonedOreFeature.veinSize(ResourceZone.RED, 17, random);
             int blackSize = ZonedOreFeature.veinSize(ResourceZone.BLACK, 17, random);
             helper.assertTrue(yellowSize >= 1 && yellowSize <= 4, "yellow vein size 1..4, was " + yellowSize);
-            helper.assertTrue(redSize >= 5 && redSize <= 9, "red vein size 5..9, was " + redSize);
-            helper.assertValueEqual(blackSize, 19, "black vein keeps the vanilla-scaled size");
+            helper.assertTrue(redSize >= 5 && redSize <= 7, "red vein size 5..7, was " + redSize);
+            helper.assertValueEqual(blackSize, 20, "black vein keeps the vanilla-scaled size");
             sawYellowBelowMax |= yellowSize < 4;
         }
         helper.assertTrue(sawYellowBelowMax, "yellow vein sizes vary below the maximum");

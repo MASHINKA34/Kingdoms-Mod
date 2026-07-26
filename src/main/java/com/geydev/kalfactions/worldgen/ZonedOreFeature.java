@@ -150,7 +150,7 @@ public final class ZonedOreFeature extends Feature<NoneFeatureConfiguration> {
                 case BLUE, BLACK -> 0;
             };
         } catch (IllegalStateException | IllegalArgumentException exception) {
-            return zone == ResourceZone.RED ? 9 : 4;
+            return zone == ResourceZone.RED ? 7 : 4;
         }
     }
 
