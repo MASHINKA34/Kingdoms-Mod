@@ -1,3 +1,6 @@
 {
-  "parent": "kingdoms:block/xaero_map_archive"
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "kingdoms:item/xaero_map_archive"
+  }
 }

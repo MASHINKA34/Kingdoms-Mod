@@ -43,6 +43,7 @@ public final class XaeroArchiveClient {
         thread.setDaemon(true);
         return thread;
     });
+    private static final long STATS_INTERVAL_MILLIS = 1_500L;
     private static volatile TransferState state = TransferState.idle();
     private static volatile Consumer<TransferState> listener = ignored -> {
     };
@@ -52,6 +53,8 @@ public final class XaeroArchiveClient {
     private static PendingDownload pendingDownload;
     private static boolean finishingDownload;
     private static StatsRequest statsRequest;
+    private static PendingStats pendingStats;
+    private static long lastStatsRequest;
 
     public static void setListener(Consumer<TransferState> newListener) {
         listener = newListener == null ? ignored -> {
@@ -123,12 +126,17 @@ public final class XaeroArchiveClient {
     }
 
     public static void requestStats(BlockPos anchor, Consumer<ArchiveStats> consumer) {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null) {
-            consumer.accept(new ArchiveStats(DataStats.empty(), DataStats.empty(),
-                    "kingdoms.xaero_archive.error.unavailable"));
+        long now = System.currentTimeMillis();
+        if (now - lastStatsRequest < STATS_INTERVAL_MILLIS) {
+            pendingStats = new PendingStats(anchor.immutable(), consumer, lastStatsRequest + STATS_INTERVAL_MILLIS);
             return;
         }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level == null) {
+            consumer.accept(new ArchiveStats(null, null, "kingdoms.xaero_archive.error.unavailable"));
+            return;
+        }
+        lastStatsRequest = now;
         ResourceLocation dimension = minecraft.level.dimension().location();
         UUID requestId = UUID.randomUUID();
         StatsRequest request = new StatsRequest(requestId, dimension, consumer);
@@ -139,12 +147,13 @@ public final class XaeroArchiveClient {
             if (current != null && current.id.equals(requestId)) {
                 current.local = new DataStats(local.compressedSize(), local.uncompressedSize(),
                         local.regionCount(), local.tileCount());
+                current.localResolved = true;
                 completeStats(current);
             }
         }, throwable -> {
             StatsRequest current = statsRequest;
             if (current != null && current.id.equals(requestId)) {
-                current.local = DataStats.empty();
+                current.localResolved = true;
                 current.errorKey = errorKey(throwable, "kingdoms.xaero_archive.error.snapshot");
                 completeStats(current);
             }
@@ -152,6 +161,9 @@ public final class XaeroArchiveClient {
     }
 
     public static void cancel() {
+        if (!busy() && state.terminal()) {
+            return;
+        }
         UUID sessionId = state.sessionId();
         if (sessionId != null) {
             PacketDistributor.sendToServer(new XaeroArchivePayloads.C2SCancel(sessionId));
@@ -241,24 +253,28 @@ public final class XaeroArchiveClient {
         if (request == null || !request.id.equals(payload.requestId()) || !request.dimension.equals(payload.dimension())) {
             return;
         }
+        request.factionResolved = true;
         if (payload.compressedSize() < 0 || payload.compressedSize() > XaeroArchiveLimits.MAX_SESSION_COMPRESSED_SIZE
                 || payload.uncompressedSize() < 0 || payload.uncompressedSize() > XaeroArchiveLimits.MAX_SESSION_UNCOMPRESSED_SIZE
                 || payload.regionCount() < 0 || payload.regionCount() > XaeroArchiveLimits.MAX_REGIONS
                 || payload.tileCount() < 0 || payload.tileCount() > XaeroArchiveLimits.MAX_REGIONS * 1024) {
-            request.faction = DataStats.empty();
             request.errorKey = "kingdoms.xaero_archive.error.invalid_metadata";
-        } else {
+        } else if (payload.successful()) {
             request.faction = new DataStats(payload.compressedSize(), payload.uncompressedSize(),
                     payload.regionCount(), payload.tileCount());
-            if (!payload.successful()) {
-                request.errorKey = payload.messageKey();
-            }
+        } else {
+            request.errorKey = payload.messageKey();
         }
         completeStats(request);
     }
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
+        PendingStats pending = pendingStats;
+        if (pending != null && System.currentTimeMillis() >= pending.dueAt()) {
+            pendingStats = null;
+            requestStats(pending.anchor(), pending.consumer());
+        }
         UploadSender sender = upload;
         if (sender == null || sender.finishedSending) {
             return;
@@ -300,6 +316,7 @@ public final class XaeroArchiveClient {
         pendingDownload = null;
         finishingDownload = false;
         statsRequest = null;
+        pendingStats = null;
     }
 
     private static void publish(TransferState next) {
@@ -308,7 +325,7 @@ public final class XaeroArchiveClient {
     }
 
     private static void completeStats(StatsRequest request) {
-        if (request.local == null || request.faction == null || statsRequest != request) {
+        if (!request.localResolved || !request.factionResolved || statsRequest != request) {
             return;
         }
         statsRequest = null;
@@ -400,10 +417,10 @@ public final class XaeroArchiveClient {
     private record PendingDownload(UUID sessionId, BlockPos anchor, ResourceLocation dimension) {
     }
 
+    private record PendingStats(BlockPos anchor, Consumer<ArchiveStats> consumer, long dueAt) {
+    }
+
     public record DataStats(long compressedSize, long uncompressedSize, int regionCount, int tileCount) {
-        private static DataStats empty() {
-            return new DataStats(0, 0, 0, 0);
-        }
     }
 
     public record ArchiveStats(DataStats local, DataStats faction, String messageKey) {
@@ -415,6 +432,8 @@ public final class XaeroArchiveClient {
         private final Consumer<ArchiveStats> consumer;
         private DataStats local;
         private DataStats faction;
+        private boolean localResolved;
+        private boolean factionResolved;
         private String errorKey = "";
 
         private StatsRequest(UUID id, ResourceLocation dimension, Consumer<ArchiveStats> consumer) {

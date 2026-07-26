@@ -123,6 +123,7 @@ public final class XaeroWorldMapArchiveCompat {
                 CompletableFuture.runAsync(() -> {
                     try {
                         mergeIntoLocal(download, processor);
+                        invalidateRegionCaches(download, processor);
                     } catch (IOException exception) {
                         throw new java.util.concurrent.CompletionException(exception);
                     }
@@ -266,6 +267,40 @@ public final class XaeroWorldMapArchiveCompat {
             Path merged = prepared.resolve(incoming.descriptor.name()).normalize();
             Path local = localFolder.resolve(incoming.descriptor.name()).normalize();
             XaeroArchiveManifest.moveAtomic(merged, local);
+        }
+    }
+
+    private static void invalidateRegionCaches(Download download, MapProcessor processor) throws IOException {
+        Path folder = mapFolder(processor);
+        if (!Files.isDirectory(folder, LinkOption.NOFOLLOW_LINKS)) {
+            return;
+        }
+        List<String> imported = download.regions.stream()
+                .map(region -> region.descriptor.name())
+                .map(name -> name.substring(0, name.length() - ".zip".length()))
+                .toList();
+        try (var entries = Files.list(folder)) {
+            entries.filter(path -> Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS))
+                    .filter(path -> path.getFileName().toString().startsWith("cache"))
+                    .forEach(cache -> deleteCachedRegions(cache, imported));
+        }
+    }
+
+    private static void deleteCachedRegions(Path cacheFolder, List<String> imported) {
+        try (var entries = Files.list(cacheFolder)) {
+            entries.filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
+                    .filter(path -> {
+                        String name = path.getFileName().toString();
+                        int dot = name.indexOf('.');
+                        return imported.contains(dot < 0 ? name : name.substring(0, dot));
+                    })
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException ignored) {
+                        }
+                    });
+        } catch (IOException ignored) {
         }
     }
 
