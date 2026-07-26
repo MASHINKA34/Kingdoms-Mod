@@ -19,7 +19,19 @@ import net.minecraft.world.level.levelgen.feature.configurations.OreConfiguratio
 import net.minecraft.world.level.levelgen.structure.templatesystem.TagMatchTest;
 
 public final class ZonedOreFeature extends Feature<NoneFeatureConfiguration> {
+    private static final int MINIMUM_VEIN_SIZE = 4;
     private static List<OreVein> veins;
+
+    public enum OreKind {
+        COAL,
+        IRON,
+        COPPER,
+        ZINC,
+        GOLD,
+        LAPIS,
+        REDSTONE,
+        DIAMOND
+    }
 
     public ZonedOreFeature() {
         super(NoneFeatureConfiguration.CODEC);
@@ -33,13 +45,20 @@ public final class ZonedOreFeature extends Feature<NoneFeatureConfiguration> {
         if (multiplier <= 0.0D) {
             return false;
         }
+        BlockPos spawn = level.getLevel().getSharedSpawnPos();
+        ResourceZone zone = zoneAt(origin.getX(), origin.getZ(), spawn.getX(), spawn.getZ());
         RandomSource random = context.random();
         int minY = level.getMinBuildHeight() + 1;
         int maxY = level.getMaxBuildHeight() - 1;
         boolean placed = false;
         for (OreVein vein : veins()) {
-            int size = (int) Math.round(vein.size() * multiplier);
-            if (size <= 0) {
+            double countScale = countMultiplier(vein.kind(), zone);
+            if (countScale <= 0.0D) {
+                continue;
+            }
+            int size = Math.max(MINIMUM_VEIN_SIZE, (int) Math.round(vein.size() * multiplier));
+            int count = (int) Math.round(vein.count() * countScale);
+            if (size <= 0 || count <= 0) {
                 continue;
             }
             int low = Math.max(minY, vein.minY());
@@ -61,7 +80,7 @@ public final class ZonedOreFeature extends Feature<NoneFeatureConfiguration> {
                     size,
                     vein.discardChanceOnAirExposure()
             );
-            for (int attempt = 0; attempt < vein.count(); attempt++) {
+            for (int attempt = 0; attempt < count; attempt++) {
                 BlockPos center = new BlockPos(
                         origin.getX() + random.nextInt(16),
                         low + random.nextInt(high - low + 1),
@@ -93,6 +112,22 @@ public final class ZonedOreFeature extends Feature<NoneFeatureConfiguration> {
         }
     }
 
+    public static double countMultiplier(OreKind kind, ResourceZone zone) {
+        return switch (zone) {
+            case BLUE -> 0.0D;
+            case YELLOW -> switch (kind) {
+                case DIAMOND, LAPIS -> 0.0D;
+                case IRON -> 0.30D;
+                default -> 2.0D;
+            };
+            case RED -> switch (kind) {
+                case DIAMOND -> 0.6D;
+                default -> 1.4D;
+            };
+            case BLACK -> 1.0D;
+        };
+    }
+
     public static ResourceZone zoneAt(int blockX, int blockZ, int spawnX, int spawnZ) {
         double blue = 200.0D;
         double yellow = 5_000.0D;
@@ -117,20 +152,21 @@ public final class ZonedOreFeature extends Feature<NoneFeatureConfiguration> {
     private static synchronized List<OreVein> veins() {
         if (veins == null) {
             veins = List.of(
-                    new OreVein(Blocks.COAL_ORE, Blocks.DEEPSLATE_COAL_ORE, 17, 20, 0, 190, 0.0F),
-                    new OreVein(Blocks.COAL_ORE, Blocks.DEEPSLATE_COAL_ORE, 17, 20, 136, 256, 0.0F),
-                    new OreVein(Blocks.IRON_ORE, Blocks.DEEPSLATE_IRON_ORE, 9, 10, -24, 56, 0.0F),
-                    new OreVein(Blocks.IRON_ORE, Blocks.DEEPSLATE_IRON_ORE, 4, 10, -32, 232, 0.0F),
-                    new OreVein(Blocks.IRON_ORE, Blocks.DEEPSLATE_IRON_ORE, 9, 6, 80, 256, 0.0F),
-                    new OreVein(Blocks.COPPER_ORE, Blocks.DEEPSLATE_COPPER_ORE, 10, 16, -16, 112, 0.0F),
-                    new OreVein(Blocks.GOLD_ORE, Blocks.DEEPSLATE_GOLD_ORE, 9, 4, -64, 32, 0.0F),
-                    new OreVein(Blocks.GOLD_ORE, Blocks.DEEPSLATE_GOLD_ORE, 9, 1, -64, -48, 0.0F),
-                    new OreVein(Blocks.REDSTONE_ORE, Blocks.DEEPSLATE_REDSTONE_ORE, 8, 4, -64, 15, 0.0F),
-                    new OreVein(Blocks.REDSTONE_ORE, Blocks.DEEPSLATE_REDSTONE_ORE, 8, 8, -64, -32, 0.0F),
-                    new OreVein(Blocks.LAPIS_ORE, Blocks.DEEPSLATE_LAPIS_ORE, 7, 2, -32, 32, 0.0F),
-                    new OreVein(Blocks.LAPIS_ORE, Blocks.DEEPSLATE_LAPIS_ORE, 7, 4, -64, 64, 0.5F),
-                    new OreVein(Blocks.DIAMOND_ORE, Blocks.DEEPSLATE_DIAMOND_ORE, 8, 7, -144, 16, 0.5F),
+                    new OreVein(OreKind.COAL, Blocks.COAL_ORE, Blocks.DEEPSLATE_COAL_ORE, 17, 20, 0, 190, 0.0F),
+                    new OreVein(OreKind.COAL, Blocks.COAL_ORE, Blocks.DEEPSLATE_COAL_ORE, 17, 20, 136, 256, 0.0F),
+                    new OreVein(OreKind.IRON, Blocks.IRON_ORE, Blocks.DEEPSLATE_IRON_ORE, 9, 10, -24, 56, 0.0F),
+                    new OreVein(OreKind.IRON, Blocks.IRON_ORE, Blocks.DEEPSLATE_IRON_ORE, 4, 10, -32, 232, 0.0F),
+                    new OreVein(OreKind.IRON, Blocks.IRON_ORE, Blocks.DEEPSLATE_IRON_ORE, 9, 6, 80, 256, 0.0F),
+                    new OreVein(OreKind.COPPER, Blocks.COPPER_ORE, Blocks.DEEPSLATE_COPPER_ORE, 10, 16, -16, 112, 0.0F),
+                    new OreVein(OreKind.GOLD, Blocks.GOLD_ORE, Blocks.DEEPSLATE_GOLD_ORE, 9, 4, -64, 32, 0.0F),
+                    new OreVein(OreKind.GOLD, Blocks.GOLD_ORE, Blocks.DEEPSLATE_GOLD_ORE, 9, 1, -64, -48, 0.0F),
+                    new OreVein(OreKind.REDSTONE, Blocks.REDSTONE_ORE, Blocks.DEEPSLATE_REDSTONE_ORE, 8, 4, -64, 15, 0.0F),
+                    new OreVein(OreKind.REDSTONE, Blocks.REDSTONE_ORE, Blocks.DEEPSLATE_REDSTONE_ORE, 8, 8, -64, -32, 0.0F),
+                    new OreVein(OreKind.LAPIS, Blocks.LAPIS_ORE, Blocks.DEEPSLATE_LAPIS_ORE, 7, 2, -32, 32, 0.0F),
+                    new OreVein(OreKind.LAPIS, Blocks.LAPIS_ORE, Blocks.DEEPSLATE_LAPIS_ORE, 7, 4, -64, 64, 0.5F),
+                    new OreVein(OreKind.DIAMOND, Blocks.DIAMOND_ORE, Blocks.DEEPSLATE_DIAMOND_ORE, 8, 7, -144, 16, 0.5F),
                     new OreVein(
+                            OreKind.ZINC,
                             createOre("zinc_ore", Blocks.IRON_ORE),
                             createOre("deepslate_zinc_ore", Blocks.DEEPSLATE_IRON_ORE),
                             12,
@@ -150,6 +186,7 @@ public final class ZonedOreFeature extends Feature<NoneFeatureConfiguration> {
     }
 
     private record OreVein(
+            OreKind kind,
             Block stone,
             Block deepslate,
             int size,

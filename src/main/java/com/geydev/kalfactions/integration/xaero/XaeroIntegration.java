@@ -24,6 +24,7 @@ final class XaeroIntegration {
 
     static void tick() {
         try {
+            ZoneInfoDisplay.ensureInstalled();
             XaeroMinimapSession session = XaeroMinimapSession.getCurrentSession();
             if (session == null) {
                 hookedRegistry = null;

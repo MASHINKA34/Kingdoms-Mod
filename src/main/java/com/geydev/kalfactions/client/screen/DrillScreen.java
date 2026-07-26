@@ -27,8 +27,9 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     private static final int SCREEN_HEIGHT = 244;
     private static final int PROGRESS_X = 116;
     private static final int PROGRESS_Y = 53;
-    private static final int FILL_WIDTH = 136;
+    private static final int FILL_WIDTH = 138;
     private static final int FILL_HEIGHT = 8;
+    private static final float PROGRESS_SLICE_Y = 6.0F;
     private static final int INVENTORY_PANEL_TOP = 150;
     private static final int INVENTORY_LABEL_Y = 158;
     private static final int READOUT_X = 268;
@@ -38,9 +39,9 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     private static final int TARGET_ICON_X = 295;
     private static final int TARGET_ICON_Y = 76;
     private static final int TARGET_ICON_SIZE = 16;
-    private static final int CHANGE_BUTTON_X = 268;
+    private static final int CHANGE_BUTTON_X = 266;
     private static final int CHANGE_BUTTON_Y = 121;
-    private static final int CHANGE_BUTTON_WIDTH = 70;
+    private static final int CHANGE_BUTTON_WIDTH = 73;
     private static final int CHANGE_BUTTON_HEIGHT = 16;
     private boolean openingSelector;
 
@@ -121,13 +122,6 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
         graphics.blit(BACKGROUND, leftPos, topPos, 0.0F, 0.0F, BACKGROUND_WIDTH, BACKGROUND_HEIGHT, BACKGROUND_WIDTH, BACKGROUND_HEIGHT);
-        graphics.fill(
-                leftPos + PROGRESS_X - 1,
-                topPos + PROGRESS_Y - 1,
-                leftPos + PROGRESS_X + FILL_WIDTH + 1,
-                topPos + PROGRESS_Y + FILL_HEIGHT + 1,
-                0xFF0B0D12
-        );
         float fraction = menu.hasTarget() ? menu.progressFraction() : 0.0F;
         int fillWidth = Math.round(FILL_WIDTH * fraction);
         if (fillWidth > 0) {
@@ -139,9 +133,9 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
                     fillWidth,
                     FILL_HEIGHT,
                     0.0F,
-                    0.0F,
+                    PROGRESS_SLICE_Y,
                     srcWidth,
-                    PROGRESS_HEIGHT,
+                    FILL_HEIGHT,
                     PROGRESS_WIDTH,
                     PROGRESS_HEIGHT
             );

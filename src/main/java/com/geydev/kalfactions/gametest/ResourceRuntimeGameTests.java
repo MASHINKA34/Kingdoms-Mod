@@ -16,6 +16,10 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
+import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -54,6 +58,98 @@ public final class ResourceRuntimeGameTests {
         helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.RED), 0.5D, "red ore size");
         helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.BLACK), 1.1D, "black ore size");
         helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "resource_runtime", timeoutTicks = 600)
+    public static void zonedOrePlacesRealBlocksWithPerZoneRules(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos spawn = level.getSharedSpawnPos();
+
+        OreReport blue = generateOre(level, spawn, 0, 96);
+        OreReport yellow = generateOre(level, spawn, 2_000, 0);
+        OreReport red = generateOre(level, spawn, 6_000, 0);
+        OreReport black = generateOre(level, spawn, 9_000, 0);
+
+        helper.assertTrue(blue.total() == 0, "blue zone has no ore, was " + blue.total());
+        helper.assertTrue(yellow.total() > 0, "yellow zone places ore, was " + yellow.total());
+        helper.assertTrue(red.total() > 0, "red zone places ore, was " + red.total());
+        helper.assertTrue(black.total() > 0, "black zone places ore, was " + black.total());
+
+        helper.assertTrue(yellow.diamond() == 0, "yellow zone has no diamond, was " + yellow.diamond());
+        helper.assertTrue(yellow.lapis() == 0, "yellow zone has no lapis, was " + yellow.lapis());
+        helper.assertTrue(yellow.coal() > 0, "yellow zone has coal, was " + yellow.coal());
+        helper.assertTrue(yellow.copper() > 0, "yellow zone has copper, was " + yellow.copper());
+        helper.assertTrue(
+                yellow.iron() * 3 < yellow.coal(),
+                "yellow iron is scarce: iron " + yellow.iron() + " vs coal " + yellow.coal()
+        );
+        helper.assertTrue(black.diamond() > 0, "black zone has diamond, was " + black.diamond());
+        helper.assertTrue(black.lapis() > 0, "black zone has lapis, was " + black.lapis());
+        helper.assertTrue(
+                black.total() > yellow.total(),
+                "black richer than yellow: " + black.total() + " vs " + yellow.total()
+        );
+        helper.succeed();
+    }
+
+    private static OreReport generateOre(ServerLevel level, BlockPos spawn, int offsetX, int offsetZ) {
+        ChunkPos chunk = new ChunkPos(new BlockPos(spawn.getX() + offsetX, 0, spawn.getZ() + offsetZ));
+        int minY = -60;
+        int maxY = 100;
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int x = chunk.getMinBlockX(); x <= chunk.getMaxBlockX(); x++) {
+            for (int z = chunk.getMinBlockZ(); z <= chunk.getMaxBlockZ(); z++) {
+                for (int y = minY; y <= maxY; y++) {
+                    cursor.set(x, y, z);
+                    level.setBlock(cursor, y < 0
+                            ? Blocks.DEEPSLATE.defaultBlockState()
+                            : Blocks.STONE.defaultBlockState(), 2);
+                }
+            }
+        }
+        new ZonedOreFeature().place(new FeaturePlaceContext<>(
+                java.util.Optional.empty(),
+                level,
+                level.getChunkSource().getGenerator(),
+                level.getRandom(),
+                new BlockPos(chunk.getMinBlockX(), 0, chunk.getMinBlockZ()),
+                NoneFeatureConfiguration.INSTANCE
+        ));
+
+        int coal = 0;
+        int iron = 0;
+        int copper = 0;
+        int lapis = 0;
+        int diamond = 0;
+        int other = 0;
+        for (int x = chunk.getMinBlockX(); x <= chunk.getMaxBlockX(); x++) {
+            for (int z = chunk.getMinBlockZ(); z <= chunk.getMaxBlockZ(); z++) {
+                for (int y = minY; y <= maxY; y++) {
+                    BlockState state = level.getBlockState(cursor.set(x, y, z));
+                    if (state.is(Blocks.COAL_ORE) || state.is(Blocks.DEEPSLATE_COAL_ORE)) {
+                        coal++;
+                    } else if (state.is(Blocks.IRON_ORE) || state.is(Blocks.DEEPSLATE_IRON_ORE)) {
+                        iron++;
+                    } else if (state.is(Blocks.COPPER_ORE) || state.is(Blocks.DEEPSLATE_COPPER_ORE)) {
+                        copper++;
+                    } else if (state.is(Blocks.LAPIS_ORE) || state.is(Blocks.DEEPSLATE_LAPIS_ORE)) {
+                        lapis++;
+                    } else if (state.is(Blocks.DIAMOND_ORE) || state.is(Blocks.DEEPSLATE_DIAMOND_ORE)) {
+                        diamond++;
+                    } else if (state.is(Blocks.GOLD_ORE) || state.is(Blocks.DEEPSLATE_GOLD_ORE)
+                            || state.is(Blocks.REDSTONE_ORE) || state.is(Blocks.DEEPSLATE_REDSTONE_ORE)) {
+                        other++;
+                    }
+                }
+            }
+        }
+        return new OreReport(coal, iron, copper, lapis, diamond, other);
+    }
+
+    private record OreReport(int coal, int iron, int copper, int lapis, int diamond, int other) {
+        int total() {
+            return coal + iron + copper + lapis + diamond + other;
+        }
     }
 
     @GameTest(template = "empty", batch = "resource_runtime", timeoutTicks = 200)

@@ -13,7 +13,7 @@ class DrillScreenLayoutTest {
 
         assertEquals(332, layout.targetIconX());
         assertEquals(95, layout.targetIconY());
-        assertEquals(305, layout.changeButtonX());
+        assertEquals(303, layout.changeButtonX());
         assertEquals(140, layout.changeButtonY());
     }
 

@@ -91,14 +91,4 @@ public final class SanctuaryCoreBlock extends Block {
         }
     }
 
-    @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
-        if (!state.is(newState.getBlock())
-                && level instanceof ServerLevel serverLevel
-                && SanctuaryManager.get(serverLevel).clearAutomaticSpawn(serverLevel, pos)) {
-            IntegrationManager.refreshFromServer(serverLevel.getServer());
-            ClaimSyncManager.resyncAll(serverLevel.getServer());
-        }
-        super.onRemove(state, level, pos, newState, movedByPiston);
-    }
 }
