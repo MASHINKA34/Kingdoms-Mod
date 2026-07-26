@@ -5,12 +5,14 @@ import com.geydev.kalfactions.client.ClientDrillTargets;
 import com.geydev.kalfactions.menu.DrillMenu;
 import com.geydev.kalfactions.outpost.cluster.DrillPayloads;
 import com.geydev.kalfactions.outpost.cluster.ResourceClusterType;
+import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ChunkPos;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
@@ -29,17 +31,17 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     private static final int FILL_HEIGHT = 8;
     private static final int INVENTORY_PANEL_TOP = 150;
     private static final int INVENTORY_LABEL_Y = 158;
-    private static final int READOUT_X = 8;
-    private static final int READOUT_Y = 48;
-    private static final int READOUT_HEIGHT = 20;
-    private static final int READOUT_MAX_RIGHT = 112;
-    private static final int TARGET_ICON_X = 11;
-    private static final int TARGET_ICON_Y = 50;
+    private static final int READOUT_X = 268;
+    private static final int READOUT_Y = 72;
+    private static final int READOUT_WIDTH = 70;
+    private static final int READOUT_HEIGHT = 46;
+    private static final int TARGET_ICON_X = 295;
+    private static final int TARGET_ICON_Y = 76;
     private static final int TARGET_ICON_SIZE = 16;
-    private static final int CHANGE_BUTTON_X = 266;
-    private static final int CHANGE_BUTTON_Y = 49;
-    private static final int CHANGE_BUTTON_WIDTH = 90;
-    private static final int CHANGE_BUTTON_HEIGHT = 18;
+    private static final int CHANGE_BUTTON_X = 268;
+    private static final int CHANGE_BUTTON_Y = 121;
+    private static final int CHANGE_BUTTON_WIDTH = 70;
+    private static final int CHANGE_BUTTON_HEIGHT = 16;
     private boolean openingSelector;
 
     public DrillScreen(DrillMenu menu, Inventory playerInventory, Component title) {
@@ -76,6 +78,44 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
         super.render(graphics, mouseX, mouseY, partialTick);
         renderTooltip(graphics, mouseX, mouseY);
         renderProgressTooltip(graphics, mouseX, mouseY);
+        renderTargetTooltip(graphics, mouseX, mouseY);
+    }
+
+    private void renderTargetTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
+        Layout layout = layout();
+        if (mouseX < layout.targetIconX() - 1
+                || mouseX >= layout.targetIconX() + TARGET_ICON_SIZE + 1
+                || mouseY < layout.targetIconY() - 1
+                || mouseY >= layout.targetIconY() + TARGET_ICON_SIZE + 1) {
+            return;
+        }
+        DrillPayloads.TargetInfo selected = selectedTarget(ClientDrillTargets.get(menu.containerId));
+        if (selected == null) {
+            graphics.renderTooltip(
+                    font,
+                    Component.translatable("screen.kingdoms.drill.no_target"),
+                    mouseX,
+                    mouseY
+            );
+            return;
+        }
+        ChunkPos chunk = new ChunkPos(selected.chunk());
+        graphics.renderComponentTooltip(
+                font,
+                List.of(
+                        ResourceClusterType.parse(selected.type())
+                                .map(type -> (Component) Component.literal(type.displayName()))
+                                .orElse(Component.literal(selected.type())),
+                        Component.translatable(
+                                "screen.kingdoms.drill.selector_details",
+                                chunk.x,
+                                chunk.z,
+                                selected.richness()
+                        )
+                ),
+                mouseX,
+                mouseY
+        );
     }
 
     @Override
@@ -120,7 +160,7 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
 
         int plateLeft = leftPos + READOUT_X;
         int plateTop = topPos + READOUT_Y;
-        int plateRight = leftPos + READOUT_MAX_RIGHT;
+        int plateRight = plateLeft + READOUT_WIDTH;
         graphics.fill(plateLeft, plateTop, plateRight, plateTop + READOUT_HEIGHT, 0xFF080B10);
         graphics.fill(plateLeft + 1, plateTop + 1, plateRight - 1, plateTop + READOUT_HEIGHT - 1, 0xFF17222F);
         graphics.fill(plateLeft, plateTop, plateRight, plateTop + 2, 0xFFC6A24C);
@@ -146,25 +186,19 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
         Component name = type == null
                 ? Component.translatable("screen.kingdoms.drill.no_target")
                 : Component.literal(type.displayName());
-        int textLeft = layout.targetIconX() + TARGET_ICON_SIZE + 4;
-        int available = plateRight - 4 - textLeft;
-        graphics.drawString(
-                font,
-                font.width(name) <= available ? name : Component.literal(clip(name.getString(), available)),
-                textLeft,
-                plateTop + 6,
-                type == null ? 0xFF9AA6B2 : 0xFFF0D99D,
-                false
-        );
-    }
-
-    private String clip(String text, int available) {
-        String ellipsis = "…";
-        String result = text;
-        while (!result.isEmpty() && font.width(result + ellipsis) > available) {
-            result = result.substring(0, result.length() - 1);
+        List<net.minecraft.util.FormattedCharSequence> lines = font.split(name, READOUT_WIDTH - 8);
+        int color = type == null ? 0xFF9AA6B2 : 0xFFF0D99D;
+        for (int index = 0; index < Math.min(2, lines.size()); index++) {
+            net.minecraft.util.FormattedCharSequence line = lines.get(index);
+            graphics.drawString(
+                    font,
+                    line,
+                    plateLeft + (READOUT_WIDTH - font.width(line)) / 2,
+                    plateTop + 26 + index * 10,
+                    color,
+                    false
+            );
         }
-        return result + ellipsis;
     }
 
     private void renderDrillSlots(GuiGraphics graphics) {

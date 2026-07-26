@@ -1,25 +1,25 @@
 package com.geydev.kalfactions.outpost.cluster.distribution;
 
 public enum ResourceZone {
-    BLUE(0x243F6A8885A308D3L, new ZoneMultipliers(0.00D, 0.00D, 0.00D)),
-    YELLOW(0x13198A2E03707344L, new ZoneMultipliers(0.50D, 0.50D, 0.50D)),
-    RED(0xA4093822299F31D0L, new ZoneMultipliers(1.10D, 1.10D, 1.10D)),
-    BLACK(0x082EFA98EC4E6C89L, new ZoneMultipliers(1.70D, 1.70D, 1.70D));
+    BLUE(0x243F6A8885A308D3L, 0.00D),
+    YELLOW(0x13198A2E03707344L, 0.20D),
+    RED(0xA4093822299F31D0L, 0.50D),
+    BLACK(0x082EFA98EC4E6C89L, 1.10D);
 
     private final long salt;
-    private final ZoneMultipliers defaultMultipliers;
+    private final double defaultOreSizeMultiplier;
 
-    ResourceZone(long salt, ZoneMultipliers defaultMultipliers) {
+    ResourceZone(long salt, double defaultOreSizeMultiplier) {
         this.salt = salt;
-        this.defaultMultipliers = defaultMultipliers;
+        this.defaultOreSizeMultiplier = defaultOreSizeMultiplier;
     }
 
     public long salt() {
         return salt;
     }
 
-    public ZoneMultipliers defaultMultipliers() {
-        return defaultMultipliers;
+    public double defaultOreSizeMultiplier() {
+        return defaultOreSizeMultiplier;
     }
 
     public static ResourceZone at(

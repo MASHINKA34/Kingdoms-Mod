@@ -45,7 +45,7 @@ public final class QuarryManager extends SavedData {
     public static final UUID NEUTRAL_MAP_ID =
             new UUID(0x5155_4152_5259_5F4EL, 0x4555_5452_414C_3031L);
     public static final int NEUTRAL_COLOR = 0x777777;
-    public static final int MINIMUM_SPACING_CHUNKS = 10;
+    public static final int MINIMUM_SPACING_CHUNKS = 25;
     public static final int TERRITORY_RADIUS_CHUNKS = 1;
     public static final int CAPTURE_TICKS = 5 * 60 * 20;
     public static final int MAX_LEVEL = 5;

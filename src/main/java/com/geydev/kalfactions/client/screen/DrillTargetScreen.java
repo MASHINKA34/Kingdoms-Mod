@@ -34,7 +34,7 @@ public final class DrillTargetScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        renderBackground(graphics, mouseX, mouseY, partialTick);
+        super.render(graphics, mouseX, mouseY, partialTick);
         Layout layout = layout();
         List<DrillPayloads.TargetInfo> targets = targets();
         scroll = Mth.clamp(scroll, 0.0D, maxScroll(layout, targets.size()));
@@ -58,7 +58,6 @@ public final class DrillTargetScreen extends Screen {
                     layout.panelTop() + layout.listHeight() / 2 + 24,
                     0xFF9AA6B2
             );
-            super.render(graphics, mouseX, mouseY, partialTick);
             return;
         }
 
@@ -81,7 +80,6 @@ public final class DrillTargetScreen extends Screen {
                 layout.panelBottom() - 15,
                 0xFF8894A0
         );
-        super.render(graphics, mouseX, mouseY, partialTick);
         if (hovered != null) {
             renderTargetTooltip(graphics, hovered, mouseX, mouseY);
         }

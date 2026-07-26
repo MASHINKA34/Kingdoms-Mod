@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.client.screen;
 
+import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.ClientQuarryState;
 import com.geydev.kalfactions.command.NumismaticsEconomy;
 import com.geydev.kalfactions.menu.QuarryMenu;
@@ -10,18 +11,22 @@ import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
+    private static final ResourceLocation BACKGROUND = ResourceLocation.fromNamespaceAndPath(
+            KalFactions.MOD_ID,
+            "textures/gui/quarry/quarry_gui.png"
+    );
     static final int PANEL_WIDTH = 348;
-    static final int PANEL_HEIGHT = 248;
+    static final int PANEL_HEIGHT = 260;
     private static final int GOLD = 0xFFC9A24C;
     private static final int GOLD_LIGHT = 0xFFF1D58A;
     private static final int BLUE_DARK = 0xFF08131E;
     private static final int BLUE = 0xFF10283A;
-    private static final int BLUE_LIGHT = 0xFF1A4058;
     private static final int TEXT = 0xFFE8DDBD;
     private static final int MUTED = 0xFFAAB3B8;
     private QuarryPayloads.S2CState state;
@@ -67,24 +72,20 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
         Layout layout = layout(leftPos, topPos);
-        panel(graphics, layout.panel());
+        graphics.blit(
+                BACKGROUND,
+                leftPos,
+                topPos,
+                0.0F,
+                0.0F,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                PANEL_WIDTH,
+                PANEL_HEIGHT
+        );
         panel(graphics, layout.summary());
         panel(graphics, layout.details());
         panel(graphics, layout.production());
-        graphics.fill(
-                layout.header().x(),
-                layout.header().y(),
-                layout.header().right(),
-                layout.header().bottom(),
-                BLUE_LIGHT
-        );
-        graphics.fill(
-                layout.header().x(),
-                layout.header().bottom() - 2,
-                layout.header().right(),
-                layout.header().bottom(),
-                GOLD
-        );
         graphics.drawCenteredString(font, title, leftPos + PANEL_WIDTH / 2, topPos + 14, GOLD_LIGHT);
         graphics.renderItem(
                 new ItemStack(ModBlocks.QUARRY_CORE.get()),
@@ -339,13 +340,11 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
 
     static Layout layout(int left, int top) {
         return new Layout(
-                new Rect(left, top, PANEL_WIDTH, PANEL_HEIGHT),
-                new Rect(left + 6, top + 6, PANEL_WIDTH - 12, 28),
                 new Rect(left + 12, top + 42, PANEL_WIDTH - 24, 54),
-                new Rect(left + 12, top + 102, PANEL_WIDTH - 24, 50),
-                new Rect(left + 12, top + 158, PANEL_WIDTH - 24, 22),
-                new Rect(left + 12, top + 184, PANEL_WIDTH - 24, 26),
-                new Rect(left + 84, top + 217, 180, 22)
+                new Rect(left + 12, top + 102, PANEL_WIDTH - 24, 62),
+                new Rect(left + 12, top + 170, PANEL_WIDTH - 24, 22),
+                new Rect(left + 12, top + 196, PANEL_WIDTH - 24, 26),
+                new Rect(left + 84, top + 229, 180, 22)
         );
     }
 
@@ -366,8 +365,6 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
     }
 
     record Layout(
-            Rect panel,
-            Rect header,
             Rect summary,
             Rect details,
             Rect capture,

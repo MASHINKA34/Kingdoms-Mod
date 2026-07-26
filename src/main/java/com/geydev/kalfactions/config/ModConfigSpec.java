@@ -108,34 +108,12 @@ public final class ModConfigSpec {
     public static final IntValue RESOURCE_BLUE_RADIUS;
     public static final IntValue RESOURCE_YELLOW_RADIUS;
     public static final IntValue RESOURCE_RED_RADIUS;
-    public static final IntValue RESOURCE_CELL_SIZE;
-    public static final DoubleValue RESOURCE_BASE_DENSITY;
-    public static final DoubleValue RESOURCE_BLUE_DENSITY_MULTIPLIER;
-    public static final DoubleValue RESOURCE_BLUE_RESERVE_MULTIPLIER;
     public static final DoubleValue RESOURCE_BLUE_SIZE_MULTIPLIER;
-    public static final DoubleValue RESOURCE_YELLOW_DENSITY_MULTIPLIER;
-    public static final DoubleValue RESOURCE_YELLOW_RESERVE_MULTIPLIER;
     public static final DoubleValue RESOURCE_YELLOW_SIZE_MULTIPLIER;
-    public static final DoubleValue RESOURCE_RED_DENSITY_MULTIPLIER;
-    public static final DoubleValue RESOURCE_RED_RESERVE_MULTIPLIER;
     public static final DoubleValue RESOURCE_RED_SIZE_MULTIPLIER;
-    public static final DoubleValue RESOURCE_BLACK_DENSITY_MULTIPLIER;
-    public static final DoubleValue RESOURCE_BLACK_RESERVE_MULTIPLIER;
     public static final DoubleValue RESOURCE_BLACK_SIZE_MULTIPLIER;
     public static final IntValue RESOURCE_YELLOW_CLUSTER_SPACING_CHUNKS;
     public static final IntValue RESOURCE_RED_CLUSTER_SPACING_CHUNKS;
-    public static final DoubleValue RESOURCE_RARE_SIZE_MULTIPLIER;
-    public static final BooleanValue RESOURCE_AUTO_CYCLE;
-    public static final IntValue RESOURCE_CYCLE_DAYS;
-    public static final IntValue RESOURCE_CYCLE_RESET_HOUR;
-    public static final ConfigValue<String> RESOURCE_CYCLE_TIMEZONE;
-    public static final IntValue RESOURCE_GENERATION_BLOCKS_PER_TICK;
-    public static final IntValue RESOURCE_CLEANUP_BLOCKS_PER_TICK;
-    public static final IntValue RESOURCE_MIN_RESERVE;
-    public static final IntValue RESOURCE_MAX_RESERVE;
-    public static final IntValue RESOURCE_MIN_PHYSICAL_BLOCKS;
-    public static final IntValue RESOURCE_BASE_MAX_PHYSICAL_BLOCKS;
-    public static final IntValue RESOURCE_MAX_PHYSICAL_BLOCKS;
     public static final IntValue RESEARCH_CRYSTAL_COST_TIER_1;
     public static final IntValue RESEARCH_CRYSTAL_COST_TIER_2;
     public static final IntValue RESEARCH_CRYSTAL_COST_TIER_3;
@@ -231,42 +209,18 @@ public final class ModConfigSpec {
         RESOURCE_BLUE_RADIUS = builder.defineInRange("safeZoneRadius", 200, 0, 1000000);
         RESOURCE_YELLOW_RADIUS = builder.defineInRange("yellowZoneRadius", 5000, 1, 1000000);
         RESOURCE_RED_RADIUS = builder.defineInRange("redRadius", 8000, 1, 1000000);
-        RESOURCE_CELL_SIZE = builder.defineInRange("cellSizeBlocks", 64, 32, 4096);
-        RESOURCE_BASE_DENSITY = builder.defineInRange("baseDensity", 0.40D, 0.0D, 1.0D);
         builder.push("zoneProfiles");
-        RESOURCE_BLUE_DENSITY_MULTIPLIER = builder.defineInRange("blueDensityMultiplier", 0.00D, 0.0D, 10.0D);
-        RESOURCE_BLUE_RESERVE_MULTIPLIER = builder.defineInRange("blueReserveMultiplier", 0.00D, 0.0D, 10.0D);
-        RESOURCE_BLUE_SIZE_MULTIPLIER = builder.defineInRange("blueSizeMultiplier", 0.00D, 0.0D, 10.0D);
-        RESOURCE_YELLOW_DENSITY_MULTIPLIER = builder.defineInRange("yellowDensityMultiplier", 0.50D, 0.0D, 10.0D);
-        RESOURCE_YELLOW_RESERVE_MULTIPLIER = builder.defineInRange("yellowReserveMultiplier", 0.50D, 0.0D, 10.0D);
-        RESOURCE_YELLOW_SIZE_MULTIPLIER = builder.defineInRange("yellowSizeMultiplier", 0.50D, 0.0D, 10.0D);
-        RESOURCE_RED_DENSITY_MULTIPLIER = builder.defineInRange("redDensityMultiplier", 1.10D, 0.0D, 10.0D);
-        RESOURCE_RED_RESERVE_MULTIPLIER = builder.defineInRange("redReserveMultiplier", 1.10D, 0.0D, 10.0D);
-        RESOURCE_RED_SIZE_MULTIPLIER = builder.defineInRange("redSizeMultiplier", 1.10D, 0.0D, 10.0D);
-        RESOURCE_BLACK_DENSITY_MULTIPLIER = builder.defineInRange("blackDensityMultiplier", 1.70D, 0.0D, 10.0D);
-        RESOURCE_BLACK_RESERVE_MULTIPLIER = builder.defineInRange("blackReserveMultiplier", 1.70D, 0.0D, 10.0D);
-        RESOURCE_BLACK_SIZE_MULTIPLIER = builder.defineInRange("blackSizeMultiplier", 1.70D, 0.0D, 10.0D);
+        RESOURCE_BLUE_SIZE_MULTIPLIER = builder
+            .comment("Ore vein size multiplier inside the spawn zone; 0 disables ore entirely.")
+            .defineInRange("blueOreSizeMultiplier", 0.00D, 0.0D, 10.0D);
+        RESOURCE_YELLOW_SIZE_MULTIPLIER = builder.defineInRange("yellowOreSizeMultiplier", 0.20D, 0.0D, 10.0D);
+        RESOURCE_RED_SIZE_MULTIPLIER = builder.defineInRange("redOreSizeMultiplier", 0.50D, 0.0D, 10.0D);
+        RESOURCE_BLACK_SIZE_MULTIPLIER = builder.defineInRange("blackOreSizeMultiplier", 1.10D, 0.0D, 10.0D);
         builder.pop();
         RESOURCE_YELLOW_CLUSTER_SPACING_CHUNKS =
                 builder.defineInRange("yellowSurfaceClusterSpacingChunks", 9, 1, 64);
         RESOURCE_RED_CLUSTER_SPACING_CHUNKS =
                 builder.defineInRange("redSurfaceClusterSpacingChunks", 6, 1, 64);
-        RESOURCE_RARE_SIZE_MULTIPLIER = builder.defineInRange("rareResourceSizeMultiplier", 0.65D, 0.01D, 1.0D);
-        RESOURCE_AUTO_CYCLE = builder.define("automaticCycle", true);
-        RESOURCE_CYCLE_DAYS = builder.defineInRange("cycleDays", 7, 1, 365);
-        RESOURCE_CYCLE_RESET_HOUR = builder.defineInRange("cycleResetHour", 0, 0, 23);
-        RESOURCE_CYCLE_TIMEZONE = builder.define(
-                "cycleTimezone",
-                "Europe/Moscow",
-                value -> value instanceof String id && isTimezone(id)
-        );
-        RESOURCE_GENERATION_BLOCKS_PER_TICK = builder.defineInRange("generationBlocksPerTick", 24, 1, 4096);
-        RESOURCE_CLEANUP_BLOCKS_PER_TICK = builder.defineInRange("cleanupBlocksPerTick", 24, 1, 4096);
-        RESOURCE_MIN_RESERVE = builder.defineInRange("minimumBaseReserve", 100, 1, 1000000);
-        RESOURCE_MAX_RESERVE = builder.defineInRange("maximumBaseReserve", 200, 1, 1000000);
-        RESOURCE_MIN_PHYSICAL_BLOCKS = builder.defineInRange("minimumBasePhysicalBlocks", 20, 1, 512);
-        RESOURCE_BASE_MAX_PHYSICAL_BLOCKS = builder.defineInRange("maximumBasePhysicalBlocks", 80, 1, 512);
-        RESOURCE_MAX_PHYSICAL_BLOCKS = builder.defineInRange("maximumPhysicalBlocks", 120, 8, 512);
         builder.pop();
 
         builder.push("raids");

@@ -50,9 +50,9 @@ public final class ResourceRuntimeGameTests {
         );
 
         helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.BLUE), 0.0D, "blue has no ore");
-        helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.YELLOW), 0.5D, "yellow ore size");
-        helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.RED), 1.1D, "red ore size");
-        helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.BLACK), 1.7D, "black ore size");
+        helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.YELLOW), 0.2D, "yellow ore size");
+        helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.RED), 0.5D, "red ore size");
+        helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.BLACK), 1.1D, "black ore size");
         helper.succeed();
     }
 

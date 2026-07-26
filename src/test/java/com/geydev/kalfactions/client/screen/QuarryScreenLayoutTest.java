@@ -11,15 +11,22 @@ final class QuarryScreenLayoutTest {
         QuarryScreen.Layout first = QuarryScreen.layout(306, 146);
         QuarryScreen.Layout second = QuarryScreen.layout(10, 20);
 
-        assertEquals(306, first.panel().x());
-        assertEquals(146, first.panel().y());
         assertEquals(390, first.action().x());
-        assertEquals(363, first.action().y());
+        assertEquals(375, first.action().y());
         assertEquals(94, second.action().x());
-        assertEquals(237, second.action().y());
-        assertTrue(first.action().right() <= first.panel().right());
-        assertTrue(first.action().bottom() <= first.panel().bottom());
+        assertEquals(249, second.action().y());
+        assertTrue(first.action().right() <= 306 + QuarryScreen.PANEL_WIDTH);
+        assertTrue(first.action().bottom() <= 146 + QuarryScreen.PANEL_HEIGHT);
         assertTrue(first.production().bottom() <= first.action().y());
         assertTrue(first.capture().bottom() <= first.production().y());
+        assertTrue(first.summary().bottom() <= first.details().y());
+    }
+
+    @Test
+    void detailsBoxFitsTwoLinesOfDisabledReason() {
+        QuarryScreen.Layout layout = QuarryScreen.layout(0, 0);
+        int lastReasonLineBottom = layout.details().y() + 8 + 36 + 8;
+
+        assertTrue(lastReasonLineBottom <= layout.details().bottom());
     }
 }

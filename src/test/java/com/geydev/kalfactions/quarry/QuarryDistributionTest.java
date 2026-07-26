@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 
 class QuarryDistributionTest {
     @Test
-    void candidateCentersAreMoreThanTenChunksApart() {
+    void candidateCentersRespectMinimumSpacing() {
         List<Point> candidates = collect(918_273L);
         assertTrue(candidates.size() > 10);
         for (int first = 0; first < candidates.size(); first++) {
@@ -29,8 +29,8 @@ class QuarryDistributionTest {
 
     private static List<Point> collect(long seed) {
         List<Point> result = new ArrayList<>();
-        for (int x = -80; x <= 80; x++) {
-            for (int z = -80; z <= 80; z++) {
+        for (int x = -160; x <= 160; x++) {
+            for (int z = -160; z <= 160; z++) {
                 if (QuarryDistribution.isCandidate(
                         seed,
                         x,

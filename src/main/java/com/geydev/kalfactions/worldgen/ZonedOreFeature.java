@@ -89,7 +89,7 @@ public final class ZonedOreFeature extends Feature<NoneFeatureConfiguration> {
                 case BLACK -> ModConfigSpec.RESOURCE_BLACK_SIZE_MULTIPLIER.getAsDouble();
             };
         } catch (IllegalStateException | IllegalArgumentException exception) {
-            return zone.defaultMultipliers().size();
+            return zone.defaultOreSizeMultiplier();
         }
     }
 

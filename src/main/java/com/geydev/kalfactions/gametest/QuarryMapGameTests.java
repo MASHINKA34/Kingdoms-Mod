@@ -68,8 +68,8 @@ public final class QuarryMapGameTests {
     private static ChunkPos findDistributionCandidate(ServerLevel level, QuarryManager manager) {
         BlockPos spawn = level.getSharedSpawnPos();
         int red = ModConfigSpec.RESOURCE_RED_RADIUS.getAsInt();
-        for (int distance = red + 64; distance <= red + 1_500; distance += 16) {
-            for (int offset = -1_000; offset <= 1_000; offset += 16) {
+        for (int distance = red + 64; distance <= red + 1_800; distance += 16) {
+            for (int offset = -6_000; offset <= 6_000; offset += 16) {
                 ChunkPos chunk = new ChunkPos(new BlockPos(spawn.getX() + distance, 0, spawn.getZ() + offset));
                 if (!level.getWorldBorder().isWithinBounds(new BlockPos(
                         chunk.getMiddleBlockX(),
