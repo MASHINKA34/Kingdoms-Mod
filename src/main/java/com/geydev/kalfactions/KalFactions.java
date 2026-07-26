@@ -7,6 +7,7 @@ import com.geydev.kalfactions.integration.xaero.archive.XaeroArchiveAccess;
 import com.geydev.kalfactions.registry.ModBlocks;
 import com.geydev.kalfactions.registry.ModCreativeTabs;
 import com.geydev.kalfactions.registry.ModEntities;
+import com.geydev.kalfactions.registry.ModFeatures;
 import com.geydev.kalfactions.registry.ModItems;
 import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
@@ -25,6 +26,7 @@ public final class KalFactions {
         ModBlocks.register(modBus);
         ModItems.register(modBus);
         ModEntities.register(modBus);
+        ModFeatures.register(modBus);
         ModCreativeTabs.register(modBus);
         NetherReturnIntegration.install(ModItems.NETHER_RETURN::get, com.geydev.kalfactions.registry.ModDataComponents.NETHER_RETURN_BINDING::get);
         XaeroArchiveAccess.installAnchorValidator(

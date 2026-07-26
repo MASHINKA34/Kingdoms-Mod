@@ -110,13 +110,7 @@ public final class KingdomsAdminCommands {
                                                                 IntegerArgumentType.getInteger(context, "chunkZ")
                                                         )
                                                 )))))
-                        .then(Commands.literal("stats").executes(KingdomsAdminCommands::resourceStats))
-                        .then(Commands.literal("nearest").executes(KingdomsAdminCommands::resourceNearest))
-                        .then(Commands.literal("next")
-                                .then(Commands.literal("confirm").executes(KingdomsAdminCommands::resourceNext)))
-                        .then(Commands.literal("pause").executes(context -> resourcePause(context, true)))
-                        .then(Commands.literal("resume").executes(context -> resourcePause(context, false)))
-                        .then(Commands.literal("verify").executes(KingdomsAdminCommands::resourceVerify)))
+                        )
                 .then(Commands.literal("quarry")
                         .then(Commands.literal("create").executes(KingdomsAdminCommands::quarryCreate))
                         .then(Commands.literal("list").executes(KingdomsAdminCommands::quarryList))
@@ -201,20 +195,6 @@ public final class KingdomsAdminCommands {
         return 1;
     }
 
-    private static int resourceStats(CommandContext<CommandSourceStack> context) {
-        CommandSourceStack source = context.getSource();
-        ResourceClusterManager.ResourceStatistics stats = ResourceClusterManager.get(source.getLevel()).statistics();
-        source.sendSuccess(() -> Component.translatable(
-                "commands.kingdoms.resource.stats",
-                stats.cycleId(),
-                stats.active(),
-                stats.depleted(),
-                stats.byZone().toString(),
-                stats.byResource().toString()
-        ), false);
-        return 1;
-    }
-
     private static int resourceChunk(CommandContext<CommandSourceStack> context, ChunkPos chunk) {
         CommandSourceStack source = context.getSource();
         ResourceClusterManager.ChunkDiagnostic diagnostic =
@@ -224,83 +204,17 @@ public final class KingdomsAdminCommands {
                 chunk.x,
                 chunk.z,
                 diagnostic.zone().name(),
-                diagnostic.cellX(),
-                diagnostic.cellZ(),
-                diagnostic.densityMultiplier(),
-                diagnostic.reserveMultiplier(),
-                diagnostic.sizeMultiplier()
-        ), false);
-        source.sendSuccess(() -> Component.translatable(
-                "commands.kingdoms.resource.chunk.deposit",
-                diagnostic.depositCandidateChunk() == null ? "-" : diagnostic.depositCandidateChunk().toString(),
-                diagnostic.depositCenter() == null ? "-" : diagnostic.depositCenter().toShortString(),
-                diagnostic.depositResource() == null ? "-" : diagnostic.depositResource().id(),
-                diagnostic.plannedDepositBlocks(),
-                diagnostic.depositReason()
+                String.format(java.util.Locale.ROOT, "%.2f", diagnostic.oreSizeMultiplier())
         ), false);
         source.sendSuccess(() -> Component.translatable(
                 "commands.kingdoms.resource.chunk.surface",
                 diagnostic.surfacePosition() == null ? "-" : diagnostic.surfacePosition().toShortString(),
+                diagnostic.surfaceType() == null ? "-" : diagnostic.surfaceType().id(),
                 diagnostic.surfaceReason(),
                 diagnostic.pendingChunks(),
-                diagnostic.generationQueued(),
-                diagnostic.cleanupQueued()
+                diagnostic.knownClusters()
         ), false);
         return 1;
-    }
-
-    private static int resourceNearest(CommandContext<CommandSourceStack> context) {
-        CommandSourceStack source = context.getSource();
-        BlockPos origin = BlockPos.containing(source.getPosition());
-        ResourceClusterManager.OreDepositView deposit = ResourceClusterManager.get(source.getLevel())
-                .nearestDeposit(origin, 20_000)
-                .orElse(null);
-        if (deposit == null) {
-            source.sendFailure(Component.translatable("commands.kingdoms.resource.nearest.none"));
-            return 0;
-        }
-        source.sendSuccess(() -> Component.translatable(
-                "commands.kingdoms.resource.nearest",
-                deposit.resource().id(),
-                deposit.center().getX(),
-                deposit.center().getY(),
-                deposit.center().getZ(),
-                deposit.remaining(),
-                deposit.originalReserve(),
-                deposit.zone().name(),
-                deposit.state()
-        ), false);
-        return 1;
-    }
-
-    private static int resourceNext(CommandContext<CommandSourceStack> context) {
-        CommandSourceStack source = context.getSource();
-        long cycle = ResourceClusterManager.get(source.getLevel()).advanceResourceCycle(System.currentTimeMillis());
-        source.sendSuccess(() -> Component.translatable("commands.kingdoms.resource.next", cycle), true);
-        return 1;
-    }
-
-    private static int resourcePause(CommandContext<CommandSourceStack> context, boolean paused) {
-        CommandSourceStack source = context.getSource();
-        ResourceClusterManager.get(source.getLevel()).setResourceQueuePaused(paused);
-        source.sendSuccess(() -> Component.translatable(
-                paused ? "commands.kingdoms.resource.paused" : "commands.kingdoms.resource.resumed"
-        ), true);
-        return 1;
-    }
-
-    private static int resourceVerify(CommandContext<CommandSourceStack> context) {
-        CommandSourceStack source = context.getSource();
-        ResourceClusterManager.IntegrityReport report = ResourceClusterManager.get(source.getLevel()).verifyIntegrity();
-        source.sendSuccess(() -> Component.translatable(
-                "commands.kingdoms.resource.verify",
-                report.deposits(),
-                report.trackedBlocks(),
-                report.generationQueued(),
-                report.cleanupQueued(),
-                report.issues()
-        ), false);
-        return report.issues() == 0 ? 1 : 0;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> dimensionBranch(

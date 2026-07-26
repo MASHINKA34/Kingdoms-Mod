@@ -11,25 +11,25 @@ class DrillScreenLayoutTest {
     void workingLayoutUsesContainerOrigin() {
         DrillScreen.Layout layout = new DrillScreen.Layout(37, 19);
 
-        assertEquals(49, layout.targetIconX());
-        assertEquals(46, layout.targetIconY());
-        assertEquals(295, layout.changeButtonX());
-        assertEquals(45, layout.changeButtonY());
+        assertEquals(48, layout.targetIconX());
+        assertEquals(69, layout.targetIconY());
+        assertEquals(303, layout.changeButtonX());
+        assertEquals(68, layout.changeButtonY());
     }
 
     @Test
     void selectorCardsUseSameRectangleForRenderingAndHitTesting() {
-        DrillTargetScreen.Layout wide = DrillTargetScreen.Layout.create(960, 540);
-        DrillTargetScreen.Rect first = wide.card(0);
-        DrillTargetScreen.Rect secondColumn = wide.card(1);
+        DrillTargetScreen.Layout layout = DrillTargetScreen.Layout.create(960, 540);
+        DrillTargetScreen.Rect first = layout.card(0, 0.0D);
+        DrillTargetScreen.Rect second = layout.card(1, 0.0D);
 
-        assertEquals(2, wide.columns());
         assertTrue(first.contains(first.left() + 1, first.top() + 1));
         assertFalse(first.contains(first.right(), first.bottom() - 1));
-        assertTrue(secondColumn.left() > first.right());
+        assertTrue(second.top() > first.bottom());
+        assertTrue(first.right() <= layout.panelRight());
+        assertEquals(layout.listTop(), first.top());
 
-        DrillTargetScreen.Layout compact = DrillTargetScreen.Layout.create(320, 240);
-        assertEquals(1, compact.columns());
-        assertEquals(4, compact.perPage());
+        DrillTargetScreen.Rect scrolled = layout.card(1, 20.0D);
+        assertEquals(second.top() - 20, scrolled.top());
     }
 }

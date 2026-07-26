@@ -250,7 +250,7 @@ public final class ModConfigSpec {
         RESOURCE_YELLOW_CLUSTER_SPACING_CHUNKS =
                 builder.defineInRange("yellowSurfaceClusterSpacingChunks", 9, 1, 64);
         RESOURCE_RED_CLUSTER_SPACING_CHUNKS =
-                builder.defineInRange("redSurfaceClusterSpacingChunks", 4, 1, 64);
+                builder.defineInRange("redSurfaceClusterSpacingChunks", 6, 1, 64);
         RESOURCE_RARE_SIZE_MULTIPLIER = builder.defineInRange("rareResourceSizeMultiplier", 0.65D, 0.01D, 1.0D);
         RESOURCE_AUTO_CYCLE = builder.define("automaticCycle", true);
         RESOURCE_CYCLE_DAYS = builder.defineInRange("cycleDays", 7, 1, 365);

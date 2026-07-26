@@ -5,6 +5,7 @@ import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.menu.DrillMenu;
+import com.geydev.kalfactions.outpost.cluster.DrillTerritory;
 import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager;
 import com.geydev.kalfactions.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
@@ -128,13 +129,13 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         ClaimKey key = ClaimKey.of(level, chunk);
         FactionManager manager = FactionManager.get(level);
         Faction faction = manager.getFactionAt(key).orElse(null);
-        if (faction == null || !faction.hasClaim(key) || targetClusterChunk == null) {
+        if (!DrillTerritory.owns(faction, key) || targetClusterChunk == null) {
             return ProduceResult.INVALID;
         }
         ResourceClusterManager clusters = ResourceClusterManager.get(level);
         ChunkPos targetChunk = new ChunkPos(targetClusterChunk);
         ClaimKey targetKey = ClaimKey.of(level, targetChunk);
-        if (!faction.hasClaim(targetKey)) {
+        if (!DrillTerritory.reaches(faction, key, targetKey)) {
             releaseTarget(level);
             return ProduceResult.INVALID;
         }
@@ -162,13 +163,11 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
         if (targetClusterChunk == null) {
             return false;
         }
-        Faction faction = FactionManager.get(level)
-                .getFactionAt(ClaimKey.of(level, new ChunkPos(pos)))
-                .orElse(null);
+        ClaimKey drillClaim = ClaimKey.of(level, new ChunkPos(pos));
+        Faction faction = FactionManager.get(level).getFactionAt(drillClaim).orElse(null);
         ChunkPos targetChunk = new ChunkPos(targetClusterChunk);
         ResourceClusterManager clusters = ResourceClusterManager.get(level);
-        return faction != null
-                && faction.hasClaim(ClaimKey.of(level, targetChunk))
+        return DrillTerritory.reaches(faction, drillClaim, ClaimKey.of(level, targetChunk))
                 && clusters.clusterAt(targetChunk).isPresent()
                 && (clusters.isBoundDrill(targetChunk, worldPosition)
                         || clusters.bindDrill(targetChunk, worldPosition));

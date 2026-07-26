@@ -8,6 +8,7 @@ import com.geydev.kalfactions.faction.FactionRole;
 import com.geydev.kalfactions.integration.IntegrationManager;
 import com.geydev.kalfactions.net.ClaimSyncManager;
 import com.geydev.kalfactions.net.FactionServerHooks;
+import com.geydev.kalfactions.outpost.cluster.DrillTerritory;
 import com.geydev.kalfactions.registry.ModBlocks;
 import com.geydev.kalfactions.registry.ModItems;
 import java.util.UUID;
@@ -83,8 +84,7 @@ public final class OutpostInteractions {
         ClaimKey key = ClaimKey.of(level, chunk);
         FactionManager manager = FactionManager.get(level);
         Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
-        boolean ownClaim = faction != null && faction.hasClaim(key);
-        if (!ownClaim) {
+        if (!DrillTerritory.owns(faction, key)) {
             event.setCanceled(true);
             FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.drill.not_outpost"), false);
             return;

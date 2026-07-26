@@ -17,8 +17,6 @@
     "ScorchedKrahgProjectileMixin",
     "ScorchedOsborneProjectileMixin",
     "ScorchedBeamMiningMixin",
-    "BlockBreakingMovementBehaviourMixin",
-    "BlockBreakingKineticBlockEntityMixin",
     "SculkCatalystListenerMixin",
     "ScorchedGunBenchBlueprintSlotMixin",
     "ScorchedGunBenchResultSlotMixin"

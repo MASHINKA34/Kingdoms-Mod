@@ -1,0 +1,8 @@
+{
+  "feature": "kingdoms:zoned_ores",
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

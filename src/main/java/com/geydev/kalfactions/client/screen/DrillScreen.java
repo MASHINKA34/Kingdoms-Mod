@@ -30,16 +30,16 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     private static final int INVENTORY_PANEL_TOP = 150;
     private static final int INVENTORY_LABEL_Y = 158;
     private static final int READOUT_X = 8;
-    private static final int READOUT_Y = 24;
-    private static final int READOUT_HEIGHT = 24;
-    private static final int READOUT_MAX_RIGHT = 166;
-    private static final int TARGET_ICON_X = 12;
-    private static final int TARGET_ICON_Y = 27;
-    private static final int TARGET_ICON_SIZE = 18;
-    private static final int CHANGE_BUTTON_X = 258;
-    private static final int CHANGE_BUTTON_Y = 26;
-    private static final int CHANGE_BUTTON_WIDTH = 96;
-    private static final int CHANGE_BUTTON_HEIGHT = 20;
+    private static final int READOUT_Y = 48;
+    private static final int READOUT_HEIGHT = 20;
+    private static final int READOUT_MAX_RIGHT = 112;
+    private static final int TARGET_ICON_X = 11;
+    private static final int TARGET_ICON_Y = 50;
+    private static final int TARGET_ICON_SIZE = 16;
+    private static final int CHANGE_BUTTON_X = 266;
+    private static final int CHANGE_BUTTON_Y = 49;
+    private static final int CHANGE_BUTTON_WIDTH = 90;
+    private static final int CHANGE_BUTTON_HEIGHT = 18;
     private boolean openingSelector;
 
     public DrillScreen(DrillMenu menu, Inventory playerInventory, Component title) {
@@ -113,27 +113,14 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
 
     private void renderSelectedTarget(GuiGraphics graphics) {
         Layout layout = layout();
-        DrillPayloads.S2CTargets state = ClientDrillTargets.get(menu.containerId);
-        DrillPayloads.TargetInfo selected = selectedTarget(state);
-        Component name = selected == null
-                ? Component.translatable("screen.kingdoms.drill.no_target")
-                : ResourceClusterType.parse(selected.type())
-                        .map(type -> type.displayItem().getDescription())
-                        .orElse(Component.literal(selected.type()));
-        boolean finite = selected != null && menu.hasFiniteDeposit();
-        Component reserve = !finite ? null : menu.depositRemaining() == 0
-                ? Component.translatable("screen.kingdoms.drill.depleted")
-                : Component.translatable(
-                        "screen.kingdoms.drill.reserve",
-                        menu.depositRemaining(),
-                        menu.depositOriginal()
-                );
+        DrillPayloads.TargetInfo selected = selectedTarget(ClientDrillTargets.get(menu.containerId));
+        ResourceClusterType type = selected == null
+                ? null
+                : ResourceClusterType.parse(selected.type()).orElse(null);
 
-        int plateLeft = layout.targetIconX() - 4;
+        int plateLeft = leftPos + READOUT_X;
         int plateTop = topPos + READOUT_Y;
-        int textLeft = layout.targetIconX() + TARGET_ICON_SIZE + 5;
-        int textWidth = Math.max(font.width(name), reserve == null ? 0 : font.width(reserve));
-        int plateRight = Math.min(leftPos + READOUT_MAX_RIGHT, textLeft + textWidth + 6);
+        int plateRight = leftPos + READOUT_MAX_RIGHT;
         graphics.fill(plateLeft, plateTop, plateRight, plateTop + READOUT_HEIGHT, 0xFF080B10);
         graphics.fill(plateLeft + 1, plateTop + 1, plateRight - 1, plateTop + READOUT_HEIGHT - 1, 0xFF17222F);
         graphics.fill(plateLeft, plateTop, plateRight, plateTop + 2, 0xFFC6A24C);
@@ -152,19 +139,32 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
                 layout.targetIconY() + TARGET_ICON_SIZE,
                 0xFF17202A
         );
-        if (selected != null) {
-            ResourceClusterType.parse(selected.type()).ifPresent(type ->
-                    graphics.renderItem(new ItemStack(type.displayItem()), layout.targetIconX() + 1, layout.targetIconY() + 1)
-            );
+        if (type != null) {
+            graphics.renderItem(new ItemStack(type.displayItem()), layout.targetIconX(), layout.targetIconY());
         }
 
-        int nameColor = selected == null ? 0xFF9AA6B2 : 0xFFF0D99D;
-        if (reserve == null) {
-            graphics.drawString(font, name, textLeft, plateTop + 8, nameColor, false);
-        } else {
-            graphics.drawString(font, name, textLeft, plateTop + 3, nameColor, false);
-            graphics.drawString(font, reserve, textLeft, plateTop + 14, 0xFFB9C8D5, false);
+        Component name = type == null
+                ? Component.translatable("screen.kingdoms.drill.no_target")
+                : Component.literal(type.displayName());
+        int textLeft = layout.targetIconX() + TARGET_ICON_SIZE + 4;
+        int available = plateRight - 4 - textLeft;
+        graphics.drawString(
+                font,
+                font.width(name) <= available ? name : Component.literal(clip(name.getString(), available)),
+                textLeft,
+                plateTop + 6,
+                type == null ? 0xFF9AA6B2 : 0xFFF0D99D,
+                false
+        );
+    }
+
+    private String clip(String text, int available) {
+        String ellipsis = "…";
+        String result = text;
+        while (!result.isEmpty() && font.width(result + ellipsis) > available) {
+            result = result.substring(0, result.length() - 1);
         }
+        return result + ellipsis;
     }
 
     private void renderDrillSlots(GuiGraphics graphics) {

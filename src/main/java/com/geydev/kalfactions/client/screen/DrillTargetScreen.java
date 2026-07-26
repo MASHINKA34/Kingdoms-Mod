@@ -7,17 +7,18 @@ import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class DrillTargetScreen extends Screen {
     private static final int GOLD = 0xFFD3A73D;
-    private static final int CARD_HEIGHT = 40;
-    private static final int ROWS = 4;
+    private static final int CARD_HEIGHT = 34;
+    private static final int CARD_GAP = 4;
     private final DrillScreen parent;
     private DrillPayloads.S2CTargets state;
-    private int page;
+    private double scroll;
     private Long pendingChunk;
 
     DrillTargetScreen(DrillScreen parent, DrillPayloads.S2CTargets state) {
@@ -35,13 +36,10 @@ public final class DrillTargetScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         renderBackground(graphics, mouseX, mouseY, partialTick);
         Layout layout = layout();
-        graphics.fill(
-                layout.panelLeft(),
-                layout.panelTop(),
-                layout.panelRight(),
-                layout.panelBottom(),
-                0xFF080D14
-        );
+        List<DrillPayloads.TargetInfo> targets = targets();
+        scroll = Mth.clamp(scroll, 0.0D, maxScroll(layout, targets.size()));
+
+        graphics.fill(layout.panelLeft(), layout.panelTop(), layout.panelRight(), layout.panelBottom(), 0xFF080D14);
         graphics.fill(
                 layout.panelLeft() + 2,
                 layout.panelTop() + 2,
@@ -49,68 +47,66 @@ public final class DrillTargetScreen extends Screen {
                 layout.panelBottom() - 2,
                 0xFF142231
         );
-        graphics.fill(
-                layout.panelLeft() + 2,
-                layout.panelTop() + 2,
-                layout.panelRight() - 2,
-                layout.panelTop() + 4,
-                GOLD
-        );
+        graphics.fill(layout.panelLeft() + 2, layout.panelTop() + 2, layout.panelRight() - 2, layout.panelTop() + 4, GOLD);
         graphics.drawCenteredString(font, title, width / 2, layout.panelTop() + 12, 0xFFF4DEAA);
 
-        List<DrillPayloads.TargetInfo> targets = targets();
-        int pages = pageCount(targets, layout.perPage());
-        page = Math.clamp(page, 0, pages - 1);
         if (targets.isEmpty()) {
             graphics.drawCenteredString(
                     font,
                     Component.translatable("screen.kingdoms.drill.no_targets"),
                     width / 2,
-                    layout.panelTop() + 94,
+                    layout.panelTop() + layout.listHeight() / 2 + 24,
                     0xFF9AA6B2
             );
-        } else {
-            int from = page * layout.perPage();
-            int to = Math.min(targets.size(), from + layout.perPage());
-            for (int index = from; index < to; index++) {
-                renderTarget(graphics, layout, targets.get(index), index - from);
+            super.render(graphics, mouseX, mouseY, partialTick);
+            return;
+        }
+
+        graphics.enableScissor(layout.panelLeft() + 4, layout.listTop(), layout.panelRight() - 4, layout.listBottom());
+        DrillPayloads.TargetInfo hovered = targetAt(layout, mouseX, mouseY);
+        for (int index = 0; index < targets.size(); index++) {
+            Rect card = layout.card(index, scroll);
+            if (card.bottom() < layout.listTop() || card.top() > layout.listBottom()) {
+                continue;
             }
+            renderTarget(graphics, card, targets.get(index), targets.get(index) == hovered);
         }
-        if (pages > 1) {
-            Rect previous = layout.previousPage();
-            Rect next = layout.nextPage();
-            drawPageButton(graphics, previous, "<", page > 0);
-            drawPageButton(graphics, next, ">", page + 1 < pages);
-            graphics.drawCenteredString(
-                    font,
-                    Component.translatable("screen.kingdoms.drill.page", page + 1, pages),
-                    width / 2,
-                    layout.panelBottom() - 17,
-                    0xFFC9D2DB
-            );
-        }
-        renderTargetTooltip(graphics, layout, mouseX, mouseY);
+        graphics.disableScissor();
+
+        renderScrollbar(graphics, layout, targets.size());
+        graphics.drawCenteredString(
+                font,
+                Component.translatable("screen.kingdoms.drill.selector_hint"),
+                width / 2,
+                layout.panelBottom() - 15,
+                0xFF8894A0
+        );
         super.render(graphics, mouseX, mouseY, partialTick);
+        if (hovered != null) {
+            renderTargetTooltip(graphics, hovered, mouseX, mouseY);
+        }
     }
 
     private void renderTarget(
             GuiGraphics graphics,
-            Layout layout,
+            Rect card,
             DrillPayloads.TargetInfo target,
-            int localIndex
+            boolean hovered
     ) {
-        Rect card = layout.card(localIndex);
         int border = target.selected() ? 0xFF42B86B : target.available() ? GOLD : 0xFF59616B;
+        int background = hovered && target.available() ? 0xFF23364A : 0xFF172431;
         graphics.fill(card.left(), card.top(), card.right(), card.bottom(), 0xFF05090E);
         graphics.fill(card.left() + 1, card.top() + 1, card.right() - 1, card.bottom() - 1, border);
-        graphics.fill(card.left() + 2, card.top() + 2, card.right() - 2, card.bottom() - 2, 0xFF172431);
-        ResourceClusterType.parse(target.type()).ifPresent(type ->
-                graphics.renderItem(new ItemStack(type.displayItem()), card.left() + 7, card.top() + 11)
-        );
-        Component resource = ResourceClusterType.parse(target.type())
-                .map(type -> type.displayItem().getDescription())
-                .orElse(Component.literal(target.type()));
-        graphics.drawString(font, resource, card.left() + 29, card.top() + 7, 0xFFF0D99D, false);
+        graphics.fill(card.left() + 2, card.top() + 2, card.right() - 2, card.bottom() - 2, background);
+
+        ResourceClusterType type = ResourceClusterType.parse(target.type()).orElse(null);
+        if (type != null) {
+            graphics.renderItem(new ItemStack(type.displayItem()), card.left() + 8, card.top() + 9);
+        }
+        Component name = type == null
+                ? Component.literal(target.type())
+                : Component.literal(type.displayName());
+        graphics.drawString(font, name, card.left() + 32, card.top() + 6, 0xFFF0D99D, false);
         ChunkPos chunk = new ChunkPos(target.chunk());
         graphics.drawString(
                 font,
@@ -120,35 +116,74 @@ public final class DrillTargetScreen extends Screen {
                         chunk.z,
                         target.richness()
                 ),
-                card.left() + 29,
-                card.top() + 22,
+                card.left() + 32,
+                card.top() + 19,
                 target.available() ? 0xFFB9C8D5 : 0xFF7E8790,
                 false
         );
+        if (target.selected()) {
+            graphics.drawString(font, "✔", card.right() - 16, card.top() + 12, 0xFF69D68C, false);
+        } else if (!target.available()) {
+            graphics.drawString(font, "✖", card.right() - 16, card.top() + 12, 0xFFB65B5B, false);
+        }
     }
 
-    private static void drawPageButton(GuiGraphics graphics, Rect rect, String label, boolean active) {
-        graphics.fill(rect.left(), rect.top(), rect.right(), rect.bottom(), active ? 0xFF76551D : 0xFF26303A);
-        graphics.drawCenteredString(
-                net.minecraft.client.Minecraft.getInstance().font,
-                label,
-                (rect.left() + rect.right()) / 2,
-                rect.top() + 4,
-                active ? 0xFFFFFFFF : 0xFF6F7780
-        );
-    }
-
-    private void renderTargetTooltip(GuiGraphics graphics, Layout layout, int mouseX, int mouseY) {
-        DrillPayloads.TargetInfo target = targetAt(layout, mouseX, mouseY);
-        if (target == null) {
+    private void renderScrollbar(GuiGraphics graphics, Layout layout, int count) {
+        double max = maxScroll(layout, count);
+        if (max <= 0.0D) {
             return;
         }
+        int trackLeft = layout.panelRight() - 9;
+        int trackRight = layout.panelRight() - 5;
+        graphics.fill(trackLeft, layout.listTop(), trackRight, layout.listBottom(), 0xFF0A1119);
+        int trackHeight = layout.listBottom() - layout.listTop();
+        int contentHeight = count * (CARD_HEIGHT + CARD_GAP);
+        int thumbHeight = Math.max(16, trackHeight * trackHeight / contentHeight);
+        int thumbTop = layout.listTop() + (int) ((trackHeight - thumbHeight) * (scroll / max));
+        graphics.fill(trackLeft, thumbTop, trackRight, thumbTop + thumbHeight, GOLD);
+    }
+
+    private void renderTargetTooltip(
+            GuiGraphics graphics,
+            DrillPayloads.TargetInfo target,
+            int mouseX,
+            int mouseY
+    ) {
         String key = target.selected()
                 ? "screen.kingdoms.drill.target_selected"
                 : target.available()
                         ? "screen.kingdoms.drill.target_available"
                         : "screen.kingdoms.drill.target_busy";
-        graphics.renderTooltip(font, Component.translatable(key), mouseX, mouseY);
+        ChunkPos chunk = new ChunkPos(target.chunk());
+        Component name = ResourceClusterType.parse(target.type())
+                .map(type -> Component.literal(type.displayName()))
+                .orElse(Component.literal(target.type()));
+        graphics.renderComponentTooltip(
+                font,
+                List.of(
+                        name,
+                        Component.translatable(
+                                "screen.kingdoms.drill.selector_details",
+                                chunk.x,
+                                chunk.z,
+                                target.richness()
+                        ),
+                        Component.translatable(key)
+                ),
+                mouseX,
+                mouseY
+        );
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        Layout layout = layout();
+        double max = maxScroll(layout, targets().size());
+        if (max > 0.0D) {
+            scroll = Mth.clamp(scroll - scrollY * (CARD_HEIGHT + CARD_GAP), 0.0D, max);
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override
@@ -156,17 +191,7 @@ public final class DrillTargetScreen extends Screen {
         if (button != 0) {
             return super.mouseClicked(mouseX, mouseY, button);
         }
-        Layout layout = layout();
-        int pages = pageCount(targets(), layout.perPage());
-        if (layout.previousPage().contains(mouseX, mouseY) && page > 0) {
-            page--;
-            return true;
-        }
-        if (layout.nextPage().contains(mouseX, mouseY) && page + 1 < pages) {
-            page++;
-            return true;
-        }
-        DrillPayloads.TargetInfo target = targetAt(layout, mouseX, mouseY);
+        DrillPayloads.TargetInfo target = targetAt(layout(), mouseX, mouseY);
         if (target == null || !target.available() || pendingChunk != null) {
             return target != null;
         }
@@ -212,11 +237,12 @@ public final class DrillTargetScreen extends Screen {
     }
 
     private DrillPayloads.TargetInfo targetAt(Layout layout, double mouseX, double mouseY) {
+        if (mouseY < layout.listTop() || mouseY >= layout.listBottom()) {
+            return null;
+        }
         List<DrillPayloads.TargetInfo> targets = targets();
-        int from = page * layout.perPage();
-        int to = Math.min(targets.size(), from + layout.perPage());
-        for (int index = from; index < to; index++) {
-            if (layout.card(index - from).contains(mouseX, mouseY)) {
+        for (int index = 0; index < targets.size(); index++) {
+            if (layout.card(index, scroll).contains(mouseX, mouseY)) {
                 return targets.get(index);
             }
         }
@@ -231,31 +257,19 @@ public final class DrillTargetScreen extends Screen {
         return Layout.create(width, height);
     }
 
-    private static int pageCount(List<DrillPayloads.TargetInfo> targets, int perPage) {
-        return Math.max(1, (targets.size() + perPage - 1) / perPage);
+    private static double maxScroll(Layout layout, int count) {
+        return Math.max(0.0D, (double) count * (CARD_HEIGHT + CARD_GAP) - CARD_GAP - layout.listHeight());
     }
 
-    record Layout(
-            int panelLeft,
-            int panelTop,
-            int panelWidth,
-            int panelHeight,
-            int columns,
-            int cardWidth
-    ) {
+    record Layout(int panelLeft, int panelTop, int panelWidth, int panelHeight) {
         static Layout create(int screenWidth, int screenHeight) {
-            int panelWidth = Math.max(250, Math.min(370, screenWidth - 20));
-            int panelHeight = Math.max(210, Math.min(238, screenHeight - 20));
-            int columns = panelWidth >= 330 ? 2 : 1;
-            int gap = 8;
-            int cardWidth = (panelWidth - 28 - gap * (columns - 1)) / columns;
+            int panelWidth = Math.max(220, Math.min(300, screenWidth - 40));
+            int panelHeight = Math.max(160, Math.min(240, screenHeight - 40));
             return new Layout(
                     (screenWidth - panelWidth) / 2,
                     (screenHeight - panelHeight) / 2,
                     panelWidth,
-                    panelHeight,
-                    columns,
-                    cardWidth
+                    panelHeight
             );
         }
 
@@ -267,24 +281,26 @@ public final class DrillTargetScreen extends Screen {
             return panelTop + panelHeight;
         }
 
-        int perPage() {
-            return columns * ROWS;
+        int listTop() {
+            return panelTop + 26;
         }
 
-        Rect card(int index) {
-            int column = index % columns;
-            int row = index / columns;
-            int left = panelLeft + 14 + column * (cardWidth + 8);
-            int top = panelTop + 35 + row * (CARD_HEIGHT + 5);
-            return new Rect(left, top, left + cardWidth, top + CARD_HEIGHT);
+        int listBottom() {
+            return panelBottom() - 20;
         }
 
-        Rect previousPage() {
-            return new Rect(panelLeft + 14, panelBottom() - 25, panelLeft + 36, panelBottom() - 7);
+        int listHeight() {
+            return listBottom() - listTop();
         }
 
-        Rect nextPage() {
-            return new Rect(panelRight() - 36, panelBottom() - 25, panelRight() - 14, panelBottom() - 7);
+        int cardWidth() {
+            return panelWidth - 22;
+        }
+
+        Rect card(int index, double scroll) {
+            int left = panelLeft + 8;
+            int top = listTop() + index * (CARD_HEIGHT + CARD_GAP) - (int) Math.round(scroll);
+            return new Rect(left, top, left + cardWidth(), top + CARD_HEIGHT);
         }
     }
 

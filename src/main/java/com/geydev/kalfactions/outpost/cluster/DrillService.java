@@ -9,6 +9,7 @@ import com.geydev.kalfactions.net.FactionServerHooks;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
@@ -44,18 +45,20 @@ public final class DrillService {
             Faction faction,
             DrillBlockEntity drill
     ) {
-        if (faction == null || !faction.hasClaim(ClaimKey.of(level, drill.getBlockPos()))) {
+        ClaimKey drillClaim = ClaimKey.of(level, drill.getBlockPos());
+        if (!DrillTerritory.owns(faction, drillClaim)) {
             if (drill.targetClusterChunk() != null) {
                 drill.releaseTarget(level);
             }
             return List.of();
         }
+        Set<ClaimKey> territory = DrillTerritory.of(faction, drillClaim);
         ResourceClusterManager clusters = ResourceClusterManager.get(level);
         long drillPos = drill.getBlockPos().asLong();
         Long selected = drill.targetClusterChunk();
         if (selected != null) {
             ChunkPos selectedChunk = new ChunkPos(selected);
-            boolean valid = faction.hasClaim(ClaimKey.of(level, selectedChunk))
+            boolean valid = territory.contains(ClaimKey.of(level, selectedChunk))
                     && clusters.clusterAt(selectedChunk).isPresent()
                     && (clusters.isBoundDrill(selectedChunk, drill.getBlockPos())
                             || clusters.bindDrill(selectedChunk, drill.getBlockPos()));
@@ -66,7 +69,7 @@ public final class DrillService {
         }
         List<DrillPayloads.TargetInfo> targets = new ArrayList<>();
         for (ResourceClusterManager.SurfaceClusterView cluster
-                : clusters.clustersIn(faction.claims(), level.dimension().location())) {
+                : clusters.clustersIn(territory, level.dimension().location())) {
             if (targets.size() >= DrillPayloads.MAX_TARGETS) {
                 break;
             }
@@ -113,9 +116,8 @@ public final class DrillService {
         ClaimKey drillClaim = ClaimKey.of(level, drill.getBlockPos());
         ClaimKey targetClaim = ClaimKey.of(level, new ChunkPos(payload.targetChunk()));
         ResourceClusterManager clusters = ResourceClusterManager.get(level);
-        boolean valid = faction != null
-                && faction.hasClaim(drillClaim)
-                && faction.hasClaim(targetClaim)
+        boolean valid = DrillTerritory.owns(faction, drillClaim)
+                && DrillTerritory.reaches(faction, drillClaim, targetClaim)
                 && clusters.clusterAt(new ChunkPos(payload.targetChunk())).isPresent()
                 && level.getWorldBorder().isWithinBounds(new BlockPos(
                         targetClaim.chunk().getMiddleBlockX(),

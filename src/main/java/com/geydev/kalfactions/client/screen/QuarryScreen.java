@@ -6,6 +6,7 @@ import com.geydev.kalfactions.menu.QuarryMenu;
 import com.geydev.kalfactions.quarry.QuarryManager;
 import com.geydev.kalfactions.quarry.QuarryPayloads;
 import com.geydev.kalfactions.registry.ModBlocks;
+import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -202,7 +203,12 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
                 false
         );
         if (!state.actionEnabled() && state.reason() != QuarryPayloads.REASON_NONE) {
-            graphics.drawString(font, disabledReason(state), x + 162, y + 26, 0xFFE0A078, false);
+            int reasonLeft = x + 162;
+            int reasonWidth = layout.details().x() + layout.details().width() - 9 - reasonLeft;
+            List<net.minecraft.util.FormattedCharSequence> lines = font.split(disabledReason(state), reasonWidth);
+            for (int index = 0; index < Math.min(2, lines.size()); index++) {
+                graphics.drawString(font, lines.get(index), reasonLeft, y + 26 + index * 10, 0xFFE0A078, false);
+            }
         }
     }
 

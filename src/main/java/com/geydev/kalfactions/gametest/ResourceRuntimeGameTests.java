@@ -4,12 +4,19 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager;
 import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager.ChunkDiagnostic;
 import com.geydev.kalfactions.outpost.cluster.distribution.ResourceZone;
+import com.geydev.kalfactions.worldgen.ZonedOreFeature;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
@@ -17,70 +24,84 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @PrefixGameTestTemplate(false)
 public final class ResourceRuntimeGameTests {
     @GameTest(template = "empty", batch = "resource_runtime", timeoutTicks = 200)
-    public static void runtimePlacesDepositsAndSurfaceClustersByZone(GameTestHelper helper) {
+    public static void oreSizeMultiplierFollowsZone(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos spawn = level.getSharedSpawnPos();
+
+        helper.assertValueEqual(
+                ZonedOreFeature.zoneAt(spawn.getX(), spawn.getZ(), spawn.getX(), spawn.getZ()),
+                ResourceZone.BLUE,
+                "spawn is blue"
+        );
+        helper.assertValueEqual(
+                ZonedOreFeature.zoneAt(spawn.getX() + 2_000, spawn.getZ(), spawn.getX(), spawn.getZ()),
+                ResourceZone.YELLOW,
+                "2k is yellow"
+        );
+        helper.assertValueEqual(
+                ZonedOreFeature.zoneAt(spawn.getX() + 6_000, spawn.getZ(), spawn.getX(), spawn.getZ()),
+                ResourceZone.RED,
+                "6k is red"
+        );
+        helper.assertValueEqual(
+                ZonedOreFeature.zoneAt(spawn.getX() + 9_000, spawn.getZ(), spawn.getX(), spawn.getZ()),
+                ResourceZone.BLACK,
+                "9k is black"
+        );
+
+        helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.BLUE), 0.0D, "blue has no ore");
+        helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.YELLOW), 0.5D, "yellow ore size");
+        helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.RED), 1.1D, "red ore size");
+        helper.assertValueEqual(ZonedOreFeature.sizeMultiplier(ResourceZone.BLACK), 1.7D, "black ore size");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "resource_runtime", timeoutTicks = 200)
+    public static void zonedOreFeatureIsRegisteredAndAttachedToOverworld(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "zoned_ores");
+
+        helper.assertTrue(
+                BuiltInRegistries.FEATURE.containsKey(id),
+                "zoned_ores feature registered"
+        );
+        helper.assertTrue(
+                level.registryAccess().registryOrThrow(Registries.CONFIGURED_FEATURE).containsKey(id),
+                "zoned_ores configured feature loaded"
+        );
+        Registry<PlacedFeature> placed = level.registryAccess().registryOrThrow(Registries.PLACED_FEATURE);
+        helper.assertTrue(placed.containsKey(id), "zoned_ores placed feature loaded");
+
+        Holder<PlacedFeature> holder = placed.getHolderOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, id));
+        boolean attached = level.getBiome(helper.absolutePos(BlockPos.ZERO))
+                .value()
+                .getGenerationSettings()
+                .features()
+                .stream()
+                .anyMatch(step -> step.stream().anyMatch(entry -> entry.value() == holder.value()));
+        helper.assertTrue(attached, "zoned_ores added to overworld biome generation");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "resource_runtime", timeoutTicks = 400)
+    public static void surfaceClustersSpawnOnlyInYellowAndRed(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ResourceClusterManager manager = ResourceClusterManager.get(level);
-        manager.setResourceQueuePaused(false);
-        manager.advanceResourceCycle(System.currentTimeMillis());
+        BlockPos spawn = level.getSharedSpawnPos();
 
-        ChunkPos blue = new ChunkPos(level.getSharedSpawnPos());
-        manager.queue(blue, level.getGameTime() - 1L);
-        manager.tick(level);
+        ChunkPos blue = new ChunkPos(spawn);
         ChunkDiagnostic blueDiagnostic = manager.diagnoseChunk(level, blue);
         helper.assertValueEqual(blueDiagnostic.zone(), ResourceZone.BLUE, "blue zone");
-        helper.assertTrue(blueDiagnostic.depositCandidateChunk() == null, "blue deposit disabled");
         helper.assertTrue(blueDiagnostic.surfaceCandidateChunk() == null, "blue surface cluster disabled");
 
-        ChunkPos yellowDeposit = findDepositCandidate(level, manager, ResourceZone.YELLOW);
-        ChunkPos redDeposit = findDepositCandidate(level, manager, ResourceZone.RED);
-        ChunkPos blackDeposit = findDepositCandidate(level, manager, ResourceZone.BLACK);
-        generateDeposit(helper, manager, yellowDeposit, ResourceZone.YELLOW, 0.5D);
-        generateDeposit(helper, manager, redDeposit, ResourceZone.RED, 1.1D);
-        generateDeposit(helper, manager, blackDeposit, ResourceZone.BLACK, 1.7D);
-
-        ChunkDiagnostic blackDiagnostic = manager.diagnoseChunk(level, blackDeposit);
+        ChunkPos black = new ChunkPos(new BlockPos(spawn.getX() + 9_000, 0, spawn.getZ()));
+        ChunkDiagnostic blackDiagnostic = manager.diagnoseChunk(level, black);
+        helper.assertValueEqual(blackDiagnostic.zone(), ResourceZone.BLACK, "black zone");
         helper.assertTrue(blackDiagnostic.surfaceCandidateChunk() == null, "black surface cluster disabled");
 
         generateSurfaceCluster(helper, manager, findSurfaceCandidate(level, manager, ResourceZone.YELLOW));
         generateSurfaceCluster(helper, manager, findSurfaceCandidate(level, manager, ResourceZone.RED));
         helper.succeed();
-    }
-
-    private static void generateDeposit(
-            GameTestHelper helper,
-            ResourceClusterManager manager,
-            ChunkPos chunk,
-            ResourceZone expectedZone,
-            double expectedMultiplier
-    ) {
-        ServerLevel level = helper.getLevel();
-        level.getChunk(chunk.x, chunk.z);
-        ChunkDiagnostic diagnostic = manager.diagnoseChunk(level, chunk);
-        helper.assertTrue(
-                diagnostic.depositReason().equals("pending") || diagnostic.depositReason().startsWith("deposit_"),
-                expectedZone + " load event queued or deposit restored"
-        );
-        helper.assertValueEqual(diagnostic.zone(), expectedZone, expectedZone + " candidate zone");
-        helper.assertValueEqual(diagnostic.densityMultiplier(), expectedMultiplier, expectedZone + " density profile");
-        helper.assertTrue(diagnostic.depositCenter() != null, expectedZone + " deposit center");
-        BlockPos center = diagnostic.depositCenter();
-        int minY = Math.max(level.getMinBuildHeight() + 1, center.getY() - 6);
-        int maxY = Math.min(level.getMaxBuildHeight() - 2, center.getY() + 6);
-        for (int x = chunk.getMinBlockX(); x <= chunk.getMaxBlockX(); x++) {
-            for (int z = chunk.getMinBlockZ(); z <= chunk.getMaxBlockZ(); z++) {
-                for (int y = minY; y <= maxY; y++) {
-                    level.setBlock(new BlockPos(x, y, z), Blocks.STONE.defaultBlockState(), 2);
-                }
-            }
-        }
-        manager.queue(chunk, level.getGameTime() - 1L);
-        for (int tick = 0; tick < 16; tick++) {
-            manager.tick(level);
-        }
-        ResourceClusterManager.OreDepositView deposit = manager.oreDepositAt(chunk).orElse(null);
-        helper.assertTrue(deposit != null, expectedZone + " deposit created");
-        helper.assertTrue(deposit.generatedBlocks() > 0, expectedZone + " generated tracked blocks");
-        helper.assertTrue(manager.physicalOreBlocksInChunk(level, chunk) > 0, expectedZone + " physical ore blocks");
     }
 
     private static void generateSurfaceCluster(
@@ -100,46 +121,6 @@ public final class ResourceRuntimeGameTests {
                 level.getBlockState(cluster.basePos()).is(cluster.type().block()),
                 diagnostic.zone() + " surface block placed"
         );
-    }
-
-    private static ChunkPos findDepositCandidate(
-            ServerLevel level,
-            ResourceClusterManager manager,
-            ResourceZone zone
-    ) {
-        BlockPos spawn = level.getSharedSpawnPos();
-        int minDistance = switch (zone) {
-            case YELLOW -> 512;
-            case RED -> 5_250;
-            case BLACK -> 8_250;
-            case BLUE -> 0;
-        };
-        int maxDistance = switch (zone) {
-            case YELLOW -> 4_750;
-            case RED -> 7_750;
-            case BLACK -> 9_500;
-            case BLUE -> 200;
-        };
-        for (int x = minDistance; x <= maxDistance; x += 256) {
-            for (int z = -768; z <= 768; z += 256) {
-                ChunkPos query = new ChunkPos(new BlockPos(spawn.getX() + x, 0, spawn.getZ() + z));
-                ChunkDiagnostic diagnostic = manager.diagnoseChunk(level, query);
-                if (diagnostic.zone() != zone || diagnostic.depositCandidateChunk() == null) {
-                    continue;
-                }
-                ChunkPos candidate = diagnostic.depositCandidateChunk();
-                ChunkDiagnostic candidateDiagnostic = manager.diagnoseChunk(level, candidate);
-                if (candidateDiagnostic.zone() == zone
-                        && level.getWorldBorder().isWithinBounds(new BlockPos(
-                                candidate.getMiddleBlockX(),
-                                0,
-                                candidate.getMiddleBlockZ()
-                        ))) {
-                    return candidate;
-                }
-            }
-        }
-        throw new IllegalStateException("No " + zone + " deposit candidate found");
     }
 
     private static ChunkPos findSurfaceCandidate(
