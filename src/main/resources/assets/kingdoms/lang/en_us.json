@@ -1009,7 +1009,7 @@
   "screen.kingdoms.drill.reserve": "Deposit reserve: %s/%s",
   "screen.kingdoms.drill.depleted": "Deposit depleted",
   "commands.kingdoms.resource.zone": "Zone: %s, distance: %s blocks, shared spawn: %s, %s",
-  "commands.kingdoms.resource.chunk.zone": "Chunk %s, %s: zone %s; ore vein size x%s",
+  "commands.kingdoms.resource.chunk.zone": "Chunk %s, %s: zone %s; ore vein size %s",
   "commands.kingdoms.resource.chunk.surface": "Cluster: position %s; type %s; state: %s; queued %s; known clusters %s",
   "item.kingdoms.nether_return": "Nether Return Sigil",
   "item.kingdoms.nether_return.tooltip": "Hold use for 2 seconds to return near your Nether entry point. Cannot be dropped or stored.",

@@ -135,7 +135,7 @@ public final class ResourceClusterManager extends SavedData {
         return new ChunkDiagnostic(
                 chunkPos,
                 zone,
-                ZonedOreFeature.sizeMultiplier(zone),
+                ZonedOreFeature.oreSizeSummary(zone),
                 surfacePlan == null ? null : surfacePlan.chunk(),
                 surfacePlan == null ? null : new BlockPos(
                         surfacePlan.blockX(),
@@ -633,7 +633,7 @@ public final class ResourceClusterManager extends SavedData {
     public record ChunkDiagnostic(
             ChunkPos chunk,
             ResourceZone zone,
-            double oreSizeMultiplier,
+            String oreVeinSize,
             ChunkPos surfaceCandidateChunk,
             BlockPos surfacePosition,
             ResourceClusterType surfaceType,

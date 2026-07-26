@@ -1009,7 +1009,7 @@
   "screen.kingdoms.drill.reserve": "Запас залежи: %s/%s",
   "screen.kingdoms.drill.depleted": "Залежь истощена",
   "commands.kingdoms.resource.zone": "Зона: %s, расстояние: %s блоков, общий спавн: %s, %s",
-  "commands.kingdoms.resource.chunk.zone": "Чанк %s, %s: зона %s; размер рудных жил ×%s",
+  "commands.kingdoms.resource.chunk.zone": "Чанк %s, %s: зона %s; размер рудных жил %s",
   "commands.kingdoms.resource.chunk.surface": "Кластер: позиция %s; тип %s; состояние: %s; в очереди %s; всего кластеров %s",
   "item.kingdoms.nether_return": "Сигил возврата из Ада",
   "item.kingdoms.nether_return.tooltip": "Удерживайте использование 2 секунды, чтобы вернуться к месту входа в Ад. Нельзя выбросить или положить в хранилище.",

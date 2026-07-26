@@ -109,8 +109,10 @@ public final class ModConfigSpec {
     public static final IntValue RESOURCE_YELLOW_RADIUS;
     public static final IntValue RESOURCE_RED_RADIUS;
     public static final DoubleValue RESOURCE_BLUE_SIZE_MULTIPLIER;
-    public static final DoubleValue RESOURCE_YELLOW_SIZE_MULTIPLIER;
-    public static final DoubleValue RESOURCE_RED_SIZE_MULTIPLIER;
+    public static final IntValue RESOURCE_YELLOW_MIN_VEIN_SIZE;
+    public static final IntValue RESOURCE_YELLOW_MAX_VEIN_SIZE;
+    public static final IntValue RESOURCE_RED_MIN_VEIN_SIZE;
+    public static final IntValue RESOURCE_RED_MAX_VEIN_SIZE;
     public static final DoubleValue RESOURCE_BLACK_SIZE_MULTIPLIER;
     public static final IntValue RESOURCE_YELLOW_CLUSTER_SPACING_CHUNKS;
     public static final IntValue RESOURCE_RED_CLUSTER_SPACING_CHUNKS;
@@ -213,9 +215,17 @@ public final class ModConfigSpec {
         RESOURCE_BLUE_SIZE_MULTIPLIER = builder
             .comment("Ore vein size multiplier inside the spawn zone; 0 disables ore entirely.")
             .defineInRange("blueOreSizeMultiplier", 0.00D, 0.0D, 10.0D);
-        RESOURCE_YELLOW_SIZE_MULTIPLIER = builder.defineInRange("yellowOreSizeMultiplier", 0.20D, 0.0D, 10.0D);
-        RESOURCE_RED_SIZE_MULTIPLIER = builder.defineInRange("redOreSizeMultiplier", 0.50D, 0.0D, 10.0D);
-        RESOURCE_BLACK_SIZE_MULTIPLIER = builder.defineInRange("blackOreSizeMultiplier", 1.10D, 0.0D, 10.0D);
+        RESOURCE_YELLOW_MIN_VEIN_SIZE = builder
+            .comment("Ore vein size range in the yellow zone; every vein rolls between these values.")
+            .defineInRange("yellowOreMinVeinSize", 1, 0, 64);
+        RESOURCE_YELLOW_MAX_VEIN_SIZE = builder.defineInRange("yellowOreMaxVeinSize", 4, 0, 64);
+        RESOURCE_RED_MIN_VEIN_SIZE = builder
+            .comment("Ore vein size range in the red zone.")
+            .defineInRange("redOreMinVeinSize", 5, 0, 64);
+        RESOURCE_RED_MAX_VEIN_SIZE = builder.defineInRange("redOreMaxVeinSize", 9, 0, 64);
+        RESOURCE_BLACK_SIZE_MULTIPLIER = builder
+            .comment("Black zone keeps vanilla-shaped veins scaled by this multiplier.")
+            .defineInRange("blackOreSizeMultiplier", 1.10D, 0.0D, 10.0D);
         builder.pop();
         RESOURCE_YELLOW_CLUSTER_SPACING_CHUNKS =
                 builder.defineInRange("yellowSurfaceClusterSpacingChunks", 9, 1, 64);

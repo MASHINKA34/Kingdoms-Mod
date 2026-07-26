@@ -204,7 +204,7 @@ public final class KingdomsAdminCommands {
                 chunk.x,
                 chunk.z,
                 diagnostic.zone().name(),
-                String.format(java.util.Locale.ROOT, "%.2f", diagnostic.oreSizeMultiplier())
+                diagnostic.oreVeinSize()
         ), false);
         source.sendSuccess(() -> Component.translatable(
                 "commands.kingdoms.resource.chunk.surface",

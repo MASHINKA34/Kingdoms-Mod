@@ -2,8 +2,8 @@ package com.geydev.kalfactions.outpost.cluster.distribution;
 
 public enum ResourceZone {
     BLUE(0x243F6A8885A308D3L, 0.00D),
-    YELLOW(0x13198A2E03707344L, 0.20D),
-    RED(0xA4093822299F31D0L, 0.50D),
+    YELLOW(0x13198A2E03707344L, 1.00D),
+    RED(0xA4093822299F31D0L, 1.00D),
     BLACK(0x082EFA98EC4E6C89L, 1.10D);
 
     private final long salt;

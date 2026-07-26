@@ -2,7 +2,9 @@ package com.geydev.kalfactions.worldgen;
 
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.outpost.cluster.distribution.ResourceZone;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -40,12 +42,14 @@ public final class ZonedOreFeature extends Feature<NoneFeatureConfiguration> {
     public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> context) {
         WorldGenLevel level = context.level();
         BlockPos origin = context.origin();
-        double multiplier = sizeMultiplier(level, origin);
-        if (multiplier <= 0.0D) {
-            return false;
-        }
         BlockPos spawn = level.getLevel().getSharedSpawnPos();
         ResourceZone zone = zoneAt(origin.getX(), origin.getZ(), spawn.getX(), spawn.getZ());
+        if (zone == ResourceZone.BLUE) {
+            return false;
+        }
+        if (zone == ResourceZone.BLACK && sizeMultiplier(zone) <= 0.0D) {
+            return false;
+        }
         RandomSource random = context.random();
         int minY = level.getMinBuildHeight() + 1;
         int maxY = level.getMaxBuildHeight() - 1;
@@ -55,9 +59,8 @@ public final class ZonedOreFeature extends Feature<NoneFeatureConfiguration> {
             if (countScale <= 0.0D) {
                 continue;
             }
-            int size = Math.max(minimumVeinSize(zone), (int) Math.round(vein.size() * multiplier));
             int count = (int) Math.round(vein.count() * countScale);
-            if (size <= 0 || count <= 0) {
+            if (count <= 0) {
                 continue;
             }
             int low = Math.max(minY, vein.minY());
@@ -65,21 +68,16 @@ public final class ZonedOreFeature extends Feature<NoneFeatureConfiguration> {
             if (high < low) {
                 continue;
             }
-            OreConfiguration configuration = new OreConfiguration(
-                    List.of(
-                            OreConfiguration.target(
-                                    new TagMatchTest(BlockTags.STONE_ORE_REPLACEABLES),
-                                    vein.stone().defaultBlockState()
-                            ),
-                            OreConfiguration.target(
-                                    new TagMatchTest(BlockTags.DEEPSLATE_ORE_REPLACEABLES),
-                                    vein.deepslate().defaultBlockState()
-                            )
-                    ),
-                    size,
-                    vein.discardChanceOnAirExposure()
-            );
+            Map<Integer, OreConfiguration> configurations = new HashMap<>();
             for (int attempt = 0; attempt < count; attempt++) {
+                int size = veinSize(zone, vein.size(), random);
+                if (size <= 0) {
+                    continue;
+                }
+                OreConfiguration configuration = configurations.computeIfAbsent(
+                        size,
+                        value -> configurationFor(vein, value)
+                );
                 BlockPos center = new BlockPos(
                         origin.getX() + random.nextInt(16),
                         low + random.nextInt(high - low + 1),
@@ -98,26 +96,80 @@ public final class ZonedOreFeature extends Feature<NoneFeatureConfiguration> {
         return placed;
     }
 
+    private static OreConfiguration configurationFor(OreVein vein, int size) {
+        return new OreConfiguration(
+                List.of(
+                        OreConfiguration.target(
+                                new TagMatchTest(BlockTags.STONE_ORE_REPLACEABLES),
+                                vein.stone().defaultBlockState()
+                        ),
+                        OreConfiguration.target(
+                                new TagMatchTest(BlockTags.DEEPSLATE_ORE_REPLACEABLES),
+                                vein.deepslate().defaultBlockState()
+                        )
+                ),
+                size,
+                vein.discardChanceOnAirExposure()
+        );
+    }
+
+    public static int veinSize(ResourceZone zone, int baseSize, RandomSource random) {
+        return switch (zone) {
+            case BLUE -> 0;
+            case YELLOW -> rollSize(random, minVeinSize(zone), maxVeinSize(zone));
+            case RED -> rollSize(random, minVeinSize(zone), maxVeinSize(zone));
+            case BLACK -> Math.max(1, (int) Math.round(baseSize * sizeMultiplier(zone)));
+        };
+    }
+
+    public static String oreSizeSummary(ResourceZone zone) {
+        return switch (zone) {
+            case BLUE -> "-";
+            case YELLOW, RED -> minVeinSize(zone) + ".." + maxVeinSize(zone);
+            case BLACK -> "x" + String.format(java.util.Locale.ROOT, "%.2f", sizeMultiplier(zone));
+        };
+    }
+
+    public static int minVeinSize(ResourceZone zone) {
+        try {
+            return switch (zone) {
+                case YELLOW -> ModConfigSpec.RESOURCE_YELLOW_MIN_VEIN_SIZE.getAsInt();
+                case RED -> ModConfigSpec.RESOURCE_RED_MIN_VEIN_SIZE.getAsInt();
+                case BLUE, BLACK -> 0;
+            };
+        } catch (IllegalStateException | IllegalArgumentException exception) {
+            return zone == ResourceZone.RED ? 5 : 1;
+        }
+    }
+
+    public static int maxVeinSize(ResourceZone zone) {
+        try {
+            return switch (zone) {
+                case YELLOW -> ModConfigSpec.RESOURCE_YELLOW_MAX_VEIN_SIZE.getAsInt();
+                case RED -> ModConfigSpec.RESOURCE_RED_MAX_VEIN_SIZE.getAsInt();
+                case BLUE, BLACK -> 0;
+            };
+        } catch (IllegalStateException | IllegalArgumentException exception) {
+            return zone == ResourceZone.RED ? 9 : 4;
+        }
+    }
+
+    private static int rollSize(RandomSource random, int minimum, int maximum) {
+        int low = Math.max(0, minimum);
+        int high = Math.max(low, maximum);
+        return low == high ? low : low + random.nextInt(high - low + 1);
+    }
+
     public static double sizeMultiplier(ResourceZone zone) {
         try {
             return switch (zone) {
                 case BLUE -> ModConfigSpec.RESOURCE_BLUE_SIZE_MULTIPLIER.getAsDouble();
-                case YELLOW -> ModConfigSpec.RESOURCE_YELLOW_SIZE_MULTIPLIER.getAsDouble();
-                case RED -> ModConfigSpec.RESOURCE_RED_SIZE_MULTIPLIER.getAsDouble();
                 case BLACK -> ModConfigSpec.RESOURCE_BLACK_SIZE_MULTIPLIER.getAsDouble();
+                case YELLOW, RED -> 1.0D;
             };
         } catch (IllegalStateException | IllegalArgumentException exception) {
             return zone.defaultOreSizeMultiplier();
         }
-    }
-
-    public static int minimumVeinSize(ResourceZone zone) {
-        return switch (zone) {
-            case BLUE -> 0;
-            case YELLOW -> 4;
-            case RED -> 5;
-            case BLACK -> 6;
-        };
     }
 
     public static double countMultiplier(OreKind kind, ResourceZone zone) {
@@ -150,11 +202,6 @@ public final class ZonedOreFeature extends Feature<NoneFeatureConfiguration> {
             red = 8_000.0D;
         }
         return ResourceZone.at(blockX, blockZ, spawnX, spawnZ, blue, yellow, red);
-    }
-
-    private static double sizeMultiplier(WorldGenLevel level, BlockPos origin) {
-        BlockPos spawn = level.getLevel().getSharedSpawnPos();
-        return sizeMultiplier(zoneAt(origin.getX(), origin.getZ(), spawn.getX(), spawn.getZ()));
     }
 
     private static synchronized List<OreVein> veins() {
