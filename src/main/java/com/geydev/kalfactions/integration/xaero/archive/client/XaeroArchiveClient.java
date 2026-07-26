@@ -270,6 +270,7 @@ public final class XaeroArchiveClient {
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
+        XaeroWorldMapArchiveCompat.tickBranchRefresh();
         PendingStats pending = pendingStats;
         if (pending != null && System.currentTimeMillis() >= pending.dueAt()) {
             pendingStats = null;

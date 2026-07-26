@@ -10,6 +10,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.neoforged.fml.ModList;
 import xaero.map.MapProcessor;
 import xaero.map.WorldMapSession;
+import xaero.map.file.MapSaveLoad;
+import xaero.map.region.BranchLeveledRegion;
+import xaero.map.region.MapRegion;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,6 +31,10 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 public final class XaeroWorldMapArchiveCompat {
+    private static final long BRANCH_REFRESH_MILLIS = 20_000L;
+    private static final List<int[]> BRANCH_REFRESH = new ArrayList<>();
+    private static long branchRefreshUntil;
+
     public static Compatibility compatibility() {
         String worldMap = version("xaeroworldmap");
         String minimap = version("xaerominimap");
@@ -120,10 +127,11 @@ public final class XaeroWorldMapArchiveCompat {
             MapProcessor processor = processor(download.dimension);
             processor.waitForLoadingToFinish(() -> {
                 processor.pushWriterPause();
+                detachFromSaving(download, processor);
                 CompletableFuture.runAsync(() -> {
                     try {
                         mergeIntoLocal(download, processor);
-                        invalidateRegionCaches(download, processor);
+                        invalidateRegionCaches(processor);
                     } catch (IOException exception) {
                         throw new java.util.concurrent.CompletionException(exception);
                     }
@@ -132,8 +140,10 @@ public final class XaeroWorldMapArchiveCompat {
                         if (throwable == null) {
                             try {
                                 processor.getMapSaveLoad().detectRegions(20);
+                                unloadImportedRegions(download, processor);
                                 processor.getMapWorld().getCurrentDimension()
                                         .startFullMapReload(Integer.MAX_VALUE, false, processor);
+                                scheduleBranchRefresh(download);
                                 success.run();
                             } catch (Throwable reloadFailure) {
                                 failure.accept(reloadFailure);
@@ -270,30 +280,132 @@ public final class XaeroWorldMapArchiveCompat {
         }
     }
 
-    private static void invalidateRegionCaches(Download download, MapProcessor processor) throws IOException {
+    private static void scheduleBranchRefresh(Download download) {
+        BRANCH_REFRESH.clear();
+        for (LocalRegion incoming : download.regions) {
+            int[] coordinates = regionCoordinates(incoming.descriptor.name());
+            if (coordinates != null) {
+                BRANCH_REFRESH.add(coordinates);
+            }
+        }
+        branchRefreshUntil = System.currentTimeMillis() + BRANCH_REFRESH_MILLIS;
+    }
+
+    public static void tickBranchRefresh() {
+        if (BRANCH_REFRESH.isEmpty()) {
+            return;
+        }
+        if (System.currentTimeMillis() > branchRefreshUntil) {
+            BRANCH_REFRESH.clear();
+            return;
+        }
+        if (!compatibility().compatible) {
+            return;
+        }
+        MapProcessor processor = WorldMapSession.getCurrentSession().getMapProcessor();
+        for (int[] coordinates : BRANCH_REFRESH) {
+            MapRegion region = processor.getLeafMapRegion(Integer.MAX_VALUE, coordinates[0], coordinates[1], false);
+            if (region == null) {
+                continue;
+            }
+            BranchLeveledRegion parent = region.getParent();
+            if (parent != null) {
+                parent.setShouldCheckForUpdatesRecursive(true);
+            }
+        }
+    }
+
+    private static void detachFromSaving(Download download, MapProcessor processor) {
+        ArrayList<MapRegion> toSave = processor.getMapSaveLoad().getToSave();
+        forEachLoadedRegion(download, processor, region -> {
+            synchronized (toSave) {
+                toSave.remove(region);
+            }
+            synchronized (region) {
+                region.setResaving(false);
+                region.setBeingWritten(false);
+            }
+        });
+    }
+
+    private static void unloadImportedRegions(Download download, MapProcessor processor) {
+        MapSaveLoad saveLoad = processor.getMapSaveLoad();
+        ArrayList<MapRegion> toSave = saveLoad.getToSave();
+        processor.pushRenderPause(false, true);
+        try {
+            forEachLoadedRegion(download, processor, region -> {
+                synchronized (toSave) {
+                    toSave.remove(region);
+                }
+                synchronized (region) {
+                    region.setResaving(false);
+                    region.setBeingWritten(false);
+                    region.setCacheHashCode(~region.getCacheHashCode());
+                }
+                if (!region.isLoaded() || !region.shouldBeProcessed() || region.activeBranchUpdateReferences != 0) {
+                    return;
+                }
+                BranchLeveledRegion parent = region.getParent();
+                region.onLimiterRemoval(processor);
+                region.deleteTexturesAndBuffers();
+                saveLoad.removeToCache(region);
+                region.afterLimiterRemoval(processor);
+                if (saveLoad.getNextToLoadByViewing() == region) {
+                    saveLoad.setNextToLoadByViewing(null);
+                }
+                if (parent != null) {
+                    parent.setShouldCheckForUpdatesRecursive(true);
+                }
+            });
+        } finally {
+            processor.popRenderPause(false, true);
+        }
+    }
+
+    private static void forEachLoadedRegion(Download download, MapProcessor processor, Consumer<MapRegion> action) {
+        for (LocalRegion incoming : download.regions) {
+            int[] coordinates = regionCoordinates(incoming.descriptor.name());
+            if (coordinates == null) {
+                continue;
+            }
+            MapRegion region = processor.getLeafMapRegion(Integer.MAX_VALUE, coordinates[0], coordinates[1], false);
+            if (region != null) {
+                action.accept(region);
+            }
+        }
+    }
+
+    private static int[] regionCoordinates(String name) {
+        String base = name.substring(0, name.length() - ".zip".length());
+        int separator = base.indexOf('_', base.startsWith("-") ? 1 : 0);
+        if (separator <= 0) {
+            return null;
+        }
+        try {
+            return new int[]{
+                    Integer.parseInt(base.substring(0, separator)),
+                    Integer.parseInt(base.substring(separator + 1))
+            };
+        } catch (NumberFormatException exception) {
+            return null;
+        }
+    }
+
+    private static void invalidateRegionCaches(MapProcessor processor) throws IOException {
         Path folder = mapFolder(processor);
         if (!Files.isDirectory(folder, LinkOption.NOFOLLOW_LINKS)) {
             return;
         }
-        List<String> imported = download.regions.stream()
-                .map(region -> region.descriptor.name())
-                .map(name -> name.substring(0, name.length() - ".zip".length()))
-                .toList();
         try (var entries = Files.list(folder)) {
             entries.filter(path -> Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS))
                     .filter(path -> path.getFileName().toString().startsWith("cache"))
-                    .forEach(cache -> deleteCachedRegions(cache, imported));
+                    .forEach(XaeroWorldMapArchiveCompat::deleteCachedTextures);
         }
     }
 
-    private static void deleteCachedRegions(Path cacheFolder, List<String> imported) {
-        try (var entries = Files.list(cacheFolder)) {
+    private static void deleteCachedTextures(Path cacheFolder) {
+        try (var entries = Files.walk(cacheFolder)) {
             entries.filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
-                    .filter(path -> {
-                        String name = path.getFileName().toString();
-                        int dot = name.indexOf('.');
-                        return imported.contains(dot < 0 ? name : name.substring(0, dot));
-                    })
                     .forEach(path -> {
                         try {
                             Files.deleteIfExists(path);
