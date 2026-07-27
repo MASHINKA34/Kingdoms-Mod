@@ -23,6 +23,8 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
     );
     static final int PANEL_WIDTH = 348;
     static final int PANEL_HEIGHT = 260;
+    private static final int TEXTURE_WIDTH = 696;
+    private static final int TEXTURE_HEIGHT = 520;
     private static final int GOLD = 0xFFC9A24C;
     private static final int GOLD_LIGHT = 0xFFF1D58A;
     private static final int BLUE_DARK = 0xFF08131E;
@@ -76,17 +78,20 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
                 BACKGROUND,
                 leftPos,
                 topPos,
-                0.0F,
-                0.0F,
                 PANEL_WIDTH,
                 PANEL_HEIGHT,
-                PANEL_WIDTH,
-                PANEL_HEIGHT
+                0.0F,
+                0.0F,
+                TEXTURE_WIDTH,
+                TEXTURE_HEIGHT,
+                TEXTURE_WIDTH,
+                TEXTURE_HEIGHT
         );
+        renderMachineryAnimation(graphics, partialTick);
         panel(graphics, layout.summary());
         panel(graphics, layout.details());
         panel(graphics, layout.production());
-        graphics.drawCenteredString(font, title, leftPos + PANEL_WIDTH / 2, topPos + 14, GOLD_LIGHT);
+        drawCenteredFitted(graphics, title, leftPos + PANEL_WIDTH / 2, topPos + 14, 136, GOLD_LIGHT);
         graphics.renderItem(
                 new ItemStack(ModBlocks.QUARRY_CORE.get()),
                 layout.summary().x() + 12,
@@ -105,11 +110,12 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
         renderSummary(graphics, layout);
         renderDetails(graphics, layout);
         renderCapture(graphics, layout);
-        graphics.drawCenteredString(
-                font,
+        drawCenteredFitted(
+                graphics,
                 Component.translatable("screen.kingdoms.quarry.production_later"),
                 layout.production().x() + layout.production().width() / 2,
                 layout.production().y() + 9,
+                layout.production().width() - 16,
                 MUTED
         );
     }
@@ -117,9 +123,10 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
     private void renderSummary(GuiGraphics graphics, Layout layout) {
         int x = layout.summary().x() + 38;
         int y = layout.summary().y() + 8;
-        graphics.drawString(font, statusLabel(state.status()), x, y, statusColor(state.status()), false);
-        graphics.drawString(
-                font,
+        int width = layout.summary().right() - x - 9;
+        drawFitted(graphics, statusLabel(state.status()), x, y, width, statusColor(state.status()));
+        drawFitted(
+                graphics,
                 Component.translatable(
                         "screen.kingdoms.quarry.coordinates",
                         state.core().getX(),
@@ -128,27 +135,30 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
                 ),
                 x,
                 y + 13,
-                TEXT,
-                false
+                width,
+                TEXT
         );
         Component owner = state.ownerName().isEmpty()
                 ? Component.translatable("screen.kingdoms.quarry.neutral")
                 : Component.literal(state.ownerName()).withColor(state.ownerColor());
-        graphics.drawString(
-                font,
+        drawFitted(
+                graphics,
                 Component.translatable("screen.kingdoms.quarry.owner", owner),
                 x,
                 y + 26,
-                TEXT,
-                false
+                width,
+                TEXT
         );
     }
 
     private void renderDetails(GuiGraphics graphics, Layout layout) {
         int x = layout.details().x() + 9;
         int y = layout.details().y() + 8;
-        graphics.drawString(
-                font,
+        int leftWidth = 153;
+        int rightX = x + 162;
+        int rightWidth = layout.details().right() - rightX - 9;
+        drawFitted(
+                graphics,
                 Component.translatable(
                         "screen.kingdoms.quarry.level",
                         state.level(),
@@ -156,52 +166,52 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
                 ),
                 x,
                 y,
-                TEXT,
-                false
+                leftWidth,
+                TEXT
         );
         Component next = state.nextLevel() == 0
                 ? Component.translatable("screen.kingdoms.quarry.maximum")
                 : Component.literal(Integer.toString(state.nextLevel()));
-        graphics.drawString(
-                font,
+        drawFitted(
+                graphics,
                 Component.translatable("screen.kingdoms.quarry.next_level", next),
                 x,
                 y + 13,
-                TEXT,
-                false
+                leftWidth,
+                TEXT
         );
         Component cost = state.nextLevel() == 0
                 ? Component.literal("—")
                 : NumismaticsEconomy.format(state.nextCost());
-        graphics.drawString(
-                font,
+        drawFitted(
+                graphics,
                 Component.translatable("screen.kingdoms.quarry.next_cost", cost),
                 x,
                 y + 26,
-                TEXT,
-                false
+                leftWidth,
+                TEXT
         );
         Component viewer = state.viewerFactionName().isEmpty()
                 ? Component.translatable("screen.kingdoms.quarry.no_faction")
                 : Component.literal(state.viewerFactionName()).withColor(state.viewerFactionColor());
-        graphics.drawString(
-                font,
+        drawFitted(
+                graphics,
                 Component.translatable("screen.kingdoms.quarry.your_faction", viewer),
-                x + 162,
+                rightX,
                 y,
-                TEXT,
-                false
+                rightWidth,
+                TEXT
         );
-        graphics.drawString(
-                font,
+        drawFitted(
+                graphics,
                 Component.translatable(
                         "screen.kingdoms.quarry.treasury",
                         NumismaticsEconomy.format(state.treasury())
                 ),
-                x + 162,
+                rightX,
                 y + 13,
-                TEXT,
-                false
+                rightWidth,
+                TEXT
         );
         if (!state.actionEnabled() && state.reason() != QuarryPayloads.REASON_NONE) {
             int reasonLeft = x + 162;
@@ -222,13 +232,13 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
         int width = layout.capture().width();
         graphics.fill(x, y, x + width, y + 22, 0xFF0A1823);
         Component attacker = Component.literal(state.attackerName()).withColor(state.attackerColor());
-        graphics.drawString(
-                font,
+        drawFitted(
+                graphics,
                 Component.translatable("screen.kingdoms.quarry.attacker", attacker),
                 x + 5,
                 y + 4,
-                TEXT,
-                false
+                168,
+                TEXT
         );
         Component timer = Component.translatable(
                 state.capturePaused()
@@ -236,7 +246,7 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
                         : "screen.kingdoms.quarry.capture_remaining",
                 formatTicks(state.captureTicksRemaining())
         );
-        graphics.drawString(font, timer, x + 5, y + 13, state.capturePaused() ? 0xFFFFC44F : MUTED, false);
+        drawFitted(graphics, timer, x + 5, y + 13, 168, state.capturePaused() ? 0xFFFFC44F : MUTED);
         int barX = x + 178;
         int barY = y + 7;
         int barWidth = width - 184;
@@ -336,6 +346,56 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
     private static String formatTicks(int ticks) {
         long seconds = Math.max(0L, ticks / 20L);
         return String.format("%02d:%02d", seconds / 60L, seconds % 60L);
+    }
+
+    private void renderMachineryAnimation(GuiGraphics graphics, float partialTick) {
+        double phase = (System.currentTimeMillis() + partialTick * 50.0D) * 0.004D;
+        int alpha = 52 + (int) Math.round((Math.sin(phase) + 1.0D) * 38.0D);
+        int glow = alpha << 24 | 0x42E8F5;
+        graphics.fill(leftPos + 43, topPos + 20, leftPos + 47, topPos + 26, glow);
+        graphics.fill(leftPos + 301, topPos + 20, leftPos + 305, topPos + 26, glow);
+    }
+
+    private void drawFitted(
+            GuiGraphics graphics,
+            Component text,
+            int x,
+            int y,
+            int maxWidth,
+            int color
+    ) {
+        int textWidth = font.width(text);
+        if (textWidth <= maxWidth) {
+            graphics.drawString(font, text, x, y, color, false);
+            return;
+        }
+        float scale = maxWidth / (float) textWidth;
+        graphics.pose().pushPose();
+        graphics.pose().translate(x, y, 0.0F);
+        graphics.pose().scale(scale, scale, 1.0F);
+        graphics.drawString(font, text, 0, 0, color, false);
+        graphics.pose().popPose();
+    }
+
+    private void drawCenteredFitted(
+            GuiGraphics graphics,
+            Component text,
+            int centerX,
+            int y,
+            int maxWidth,
+            int color
+    ) {
+        int textWidth = font.width(text);
+        if (textWidth <= maxWidth) {
+            graphics.drawCenteredString(font, text, centerX, y, color);
+            return;
+        }
+        float scale = maxWidth / (float) textWidth;
+        graphics.pose().pushPose();
+        graphics.pose().translate(centerX, y, 0.0F);
+        graphics.pose().scale(scale, scale, 1.0F);
+        graphics.drawCenteredString(font, text, 0, 0, color);
+        graphics.pose().popPose();
     }
 
     static Layout layout(int left, int top) {

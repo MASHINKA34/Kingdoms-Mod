@@ -29,19 +29,48 @@ final class GameplayTextureAssetsTest {
     }
 
     @Test
+    void archiveItemsAreReadableTransparentTextures() throws IOException {
+        BufferedImage mapArchive = read("/assets/kingdoms/textures/item/xaero_map_archive.png");
+        BufferedImage warArchive = read("/assets/kingdoms/textures/item/war_archive.png");
+
+        assertSquare(mapArchive, 256);
+        assertSquare(warArchive, 256);
+        assertTrue(mapArchive.getColorModel().hasAlpha());
+        assertTrue(warArchive.getColorModel().hasAlpha());
+        assertEquals(0, mapArchive.getRGB(0, 0) >>> 24);
+        assertEquals(0, warArchive.getRGB(0, 0) >>> 24);
+        assertTrue(hasOpaquePixels(mapArchive));
+        assertTrue(hasOpaquePixels(warArchive));
+    }
+
+    @Test
+    void drillItemIsAReadableTransparentTexture() throws IOException {
+        BufferedImage drill = read("/assets/kingdoms/textures/item/drill.png");
+
+        assertSquare(drill, 64);
+        assertTrue(drill.getColorModel().hasAlpha());
+        assertEquals(0, drill.getRGB(0, 0) >>> 24);
+        assertTrue(hasOpaquePixels(drill));
+    }
+
+    @Test
     void quarryAssetsAreGameReadyTextures() throws IOException {
         BufferedImage activator = read("/assets/kingdoms/textures/item/quarry_activator.png");
         BufferedImage core = read("/assets/kingdoms/textures/block/quarry_core.png");
+        BufferedImage gui = read("/assets/kingdoms/textures/gui/quarry/quarry_gui.png");
 
-        assertSquare(activator, 64);
-        assertSquare(core, 64);
+        assertSquare(activator, 256);
+        assertSquare(core, 256);
+        assertEquals(696, gui.getWidth());
+        assertEquals(520, gui.getHeight());
         assertTrue(activator.getColorModel().hasAlpha());
         assertEquals(0, activator.getRGB(0, 0) >>> 24);
-        assertEquals(0, activator.getRGB(63, 0) >>> 24);
-        assertEquals(0, activator.getRGB(0, 63) >>> 24);
-        assertEquals(0, activator.getRGB(63, 63) >>> 24);
+        assertEquals(0, activator.getRGB(255, 0) >>> 24);
+        assertEquals(0, activator.getRGB(0, 255) >>> 24);
+        assertEquals(0, activator.getRGB(255, 255) >>> 24);
         assertTrue(hasOpaquePixels(activator));
         assertTrue(isFullyOpaque(core));
+        assertTrue(isFullyOpaque(gui));
         assertTrue(readText("/assets/kingdoms/models/item/quarry_activator.json")
                 .contains("\"layer0\": \"kingdoms:item/quarry_activator\""));
         assertTrue(readText("/assets/kingdoms/models/block/quarry_core.json")
