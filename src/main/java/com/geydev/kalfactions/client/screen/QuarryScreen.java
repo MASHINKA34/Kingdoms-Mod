@@ -116,7 +116,7 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
     }
 
     private void renderSummary(GuiGraphics graphics, Layout layout) {
-        int x = layout.summary().x() + 38;
+        int x = layout.summary().x() + 42;
         int y = layout.summary().y() + 8;
         int width = layout.summary().right() - x - 9;
         drawFitted(graphics, statusLabel(state.status()), x, y, width, statusColor(state.status()));
@@ -399,8 +399,8 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
                 new Rect(left + CONTENT_INSET, top + 42, contentWidth, 54),
                 new Rect(left + CONTENT_INSET, top + 102, contentWidth, 62),
                 new Rect(left + CONTENT_INSET, top + 170, contentWidth, 22),
-                new Rect(left + CONTENT_INSET, top + 196, contentWidth, 26),
-                new Rect(left + 84, top + 225, 180, 22)
+                new Rect(left + CONTENT_INSET, top + 192, contentWidth, 26),
+                new Rect(left + 84, top + 221, 180, 22)
         );
     }
 

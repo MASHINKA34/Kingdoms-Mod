@@ -12,9 +12,9 @@ final class QuarryScreenLayoutTest {
         QuarryScreen.Layout second = QuarryScreen.layout(10, 20);
 
         assertEquals(390, first.action().x());
-        assertEquals(371, first.action().y());
+        assertEquals(367, first.action().y());
         assertEquals(94, second.action().x());
-        assertEquals(245, second.action().y());
+        assertEquals(241, second.action().y());
         assertEquals(322, first.summary().x());
         assertEquals(316, first.summary().width());
         assertEquals(26, second.details().x());
