@@ -59,10 +59,26 @@ final class KingdomsHighlighter extends ChunkHighlighter {
             lines.accept(Component.translatable("kingdoms.xaero.black_zone_restriction"));
             return;
         }
-        Component label = claimLabel(claim);
-        if (label != null) {
-            lines.accept(label);
+        if (claim.quarry()) {
+            if (claim.name().isBlank()) {
+                lines.accept(Component.translatable("kingdoms.xaero.quarry_neutral_label"));
+                return;
+            }
+            lines.accept(Component.translatable("kingdoms.xaero.quarry_title"));
+            lines.accept(Component.translatable("kingdoms.xaero.faction_line", claim.name()));
+            return;
         }
+        if (claim.sanctuary()) {
+            lines.accept(Component.translatable("kingdoms.xaero.sanctuary_label"));
+            return;
+        }
+        if (claim.name().isBlank()) {
+            return;
+        }
+        if (claim.outpost()) {
+            lines.accept(Component.translatable("kingdoms.xaero.outpost_title"));
+        }
+        lines.accept(Component.literal(claim.name()));
     }
 
     static Component claimLabel(ClaimInfo claim) {

@@ -47,6 +47,20 @@ class ClaimHighlightPresentationTest {
     }
 
     @Test
+    void ownedQuarryMinimapLabelWrapsFactionOntoSecondLine() {
+        List<Component> lines = new ArrayList<>();
+
+        KingdomsHighlighter.addMinimapLabels(
+                claim(UUID.randomUUID(), true, "asdfasdfasdf"),
+                lines::add
+        );
+
+        assertEquals(2, lines.size());
+        assertEquals("kingdoms.xaero.quarry_title", key(lines.get(0)));
+        assertEquals("kingdoms.xaero.faction_line", key(lines.get(1)));
+    }
+
+    @Test
     void neutralQuarryHasFallbackLabel() {
         Component label = KingdomsHighlighter.claimLabel(claim(
                 QuarryManager.NEUTRAL_MAP_ID,

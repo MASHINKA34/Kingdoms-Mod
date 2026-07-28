@@ -23,12 +23,10 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
     );
     static final int PANEL_WIDTH = 348;
     static final int PANEL_HEIGHT = 260;
+    private static final int CONTENT_INSET = 16;
     private static final int TEXTURE_WIDTH = 696;
     private static final int TEXTURE_HEIGHT = 520;
-    private static final int GOLD = 0xFFC9A24C;
     private static final int GOLD_LIGHT = 0xFFF1D58A;
-    private static final int BLUE_DARK = 0xFF08131E;
-    private static final int BLUE = 0xFF10283A;
     private static final int TEXT = 0xFFE8DDBD;
     private static final int MUTED = 0xFFAAB3B8;
     private QuarryPayloads.S2CState state;
@@ -88,9 +86,6 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
                 TEXTURE_HEIGHT
         );
         renderMachineryAnimation(graphics, partialTick);
-        panel(graphics, layout.summary());
-        panel(graphics, layout.details());
-        panel(graphics, layout.production());
         drawCenteredFitted(graphics, title, leftPos + PANEL_WIDTH / 2, topPos + 14, 136, GOLD_LIGHT);
         graphics.renderItem(
                 new ItemStack(ModBlocks.QUARRY_CORE.get()),
@@ -154,8 +149,8 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
     private void renderDetails(GuiGraphics graphics, Layout layout) {
         int x = layout.details().x() + 9;
         int y = layout.details().y() + 8;
-        int leftWidth = 153;
-        int rightX = x + 162;
+        int rightX = layout.details().x() + layout.details().width() / 2 + 9;
+        int leftWidth = rightX - x - 9;
         int rightWidth = layout.details().right() - rightX - 9;
         drawFitted(
                 graphics,
@@ -214,7 +209,7 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
                 TEXT
         );
         if (!state.actionEnabled() && state.reason() != QuarryPayloads.REASON_NONE) {
-            int reasonLeft = x + 162;
+            int reasonLeft = rightX;
             int reasonWidth = layout.details().x() + layout.details().width() - 9 - reasonLeft;
             List<net.minecraft.util.FormattedCharSequence> lines = font.split(disabledReason(state), reasonWidth);
             for (int index = 0; index < Math.min(2, lines.size()); index++) {
@@ -399,19 +394,14 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
     }
 
     static Layout layout(int left, int top) {
+        int contentWidth = PANEL_WIDTH - CONTENT_INSET * 2;
         return new Layout(
-                new Rect(left + 12, top + 42, PANEL_WIDTH - 24, 54),
-                new Rect(left + 12, top + 102, PANEL_WIDTH - 24, 62),
-                new Rect(left + 12, top + 170, PANEL_WIDTH - 24, 22),
-                new Rect(left + 12, top + 196, PANEL_WIDTH - 24, 26),
-                new Rect(left + 84, top + 229, 180, 22)
+                new Rect(left + CONTENT_INSET, top + 42, contentWidth, 54),
+                new Rect(left + CONTENT_INSET, top + 102, contentWidth, 62),
+                new Rect(left + CONTENT_INSET, top + 170, contentWidth, 22),
+                new Rect(left + CONTENT_INSET, top + 196, contentWidth, 26),
+                new Rect(left + 84, top + 225, 180, 22)
         );
-    }
-
-    private static void panel(GuiGraphics graphics, Rect rect) {
-        graphics.fill(rect.x(), rect.y(), rect.right(), rect.bottom(), GOLD);
-        graphics.fill(rect.x() + 1, rect.y() + 1, rect.right() - 1, rect.bottom() - 1, BLUE_DARK);
-        graphics.fill(rect.x() + 3, rect.y() + 3, rect.right() - 3, rect.bottom() - 3, BLUE);
     }
 
     record Rect(int x, int y, int width, int height) {

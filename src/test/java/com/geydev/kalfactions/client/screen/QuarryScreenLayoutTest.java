@@ -12,9 +12,13 @@ final class QuarryScreenLayoutTest {
         QuarryScreen.Layout second = QuarryScreen.layout(10, 20);
 
         assertEquals(390, first.action().x());
-        assertEquals(375, first.action().y());
+        assertEquals(371, first.action().y());
         assertEquals(94, second.action().x());
-        assertEquals(249, second.action().y());
+        assertEquals(245, second.action().y());
+        assertEquals(322, first.summary().x());
+        assertEquals(316, first.summary().width());
+        assertEquals(26, second.details().x());
+        assertEquals(316, second.details().width());
         assertTrue(first.action().right() <= 306 + QuarryScreen.PANEL_WIDTH);
         assertTrue(first.action().bottom() <= 146 + QuarryScreen.PANEL_HEIGHT);
         assertTrue(first.production().bottom() <= first.action().y());
