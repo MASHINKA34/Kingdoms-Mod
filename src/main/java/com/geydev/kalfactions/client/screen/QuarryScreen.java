@@ -6,14 +6,12 @@ import com.geydev.kalfactions.command.NumismaticsEconomy;
 import com.geydev.kalfactions.menu.QuarryMenu;
 import com.geydev.kalfactions.quarry.QuarryManager;
 import com.geydev.kalfactions.quarry.QuarryPayloads;
-import com.geydev.kalfactions.registry.ModBlocks;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
@@ -87,11 +85,6 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
         );
         renderMachineryAnimation(graphics, partialTick);
         drawCenteredFitted(graphics, title, leftPos + PANEL_WIDTH / 2, topPos + 14, 136, GOLD_LIGHT);
-        graphics.renderItem(
-                new ItemStack(ModBlocks.QUARRY_CORE.get()),
-                layout.summary().x() + 12,
-                layout.summary().y() + 15
-        );
         if (state == null) {
             graphics.drawCenteredString(
                     font,
@@ -116,11 +109,18 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
     }
 
     private void renderSummary(GuiGraphics graphics, Layout layout) {
-        int x = layout.summary().x() + 42;
         int y = layout.summary().y() + 8;
-        int width = layout.summary().right() - x - 9;
-        drawFitted(graphics, statusLabel(state.status()), x, y, width, statusColor(state.status()));
-        drawFitted(
+        int centerX = layout.summary().x() + layout.summary().width() / 2;
+        int width = layout.summary().width() - 80;
+        drawCenteredFitted(
+                graphics,
+                statusLabel(state.status()),
+                centerX,
+                y,
+                width,
+                statusColor(state.status())
+        );
+        drawCenteredFitted(
                 graphics,
                 Component.translatable(
                         "screen.kingdoms.quarry.coordinates",
@@ -128,7 +128,7 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
                         state.core().getY(),
                         state.core().getZ()
                 ),
-                x,
+                centerX,
                 y + 13,
                 width,
                 TEXT
@@ -136,10 +136,10 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
         Component owner = state.ownerName().isEmpty()
                 ? Component.translatable("screen.kingdoms.quarry.neutral")
                 : Component.literal(state.ownerName()).withColor(state.ownerColor());
-        drawFitted(
+        drawCenteredFitted(
                 graphics,
                 Component.translatable("screen.kingdoms.quarry.owner", owner),
-                x,
+                centerX,
                 y + 26,
                 width,
                 TEXT
