@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.item;
 
+import com.geydev.kalfactions.outpost.trader.TraderLifecycle;
 import com.geydev.kalfactions.outpost.trader.TraderPointToolMode;
 import com.geydev.kalfactions.outpost.trader.TraderWorldData;
 import com.geydev.kalfactions.registry.ModDataComponents;
@@ -60,6 +61,12 @@ public final class TraderPointToolItem extends Item {
             return InteractionResult.FAIL;
         }
         player.displayClientMessage(Component.translatable("kingdoms.trader.point.added", result.point().id()), false);
+        player.displayClientMessage(
+                TraderLifecycle.spawnContrabandNow(level.getServer(), result.point().id())
+                        ? Component.translatable("kingdoms.trader.point.spawned")
+                        : Component.translatable("kingdoms.trader.point.spawn_failed"),
+                false
+        );
         return InteractionResult.SUCCESS;
     }
 

@@ -172,12 +172,12 @@ public final class ModConfigSpec {
         builder.pop();
 
         builder.push("research");
-        RESEARCH_CRYSTAL_COST_TIER_1 = builder.defineInRange("crystalCostTier1", 12, 1, 4096);
-        RESEARCH_CRYSTAL_COST_TIER_2 = builder.defineInRange("crystalCostTier2", 24, 1, 4096);
-        RESEARCH_CRYSTAL_COST_TIER_3 = builder.defineInRange("crystalCostTier3", 36, 1, 4096);
-        RESEARCH_CRYSTAL_COST_TIER_4 = builder.defineInRange("crystalCostTier4", 48, 1, 4096);
-        RESEARCH_CRYSTAL_COST_TIER_5 = builder.defineInRange("crystalCostTier5", 64, 1, 4096);
-        RESEARCH_CRYSTAL_COST_TIER_6_PLUS = builder.defineInRange("crystalCostTier6Plus", 96, 1, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_1 = builder.defineInRange("crystalCostTier1", 0, 0, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_2 = builder.defineInRange("crystalCostTier2", 240, 0, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_3 = builder.defineInRange("crystalCostTier3", 360, 0, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_4 = builder.defineInRange("crystalCostTier4", 480, 0, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_5 = builder.defineInRange("crystalCostTier5", 640, 0, 4096);
+        RESEARCH_CRYSTAL_COST_TIER_6_PLUS = builder.defineInRange("crystalCostTier6Plus", 960, 0, 4096);
         builder.pop();
 
         builder.push("traderEvents");

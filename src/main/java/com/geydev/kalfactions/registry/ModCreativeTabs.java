@@ -36,6 +36,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.SELLER_SPAWN_EGG.get());
                         output.accept(ModItems.BANKER_SPAWN_EGG.get());
                         output.accept(ModItems.TRADER_REMOVER.get());
+                        output.accept(ModItems.TRADER_POINT_TOOL.get());
                         output.accept(ModItems.SELLER_CATALOG.get());
                         output.accept(ModItems.DIMENSION_KEY.get());
                         output.accept(ModItems.PLOT_WAND.get());

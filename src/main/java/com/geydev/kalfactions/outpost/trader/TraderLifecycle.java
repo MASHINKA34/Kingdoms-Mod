@@ -26,7 +26,7 @@ public final class TraderLifecycle {
         TraderWorldData data = TraderWorldData.get(server);
         reconcileContraband(server, data, now);
         if (data.contraband().isEmpty() && now >= data.contrabandCooldownUntil()) {
-            spawnContraband(server, data, now);
+            spawnContraband(server, data, now, null);
         }
         reconcileWandering(server, data, now);
         if (now >= data.wanderingNextRollAt()) {
@@ -95,9 +95,47 @@ public final class TraderLifecycle {
         }
     }
 
-    private static void spawnContraband(MinecraftServer server, TraderWorldData data, long now) {
+    public static boolean spawnContrabandNow(MinecraftServer server, UUID preferredPointId) {
+        TraderWorldData data = TraderWorldData.get(server);
+        long now = System.currentTimeMillis();
+        reconcileContraband(server, data, now);
+        if (data.contraband().isPresent()) {
+            return false;
+        }
+        return spawnContraband(server, data, now, preferredPointId);
+    }
+
+    public static boolean spawnWanderingNow(MinecraftServer server, UUID factionId) {
+        TraderWorldData data = TraderWorldData.get(server);
+        long now = System.currentTimeMillis();
+        reconcileWandering(server, data, now);
+        if (data.wandering(factionId).filter(TraderWorldData.WanderingEvent::active).isPresent()) {
+            return false;
+        }
+        Faction faction = FactionManager.get(server).getFaction(factionId).orElse(null);
+        if (faction == null) {
+            return false;
+        }
+        return spawnWandering(server, data, faction, now, new Random(now ^ factionId.getMostSignificantBits()));
+    }
+
+    private static boolean spawnContraband(
+            MinecraftServer server,
+            TraderWorldData data,
+            long now,
+            UUID preferredPointId
+    ) {
         List<TraderWorldData.SpawnPoint> points = new ArrayList<>(data.points());
         Collections.shuffle(points, new Random(server.overworld().getSeed() ^ now));
+        if (preferredPointId != null) {
+            points.stream()
+                    .filter(point -> point.id().equals(preferredPointId))
+                    .findFirst()
+                    .ifPresent(point -> {
+                        points.remove(point);
+                        points.addFirst(point);
+                    });
+        }
         int attempts = Math.min(ModConfigSpec.CONTRABAND_SPAWN_ATTEMPTS.getAsInt(), points.size());
         for (int index = 0; index < attempts; index++) {
             TraderWorldData.SpawnPoint point = points.get(index);
@@ -131,14 +169,15 @@ public final class TraderLifecycle {
             if (!data.beginContraband(new TraderWorldData.ActiveContraband(
                     eventId, trader.getUUID(), point.id(), point.dimension(), point.pos(), expiresAt
             ))) {
-                return;
+                return false;
             }
             if (!level.addFreshEntity(trader)) {
                 data.cancelContraband(eventId);
                 continue;
             }
-            return;
+            return true;
         }
+        return false;
     }
 
     private static void reconcileWandering(MinecraftServer server, TraderWorldData data, long now) {
@@ -209,7 +248,7 @@ public final class TraderLifecycle {
         return List.copyOf(indices);
     }
 
-    private static void spawnWandering(
+    private static boolean spawnWandering(
             MinecraftServer server,
             TraderWorldData data,
             Faction faction,
@@ -235,7 +274,7 @@ public final class TraderLifecycle {
             UUID eventId = UUID.randomUUID();
             List<TraderWorldData.RolledOffer> offers = rollOffers(random);
             if (offers.isEmpty()) {
-                return;
+                return false;
             }
             long expiresAt = now + minutes(ModConfigSpec.WANDERING_LIFETIME_MINUTES.getAsInt());
             SellerTraderEntity trader = TraderService.createSellerEntity(
@@ -249,15 +288,16 @@ public final class TraderLifecycle {
                     faction.id(), eventId, trader.getUUID(), claim, pos, offers, expiresAt, 0L
             );
             if (!data.putWandering(event)) {
-                return;
+                return false;
             }
             if (!level.addFreshEntity(trader)) {
                 data.removeWandering(faction.id());
                 continue;
             }
             notifyFaction(server, faction, "kingdoms.trader.wandering.spawned");
-            return;
+            return true;
         }
+        return false;
     }
 
     private static List<TraderWorldData.RolledOffer> rollOffers(Random random) {

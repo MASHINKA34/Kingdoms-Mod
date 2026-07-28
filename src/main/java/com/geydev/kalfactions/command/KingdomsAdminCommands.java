@@ -2,10 +2,12 @@ package com.geydev.kalfactions.command;
 
 import com.geydev.kalfactions.dimension.DimensionControlEvents;
 import com.geydev.kalfactions.dimension.DimensionControlManager;
+import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.ResearchNode;
 import com.geydev.kalfactions.news.NewsManager;
 import com.geydev.kalfactions.news.NewsService;
+import com.geydev.kalfactions.outpost.trader.TraderLifecycle;
 import com.geydev.kalfactions.outpost.trader.TraderService;
 import com.geydev.kalfactions.outpost.trader.TraderWorldData;
 import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager;
@@ -63,7 +65,15 @@ public final class KingdomsAdminCommands {
                                 .then(Commands.literal("add").executes(KingdomsAdminCommands::traderPointsAdd))
                                 .then(Commands.literal("remove")
                                         .then(Commands.argument("id", StringArgumentType.word())
-                                                .executes(KingdomsAdminCommands::traderPointsRemove)))))
+                                                .executes(KingdomsAdminCommands::traderPointsRemove))))
+                        .then(Commands.literal("contraband")
+                                .then(Commands.literal("spawn").executes(KingdomsAdminCommands::spawnContraband)))
+                        .then(Commands.literal("wandering")
+                                .then(Commands.literal("spawn")
+                                        .executes(KingdomsAdminCommands::spawnWandering)
+                                        .then(Commands.argument("faction", StringArgumentType.greedyString())
+                                                .suggests(FACTION_SUGGESTIONS)
+                                                .executes(KingdomsAdminCommands::spawnWandering)))))
                 .then(Commands.literal("sanctuary")
                         .then(Commands.literal("vulnerable")
                                 .then(Commands.argument("player", EntityArgument.player())
@@ -562,7 +572,56 @@ public final class KingdomsAdminCommands {
         context.getSource().sendSuccess(
                 () -> Component.translatable("kingdoms.trader.point.added", result.point().id()), true
         );
+        boolean spawned = TraderLifecycle.spawnContrabandNow(context.getSource().getServer(), result.point().id());
+        context.getSource().sendSuccess(
+                () -> Component.translatable(spawned
+                        ? "kingdoms.trader.point.spawned"
+                        : "kingdoms.trader.point.spawn_failed"),
+                false
+        );
         return 1;
+    }
+
+    private static int spawnContraband(CommandContext<CommandSourceStack> context) {
+        if (!TraderLifecycle.spawnContrabandNow(context.getSource().getServer(), null)) {
+            context.getSource().sendFailure(Component.translatable("kingdoms.trader.point.spawn_failed"));
+            return 0;
+        }
+        context.getSource().sendSuccess(() -> Component.translatable("kingdoms.trader.point.spawned"), true);
+        return 1;
+    }
+
+    private static int spawnWandering(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        UUID factionId = wanderingFactionId(context);
+        if (factionId == null) {
+            return 0;
+        }
+        if (!TraderLifecycle.spawnWanderingNow(context.getSource().getServer(), factionId)) {
+            context.getSource().sendFailure(Component.translatable("kingdoms.trader.wandering.spawn_failed"));
+            return 0;
+        }
+        context.getSource().sendSuccess(() -> Component.translatable("kingdoms.trader.wandering.spawn_forced"), true);
+        return 1;
+    }
+
+    private static UUID wanderingFactionId(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        FactionManager manager = FactionManager.get(context.getSource().getServer());
+        if (context.getNodes().stream().noneMatch(node -> "faction".equals(node.getNode().getName()))) {
+            ServerPlayer player = context.getSource().getPlayerOrException();
+            Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+            if (faction == null) {
+                context.getSource().sendFailure(Component.literal("Вы не состоите во фракции."));
+                return null;
+            }
+            return faction.id();
+        }
+        String name = StringArgumentType.getString(context, "faction");
+        Faction faction = manager.getFactionByName(name).orElse(null);
+        if (faction == null) {
+            context.getSource().sendFailure(Component.literal("Фракция не найдена: " + name));
+            return null;
+        }
+        return faction.id();
     }
 
     private static int traderPointsRemove(CommandContext<CommandSourceStack> context) {

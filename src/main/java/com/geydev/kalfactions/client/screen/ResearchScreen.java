@@ -6,6 +6,7 @@ import com.geydev.kalfactions.faction.InfluenceType;
 import com.geydev.kalfactions.faction.ResearchNode;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
+import com.geydev.kalfactions.registry.ModItems;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -16,6 +17,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class ResearchScreen extends FactionScreen {
@@ -237,17 +239,30 @@ public final class ResearchScreen extends FactionScreen {
             return;
         }
         Component name = text(selectedNode.translationKey());
-        Component cost = text(
-                "screen.kingdoms.research_cost",
+        Component influence = text(
+                "screen.kingdoms.research_cost_short",
                 selectedNode.cost(),
-                text(selectedNode.type().translationKey()),
-                effectiveDurationHours(selectedNode),
-                crystalCost(selectedNode),
-                crystalName(selectedNode.type()),
-                crystalsOf(selectedNode.type())
+                effectiveDurationHours(selectedNode)
         );
         graphics.drawString(font, name, left + TREE_LEFT, top + 218, 0xFFFFE8AA, true);
-        graphics.drawString(font, cost, left + TREE_LEFT + 150, top + 218, 0xFFD7C57C, true);
+        int cursor = left + TREE_LEFT + 150;
+        graphics.blit(iconFor(selectedNode.type()), cursor, top + 216, 12, 12, 0.0F, 0.0F, 16, 16, 16, 16);
+        cursor += 16;
+        graphics.drawString(font, influence, cursor, top + 218, 0xFFD7C57C, true);
+        cursor += font.width(influence) + 8;
+        int cost = crystalCost(selectedNode);
+        if (cost > 0) {
+            graphics.renderItem(crystalStack(selectedNode.type()), cursor, top + 214);
+            cursor += 20;
+            graphics.drawString(
+                    font,
+                    text("screen.kingdoms.research_crystal_cost_line", cost, crystalsOf(selectedNode.type())),
+                    cursor,
+                    top + 218,
+                    0xFFB9CFF6,
+                    true
+            );
+        }
     }
 
     private void renderResearchStatusNotice(GuiGraphics graphics) {
@@ -267,7 +282,8 @@ public final class ResearchScreen extends FactionScreen {
         );
         int descBlock = desc.size() * 11;
         int effectBlock = effect.size() * 11;
-        int boxHeight = 85 + descBlock + effectBlock;
+        boolean showCrystals = crystalCost(node) > 0;
+        int boxHeight = (showCrystals ? 90 : 71) + descBlock + effectBlock;
         int x = Math.min(mouseX + 14, width - boxWidth - 6);
         int y = mouseY + 12;
         int bottomLimit = top + TREE_TOP + TREE_HEIGHT;
@@ -293,22 +309,27 @@ public final class ResearchScreen extends FactionScreen {
                 0xFFE6CE7E,
                 true
         );
-        graphics.drawString(
-                font,
-                text(
-                        "screen.kingdoms.research_crystal_cost_short",
-                        crystalCost(node),
-                        crystalName(node.type()),
-                        crystalsOf(node.type())
-                ),
-                x + 10,
-                lineY + 12,
-                0xFFB9CFF6,
-                true
-        );
-        graphics.drawString(font, statusText(node), x + 10, lineY + 26, statusColor(node), true);
+        int statusY = lineY + 12;
+        if (showCrystals) {
+            graphics.renderItem(crystalStack(node.type()), x + 8, lineY + 10);
+            graphics.drawString(
+                    font,
+                    text(
+                            "screen.kingdoms.research_crystal_cost_short",
+                            crystalCost(node),
+                            crystalName(node.type()),
+                            crystalsOf(node.type())
+                    ),
+                    x + 28,
+                    lineY + 14,
+                    0xFFB9CFF6,
+                    true
+            );
+            statusY = lineY + 31;
+        }
+        graphics.drawString(font, statusText(node), x + 10, statusY, statusColor(node), true);
         for (int i = 0; i < effect.size(); i++) {
-            graphics.drawString(font, effect.get(i), x + 10, lineY + 41 + i * 11, 0xFFCBD6F0, true);
+            graphics.drawString(font, effect.get(i), x + 10, statusY + 15 + i * 11, 0xFFCBD6F0, true);
         }
     }
 
@@ -579,6 +600,10 @@ public final class ResearchScreen extends FactionScreen {
 
     private Component crystalName(InfluenceType type) {
         return text("item.kingdoms.crystal_" + type.id());
+    }
+
+    private static ItemStack crystalStack(InfluenceType type) {
+        return new ItemStack(ModItems.crystalFor(type));
     }
 
     @Override

@@ -97,7 +97,7 @@ public final class SellerShopScreen extends Screen {
             int col = i % SELL_COLUMNS;
             int rowIndex = i / SELL_COLUMNS;
             int cellX = sellLeft + col * SELL_CELL_WIDTH;
-            int cellY = top + 80 + rowIndex * SELL_CELL_HEIGHT;
+            int cellY = top + 88 + rowIndex * SELL_CELL_HEIGHT;
             sellCells.add(new SellCell(visibleOffers.get(i), cellX, cellY));
         }
         addRenderableWidget(KingdomsButton.create(
@@ -120,7 +120,7 @@ public final class SellerShopScreen extends Screen {
         amountBox = new EditBox(
                 font,
                 left + 35,
-                top + 166,
+                top + 171,
                 58,
                 20,
                 Component.translatable("screen.kingdoms.seller.amount")
@@ -138,7 +138,7 @@ public final class SellerShopScreen extends Screen {
                 Component.translatable("screen.kingdoms.seller.max"),
                 button -> fillMaxAmount(),
                 left + 98,
-                top + 166,
+                top + 171,
                 46,
                 20
         ));
@@ -146,7 +146,7 @@ public final class SellerShopScreen extends Screen {
                 Component.translatable("screen.kingdoms.seller.sell"),
                 button -> sellSelected(),
                 left + 149,
-                top + 166,
+                top + 171,
                 70,
                 20
         ));
@@ -231,7 +231,14 @@ public final class SellerShopScreen extends Screen {
                     "screen.kingdoms.seller.refresh_timer",
                     formatDuration(remainingRefreshSeconds())
             );
-            graphics.drawString(font, timer, left + 268, top + 78, TEXT_MUTED, false);
+            graphics.drawString(
+                    font,
+                    timer,
+                    left + PANEL_WIDTH - 35 - font.width(timer),
+                    top + 78,
+                    TEXT_MUTED,
+                    false
+            );
         }
         graphics.drawString(font, Component.translatable("screen.kingdoms.trader.sell_section"), left + 35, top + 78, TEXT_MUTED, false);
         ItemStack hovered = null;
@@ -286,7 +293,7 @@ public final class SellerShopScreen extends Screen {
                 font,
                 Component.translatable("screen.kingdoms.seller.amount"),
                 left + 35,
-                top + 156,
+                top + 161,
                 TEXT_MUTED,
                 false
         );
@@ -295,7 +302,7 @@ public final class SellerShopScreen extends Screen {
                     font,
                     Component.translatable("screen.kingdoms.seller.pick"),
                     left + 149,
-                    top + 156,
+                    top + 161,
                     TEXT_MUTED,
                     false
             );
@@ -309,16 +316,17 @@ public final class SellerShopScreen extends Screen {
                     font,
                     Component.translatable("screen.kingdoms.seller.payout", TraderShopScreen.formatPrice(payout)),
                     left + 149,
-                    top + 156,
+                    top + 161,
                     TEXT_DARK,
                     false
             );
         }
+        Component availableText = Component.translatable("screen.kingdoms.seller.available", available);
         graphics.drawString(
                 font,
-                Component.translatable("screen.kingdoms.seller.available", available),
-                left + 224,
-                top + 171,
+                availableText,
+                left + PANEL_WIDTH - 35 - font.width(availableText),
+                top + 177,
                 available > 0 ? TEXT_MUTED : 0xFF8A5A45,
                 false
         );
