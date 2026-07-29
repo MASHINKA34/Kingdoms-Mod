@@ -2,6 +2,7 @@ package com.geydev.kalfactions.quarry;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.registry.ModBlocks;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
@@ -20,6 +21,8 @@ final class QuarryStructurePlacer {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "quarry/level_0");
     private static final int FOOTPRINT_SIZE = 48;
     private static final int GROUND_LEVEL = 3;
+    private static final int MAX_LOWERING = 6;
+    private static final int[] TERRAIN_SAMPLE_OFFSETS = {0, 8, 16, 24, 32, 40, 47};
 
     static Optional<Placement> planLevelZero(ServerLevel level, ChunkPos center) {
         StructureTemplate template = level.getStructureManager().get(LEVEL_ZERO).orElse(null);
@@ -35,11 +38,10 @@ final class QuarryStructurePlacer {
 
         int minX = (center.x - QuarryManager.TERRITORY_RADIUS_CHUNKS) << 4;
         int minZ = (center.z - QuarryManager.TERRITORY_RADIUS_CHUNKS) << 4;
-        int surfaceY = level.getHeight(
-                Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-                center.getMiddleBlockX(),
-                center.getMiddleBlockZ()
-        ) - 1;
+        int surfaceY = Math.max(
+                level.getMinBuildHeight() + GROUND_LEVEL,
+                terrainSurfaceY(level, center, minX, minZ)
+        );
         BlockPos origin = new BlockPos(minX, surfaceY - GROUND_LEVEL, minZ);
         BlockPos maximum = origin.offset(size.getX() - 1, size.getY() - 1, size.getZ() - 1);
         if (origin.getY() < level.getMinBuildHeight()
@@ -59,6 +61,32 @@ final class QuarryStructurePlacer {
             return Optional.empty();
         }
         return Optional.of(new Placement(template, settings, origin, cores.getFirst().pos().immutable()));
+    }
+
+    static int adjustedSurfaceY(int centerSurfaceY, int[] terrainSamples) {
+        if (terrainSamples.length == 0) {
+            return centerSurfaceY;
+        }
+        int[] sorted = terrainSamples.clone();
+        Arrays.sort(sorted);
+        int lowerQuartile = sorted[(sorted.length - 1) / 4];
+        return Math.max(centerSurfaceY - MAX_LOWERING, Math.min(centerSurfaceY, lowerQuartile));
+    }
+
+    private static int terrainSurfaceY(ServerLevel level, ChunkPos center, int minX, int minZ) {
+        int centerSurfaceY = surfaceY(level, center.getMiddleBlockX(), center.getMiddleBlockZ());
+        int[] samples = new int[TERRAIN_SAMPLE_OFFSETS.length * TERRAIN_SAMPLE_OFFSETS.length];
+        int index = 0;
+        for (int offsetX : TERRAIN_SAMPLE_OFFSETS) {
+            for (int offsetZ : TERRAIN_SAMPLE_OFFSETS) {
+                samples[index++] = surfaceY(level, minX + offsetX, minZ + offsetZ);
+            }
+        }
+        return adjustedSurfaceY(centerSurfaceY, samples);
+    }
+
+    private static int surfaceY(ServerLevel level, int x, int z) {
+        return level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
     }
 
     static boolean place(ServerLevel level, Placement placement) {
