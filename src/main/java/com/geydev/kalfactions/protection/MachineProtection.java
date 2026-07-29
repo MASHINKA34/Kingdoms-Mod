@@ -66,10 +66,7 @@ public final class MachineProtection {
         if (!(level instanceof ServerLevel serverLevel)) {
             return true;
         }
-        if (SanctuaryManager.get(serverLevel).isSanctuary(serverLevel, target)) {
-            return false;
-        }
-        if (QuarryManager.get(serverLevel).isQuarry(serverLevel, target)) {
+        if (!canContraptionBreak(level, target)) {
             return false;
         }
         FactionManager factions = FactionManager.get(serverLevel);
@@ -82,6 +79,14 @@ public final class MachineProtection {
         }
         UUID anchorFaction = factions.getFactionIdAt(ClaimKey.of(level, anchor)).orElse(null);
         return owner.equals(anchorFaction);
+    }
+
+    public static boolean canContraptionBreak(Level level, BlockPos target) {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return true;
+        }
+        return !SanctuaryManager.get(serverLevel).isSanctuary(serverLevel, target)
+                && !QuarryManager.get(serverLevel).isQuarry(serverLevel, target);
     }
 
     public static boolean canPlayerMine(Level level, BlockPos target, ServerPlayer player) {
