@@ -105,6 +105,29 @@ public final class TraderLifecycle {
         return spawnContraband(server, data, now, preferredPointId);
     }
 
+    public static boolean removePoint(MinecraftServer server, UUID pointId) {
+        TraderWorldData data = TraderWorldData.get(server);
+        TraderWorldData.ActiveContraband active = data.contraband()
+                .filter(current -> current.pointId().equals(pointId))
+                .orElse(null);
+        if (!data.removePoint(pointId)) {
+            return false;
+        }
+        if (active == null) {
+            return true;
+        }
+        ServerLevel level = server.getLevel(active.dimension());
+        Entity entity = level == null ? null : level.getEntity(active.entityId());
+        if (entity != null) {
+            entity.discard();
+        }
+        if (data.contraband().filter(current -> current.eventId().equals(active.eventId())).isPresent()) {
+            data.clearContraband(System.currentTimeMillis()
+                    + minutes(ModConfigSpec.CONTRABAND_COOLDOWN_MINUTES.getAsInt()));
+        }
+        return true;
+    }
+
     public static boolean spawnWanderingNow(MinecraftServer server, UUID factionId) {
         TraderWorldData data = TraderWorldData.get(server);
         long now = System.currentTimeMillis();

@@ -51,7 +51,7 @@ public final class TraderPointToolItem extends Item {
         TraderWorldData data = TraderWorldData.get(level.getServer());
         TraderWorldData.SpawnPoint nearest = data.nearestPoint(level.dimension(), pos, REMOVE_RADIUS).orElse(null);
         if (nearest != null) {
-            data.removePoint(nearest.id());
+            TraderLifecycle.removePoint(level.getServer(), nearest.id());
             player.displayClientMessage(Component.translatable("kingdoms.trader.point.removed", nearest.id()), false);
             return InteractionResult.SUCCESS;
         }

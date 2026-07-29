@@ -632,7 +632,7 @@ public final class KingdomsAdminCommands {
             context.getSource().sendFailure(Component.translatable("kingdoms.trader.point.invalid_id"));
             return 0;
         }
-        if (!TraderWorldData.get(context.getSource().getServer()).removePoint(id)) {
+        if (!TraderLifecycle.removePoint(context.getSource().getServer(), id)) {
             context.getSource().sendFailure(Component.translatable("kingdoms.trader.point.not_found", id));
             return 0;
         }

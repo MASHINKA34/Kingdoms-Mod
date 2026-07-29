@@ -32,6 +32,7 @@ public final class MarketPlotService {
     public static final int MAX_SPAN_Y = 64;
     public static final int MAX_VOLUME = 65536;
     public static final long MAX_PRICE = 1_000_000_000L;
+    private static final int MAX_SELECTION_SPAN = 256;
 
     public static boolean hasAccess(MarketPlot plot, ServerPlayer player) {
         UUID playerId = player.getUUID();
@@ -391,12 +392,12 @@ public final class MarketPlotService {
         Direction face = Direction.values()[faceIndex];
         int step = delta > 0 ? 1 : -1;
         switch (face) {
-            case EAST -> maxX = Math.max(minX, Math.min(minX + MAX_SPAN_XZ - 1, maxX + step));
-            case WEST -> minX = Math.min(maxX, Math.max(maxX - MAX_SPAN_XZ + 1, minX - step));
-            case UP -> maxY = Math.max(minY, Math.min(minY + MAX_SPAN_Y - 1, maxY + step));
-            case DOWN -> minY = Math.min(maxY, Math.max(maxY - MAX_SPAN_Y + 1, minY - step));
-            case SOUTH -> maxZ = Math.max(minZ, Math.min(minZ + MAX_SPAN_XZ - 1, maxZ + step));
-            case NORTH -> minZ = Math.min(maxZ, Math.max(maxZ - MAX_SPAN_XZ + 1, minZ - step));
+            case EAST -> maxX = Math.max(minX, Math.min(minX + MAX_SELECTION_SPAN - 1, maxX + step));
+            case WEST -> minX = Math.min(maxX, Math.max(maxX - MAX_SELECTION_SPAN + 1, minX - step));
+            case UP -> maxY = Math.max(minY, Math.min(minY + MAX_SELECTION_SPAN - 1, maxY + step));
+            case DOWN -> minY = Math.min(maxY, Math.max(maxY - MAX_SELECTION_SPAN + 1, minY - step));
+            case SOUTH -> maxZ = Math.max(minZ, Math.min(minZ + MAX_SELECTION_SPAN - 1, maxZ + step));
+            case NORTH -> minZ = Math.min(maxZ, Math.max(maxZ - MAX_SELECTION_SPAN + 1, minZ - step));
         }
         int minBuild = player.level().getMinBuildHeight();
         int maxBuild = player.level().getMaxBuildHeight() - 1;
