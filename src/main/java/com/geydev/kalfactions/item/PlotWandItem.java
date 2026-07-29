@@ -12,6 +12,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
 
 public final class PlotWandItem extends Item {
     public PlotWandItem(Properties properties) {
@@ -49,9 +50,17 @@ public final class PlotWandItem extends Item {
             player.displayClientMessage(Component.translatable(
                     "kingdoms.plot.wand.first_corner", pos.getX(), pos.getY(), pos.getZ()), true);
         } else {
-            stack.set(ModDataComponents.PLOT_SELECTION, selection.withSecond(pos));
+            PlotSelection completed = selection.withSecond(pos);
+            stack.set(ModDataComponents.PLOT_SELECTION, completed);
+            BoundingBox box = completed.box().orElseThrow();
+            long volume = (long) box.getXSpan() * box.getYSpan() * box.getZSpan();
             player.displayClientMessage(Component.translatable(
-                    "kingdoms.plot.wand.second_corner", pos.getX(), pos.getY(), pos.getZ()), true);
+                    "kingdoms.plot.wand.size",
+                    box.getXSpan(),
+                    box.getYSpan(),
+                    box.getZSpan(),
+                    volume
+            ), true);
         }
         return InteractionResult.CONSUME;
     }

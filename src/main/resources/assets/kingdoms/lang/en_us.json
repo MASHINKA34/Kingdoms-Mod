@@ -941,7 +941,7 @@
   "kingdoms.plot.label.for_sale": "For sale: %s",
   "kingdoms.plot.label.resale": "%s sells for %s",
   "kingdoms.plot.label.owned": "Plot of %s",
-  "kingdoms.plot.wand.size": "Selection: %sx%sx%s",
+  "kingdoms.plot.wand.size": "Selection: %s×%s×%s, volume: %s",
   "kingdoms.plot.created": "Market plot #%s created: for sale for %s.",
   "screen.kingdoms.plot_create_title": "New market plot",
   "screen.kingdoms.plot_create_size": "Size: %sx%sx%s",

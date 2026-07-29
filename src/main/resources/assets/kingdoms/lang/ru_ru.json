@@ -941,7 +941,7 @@
   "kingdoms.plot.label.for_sale": "Продаётся за %s",
   "kingdoms.plot.label.resale": "Продаёт %s за %s",
   "kingdoms.plot.label.owned": "Участок игрока %s",
-  "kingdoms.plot.wand.size": "Выделение: %sx%sx%s",
+  "kingdoms.plot.wand.size": "Выделение: %s×%s×%s, объём: %s",
   "kingdoms.plot.created": "Торговый участок #%s создан: продаётся за %s.",
   "screen.kingdoms.plot_create_title": "Новый торговый участок",
   "screen.kingdoms.plot_create_size": "Размер: %sx%sx%s",

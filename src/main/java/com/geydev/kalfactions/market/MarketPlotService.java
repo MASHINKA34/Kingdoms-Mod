@@ -409,7 +409,11 @@ public final class MarketPlotService {
         ));
         player.displayClientMessage(Component.translatable(
                 "kingdoms.plot.wand.size",
-                maxX - minX + 1, maxY - minY + 1, maxZ - minZ + 1), true);
+                maxX - minX + 1,
+                maxY - minY + 1,
+                maxZ - minZ + 1,
+                (long) (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1)
+        ), true);
     }
 
     private static boolean isNear(ServerPlayer player, MarketPlot plot) {

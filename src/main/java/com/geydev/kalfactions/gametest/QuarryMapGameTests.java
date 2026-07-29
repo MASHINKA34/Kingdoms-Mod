@@ -20,7 +20,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @PrefixGameTestTemplate(false)
 public final class QuarryMapGameTests {
     @GameTest(template = "empty", batch = "quarry_map")
-    public static void neutralQuarryPublishesThreeByThreeTerritory(GameTestHelper helper) {
+    public static void neutralQuarryPublishesFiveByFiveTerritory(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         QuarryManager manager = QuarryManager.get(level);
         ChunkPos candidate = findDistributionCandidate(level, manager);
@@ -50,13 +50,13 @@ public final class QuarryMapGameTests {
                 .findFirst()
                 .orElseThrow();
 
-        helper.assertValueEqual(quarry.chunks().size(), 9, "quarry territory size");
+        helper.assertValueEqual(quarry.chunks().size(), 25, "quarry territory size");
         int minX = quarry.chunks().stream().min(Comparator.comparingInt(ClaimKey::x)).orElseThrow().x();
         int maxX = quarry.chunks().stream().max(Comparator.comparingInt(ClaimKey::x)).orElseThrow().x();
         int minZ = quarry.chunks().stream().min(Comparator.comparingInt(ClaimKey::z)).orElseThrow().z();
         int maxZ = quarry.chunks().stream().max(Comparator.comparingInt(ClaimKey::z)).orElseThrow().z();
-        helper.assertValueEqual(maxX - minX, 2, "quarry territory width");
-        helper.assertValueEqual(maxZ - minZ, 2, "quarry territory height");
+        helper.assertValueEqual(maxX - minX, 4, "quarry territory width");
+        helper.assertValueEqual(maxZ - minZ, 4, "quarry territory height");
         helper.assertValueEqual(manager.mapRevision(), initialRevision + 1L, "quarry map revision after creation");
 
         helper.assertTrue(manager.removeByCore(level, quarry.core()), "quarry removed");

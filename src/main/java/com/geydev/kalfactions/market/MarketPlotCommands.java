@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.market;
 
 import com.geydev.kalfactions.registry.ModDataComponents;
+import com.geydev.kalfactions.registry.ModBlocks;
 import com.geydev.kalfactions.registry.ModItems;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
@@ -9,12 +10,18 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.ResourceLocationArgument;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Vec3i;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
 public final class MarketPlotCommands {
     public static LiteralArgumentBuilder<CommandSourceStack> build() {
@@ -32,8 +39,65 @@ public final class MarketPlotCommands {
                 .then(Commands.literal("reclaim")
                         .then(Commands.argument("id", IntegerArgumentType.integer(1))
                                 .executes(MarketPlotCommands::reclaim)))
+                .then(Commands.literal("export")
+                        .then(Commands.argument("id", ResourceLocationArgument.id())
+                                .executes(MarketPlotCommands::export)))
                 .then(Commands.literal("list")
                         .executes(MarketPlotCommands::list));
+    }
+
+    private static int export(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = player.serverLevel();
+        ItemStack wand = wandWithSelection(player);
+        PlotSelection selection = wand.isEmpty() ? null : wand.get(ModDataComponents.PLOT_SELECTION);
+        if (selection == null || !selection.isComplete() || !selection.matchesDimension(level)) {
+            source.sendFailure(Component.literal("Сначала выделите область жезлом в текущем измерении."));
+            return 0;
+        }
+        BoundingBox box = selection.box().orElseThrow();
+        long volume = (long) box.getXSpan() * box.getYSpan() * box.getZSpan();
+        if (volume > 8_000_000L) {
+            source.sendFailure(Component.literal("Объём экспорта больше 8000000 блоков."));
+            return 0;
+        }
+        int cores = 0;
+        for (BlockPos pos : BlockPos.betweenClosed(
+                box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ())) {
+            if (level.getBlockState(pos).is(ModBlocks.QUARRY_CORE.get()) && ++cores > 1) {
+                break;
+            }
+        }
+        if (cores != 1) {
+            source.sendFailure(Component.literal(
+                    "В выделении должен находиться ровно один блок kingdoms:quarry_core."
+            ));
+            return 0;
+        }
+        StructureTemplateManager manager = level.getStructureManager();
+        ResourceLocation id = ResourceLocationArgument.getId(context, "id");
+        StructureTemplate template = manager.getOrCreate(id);
+        template.fillFromWorld(
+                level,
+                new BlockPos(box.minX(), box.minY(), box.minZ()),
+                new Vec3i(box.getXSpan(), box.getYSpan(), box.getZSpan()),
+                false,
+                null
+        );
+        template.setAuthor(player.getGameProfile().getName());
+        if (!manager.save(id)) {
+            source.sendFailure(Component.literal("Не удалось сохранить NBT-файл."));
+            return 0;
+        }
+        String path = manager.createAndValidatePathToGeneratedStructure(id, ".nbt")
+                .toAbsolutePath()
+                .toString();
+        source.sendSuccess(() -> Component.literal(
+                "Структура " + box.getXSpan() + "×" + box.getYSpan() + "×" + box.getZSpan()
+                        + " сохранена: " + path
+        ), false);
+        return 1;
     }
 
     private static int create(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
