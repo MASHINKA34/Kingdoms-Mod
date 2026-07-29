@@ -651,7 +651,9 @@ public final class TraderService {
                     .flatMap(offer -> catalogSelection(TraderCatalogRole.ROTATING, offer.id(), false, null));
         }
         if (trader.traderRole() == SellerTraderRole.CONTRABAND) {
-            return catalogSelection(TraderCatalogRole.CONTRABAND, offerId, false, null);
+            return contrabandOfferIds(trader.getServer(), trader).contains(offerId)
+                    ? catalogSelection(TraderCatalogRole.CONTRABAND, offerId, false, null)
+                    : java.util.Optional.empty();
         }
         UUID factionId = trader.targetFactionId().orElse(null);
         if (factionId == null) {
@@ -667,6 +669,13 @@ public final class TraderService {
         return rolled == null
                 ? java.util.Optional.empty()
                 : catalogSelection(TraderCatalogRole.WANDERING, offerId, false, rolled.price());
+    }
+
+    private static List<String> contrabandOfferIds(MinecraftServer server, SellerTraderEntity trader) {
+        return TraderWorldData.get(server).contraband()
+                .filter(active -> active.entityId().equals(trader.getUUID()))
+                .map(TraderWorldData.ActiveContraband::offerIds)
+                .orElse(List.of());
     }
 
     private static java.util.Optional<SellSelection> catalogSelection(
@@ -809,7 +818,9 @@ public final class TraderService {
             refreshAt = window.nextRefreshEpochMillis();
         } else if (trader.traderRole() == SellerTraderRole.CONTRABAND) {
             titleKey = "screen.kingdoms.contraband.title";
+            List<String> rolled = contrabandOfferIds(server, trader);
             TraderCatalogManager.offers(TraderCatalogRole.CONTRABAND).stream()
+                    .filter(offer -> rolled.contains(offer.id()))
                     .map(offer -> sellInfo(player, trader, offer, offer.minimumPrice(), false))
                     .filter(java.util.Objects::nonNull)
                     .forEach(sellOffers::add);

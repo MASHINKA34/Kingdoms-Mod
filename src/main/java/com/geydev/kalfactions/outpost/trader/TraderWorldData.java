@@ -33,6 +33,7 @@ public final class TraderWorldData extends SavedData {
     private final Map<UUID, SpawnPoint> points = new LinkedHashMap<>();
     private final Map<UUID, WanderingEvent> wandering = new LinkedHashMap<>();
     private ActiveContraband contraband;
+    private UUID lastContrabandPointId;
     private long contrabandCooldownUntil;
     private long wanderingNextRollAt;
     private int wanderingRollCursor;
@@ -120,9 +121,16 @@ public final class TraderWorldData extends SavedData {
     }
 
     public synchronized void clearContraband(long cooldownUntil) {
+        if (contraband != null) {
+            lastContrabandPointId = contraband.pointId();
+        }
         contraband = null;
         contrabandCooldownUntil = Math.max(contrabandCooldownUntil, cooldownUntil);
         setDirty();
+    }
+
+    public synchronized Optional<UUID> lastContrabandPointId() {
+        return Optional.ofNullable(lastContrabandPointId);
     }
 
     public synchronized boolean cancelContraband(UUID eventId) {
@@ -183,6 +191,9 @@ public final class TraderWorldData extends SavedData {
         if (contraband != null) {
             tag.put("contraband", contraband.save());
         }
+        if (lastContrabandPointId != null) {
+            tag.putUUID("lastContrabandPoint", lastContrabandPointId);
+        }
         ListTag wanderingTags = new ListTag();
         for (WanderingEvent event : wandering.values()) {
             wanderingTags.add(event.save());
@@ -212,6 +223,9 @@ public final class TraderWorldData extends SavedData {
         if (tag.contains("contraband", Tag.TAG_COMPOUND)) {
             data.contraband = ActiveContraband.load(tag.getCompound("contraband")).orElse(null);
             repaired |= data.contraband == null;
+        }
+        if (tag.hasUUID("lastContrabandPoint")) {
+            data.lastContrabandPointId = tag.getUUID("lastContrabandPoint");
         }
         ListTag wandering = tag.getList("wandering", Tag.TAG_COMPOUND);
         for (int index = 0; index < Math.min(wandering.size(), MAX_WANDERING_EVENTS); index++) {
@@ -276,7 +290,8 @@ public final class TraderWorldData extends SavedData {
             UUID pointId,
             ResourceKey<Level> dimension,
             BlockPos pos,
-            long expiresAt
+            long expiresAt,
+            List<String> offerIds
     ) {
         public ActiveContraband {
             if (eventId == null || entityId == null || pointId == null || dimension == null || pos == null) {
@@ -284,6 +299,10 @@ public final class TraderWorldData extends SavedData {
             }
             pos = pos.immutable();
             expiresAt = Math.max(0L, expiresAt);
+            offerIds = offerIds == null ? List.of() : List.copyOf(offerIds);
+            if (offerIds.size() > MAX_ROLLED_OFFERS * 2) {
+                throw new IllegalArgumentException("Too many contraband offers");
+            }
         }
 
         private CompoundTag save() {
@@ -294,6 +313,11 @@ public final class TraderWorldData extends SavedData {
             tag.putString("dimension", dimension.location().toString());
             tag.putLong("pos", pos.asLong());
             tag.putLong("expiresAt", expiresAt);
+            ListTag offers = new ListTag();
+            for (String offerId : offerIds) {
+                offers.add(net.minecraft.nbt.StringTag.valueOf(offerId));
+            }
+            tag.put("offers", offers);
             return tag;
         }
 
@@ -306,12 +330,24 @@ public final class TraderWorldData extends SavedData {
             if (dimensionId == null) {
                 return Optional.empty();
             }
+            ListTag offers = tag.getList("offers", Tag.TAG_STRING);
+            List<String> offerIds = new java.util.ArrayList<>(offers.size());
+            for (int index = 0; index < Math.min(offers.size(), MAX_ROLLED_OFFERS * 2); index++) {
+                String offerId = offers.getString(index);
+                if (isSafeOfferId(offerId) && !offerIds.contains(offerId)) {
+                    offerIds.add(offerId);
+                }
+            }
             return Optional.of(new ActiveContraband(
                     tag.getUUID("eventId"), tag.getUUID("entityId"), tag.getUUID("pointId"),
                     ResourceKey.create(Registries.DIMENSION, dimensionId), BlockPos.of(tag.getLong("pos")),
-                    tag.getLong("expiresAt")
+                    tag.getLong("expiresAt"), List.copyOf(offerIds)
             ));
         }
+    }
+
+    private static boolean isSafeOfferId(String value) {
+        return value != null && value.matches("[a-z0-9_.-]{1,64}");
     }
 
     public record RolledOffer(String id, long price) {

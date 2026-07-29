@@ -90,14 +90,15 @@ public final class TraderLifecycleGameTests {
                 pointId,
                 helper.getLevel().dimension(),
                 helper.absolutePos(new BlockPos(1, 2, 1)),
-                trader.expiresAtMillis()
+                trader.expiresAtMillis(),
+                java.util.List.of("war_trophy")
         );
         helper.assertTrue(data.beginContraband(active), "First event was not reserved");
 
         TraderLifecycle.onJoin(trader, helper.getLevel());
         boolean second = data.beginContraband(new TraderWorldData.ActiveContraband(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), helper.getLevel().dimension(),
-                active.pos(), active.expiresAt()
+                active.pos(), active.expiresAt(), java.util.List.of("war_trophy")
         ));
 
         helper.assertTrue(!trader.isRemoved(), "Reserved entity was discarded on join");
@@ -198,7 +199,8 @@ public final class TraderLifecycleGameTests {
                 UUID.randomUUID(),
                 helper.getLevel().dimension(),
                 helper.absolutePos(new BlockPos(1, 2, 1)),
-                trader.expiresAtMillis()
+                trader.expiresAtMillis(),
+                java.util.List.of("war_trophy")
         );
     }
 

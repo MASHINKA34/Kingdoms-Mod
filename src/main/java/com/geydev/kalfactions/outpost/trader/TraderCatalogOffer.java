@@ -10,7 +10,8 @@ public record TraderCatalogOffer(
         int count,
         long minimumPrice,
         long maximumPrice,
-        int dailyLimit
+        int dailyLimit,
+        boolean always
 ) {
     public TraderCatalogOffer {
         Objects.requireNonNull(id, "id");

@@ -1,11 +1,11 @@
 {
   "role": "contraband",
   "offers": [
-    { "id": "war_trophy", "item": "kingdoms:war_trophy", "price": 250, "daily_limit": 4096 },
-    { "id": "science_crystal", "item": "kingdoms:crystal_science", "price": 40, "daily_limit": 64 },
-    { "id": "economic_crystal", "item": "kingdoms:crystal_economic", "price": 40, "daily_limit": 64 },
-    { "id": "military_crystal", "item": "kingdoms:crystal_military", "price": 40, "daily_limit": 64 },
-    { "id": "pvp_loot", "tag": "kingdoms:contraband_pvp_loot", "price": 75, "daily_limit": 32 },
+    { "id": "war_trophy", "item": "kingdoms:war_trophy", "price": 250, "daily_limit": 4096, "always": true },
+    { "id": "science_crystal", "item": "kingdoms:crystal_science", "price": 20, "daily_limit": 256, "always": true },
+    { "id": "economic_crystal", "item": "kingdoms:crystal_economic", "price": 20, "daily_limit": 256, "always": true },
+    { "id": "military_crystal", "item": "kingdoms:crystal_military", "price": 20, "daily_limit": 256, "always": true },
+    { "id": "pvp_loot", "tag": "kingdoms:contraband_pvp_loot", "price": 75, "daily_limit": 32, "always": true },
     { "id": "guns_basic", "tag": "kingdoms:contraband_guns_basic", "price": 120, "daily_limit": 64 },
     { "id": "guns_advanced", "tag": "kingdoms:contraband_guns_advanced", "price": 260, "daily_limit": 64 },
     { "id": "guns_elite", "tag": "kingdoms:contraband_guns_elite", "price": 480, "daily_limit": 32 },

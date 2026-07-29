@@ -124,6 +124,8 @@ public final class ModConfigSpec {
     public static final IntValue RESEARCH_CRYSTAL_COST_TIER_6_PLUS;
     public static final IntValue CONTRABAND_LIFETIME_MINUTES;
     public static final IntValue CONTRABAND_COOLDOWN_MINUTES;
+    public static final IntValue CONTRABAND_OFFER_COUNT_MIN;
+    public static final IntValue CONTRABAND_OFFER_COUNT_MAX;
     public static final IntValue CONTRABAND_MAX_SPAWN_DISTANCE;
     public static final IntValue CONTRABAND_SPAWN_ATTEMPTS;
     public static final IntValue WANDERING_ROLL_INTERVAL_MINUTES;
@@ -182,7 +184,9 @@ public final class ModConfigSpec {
 
         builder.push("traderEvents");
         CONTRABAND_LIFETIME_MINUTES = builder.defineInRange("contrabandLifetimeMinutes", 60, 1, 10080);
-        CONTRABAND_COOLDOWN_MINUTES = builder.defineInRange("contrabandCooldownMinutes", 240, 1, 43200);
+        CONTRABAND_COOLDOWN_MINUTES = builder.defineInRange("contrabandCooldownMinutes", 10, 0, 43200);
+        CONTRABAND_OFFER_COUNT_MIN = builder.defineInRange("contrabandOfferCountMin", 3, 1, 16);
+        CONTRABAND_OFFER_COUNT_MAX = builder.defineInRange("contrabandOfferCountMax", 4, 1, 16);
         CONTRABAND_MAX_SPAWN_DISTANCE = builder.defineInRange("contrabandMaxSpawnDistanceFromSpawn", 512, 16, 10000);
         CONTRABAND_SPAWN_ATTEMPTS = builder.defineInRange("contrabandSpawnAttempts", 8, 1, 128);
         WANDERING_ROLL_INTERVAL_MINUTES = builder.defineInRange("wanderingRollIntervalMinutes", 60, 1, 10080);

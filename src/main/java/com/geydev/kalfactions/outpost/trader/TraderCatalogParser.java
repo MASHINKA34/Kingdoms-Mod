@@ -44,8 +44,9 @@ public final class TraderCatalogParser {
             long minimum = GsonHelper.getAsLong(offer, "min_price", price);
             long maximum = GsonHelper.getAsLong(offer, "max_price", price);
             int dailyLimit = GsonHelper.getAsInt(offer, "daily_limit", 128);
+            boolean always = GsonHelper.getAsBoolean(offer, "always", false);
             try {
-                offers.add(new TraderCatalogOffer(id, itemId, tagId, count, minimum, maximum, dailyLimit));
+                offers.add(new TraderCatalogOffer(id, itemId, tagId, count, minimum, maximum, dailyLimit, always));
             } catch (IllegalArgumentException exception) {
                 throw new JsonParseException("Invalid values for offer " + id, exception);
             }

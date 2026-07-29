@@ -98,7 +98,8 @@ class TraderWorldDataTest {
 
     private static TraderWorldData.ActiveContraband active(TraderWorldData.SpawnPoint point, long expiresAt) {
         return new TraderWorldData.ActiveContraband(
-                UUID.randomUUID(), UUID.randomUUID(), point.id(), point.dimension(), point.pos(), expiresAt
+                UUID.randomUUID(), UUID.randomUUID(), point.id(), point.dimension(), point.pos(), expiresAt,
+                java.util.List.of("war_trophy", "guns_basic")
         );
     }
 }

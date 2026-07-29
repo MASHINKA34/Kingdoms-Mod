@@ -34,7 +34,8 @@ final class SellerOfferRotationTest {
                     1,
                     1L,
                     1L,
-                    10
+                    10,
+                    false
             ));
         }
         return List.copyOf(offers);

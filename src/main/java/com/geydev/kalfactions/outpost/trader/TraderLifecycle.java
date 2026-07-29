@@ -127,6 +127,15 @@ public final class TraderLifecycle {
     ) {
         List<TraderWorldData.SpawnPoint> points = new ArrayList<>(data.points());
         Collections.shuffle(points, new Random(server.overworld().getSeed() ^ now));
+        if (points.size() > 1) {
+            data.lastContrabandPointId().ifPresent(lastId -> points.stream()
+                    .filter(point -> point.id().equals(lastId))
+                    .findFirst()
+                    .ifPresent(point -> {
+                        points.remove(point);
+                        points.addLast(point);
+                    }));
+        }
         if (preferredPointId != null) {
             points.stream()
                     .filter(point -> point.id().equals(preferredPointId))
@@ -151,6 +160,7 @@ public final class TraderLifecycle {
             }
             UUID eventId = UUID.randomUUID();
             long expiresAt = now + minutes(ModConfigSpec.CONTRABAND_LIFETIME_MINUTES.getAsInt());
+            List<String> offerIds = rollContrabandOffers(new Random(eventId.getMostSignificantBits() ^ now));
             SellerTraderEntity trader = TraderService.createSellerEntity(
                     level,
                     point.pos().getX() + 0.5D,
@@ -167,7 +177,7 @@ public final class TraderLifecycle {
                 continue;
             }
             if (!data.beginContraband(new TraderWorldData.ActiveContraband(
-                    eventId, trader.getUUID(), point.id(), point.dimension(), point.pos(), expiresAt
+                    eventId, trader.getUUID(), point.id(), point.dimension(), point.pos(), expiresAt, offerIds
             ))) {
                 return false;
             }
@@ -298,6 +308,30 @@ public final class TraderLifecycle {
             return true;
         }
         return false;
+    }
+
+    static List<String> rollContrabandOffers(Random random) {
+        List<TraderCatalogOffer> catalog = TraderCatalogManager.offers(TraderCatalogRole.CONTRABAND);
+        List<String> selected = new ArrayList<>();
+        List<TraderCatalogOffer> pool = new ArrayList<>();
+        for (TraderCatalogOffer offer : catalog) {
+            if (offer.always()) {
+                selected.add(offer.id());
+            } else {
+                pool.add(offer);
+            }
+        }
+        if (pool.isEmpty()) {
+            return List.copyOf(selected);
+        }
+        Collections.shuffle(pool, random);
+        int minimum = Math.min(ModConfigSpec.CONTRABAND_OFFER_COUNT_MIN.getAsInt(), pool.size());
+        int maximum = Math.min(Math.max(minimum, ModConfigSpec.CONTRABAND_OFFER_COUNT_MAX.getAsInt()), pool.size());
+        int count = minimum + random.nextInt(maximum - minimum + 1);
+        for (int index = 0; index < count; index++) {
+            selected.add(pool.get(index).id());
+        }
+        return List.copyOf(selected);
     }
 
     private static List<TraderWorldData.RolledOffer> rollOffers(Random random) {
