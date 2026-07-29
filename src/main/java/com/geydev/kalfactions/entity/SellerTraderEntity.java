@@ -13,17 +13,28 @@ import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.MoveTowardsRestrictionGoal;
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
+import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 
 public final class SellerTraderEntity extends PathfinderMob {
     private static final int DATA_VERSION = 1;
-    private SellerTraderRole traderRole = SellerTraderRole.PERMANENT;
+    private static final double WANDERING_SPEED = 0.32D;
+    private static final int WANDERING_LEASH_RADIUS = 7;
+    private static final EntityDataAccessor<Integer> DATA_ROLE =
+            SynchedEntityData.defineId(SellerTraderEntity.class, EntityDataSerializers.INT);
     private java.util.UUID eventId;
     private java.util.UUID targetFactionId;
     private long expiresAtMillis;
@@ -36,13 +47,35 @@ public final class SellerTraderEntity extends PathfinderMob {
         setCustomNameVisible(true);
     }
 
+    @Override
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(DATA_ROLE, SellerTraderRole.PERMANENT.ordinal());
+    }
+
     public SellerTraderRole traderRole() {
-        return traderRole;
+        return SellerTraderRole.byOrdinal(entityData.get(DATA_ROLE));
     }
 
     public void setTraderRole(SellerTraderRole role) {
-        traderRole = role == null ? SellerTraderRole.PERMANENT : role;
-        setCustomName(Component.translatable("entity.kingdoms.seller_trader." + traderRole.id()));
+        SellerTraderRole value = role == null ? SellerTraderRole.PERMANENT : role;
+        entityData.set(DATA_ROLE, value.ordinal());
+        setCustomName(Component.translatable("entity.kingdoms.seller_trader." + value.id()));
+        applyRoleBehaviour(value);
+    }
+
+    private void applyRoleBehaviour(SellerTraderRole role) {
+        boolean roaming = role == SellerTraderRole.WANDERING;
+        setNoAi(!roaming);
+        AttributeInstance speed = getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed != null) {
+            speed.setBaseValue(roaming ? WANDERING_SPEED : 0.0D);
+        }
+        if (roaming) {
+            restrictTo(blockPosition(), WANDERING_LEASH_RADIUS);
+        } else {
+            clearRestriction();
+        }
     }
 
     public java.util.Optional<java.util.UUID> eventId() {
@@ -73,7 +106,7 @@ public final class SellerTraderEntity extends PathfinderMob {
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putInt("kingdomsTraderVersion", DATA_VERSION);
-        tag.putString("kingdomsTraderRole", traderRole.id());
+        tag.putString("kingdomsTraderRole", traderRole().id());
         if (eventId != null) {
             tag.putUUID("kingdomsEventId", eventId);
         }
@@ -101,6 +134,18 @@ public final class SellerTraderEntity extends PathfinderMob {
 
     @Override
     protected void registerGoals() {
+        goalSelector.addGoal(1, new MoveTowardsRestrictionGoal(this, 0.4D));
+        goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 0.35D, 0.9F));
+        goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 8.0F));
+        goalSelector.addGoal(4, new RandomLookAroundGoal(this));
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (!level().isClientSide() && traderRole() == SellerTraderRole.WANDERING && !hasRestriction()) {
+            restrictTo(blockPosition(), WANDERING_LEASH_RADIUS);
+        }
     }
 
     @Override

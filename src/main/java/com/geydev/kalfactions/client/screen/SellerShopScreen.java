@@ -13,8 +13,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -29,8 +31,12 @@ public final class SellerShopScreen extends Screen {
     private static final int TEXT_DARK = 0xFF3F2A19;
     private static final int TEXT_MUTED = 0xFF5B452E;
     private static final int SELL_COLUMNS = 3;
+    private static final int SELL_ROWS = 3;
     private static final int SELL_CELL_WIDTH = 82;
     private static final int SELL_CELL_HEIGHT = 24;
+    private static final String SELLER_TITLE = "screen.kingdoms.seller.title";
+    private static final String CONTRABAND_TITLE = "screen.kingdoms.contraband.title";
+    private static final String WANDERING_TITLE = "screen.kingdoms.wandering.title";
 
     private final UUID traderId;
     private UUID sessionId;
@@ -48,15 +54,24 @@ public final class SellerShopScreen extends Screen {
     private KingdomsButton maxButton;
     private KingdomsButton sellButton;
     private boolean permanentTab;
+    private int scrollRow;
+    private final boolean tabbed;
 
     public SellerShopScreen(TraderPayloads.S2CShopState state) {
         super(Component.translatable(state.titleKey()));
+        tabbed = SELLER_TITLE.equals(state.titleKey());
         traderId = state.traderId();
         sessionId = state.sessionId();
         nextSequence = Math.max(1L, state.acknowledgedSequence() + 1L);
         sellOffers = state.sellOffers();
         nextRefreshEpochMillis = state.nextSellRefreshEpochMillis();
         permanentTab = sellOffers.stream().anyMatch(TraderPayloads.OfferInfo::permanent);
+    }
+
+    public static boolean isSellerTitle(String titleKey) {
+        return SELLER_TITLE.equals(titleKey)
+                || CONTRABAND_TITLE.equals(titleKey)
+                || WANDERING_TITLE.equals(titleKey);
     }
 
     public static void handle(TraderPayloads.S2CShopState state) {
@@ -92,30 +107,34 @@ public final class SellerShopScreen extends Screen {
         List<TraderPayloads.OfferInfo> visibleOffers = sellOffers.stream()
                 .filter(offer -> offer.permanent() == permanentTab)
                 .toList();
+        scrollRow = Math.clamp(scrollRow, 0, maxScrollRow(visibleOffers.size()));
         int sellLeft = left + 35;
-        for (int i = 0; i < visibleOffers.size(); i++) {
-            int col = i % SELL_COLUMNS;
-            int rowIndex = i / SELL_COLUMNS;
-            int cellX = sellLeft + col * SELL_CELL_WIDTH;
-            int cellY = top + 88 + rowIndex * SELL_CELL_HEIGHT;
+        int first = scrollRow * SELL_COLUMNS;
+        int last = Math.min(visibleOffers.size(), first + SELL_COLUMNS * SELL_ROWS);
+        for (int i = first; i < last; i++) {
+            int position = i - first;
+            int cellX = sellLeft + position % SELL_COLUMNS * SELL_CELL_WIDTH;
+            int cellY = top + 88 + position / SELL_COLUMNS * SELL_CELL_HEIGHT;
             sellCells.add(new SellCell(visibleOffers.get(i), cellX, cellY));
         }
-        addRenderableWidget(KingdomsButton.create(
-                Component.translatable("screen.kingdoms.seller.permanent_tab"),
-                button -> switchTab(true),
-                left + 35,
-                top + 56,
-                112,
-                20
-        ));
-        addRenderableWidget(KingdomsButton.create(
-                Component.translatable("screen.kingdoms.seller.rotating_tab"),
-                button -> switchTab(false),
-                left + 151,
-                top + 56,
-                112,
-                20
-        ));
+        if (tabbed) {
+            addRenderableWidget(KingdomsButton.create(
+                    Component.translatable("screen.kingdoms.seller.permanent_tab"),
+                    button -> switchTab(true),
+                    left + 35,
+                    top + 56,
+                    112,
+                    20
+            ));
+            addRenderableWidget(KingdomsButton.create(
+                    Component.translatable("screen.kingdoms.seller.rotating_tab"),
+                    button -> switchTab(false),
+                    left + 151,
+                    top + 56,
+                    112,
+                    20
+            ));
+        }
         selectedCell = findSelectedCell();
         amountBox = new EditBox(
                 font,
@@ -183,6 +202,7 @@ public final class SellerShopScreen extends Screen {
         permanentTab = permanent;
         selectedOfferId = "";
         selectedCell = null;
+        scrollRow = 0;
         rebuildWidgets();
     }
 
@@ -201,6 +221,28 @@ public final class SellerShopScreen extends Screen {
     public void onClose() {
         PacketDistributor.sendToServer(new TraderPayloads.C2SCloseTrader(traderId, sessionId));
         super.onClose();
+    }
+
+    private int visibleOfferCount() {
+        return (int) sellOffers.stream().filter(offer -> offer.permanent() == permanentTab).count();
+    }
+
+    private static int maxScrollRow(int offerCount) {
+        return Math.max(0, (offerCount + SELL_COLUMNS - 1) / SELL_COLUMNS - SELL_ROWS);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double deltaX, double deltaY) {
+        int maximum = maxScrollRow(visibleOfferCount());
+        if (maximum > 0 && deltaY != 0.0D) {
+            int updated = Math.clamp(scrollRow - (int) Math.signum(deltaY), 0, maximum);
+            if (updated != scrollRow) {
+                scrollRow = updated;
+                rebuildWidgets();
+            }
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, deltaX, deltaY);
     }
 
     @Override
@@ -226,34 +268,52 @@ public final class SellerShopScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
         graphics.drawString(font, title, left + (PANEL_WIDTH - font.width(title)) / 2, top + 42, TEXT_DARK, false);
-        if (!permanentTab) {
+        if (nextRefreshEpochMillis > 0L) {
             Component timer = Component.translatable(
-                    "screen.kingdoms.seller.refresh_timer",
+                    timerKey(),
                     formatDuration(remainingRefreshSeconds())
             );
             graphics.drawString(
                     font,
                     timer,
                     left + PANEL_WIDTH - 35 - font.width(timer),
+                    tabbed ? top + 78 : top + 62,
+                    TEXT_MUTED,
+                    false
+            );
+        }
+        Component section = Component.translatable("screen.kingdoms.trader.sell_section");
+        graphics.drawString(font, section, left + 35, top + 78, TEXT_MUTED, false);
+        int maximumScroll = maxScrollRow(visibleOfferCount());
+        if (maximumScroll > 0) {
+            graphics.drawString(
+                    font,
+                    Component.translatable("screen.kingdoms.seller.scroll_hint", scrollRow + 1, maximumScroll + 1),
+                    left + 41 + font.width(section),
                     top + 78,
                     TEXT_MUTED,
                     false
             );
         }
-        graphics.drawString(font, Component.translatable("screen.kingdoms.trader.sell_section"), left + 35, top + 78, TEXT_MUTED, false);
         ItemStack hovered = null;
         for (SellCell cell : sellCells) {
             boolean hover = cell.contains(mouseX, mouseY);
             renderSellCell(graphics, cell, hover);
             if (hover) {
-                hovered = new ItemStack(cell.item());
-                hovered.setCount(cell.offer().itemCount());
+                hovered = displayStack(cell);
             }
         }
         renderSelectionInfo(graphics);
         if (hovered != null) {
             graphics.renderTooltip(font, hovered, mouseX, mouseY);
         }
+    }
+
+    private String timerKey() {
+        if (!tabbed) {
+            return "screen.kingdoms.seller.expire_timer";
+        }
+        return permanentTab ? "screen.kingdoms.seller.limit_timer" : "screen.kingdoms.seller.refresh_timer";
     }
 
     private long remainingRefreshSeconds() {
@@ -271,7 +331,7 @@ public final class SellerShopScreen extends Screen {
     }
 
     private void renderSellCell(GuiGraphics graphics, SellCell cell, boolean hover) {
-        int owned = ownedCount(cell.item());
+        int owned = ownedCount(cell);
         int available = maxSellable(cell);
         boolean selected = cell.offer().id().equals(selectedOfferId);
         int background = selected ? 0x88D1A43D : hover && available > 0 ? 0x66C9A24C : 0x24A8783D;
@@ -279,8 +339,7 @@ public final class SellerShopScreen extends Screen {
         if (selected) {
             graphics.renderOutline(cell.x(), cell.y(), SELL_CELL_WIDTH - 4, SELL_CELL_HEIGHT - 2, 0xFFD8B25A);
         }
-        ItemStack stack = new ItemStack(cell.item());
-        stack.setCount(cell.offer().itemCount());
+        ItemStack stack = displayStack(cell);
         graphics.renderItem(stack, cell.x() + 3, cell.y() + 4);
         graphics.renderItemDecorations(font, stack, cell.x() + 3, cell.y() + 4);
         int textColor = available > 0 ? TEXT_DARK : 0xFF8A7A66;
@@ -332,23 +391,45 @@ public final class SellerShopScreen extends Screen {
         );
     }
 
-    private int ownedCount(Item item) {
+    private int ownedCount(SellCell cell) {
         if (minecraft == null || minecraft.player == null) {
             return 0;
         }
+        TagKey<Item> tag = tagOf(cell.offer());
         int count = 0;
         for (int slot = 0; slot < minecraft.player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = minecraft.player.getInventory().getItem(slot);
-            if (!stack.isEmpty() && stack.is(item)) {
+            if (!stack.isEmpty() && (tag == null ? stack.is(cell.item()) : stack.is(tag))) {
                 count += stack.getCount();
             }
         }
         return count;
     }
 
+    private ItemStack displayStack(SellCell cell) {
+        TagKey<Item> tag = tagOf(cell.offer());
+        if (tag != null && minecraft != null && minecraft.player != null) {
+            for (int slot = 0; slot < minecraft.player.getInventory().getContainerSize(); slot++) {
+                ItemStack stack = minecraft.player.getInventory().getItem(slot);
+                if (!stack.isEmpty() && stack.is(tag)) {
+                    return new ItemStack(stack.getItem(), cell.offer().itemCount());
+                }
+            }
+        }
+        return new ItemStack(cell.item(), cell.offer().itemCount());
+    }
+
+    private static TagKey<Item> tagOf(TraderPayloads.OfferInfo offer) {
+        if (offer.itemTag().isEmpty()) {
+            return null;
+        }
+        ResourceLocation id = ResourceLocation.tryParse(offer.itemTag());
+        return id == null ? null : TagKey.create(Registries.ITEM, id);
+    }
+
     private int maxSellable(SellCell cell) {
         return TradeBatchMath.availableBatches(
-                ownedCount(cell.item()),
+                ownedCount(cell),
                 cell.offer().itemCount(),
                 Math.max(0, cell.offer().remainingLimit())
         );

@@ -1,0 +1,45 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "scguns:carapice",
+      "required": false
+    },
+    {
+      "id": "scguns:dark_matter",
+      "required": false
+    },
+    {
+      "id": "scguns:echoes_2",
+      "required": false
+    },
+    {
+      "id": "scguns:forlorn_hope",
+      "required": false
+    },
+    {
+      "id": "scguns:lone_wonder",
+      "required": false
+    },
+    {
+      "id": "scguns:raygun",
+      "required": false
+    },
+    {
+      "id": "scguns:sculk_resonator",
+      "required": false
+    },
+    {
+      "id": "scguns:shellurker",
+      "required": false
+    },
+    {
+      "id": "scguns:weevil",
+      "required": false
+    },
+    {
+      "id": "scguns:whispers",
+      "required": false
+    }
+  ]
+}

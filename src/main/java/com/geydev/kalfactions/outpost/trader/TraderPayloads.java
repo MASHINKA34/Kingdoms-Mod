@@ -6,6 +6,7 @@ import io.netty.handler.codec.EncoderException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
@@ -20,6 +21,7 @@ public final class TraderPayloads {
     public static final int MAX_OFFER_ID_LENGTH = 64;
     public static final int MAX_TITLE_KEY_LENGTH = 128;
     public static final int MAX_ITEM_ID_LENGTH = 128;
+    public static final int MAX_POINT_ENTRIES = 128;
 
     public record C2SBuy(UUID traderId, UUID sessionId, long sequence, String offerId) implements CustomPacketPayload {
         public static final Type<C2SBuy> TYPE = payloadType("trader_buy");
@@ -250,17 +252,66 @@ public final class TraderPayloads {
         }
     }
 
+    public record S2CTraderPoints(List<PointEntry> points) implements CustomPacketPayload {
+        public static final Type<S2CTraderPoints> TYPE = payloadType("trader_points");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CTraderPoints> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeVarInt(checkedSize(payload.points.size(), MAX_POINT_ENTRIES, "Trader point"));
+                    for (PointEntry entry : payload.points) {
+                        buffer.writeVarInt(entry.index());
+                        buffer.writeUtf(entry.dimension(), MAX_ITEM_ID_LENGTH);
+                        buffer.writeBlockPos(entry.pos());
+                        buffer.writeBoolean(entry.active());
+                    }
+                },
+                buffer -> {
+                    int size = buffer.readVarInt();
+                    if (size < 0 || size > MAX_POINT_ENTRIES) {
+                        throw new DecoderException("Trader point count " + size + " exceeds " + MAX_POINT_ENTRIES);
+                    }
+                    List<PointEntry> points = new ArrayList<>(size);
+                    for (int index = 0; index < size; index++) {
+                        points.add(new PointEntry(
+                                buffer.readVarInt(),
+                                buffer.readUtf(MAX_ITEM_ID_LENGTH),
+                                buffer.readBlockPos(),
+                                buffer.readBoolean()
+                        ));
+                    }
+                    return new S2CTraderPoints(List.copyOf(points));
+                }
+        );
+
+        public S2CTraderPoints {
+            points = List.copyOf(points);
+        }
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record PointEntry(int index, String dimension, BlockPos pos, boolean active) {
+    }
+
     public record OfferInfo(
             String id,
             String itemId,
+            String itemTag,
             int itemCount,
             long price,
             int remainingLimit,
             boolean permanent
     ) {
+        public OfferInfo {
+            itemTag = itemTag == null ? "" : itemTag;
+        }
+
         private static void encode(RegistryFriendlyByteBuf buffer, OfferInfo offer) {
             buffer.writeUtf(offer.id, MAX_OFFER_ID_LENGTH);
             buffer.writeUtf(offer.itemId, MAX_ITEM_ID_LENGTH);
+            buffer.writeUtf(offer.itemTag, MAX_ITEM_ID_LENGTH);
             buffer.writeVarInt(offer.itemCount);
             buffer.writeLong(offer.price);
             buffer.writeVarInt(offer.remainingLimit);
@@ -270,6 +321,7 @@ public final class TraderPayloads {
         private static OfferInfo decode(RegistryFriendlyByteBuf buffer) {
             return new OfferInfo(
                     buffer.readUtf(MAX_OFFER_ID_LENGTH),
+                    buffer.readUtf(MAX_ITEM_ID_LENGTH),
                     buffer.readUtf(MAX_ITEM_ID_LENGTH),
                     Math.clamp(buffer.readVarInt(), 1, 64),
                     buffer.readLong(),

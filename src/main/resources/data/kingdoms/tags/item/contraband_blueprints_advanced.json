@@ -1,0 +1,21 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "scguns:ocean_blueprint",
+      "required": false
+    },
+    {
+      "id": "scguns:piglin_blueprint",
+      "required": false
+    },
+    {
+      "id": "scguns:scorched_blueprint",
+      "required": false
+    },
+    {
+      "id": "scguns:treated_brass_blueprint",
+      "required": false
+    }
+  ]
+}

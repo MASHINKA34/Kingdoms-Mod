@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "scguns:deep_dark_blueprint",
+      "required": false
+    },
+    {
+      "id": "scguns:end_blueprint",
+      "required": false
+    }
+  ]
+}

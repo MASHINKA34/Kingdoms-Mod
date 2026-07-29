@@ -108,11 +108,11 @@ public final class TraderService {
         if (trader == null) {
             return null;
         }
+        trader.moveTo(x, y, z, yRot, 0.0F);
         trader.setTraderRole(role);
         trader.setEventId(eventId);
         trader.setTargetFactionId(targetFactionId);
         trader.setExpiresAtMillis(expiresAtMillis);
-        trader.moveTo(x, y, z, yRot, 0.0F);
         if (spawner != null) {
             trader.lookAt(EntityAnchorArgument.Anchor.EYES, spawner.getEyePosition());
             trader.setYBodyRot(trader.getYRot());
@@ -349,6 +349,7 @@ public final class TraderService {
                     .map(offer -> new TraderPayloads.OfferInfo(
                             offer.id(),
                             offer.itemId().toString(),
+                            "",
                             offer.count(),
                             sellUnitPrice(player, offer.minimumPrice()),
                             rotation.remainingLimit(
@@ -397,10 +398,11 @@ public final class TraderService {
         TraderWorldData.WanderingEvent event = targetFaction == null
                 ? null
                 : data.wandering(targetFaction).orElse(null);
+        ClaimKey anchor = event == null ? ClaimKey.of(player.level(), seller.blockPosition()) : event.claim();
         return TraderAccessPolicy.canUseWandering(
                 manager.getFactionIdForMember(player.getUUID()).orElse(null),
                 targetFaction,
-                manager.getFactionIdAt(ClaimKey.of(player.level(), seller.blockPosition())).orElse(null),
+                manager.getFactionIdAt(anchor).orElse(null),
                 seller.getUUID(),
                 seller.eventId().orElse(null),
                 seller.expiresAtMillis(),
@@ -754,6 +756,7 @@ public final class TraderService {
                 .map(offer -> new TraderPayloads.OfferInfo(
                         offer.id(),
                         BuiltInRegistries.ITEM.getKey(offer.item()).toString(),
+                        "",
                         1,
                         buyUnitPrice(player, offer),
                         0,
@@ -854,6 +857,7 @@ public final class TraderService {
         return new TraderPayloads.OfferInfo(
                 offer.id(),
                 BuiltInRegistries.ITEM.getKey(item).toString(),
+                offer.itemTag() == null ? "" : offer.itemTag().toString(),
                 offer.count(),
                 sellUnitPrice(player, price),
                 SellerOfferRotation.get(server).remainingLimit(

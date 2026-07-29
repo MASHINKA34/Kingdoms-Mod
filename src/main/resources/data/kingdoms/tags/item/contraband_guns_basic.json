@@ -1,0 +1,209 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "scguns:arc_worker",
+      "required": false
+    },
+    {
+      "id": "scguns:auvtomag",
+      "required": false
+    },
+    {
+      "id": "scguns:big_bore",
+      "required": false
+    },
+    {
+      "id": "scguns:birdfeeder",
+      "required": false
+    },
+    {
+      "id": "scguns:blooper",
+      "required": false
+    },
+    {
+      "id": "scguns:blunderbuss",
+      "required": false
+    },
+    {
+      "id": "scguns:boomstick",
+      "required": false
+    },
+    {
+      "id": "scguns:brawler",
+      "required": false
+    },
+    {
+      "id": "scguns:bruiser",
+      "required": false
+    },
+    {
+      "id": "scguns:callwell",
+      "required": false
+    },
+    {
+      "id": "scguns:callwell_conversion",
+      "required": false
+    },
+    {
+      "id": "scguns:callwell_terminal",
+      "required": false
+    },
+    {
+      "id": "scguns:combat_shotgun",
+      "required": false
+    },
+    {
+      "id": "scguns:crusader",
+      "required": false
+    },
+    {
+      "id": "scguns:defender_pistol",
+      "required": false
+    },
+    {
+      "id": "scguns:doublet",
+      "required": false
+    },
+    {
+      "id": "scguns:fencer_carabine",
+      "required": false
+    },
+    {
+      "id": "scguns:fencer_thumper",
+      "required": false
+    },
+    {
+      "id": "scguns:flintlock_pistol",
+      "required": false
+    },
+    {
+      "id": "scguns:greaser_smg",
+      "required": false
+    },
+    {
+      "id": "scguns:gyrojet_pistol",
+      "required": false
+    },
+    {
+      "id": "scguns:handcannon",
+      "required": false
+    },
+    {
+      "id": "scguns:iron_javelin",
+      "required": false
+    },
+    {
+      "id": "scguns:iron_spear",
+      "required": false
+    },
+    {
+      "id": "scguns:laser_musket",
+      "required": false
+    },
+    {
+      "id": "scguns:llr_director",
+      "required": false
+    },
+    {
+      "id": "scguns:longarm",
+      "required": false
+    },
+    {
+      "id": "scguns:m3_carabine",
+      "required": false
+    },
+    {
+      "id": "scguns:m3_marksman",
+      "required": false
+    },
+    {
+      "id": "scguns:makeshift_rifle",
+      "required": false
+    },
+    {
+      "id": "scguns:mk43_rifle",
+      "required": false
+    },
+    {
+      "id": "scguns:musket",
+      "required": false
+    },
+    {
+      "id": "scguns:pax",
+      "required": false
+    },
+    {
+      "id": "scguns:plasmabuss",
+      "required": false
+    },
+    {
+      "id": "scguns:pulsar",
+      "required": false
+    },
+    {
+      "id": "scguns:red_raydar",
+      "required": false
+    },
+    {
+      "id": "scguns:repeating_musket",
+      "required": false
+    },
+    {
+      "id": "scguns:rocket_rifle",
+      "required": false
+    },
+    {
+      "id": "scguns:rusty_gnat",
+      "required": false
+    },
+    {
+      "id": "scguns:saketini",
+      "required": false
+    },
+    {
+      "id": "scguns:saketini_ironport",
+      "required": false
+    },
+    {
+      "id": "scguns:scrapper",
+      "required": false
+    },
+    {
+      "id": "scguns:teslock_rifle",
+      "required": false
+    },
+    {
+      "id": "scguns:trenchur",
+      "required": false
+    },
+    {
+      "id": "scguns:triquetra",
+      "required": false
+    },
+    {
+      "id": "scguns:ultra_knight_hawk",
+      "required": false
+    },
+    {
+      "id": "scguns:umax_pistol",
+      "required": false
+    },
+    {
+      "id": "scguns:venturi",
+      "required": false
+    },
+    {
+      "id": "scguns:whistler",
+      "required": false
+    },
+    {
+      "id": "scguns:winnie",
+      "required": false
+    },
+    {
+      "id": "scguns:winnie_millend",
+      "required": false
+    }
+  ]
+}

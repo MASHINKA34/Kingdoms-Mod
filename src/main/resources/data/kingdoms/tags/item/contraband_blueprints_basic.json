@@ -1,0 +1,25 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "scguns:antique_blueprint",
+      "required": false
+    },
+    {
+      "id": "scguns:blueprint_scrap",
+      "required": false
+    },
+    {
+      "id": "scguns:copper_blueprint",
+      "required": false
+    },
+    {
+      "id": "scguns:frontier_blueprint",
+      "required": false
+    },
+    {
+      "id": "scguns:iron_blueprint",
+      "required": false
+    }
+  ]
+}

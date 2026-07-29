@@ -1,0 +1,153 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "scguns:basker",
+      "required": false
+    },
+    {
+      "id": "scguns:cyclone",
+      "required": false
+    },
+    {
+      "id": "scguns:drill",
+      "required": false
+    },
+    {
+      "id": "scguns:drill_conversion",
+      "required": false
+    },
+    {
+      "id": "scguns:exo_suit_boots",
+      "required": false
+    },
+    {
+      "id": "scguns:exo_suit_chestplate",
+      "required": false
+    },
+    {
+      "id": "scguns:exo_suit_helmet",
+      "required": false
+    },
+    {
+      "id": "scguns:exo_suit_leggings",
+      "required": false
+    },
+    {
+      "id": "scguns:homemaker",
+      "required": false
+    },
+    {
+      "id": "scguns:inertial",
+      "required": false
+    },
+    {
+      "id": "scguns:inquisitor",
+      "required": false
+    },
+    {
+      "id": "scguns:kalaskah",
+      "required": false
+    },
+    {
+      "id": "scguns:killer_23",
+      "required": false
+    },
+    {
+      "id": "scguns:krauser",
+      "required": false
+    },
+    {
+      "id": "scguns:lockewood",
+      "required": false
+    },
+    {
+      "id": "scguns:mak_mkii",
+      "required": false
+    },
+    {
+      "id": "scguns:mas_55",
+      "required": false
+    },
+    {
+      "id": "scguns:mas_peddler",
+      "required": false
+    },
+    {
+      "id": "scguns:micina",
+      "required": false
+    },
+    {
+      "id": "scguns:minksy",
+      "required": false
+    },
+    {
+      "id": "scguns:mokova",
+      "required": false
+    },
+    {
+      "id": "scguns:nailer",
+      "required": false
+    },
+    {
+      "id": "scguns:plasgun",
+      "required": false
+    },
+    {
+      "id": "scguns:prush_gun",
+      "required": false
+    },
+    {
+      "id": "scguns:railworker",
+      "required": false
+    },
+    {
+      "id": "scguns:rg_jigsaw",
+      "required": false
+    },
+    {
+      "id": "scguns:shard_culler",
+      "required": false
+    },
+    {
+      "id": "scguns:soul_drummer",
+      "required": false
+    },
+    {
+      "id": "scguns:stigg",
+      "required": false
+    },
+    {
+      "id": "scguns:stiletto",
+      "required": false
+    },
+    {
+      "id": "scguns:tl_runner",
+      "required": false
+    },
+    {
+      "id": "scguns:truant",
+      "required": false
+    },
+    {
+      "id": "scguns:turnpike",
+      "required": false
+    },
+    {
+      "id": "scguns:uppercut",
+      "required": false
+    },
+    {
+      "id": "scguns:valora",
+      "required": false
+    },
+    {
+      "id": "scguns:whizzbanger",
+      "required": false
+    },
+    {
+      "id": "scguns:zilk_45",
+      "required": false
+    }
+  ]
+}

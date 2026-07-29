@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.outpost.trader;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.client.ClientTraderPointStore;
 import com.geydev.kalfactions.client.screen.SellerCatalogScreen;
 import com.geydev.kalfactions.client.screen.TraderShopScreen;
 import net.minecraft.server.level.ServerPlayer;
@@ -49,6 +50,11 @@ public final class TraderNetwork {
                 TraderPayloads.S2CSellerCatalog.STREAM_CODEC,
                 TraderNetwork::handleSellerCatalog
         );
+        registrar.playToClient(
+                TraderPayloads.S2CTraderPoints.TYPE,
+                TraderPayloads.S2CTraderPoints.STREAM_CODEC,
+                TraderNetwork::handleTraderPoints
+        );
     }
 
     private static void handleBuy(TraderPayloads.C2SBuy payload, IPayloadContext context) {
@@ -91,6 +97,12 @@ public final class TraderNetwork {
     private static void handleSellerCatalog(TraderPayloads.S2CSellerCatalog payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             SellerCatalogScreen.handle(payload);
+        }
+    }
+
+    private static void handleTraderPoints(TraderPayloads.S2CTraderPoints payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientTraderPointStore.accept(payload.points());
         }
     }
 

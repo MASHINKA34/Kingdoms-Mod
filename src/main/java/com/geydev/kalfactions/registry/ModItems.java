@@ -121,6 +121,11 @@ public final class ModItems {
             () -> new FactionMeterItem(new Item.Properties().stacksTo(1))
     );
 
+    public static final DeferredItem<Item> WAR_TROPHY = ITEMS.register(
+            "war_trophy",
+            () -> new Item(new Item.Properties().rarity(net.minecraft.world.item.Rarity.RARE))
+    );
+
     public static final DeferredItem<Item> CRYSTAL_SCIENCE = ITEMS.register(
             "crystal_science",
             () -> new Item(new Item.Properties())

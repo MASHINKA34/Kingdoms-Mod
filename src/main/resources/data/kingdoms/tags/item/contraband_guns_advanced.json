@@ -1,0 +1,197 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "scguns:astella",
+      "required": false
+    },
+    {
+      "id": "scguns:auto_turret",
+      "required": false
+    },
+    {
+      "id": "scguns:basic_turret",
+      "required": false
+    },
+    {
+      "id": "scguns:bomb_lance",
+      "required": false
+    },
+    {
+      "id": "scguns:cogloader",
+      "required": false
+    },
+    {
+      "id": "scguns:cr4k_mining_laser",
+      "required": false
+    },
+    {
+      "id": "scguns:dozier_rl",
+      "required": false
+    },
+    {
+      "id": "scguns:earths_corpse",
+      "required": false
+    },
+    {
+      "id": "scguns:empty_blasphemy",
+      "required": false
+    },
+    {
+      "id": "scguns:flayed_god",
+      "required": false
+    },
+    {
+      "id": "scguns:floundergat",
+      "required": false
+    },
+    {
+      "id": "scguns:freyr",
+      "required": false
+    },
+    {
+      "id": "scguns:gale",
+      "required": false
+    },
+    {
+      "id": "scguns:gattaler",
+      "required": false
+    },
+    {
+      "id": "scguns:gauss_rifle",
+      "required": false
+    },
+    {
+      "id": "scguns:grandle",
+      "required": false
+    },
+    {
+      "id": "scguns:grandle_og",
+      "required": false
+    },
+    {
+      "id": "scguns:hammer_gl",
+      "required": false
+    },
+    {
+      "id": "scguns:howler",
+      "required": false
+    },
+    {
+      "id": "scguns:howler_conversion",
+      "required": false
+    },
+    {
+      "id": "scguns:hullbreaker",
+      "required": false
+    },
+    {
+      "id": "scguns:hyperbaria",
+      "required": false
+    },
+    {
+      "id": "scguns:jackhammer",
+      "required": false
+    },
+    {
+      "id": "scguns:jr_wristbreaker",
+      "required": false
+    },
+    {
+      "id": "scguns:libertas",
+      "required": false
+    },
+    {
+      "id": "scguns:locust",
+      "required": false
+    },
+    {
+      "id": "scguns:m22_waltz",
+      "required": false
+    },
+    {
+      "id": "scguns:mangalitsa",
+      "required": false
+    },
+    {
+      "id": "scguns:marlin",
+      "required": false
+    },
+    {
+      "id": "scguns:nervepinch",
+      "required": false
+    },
+    {
+      "id": "scguns:newborn_cyst",
+      "required": false
+    },
+    {
+      "id": "scguns:niami",
+      "required": false
+    },
+    {
+      "id": "scguns:osgood_50",
+      "required": false
+    },
+    {
+      "id": "scguns:prima_materia",
+      "required": false
+    },
+    {
+      "id": "scguns:pyroclastic_flow",
+      "required": false
+    },
+    {
+      "id": "scguns:rat_king_and_queen",
+      "required": false
+    },
+    {
+      "id": "scguns:scratches",
+      "required": false
+    },
+    {
+      "id": "scguns:sequoia",
+      "required": false
+    },
+    {
+      "id": "scguns:shotgun_turret",
+      "required": false
+    },
+    {
+      "id": "scguns:sniper_turret",
+      "required": false
+    },
+    {
+      "id": "scguns:spirulida",
+      "required": false
+    },
+    {
+      "id": "scguns:spitfire",
+      "required": false
+    },
+    {
+      "id": "scguns:sterilizer",
+      "required": false
+    },
+    {
+      "id": "scguns:terra_incognita",
+      "required": false
+    },
+    {
+      "id": "scguns:thunderhead",
+      "required": false
+    },
+    {
+      "id": "scguns:trotters",
+      "required": false
+    },
+    {
+      "id": "scguns:vulcanic_repeater",
+      "required": false
+    },
+    {
+      "id": "scguns:waltz_conversion",
+      "required": false
+    }
+  ]
+}

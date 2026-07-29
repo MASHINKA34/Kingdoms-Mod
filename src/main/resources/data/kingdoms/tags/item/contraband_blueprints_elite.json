@@ -1,0 +1,17 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "scguns:diamond_steel_blueprint",
+      "required": false
+    },
+    {
+      "id": "scguns:exo_suit_blueprint",
+      "required": false
+    },
+    {
+      "id": "scguns:wrecker_blueprint",
+      "required": false
+    }
+  ]
+}

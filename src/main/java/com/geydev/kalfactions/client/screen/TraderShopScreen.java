@@ -45,7 +45,7 @@ public final class TraderShopScreen extends Screen {
     public static void handle(TraderPayloads.S2CShopState state) {
         Minecraft minecraft = Minecraft.getInstance();
         minecraft.execute(() -> {
-            if (state.offers().isEmpty() && "screen.kingdoms.seller.title".equals(state.titleKey())) {
+            if (state.offers().isEmpty() && SellerShopScreen.isSellerTitle(state.titleKey())) {
                 SellerShopScreen.handle(state);
             } else if (minecraft.screen instanceof TraderShopScreen screen
                     && screen.traderId.equals(state.traderId())) {

@@ -42,6 +42,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.PLOT_WAND.get());
                         output.accept(ModItems.ADMIN_ANALYZER.get());
                         output.accept(ModItems.FACTION_METER.get());
+                        output.accept(ModItems.WAR_TROPHY.get());
                         output.accept(ModItems.CRYSTAL_SCIENCE.get());
                         output.accept(ModItems.CRYSTAL_ECONOMIC.get());
                         output.accept(ModItems.CRYSTAL_MILITARY.get());
