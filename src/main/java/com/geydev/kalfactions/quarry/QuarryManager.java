@@ -7,7 +7,6 @@ import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.FactionRole;
 import com.geydev.kalfactions.net.ClaimSyncManager;
 import com.geydev.kalfactions.net.FactionServerHooks;
-import com.geydev.kalfactions.registry.ModBlocks;
 import com.geydev.kalfactions.registry.ModItems;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import com.geydev.kalfactions.territory.WorldZonePolicy;
@@ -37,7 +36,6 @@ import net.minecraft.world.BossEvent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.saveddata.SavedData;
 
 public final class QuarryManager extends SavedData {
@@ -46,7 +44,7 @@ public final class QuarryManager extends SavedData {
             new UUID(0x5155_4152_5259_5F4EL, 0x4555_5452_414C_3031L);
     public static final int NEUTRAL_COLOR = 0x777777;
     public static final int MINIMUM_SPACING_CHUNKS = 25;
-    public static final int TERRITORY_RADIUS_CHUNKS = 2;
+    public static final int TERRITORY_RADIUS_CHUNKS = 1;
     public static final int CAPTURE_TICKS = 5 * 60 * 20;
     public static final int MAX_LEVEL = 5;
     public static final Factory<QuarryManager> FACTORY =
@@ -93,24 +91,32 @@ public final class QuarryManager extends SavedData {
     }
 
     public synchronized void generateIfCandidate(ServerLevel level, ChunkPos chunk) {
-        if (!level.dimension().equals(Level.OVERWORLD)
-                || !WorldZonePolicy.isBlack(level, chunk)
-                || !QuarryDistribution.isCandidate(
-                        level.getSeed() ^ 0x5155415252594C31L,
-                        chunk.x,
-                        chunk.z,
-                        MINIMUM_SPACING_CHUNKS
-                )) {
+        if (!isNaturalCandidate(level, chunk)) {
             return;
         }
         createAtChunk(level, chunk);
     }
 
+    static boolean isNaturalCandidate(ServerLevel level, ChunkPos chunk) {
+        return level.dimension().equals(Level.OVERWORLD)
+                && WorldZonePolicy.isBlack(level, chunk)
+                && QuarryDistribution.isCandidate(
+                        level.getSeed() ^ 0x5155415252594C31L,
+                        chunk.x,
+                        chunk.z,
+                        MINIMUM_SPACING_CHUNKS
+                );
+    }
+
     public synchronized CreateResult createAtChunk(ServerLevel level, ChunkPos chunk) {
+        QuarryEvents.cancelPending(level, chunk);
         if (!level.dimension().equals(Level.OVERWORLD) || !WorldZonePolicy.isBlack(level, chunk)) {
             return CreateResult.NOT_BLACK;
         }
         Set<ClaimKey> territory = territory(level.dimension(), chunk);
+        if (territory.stream().anyMatch(key -> !WorldZonePolicy.isBlack(level, key.chunk()))) {
+            return CreateResult.NOT_BLACK;
+        }
         FactionManager factions = FactionManager.get(level);
         SanctuaryManager sanctuary = SanctuaryManager.get(level);
         if (territory.stream().anyMatch(key ->
@@ -118,34 +124,29 @@ public final class QuarryManager extends SavedData {
             return CreateResult.OVERLAP;
         }
         if (quarries.values().stream().anyMatch(quarry -> {
-            ChunkPos existing = new ChunkPos(quarry.core);
+            ChunkPos existing = territoryCenter(quarry.chunks);
             return Math.max(Math.abs(existing.x - chunk.x), Math.abs(existing.z - chunk.z))
                     <= MINIMUM_SPACING_CHUNKS;
         })) {
             return CreateResult.TOO_CLOSE;
         }
-        int x = chunk.getMiddleBlockX();
-        int z = chunk.getMiddleBlockZ();
-        if (!level.getWorldBorder().isWithinBounds(new BlockPos(x, level.getSeaLevel(), z))) {
+        QuarryStructurePlacer.Placement placement =
+                QuarryStructurePlacer.planLevelZero(level, chunk).orElse(null);
+        if (placement == null) {
             return CreateResult.BLOCKED;
         }
-        int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-        BlockPos core = new BlockPos(x, y, z);
-        if (!level.getBlockState(core).canBeReplaced()) {
-            core = core.above();
-        }
-        if (!level.getBlockState(core).canBeReplaced()) {
-            return CreateResult.BLOCKED;
-        }
+        BlockPos core = placement.core();
         UUID id = UUID.nameUUIDFromBytes(("kingdoms:quarry:" + level.getSeed() + ":" + chunk.toLong())
                 .getBytes(java.nio.charset.StandardCharsets.UTF_8));
         if (quarries.containsKey(id) || coreIndex.containsKey(core.asLong())) {
             return CreateResult.OVERLAP;
         }
+        if (!QuarryStructurePlacer.place(level, placement)) {
+            return CreateResult.BLOCKED;
+        }
         Quarry quarry = new Quarry(id, core.immutable(), territory, null, 0, null, CAPTURE_TICKS, false, 0L);
         quarries.put(id, quarry);
         coreIndex.put(core.asLong(), id);
-        level.setBlockAndUpdate(core, ModBlocks.QUARRY_CORE.get().defaultBlockState());
         setDirty();
         mapRevision++;
         sync(level.getServer());
@@ -454,6 +455,14 @@ public final class QuarryManager extends SavedData {
             }
         }
         return Set.copyOf(result);
+    }
+
+    private static ChunkPos territoryCenter(Set<ClaimKey> chunks) {
+        int minX = chunks.stream().mapToInt(ClaimKey::x).min().orElse(0);
+        int maxX = chunks.stream().mapToInt(ClaimKey::x).max().orElse(0);
+        int minZ = chunks.stream().mapToInt(ClaimKey::z).min().orElse(0);
+        int maxZ = chunks.stream().mapToInt(ClaimKey::z).max().orElse(0);
+        return new ChunkPos(Math.floorDiv(minX + maxX, 2), Math.floorDiv(minZ + maxZ, 2));
     }
 
     private static ItemStack findActivator(ServerPlayer player) {
