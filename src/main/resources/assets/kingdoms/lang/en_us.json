@@ -577,7 +577,7 @@
   "kingdoms.trader.point.marker.pos": "%s %s %s",
   "kingdoms.trader.point.spawned": "The contraband buyer has appeared at this point.",
   "kingdoms.trader.point.spawn_failed": "The contraband buyer did not appear: one is already active, or the point is unsafe, unloaded or farther than 512 blocks from spawn.",
-  "kingdoms.trader.wandering.spawned": "A roaming resource buyer has arrived in your faction territory.",
+  "kingdoms.trader.wandering.spawned": "A roaming resource buyer has arrived in your faction territory: %s %s %s",
   "kingdoms.trader.wandering.departed": "Your faction's roaming resource buyer has departed.",
   "kingdoms.trader.wandering.spawn_forced": "A roaming resource buyer has been summoned to the faction territory.",
   "kingdoms.trader.wandering.spawn_failed": "Could not summon a roaming buyer: one is already present, the faction has no claims, or no safe spot was found in a loaded chunk.",

@@ -109,6 +109,10 @@ public final class TraderService {
             return null;
         }
         trader.moveTo(x, y, z, yRot, 0.0F);
+        trader.setYBodyRot(yRot);
+        trader.setYHeadRot(yRot);
+        trader.yBodyRotO = yRot;
+        trader.yHeadRotO = yRot;
         trader.setTraderRole(role);
         trader.setEventId(eventId);
         trader.setTargetFactionId(targetFactionId);

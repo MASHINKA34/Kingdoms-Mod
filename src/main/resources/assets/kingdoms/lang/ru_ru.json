@@ -577,7 +577,7 @@
   "kingdoms.trader.point.marker.pos": "%s %s %s",
   "kingdoms.trader.point.spawned": "Контрабандист появился на этой точке.",
   "kingdoms.trader.point.spawn_failed": "Контрабандист не появился: он уже активен либо точка небезопасна, не прогружена или дальше 512 блоков от спавна.",
-  "kingdoms.trader.wandering.spawned": "На территории вашей фракции появился странствующий скупщик ресурсов.",
+  "kingdoms.trader.wandering.spawned": "На территории вашей фракции появился странствующий скупщик ресурсов: %s %s %s",
   "kingdoms.trader.wandering.departed": "Странствующий скупщик вашей фракции ушёл.",
   "kingdoms.trader.wandering.spawn_forced": "Странствующий скупщик призван на территорию фракции.",
   "kingdoms.trader.wandering.spawn_failed": "Не удалось призвать странствующего скупщика: он уже есть, у фракции нет клеймов либо не нашлось безопасного места в прогруженном чанке.",

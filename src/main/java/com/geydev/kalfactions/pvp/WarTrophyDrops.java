@@ -1,8 +1,11 @@
 package com.geydev.kalfactions.pvp;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.protection.FactionAccess;
 import com.geydev.kalfactions.registry.ModItems;
+import javax.annotation.Nullable;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -17,9 +20,8 @@ public final class WarTrophyDrops {
         if (!(event.getEntity() instanceof ServerPlayer victim) || victim instanceof FakePlayer) {
             return;
         }
-        if (!(event.getSource().getEntity() instanceof ServerPlayer killer)
-                || killer instanceof FakePlayer
-                || killer.getUUID().equals(victim.getUUID())) {
+        ServerPlayer killer = killerOf(victim, event.getSource());
+        if (killer == null || FactionAccess.sameFaction(killer, victim)) {
             return;
         }
         ItemEntity drop = new ItemEntity(
@@ -31,6 +33,20 @@ public final class WarTrophyDrops {
         );
         drop.setDefaultPickUpDelay();
         event.getDrops().add(drop);
+    }
+
+    @Nullable
+    private static ServerPlayer killerOf(ServerPlayer victim, DamageSource source) {
+        ServerPlayer killer = null;
+        if (source.getEntity() instanceof ServerPlayer direct) {
+            killer = direct;
+        } else if (victim.getKillCredit() instanceof ServerPlayer credited) {
+            killer = credited;
+        }
+        if (killer == null || killer instanceof FakePlayer || killer.getUUID().equals(victim.getUUID())) {
+            return null;
+        }
+        return killer;
     }
 
     private WarTrophyDrops() {

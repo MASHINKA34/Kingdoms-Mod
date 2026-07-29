@@ -166,7 +166,7 @@ public final class TraderLifecycle {
                     point.pos().getX() + 0.5D,
                     point.pos().getY(),
                     point.pos().getZ() + 0.5D,
-                    point.yaw(),
+                    net.minecraft.util.Mth.wrapDegrees(point.yaw() + 180.0F),
                     null,
                     SellerTraderRole.CONTRABAND,
                     eventId,
@@ -304,7 +304,7 @@ public final class TraderLifecycle {
                 data.removeWandering(faction.id());
                 continue;
             }
-            notifyFaction(server, faction, "kingdoms.trader.wandering.spawned");
+            notifyFaction(server, faction, "kingdoms.trader.wandering.spawned", pos.getX(), pos.getY(), pos.getZ());
             return true;
         }
         return false;
@@ -365,8 +365,8 @@ public final class TraderLifecycle {
                 .ifPresent(faction -> notifyFaction(server, faction, "kingdoms.trader.wandering.departed"));
     }
 
-    private static void notifyFaction(MinecraftServer server, Faction faction, String key) {
-        Component message = Component.translatable(key);
+    private static void notifyFaction(MinecraftServer server, Faction faction, String key, Object... args) {
+        Component message = Component.translatable(key, args);
         for (UUID memberId : faction.members().keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(memberId);
             if (player != null) {
