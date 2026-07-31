@@ -28,6 +28,8 @@
     "ScorchedKrahgProjectileMixin",
     "ScorchedOsborneProjectileMixin",
     "ScorchedBeamMiningMixin",
+    "ScorchedFlarePistolMixin",
+    "DisabledRaidFlareRecipesMixin",
     "SculkCatalystListenerMixin",
     "ScorchedGunBenchBlueprintSlotMixin",
     "ScorchedGunBenchResultSlotMixin"

@@ -582,6 +582,7 @@
   "kingdoms.trader.wandering.spawn_forced": "A roaming resource buyer has been summoned to the faction territory.",
   "kingdoms.trader.wandering.spawn_failed": "Could not summon a roaming buyer: one is already present, the faction has no claims, or no safe spot was found in a loaded chunk.",
   "kingdoms.sculk_tome.consumed_hint": "Consumed when crafting a sculk weapon.",
+  "kingdoms.scguns.raid_flare.disabled": "Boss-summoning flares are disabled on this server.",
   "kingdoms.sculk_gun.requires_tome": "A Sculk Tome is required.",
   "screen.kingdoms.seller.refresh_timer": "Refresh in: %s",
   "screen.kingdoms.seller.limit_timer": "Limits reset in: %s",

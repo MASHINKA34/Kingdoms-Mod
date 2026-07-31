@@ -9,6 +9,8 @@ import com.geydev.kalfactions.registry.ModCreativeTabs;
 import com.geydev.kalfactions.registry.ModEntities;
 import com.geydev.kalfactions.registry.ModFeatures;
 import com.geydev.kalfactions.registry.ModItems;
+import com.geydev.kalfactions.registry.ModLootModifiers;
+import com.geydev.kalfactions.scorched.DisabledRaidFlares;
 import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -25,9 +27,11 @@ public final class KalFactions {
     public KalFactions(IEventBus modBus, ModContainer container) {
         ModBlocks.register(modBus);
         ModItems.register(modBus);
+        ModLootModifiers.register(modBus);
         ModEntities.register(modBus);
         ModFeatures.register(modBus);
         ModCreativeTabs.register(modBus);
+        modBus.addListener(DisabledRaidFlares::removeFromCreativeTabs);
         NetherReturnIntegration.install(ModItems.NETHER_RETURN::get, com.geydev.kalfactions.registry.ModDataComponents.NETHER_RETURN_BINDING::get);
         XaeroArchiveAccess.installAnchorValidator(
                 (level, position) -> level.getBlockState(position).is(ModBlocks.XAERO_MAP_ARCHIVE.get())
