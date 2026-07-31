@@ -34,6 +34,7 @@
     "ScorchedGunBenchResultSlotMixin"
   ],
   "client": [
+    "ScorchedBlueprintScreenMixin",
     "XaeroCommonMinimapRadarListMixin",
     "XaeroCommonRadarRendererMixin",
     "XaeroMinimapPlayerTrackerElementReaderMixin",

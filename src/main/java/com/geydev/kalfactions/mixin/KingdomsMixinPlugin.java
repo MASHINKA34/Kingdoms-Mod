@@ -30,6 +30,7 @@ public final class KingdomsMixinPlugin implements IMixinConfigPlugin {
             return classExists(targetClassName);
         }
         if (mixinClassName.endsWith("XaeroCommonMinimapRadarListMixin")
+                || mixinClassName.endsWith("ScorchedBlueprintScreenMixin")
                 || mixinClassName.endsWith("XaeroCommonRadarRendererMixin")
                 || mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementReaderMixin")
                 || mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementCollectorMixin")
