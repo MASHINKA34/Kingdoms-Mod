@@ -30,7 +30,8 @@
     "ScorchedBeamMiningMixin",
     "ScorchedFlarePistolMixin",
     "DisabledRaidFlareRecipesMixin",
-    "SculkCatalystListenerMixin"
+    "SculkCatalystListenerMixin",
+    "ScorchedGunBenchResultSlotMixin"
   ],
   "client": [
     "XaeroCommonMinimapRadarListMixin",
