@@ -6,7 +6,6 @@ import java.time.Duration;
 public record NetherRules(
         Duration sessionDuration,
         int sessionsPerDay,
-        boolean requireFullSessionBeforeClose,
         int landingMinRadius,
         int landingMaxRadius,
         int landingAttempts,
@@ -15,7 +14,6 @@ public record NetherRules(
     public static final NetherRules DEFAULT = new NetherRules(
             Duration.ofMinutes(90),
             2,
-            true,
             1_000,
             5_000,
             8,
@@ -46,7 +44,6 @@ public record NetherRules(
         return new NetherRules(
                 Duration.ofMinutes(ModConfigSpec.NETHER_SESSION_DURATION_MINUTES.getAsInt()),
                 2,
-                ModConfigSpec.NETHER_REQUIRE_FULL_SESSION_BEFORE_CLOSE.get(),
                 minRadius,
                 maxRadius,
                 ModConfigSpec.NETHER_LANDING_ATTEMPTS.getAsInt(),

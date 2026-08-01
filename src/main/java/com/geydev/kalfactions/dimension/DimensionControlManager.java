@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -36,7 +37,7 @@ import net.minecraft.world.level.storage.LevelResource;
 public final class DimensionControlManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String FILE_NAME = "kingdoms_dimension_control.json";
-    private static final int FORMAT_VERSION = 2;
+    private static final int FORMAT_VERSION = 3;
     private static DimensionControlManager instance;
 
     private final Path file;
@@ -134,6 +135,17 @@ public final class DimensionControlManager {
             boolean operator,
             LandingAllocator allocator
     ) {
+        return authorizeNetherEntry(factionId, playerId, now, operator, false, allocator);
+    }
+
+    public synchronized EntryResult authorizeNetherEntry(
+            UUID factionId,
+            UUID playerId,
+            Instant now,
+            boolean operator,
+            boolean secondSessionConfirmed,
+            LandingAllocator allocator
+    ) {
         if (operator) {
             return new EntryResult(EntryStatus.OPERATOR_BYPASS, null, rules.sessionsPerDay());
         }
@@ -142,31 +154,38 @@ public final class DimensionControlManager {
         }
         String factionKey = factionId.toString();
         FactionLedger ledger = state.netherFactions.computeIfAbsent(factionKey, ignored -> new FactionLedger());
-        if (ledger.active != null && ledger.active.endsAt <= now.toEpochMilli()) {
-            pendingEndedSessions.add(retireSession(factionId, ledger));
-            save();
-        }
-        ActiveSessionData active = activeData(ledger, now);
-        if (active != null) {
-            if (active.id.equals(state.deathLocks.get(playerId.toString()))) {
-                return new EntryResult(EntryStatus.DEATH_LOCKED, active.toValue(factionId), remainingSessions(ledger, now));
-            }
-            boolean joined = active.joinedPlayers.add(playerId.toString());
-            if (joined) {
+        retireExpiredSessions(factionId, ledger, now);
+        resetUsageDate(ledger, now);
+        ActiveSessionData active = newestActiveData(ledger, now);
+        String playerKey = playerId.toString();
+        String deathLockedSession = state.deathLocks.get(playerKey);
+        if (active != null && !active.id.equals(deathLockedSession)) {
+            boolean joined = active.joinedPlayers.add(playerKey);
+            boolean assigned = !active.id.equals(state.playerSessions.put(playerKey, active.id));
+            if (joined || assigned) {
                 save();
             }
             return new EntryResult(EntryStatus.JOINED_ACTIVE, active.toValue(factionId), remainingSessions(ledger, now));
         }
-        if (!NetherSchedulePolicy.canStartSession(now, rules.sessionDuration(), rules.requireFullSessionBeforeClose())) {
-            return new EntryResult(EntryStatus.TOO_LATE_TO_START, null, remainingSessions(ledger, now));
+        if (!NetherSchedulePolicy.canStartSession(now)) {
+            return new EntryResult(EntryStatus.SCHEDULE_CLOSED, null, remainingSessions(ledger, now));
         }
-        resetUsageDate(ledger, now);
         if (ledger.sessionsUsed >= rules.sessionsPerDay()) {
-            return new EntryResult(EntryStatus.NO_SESSIONS_LEFT, null, 0);
+            return new EntryResult(
+                    deathLockedSession == null ? EntryStatus.NO_SESSIONS_LEFT : EntryStatus.DEATH_LOCKED,
+                    active == null ? null : active.toValue(factionId),
+                    0
+            );
+        }
+        if (ledger.sessionsUsed > 0 && !secondSessionConfirmed) {
+            return new EntryResult(
+                    EntryStatus.SECOND_SESSION_CONFIRMATION_REQUIRED,
+                    active == null ? null : active.toValue(factionId),
+                    rules.sessionsPerDay() - ledger.sessionsUsed
+            );
         }
         List<LandingPos> occupied = state.netherFactions.values().stream()
-                .map(value -> activeData(value, now))
-                .filter(java.util.Objects::nonNull)
+                .flatMap(value -> activeData(value, now).stream())
                 .map(value -> value.landing.toValue())
                 .toList();
         LandingPos previous = ledger.lastLanding == null ? null : ledger.lastLanding.toValue();
@@ -174,17 +193,16 @@ public final class DimensionControlManager {
         if (allocated.isEmpty()) {
             return new EntryResult(EntryStatus.NO_SAFE_LANDING, null, rules.sessionsPerDay() - ledger.sessionsUsed);
         }
-        Instant naturalEnd = now.plus(rules.sessionDuration());
-        Instant end = naturalEnd.isAfter(NetherSchedulePolicy.closeInstant(now))
-                ? NetherSchedulePolicy.closeInstant(now)
-                : naturalEnd;
+        Instant end = NetherSchedulePolicy.sessionEnd(now, rules.sessionDuration());
         ActiveSessionData created = new ActiveSessionData();
         created.id = UUID.randomUUID().toString();
         created.startedAt = now.toEpochMilli();
         created.endsAt = end.toEpochMilli();
         created.landing = LandingData.from(allocated.get());
-        created.joinedPlayers.add(playerId.toString());
-        ledger.active = created;
+        created.ordinal = ledger.sessionsUsed + 1;
+        created.joinedPlayers.add(playerKey);
+        ledger.activeSessions.add(created);
+        state.playerSessions.put(playerKey, created.id);
         ledger.lastLanding = created.landing;
         ledger.sessionsUsed++;
         save();
@@ -197,8 +215,24 @@ public final class DimensionControlManager {
 
     public synchronized Optional<ActiveSession> activeSession(UUID factionId, Instant now) {
         FactionLedger ledger = state.netherFactions.get(factionId.toString());
-        ActiveSessionData active = activeData(ledger, now);
+        ActiveSessionData active = newestActiveData(ledger, now);
         return active == null ? Optional.empty() : Optional.of(active.toValue(factionId));
+    }
+
+    public synchronized List<ActiveSession> activeSessions(UUID factionId, Instant now) {
+        FactionLedger ledger = state.netherFactions.get(factionId.toString());
+        if (ledger == null) {
+            return List.of();
+        }
+        return activeData(ledger, now).stream().map(active -> active.toValue(factionId)).toList();
+    }
+
+    public synchronized Optional<ActiveSession> assignedSession(UUID playerId, Instant now) {
+        String assigned = state.playerSessions.get(playerId.toString());
+        if (!validUuid(assigned)) {
+            return Optional.empty();
+        }
+        return activeSessionById(UUID.fromString(assigned), now);
     }
 
     public synchronized void rollbackNetherEntry(
@@ -209,24 +243,34 @@ public final class DimensionControlManager {
             boolean joinedNow
     ) {
         FactionLedger ledger = state.netherFactions.get(factionId.toString());
-        if (ledger == null || ledger.active == null || !ledger.active.id.equals(sessionId.toString())) {
+        if (ledger == null) {
+            return;
+        }
+        ActiveSessionData active = sessionData(ledger, sessionId);
+        if (active == null) {
             return;
         }
         if (startedSession) {
-            ledger.active = null;
+            ledger.activeSessions.remove(active);
             ledger.sessionsUsed = Math.max(0, ledger.sessionsUsed - 1);
+            ActiveSessionData newest = ledger.activeSessions.stream()
+                    .max(Comparator.comparingLong(candidate -> candidate.startedAt))
+                    .orElse(null);
+            ledger.lastLanding = newest == null ? null : newest.landing;
         } else if (joinedNow) {
-            ledger.active.joinedPlayers.remove(playerId.toString());
+            active.joinedPlayers.remove(playerId.toString());
         }
-        state.deathLocks.remove(playerId.toString());
+        state.playerSessions.remove(playerId.toString(), sessionId.toString());
+        state.deathLocks.remove(playerId.toString(), sessionId.toString());
         save();
     }
 
     public synchronized Optional<ActiveSession> activeSessionById(UUID sessionId, Instant now) {
         for (Map.Entry<String, FactionLedger> entry : state.netherFactions.entrySet()) {
-            ActiveSessionData active = activeData(entry.getValue(), now);
-            if (active != null && active.id.equals(sessionId.toString())) {
-                return Optional.of(active.toValue(UUID.fromString(entry.getKey())));
+            for (ActiveSessionData active : activeData(entry.getValue(), now)) {
+                if (active.id.equals(sessionId.toString())) {
+                    return Optional.of(active.toValue(UUID.fromString(entry.getKey())));
+                }
             }
         }
         return Optional.empty();
@@ -234,7 +278,10 @@ public final class DimensionControlManager {
 
     public synchronized boolean markDeath(UUID factionId, UUID playerId, Instant now) {
         FactionLedger ledger = state.netherFactions.get(factionId.toString());
-        ActiveSessionData active = activeData(ledger, now);
+        ActiveSessionData active = assignedData(playerId, now);
+        if (active == null && ledger != null) {
+            active = newestActiveData(ledger, now);
+        }
         if (active == null) {
             return false;
         }
@@ -245,8 +292,8 @@ public final class DimensionControlManager {
 
     public synchronized boolean isDeathLocked(UUID factionId, UUID playerId, Instant now) {
         FactionLedger ledger = state.netherFactions.get(factionId.toString());
-        ActiveSessionData active = activeData(ledger, now);
-        return active != null && active.id.equals(state.deathLocks.get(playerId.toString()));
+        String locked = state.deathLocks.get(playerId.toString());
+        return locked != null && activeData(ledger, now).stream().anyMatch(active -> active.id.equals(locked));
     }
 
     public synchronized boolean isValidReturn(ReturnBinding binding, Instant now) {
@@ -266,7 +313,7 @@ public final class DimensionControlManager {
     ) {
         ActiveSessionData active = activeDataById(sessionId, now);
         if (active == null || !active.joinedPlayers.contains(playerId.toString())
-                || !active.returnIssuedPlayers.add(playerId.toString())) {
+                || active.returnTokens.containsKey(playerId.toString())) {
             return Optional.empty();
         }
         UUID token = UUID.randomUUID();
@@ -279,20 +326,20 @@ public final class DimensionControlManager {
     public synchronized Optional<ReturnBinding> currentReturn(UUID playerId, Instant now) {
         String playerKey = playerId.toString();
         for (FactionLedger ledger : state.netherFactions.values()) {
-            ActiveSessionData active = activeData(ledger, now);
-            if (active == null) {
-                continue;
-            }
-            String token = active.returnTokens.get(playerKey);
-            if (token == null) {
-                continue;
-            }
-            try {
-                LandingData point = active.returnPoints.get(playerKey);
-                BlockPos returnPos = point == null ? BlockPos.ZERO : point.toValue().blockPos();
-                return Optional.of(new ReturnBinding(playerId, UUID.fromString(active.id), UUID.fromString(token), returnPos));
-            } catch (IllegalArgumentException ignored) {
-                return Optional.empty();
+            for (ActiveSessionData active : activeData(ledger, now)) {
+                String token = active.returnTokens.get(playerKey);
+                if (token == null) {
+                    continue;
+                }
+                try {
+                    LandingData point = active.returnPoints.get(playerKey);
+                    BlockPos returnPos = point == null ? BlockPos.ZERO : point.toValue().blockPos();
+                    return Optional.of(new ReturnBinding(
+                            playerId, UUID.fromString(active.id), UUID.fromString(token), returnPos
+                    ));
+                } catch (IllegalArgumentException ignored) {
+                    return Optional.empty();
+                }
             }
         }
         return Optional.empty();
@@ -312,9 +359,9 @@ public final class DimensionControlManager {
     public synchronized void invalidateReturnsForPlayer(UUID playerId) {
         boolean changed = false;
         for (FactionLedger ledger : state.netherFactions.values()) {
-            if (ledger.active != null) {
-                changed |= ledger.active.returnTokens.remove(playerId.toString()) != null;
-                changed |= ledger.active.returnPoints.remove(playerId.toString()) != null;
+            for (ActiveSessionData active : ledger.activeSessions) {
+                changed |= active.returnTokens.remove(playerId.toString()) != null;
+                changed |= active.returnPoints.remove(playerId.toString()) != null;
             }
         }
         if (changed) {
@@ -336,6 +383,20 @@ public final class DimensionControlManager {
         return ledger == null ? rules.sessionsPerDay() : remainingSessions(ledger, now);
     }
 
+    public synchronized void leaveNether(UUID playerId) {
+        String playerKey = playerId.toString();
+        boolean changed = state.playerSessions.remove(playerKey) != null;
+        for (FactionLedger ledger : state.netherFactions.values()) {
+            for (ActiveSessionData active : ledger.activeSessions) {
+                changed |= active.returnTokens.remove(playerKey) != null;
+                changed |= active.returnPoints.remove(playerKey) != null;
+            }
+        }
+        if (changed) {
+            save();
+        }
+    }
+
     public synchronized List<EndedSession> expireSessions(Instant now, Predicate<UUID> factionExists) {
         List<EndedSession> ended = new ArrayList<>(pendingEndedSessions);
         pendingEndedSessions.clear();
@@ -346,9 +407,11 @@ public final class DimensionControlManager {
             } catch (IllegalArgumentException exception) {
                 continue;
             }
-            ActiveSessionData active = entry.getValue().active;
-            if (active != null && (active.endsAt <= now.toEpochMilli() || !factionExists.test(factionId))) {
-                ended.add(retireSession(factionId, entry.getValue()));
+            FactionLedger ledger = entry.getValue();
+            for (ActiveSessionData active : List.copyOf(ledger.activeSessions)) {
+                if (active.endsAt <= now.toEpochMilli() || !factionExists.test(factionId)) {
+                    ended.add(retireSession(factionId, ledger, active));
+                }
             }
         }
         if (!ended.isEmpty()) {
@@ -360,12 +423,11 @@ public final class DimensionControlManager {
     public synchronized List<ActiveSession> activeSessions(Instant now) {
         List<ActiveSession> result = new ArrayList<>();
         for (Map.Entry<String, FactionLedger> entry : state.netherFactions.entrySet()) {
-            ActiveSessionData active = activeData(entry.getValue(), now);
-            if (active != null) {
-                try {
+            try {
+                for (ActiveSessionData active : activeData(entry.getValue(), now)) {
                     result.add(active.toValue(UUID.fromString(entry.getKey())));
-                } catch (IllegalArgumentException ignored) {
                 }
+            } catch (IllegalArgumentException ignored) {
             }
         }
         return List.copyOf(result);
@@ -498,36 +560,80 @@ public final class DimensionControlManager {
         }
     }
 
-    private ActiveSessionData activeData(FactionLedger ledger, Instant now) {
-        if (ledger == null || ledger.active == null) {
+    private List<ActiveSessionData> activeData(FactionLedger ledger, Instant now) {
+        if (ledger == null) {
+            return List.of();
+        }
+        long epochMillis = now.toEpochMilli();
+        return ledger.activeSessions.stream()
+                .filter(active -> active.endsAt > epochMillis)
+                .sorted(Comparator.comparingLong(active -> active.startedAt))
+                .toList();
+    }
+
+    private ActiveSessionData newestActiveData(FactionLedger ledger, Instant now) {
+        List<ActiveSessionData> active = activeData(ledger, now);
+        return active.isEmpty() ? null : active.getLast();
+    }
+
+    private ActiveSessionData sessionData(FactionLedger ledger, UUID sessionId) {
+        String id = sessionId.toString();
+        return ledger.activeSessions.stream().filter(active -> active.id.equals(id)).findFirst().orElse(null);
+    }
+
+    private ActiveSessionData assignedData(UUID playerId, Instant now) {
+        String assigned = state.playerSessions.get(playerId.toString());
+        if (!validUuid(assigned)) {
             return null;
         }
-        if (ledger.active.endsAt <= now.toEpochMilli()) {
-            return null;
-        }
-        return ledger.active;
+        return activeDataById(UUID.fromString(assigned), now);
     }
 
     private ActiveSessionData activeDataById(UUID sessionId, Instant now) {
         for (FactionLedger ledger : state.netherFactions.values()) {
-            ActiveSessionData active = activeData(ledger, now);
-            if (active != null && active.id.equals(sessionId.toString())) {
-                return active;
+            for (ActiveSessionData active : activeData(ledger, now)) {
+                if (active.id.equals(sessionId.toString())) {
+                    return active;
+                }
             }
         }
         return null;
     }
 
-    private EndedSession retireSession(UUID factionId, FactionLedger ledger) {
-        ActiveSessionData active = ledger.active;
-        EndedSession ended = new EndedSession(factionId, UUID.fromString(active.id), active.joinedUuidSet());
+    private void retireExpiredSessions(UUID factionId, FactionLedger ledger, Instant now) {
+        boolean changed = false;
+        for (ActiveSessionData active : List.copyOf(ledger.activeSessions)) {
+            if (active.endsAt <= now.toEpochMilli()) {
+                pendingEndedSessions.add(retireSession(factionId, ledger, active));
+                changed = true;
+            }
+        }
+        if (changed) {
+            save();
+        }
+    }
+
+    private EndedSession retireSession(UUID factionId, FactionLedger ledger, ActiveSessionData active) {
+        Set<UUID> assigned = assignedPlayers(active.id);
+        EndedSession ended = new EndedSession(factionId, UUID.fromString(active.id), assigned);
         clearSession(ledger, active.id);
         return ended;
     }
 
     private void clearSession(FactionLedger ledger, String sessionId) {
-        ledger.active = null;
+        ledger.activeSessions.removeIf(active -> sessionId.equals(active.id));
+        state.playerSessions.entrySet().removeIf(entry -> sessionId.equals(entry.getValue()));
         state.deathLocks.entrySet().removeIf(entry -> sessionId.equals(entry.getValue()));
+    }
+
+    private Set<UUID> assignedPlayers(String sessionId) {
+        Set<UUID> result = new HashSet<>();
+        state.playerSessions.forEach((player, assigned) -> {
+            if (sessionId.equals(assigned) && validUuid(player)) {
+                result.add(UUID.fromString(player));
+            }
+        });
+        return result;
     }
 
     private static long nextSeed(long currentSeed) {
@@ -594,20 +700,34 @@ public final class DimensionControlManager {
         if (state.deathLocks == null) {
             state.deathLocks = new HashMap<>();
         }
+        if (state.playerSessions == null) {
+            state.playerSessions = new HashMap<>();
+        }
         state.netherFactions.entrySet().removeIf(entry -> !validUuid(entry.getKey()) || entry.getValue() == null);
         for (FactionLedger ledger : state.netherFactions.values()) {
             ledger.sessionsUsed = Math.max(0, ledger.sessionsUsed);
-            if (ledger.active != null && !validActive(ledger.active)) {
-                ledger.active = null;
+            if (ledger.activeSessions == null) {
+                ledger.activeSessions = new ArrayList<>();
             }
             if (ledger.active != null) {
-                ledger.active.joinedPlayers.removeIf(player -> !validUuid(player));
-                ledger.active.returnIssuedPlayers.removeIf(player -> !validUuid(player));
-                ledger.active.returnTokens.entrySet().removeIf(entry -> !validUuid(entry.getKey()) || !validUuid(entry.getValue()));
-                ledger.active.returnPoints.entrySet().removeIf(entry -> !validUuid(entry.getKey()) || entry.getValue() == null);
+                ledger.activeSessions.add(ledger.active);
+                ledger.active = null;
+            }
+            ledger.activeSessions.removeIf(active -> !validActive(active));
+            ledger.activeSessions.sort(Comparator.comparingLong(active -> active.startedAt));
+            for (int index = 0; index < ledger.activeSessions.size(); index++) {
+                ActiveSessionData active = ledger.activeSessions.get(index);
+                if (active.ordinal <= 0) {
+                    active.ordinal = index + 1;
+                }
+                active.joinedPlayers.removeIf(player -> !validUuid(player));
+                active.returnIssuedPlayers.removeIf(player -> !validUuid(player));
+                active.returnTokens.entrySet().removeIf(entry -> !validUuid(entry.getKey()) || !validUuid(entry.getValue()));
+                active.returnPoints.entrySet().removeIf(entry -> !validUuid(entry.getKey()) || entry.getValue() == null);
             }
         }
         state.deathLocks.entrySet().removeIf(entry -> !validUuid(entry.getKey()) || !validUuid(entry.getValue()));
+        state.playerSessions.entrySet().removeIf(entry -> !validUuid(entry.getKey()) || !validUuid(entry.getValue()));
         return state;
     }
 
@@ -664,6 +784,7 @@ public final class DimensionControlManager {
         SCHEDULE_CLOSED,
         TOO_LATE_TO_START,
         NO_SESSIONS_LEFT,
+        SECOND_SESSION_CONFIRMATION_REQUIRED,
         DEATH_LOCKED,
         NO_SAFE_LANDING
     }
@@ -687,6 +808,7 @@ public final class DimensionControlManager {
             UUID sessionId,
             Instant startedAt,
             Instant endsAt,
+            int ordinal,
             LandingPos landing,
             Set<UUID> joinedPlayers
     ) {
@@ -742,6 +864,7 @@ public final class DimensionControlManager {
         private PortalBoundsData netherPortal;
         private Map<String, FactionLedger> netherFactions = new HashMap<>();
         private Map<String, String> deathLocks = new HashMap<>();
+        private Map<String, String> playerSessions = new HashMap<>();
         private String lastNetherOpenNotification;
         private String lastDailyResetNotification;
     }
@@ -749,6 +872,8 @@ public final class DimensionControlManager {
     private static final class FactionLedger {
         private String usageDate;
         private int sessionsUsed;
+        private List<ActiveSessionData> activeSessions = new ArrayList<>();
+        // Format v2 migration field. It is cleared during normalization and never written again.
         private ActiveSessionData active;
         private LandingData lastLanding;
     }
@@ -757,6 +882,7 @@ public final class DimensionControlManager {
         private String id;
         private long startedAt;
         private long endsAt;
+        private int ordinal;
         private LandingData landing;
         private Set<String> joinedPlayers = new HashSet<>();
         private Set<String> returnIssuedPlayers = new HashSet<>();
@@ -770,6 +896,7 @@ public final class DimensionControlManager {
                     UUID.fromString(id),
                     Instant.ofEpochMilli(startedAt),
                     Instant.ofEpochMilli(endsAt),
+                    ordinal,
                     landing.toValue(),
                     joined
             );

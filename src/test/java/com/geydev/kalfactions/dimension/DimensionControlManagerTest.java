@@ -38,10 +38,8 @@ final class DimensionControlManagerTest {
         assertEquals(EntryStatus.JOINED_ACTIVE, joined.status());
         assertEquals(started.session().sessionId(), joined.session().sessionId());
         assertTrue(manager.markDeath(faction, second, start.plusSeconds(2)));
-        assertEquals(
-                EntryStatus.DEATH_LOCKED,
-                manager.authorizeNetherEntry(faction, second, start.plusSeconds(3), false, LANDING).status()
-        );
+        assertEquals(EntryStatus.SECOND_SESSION_CONFIRMATION_REQUIRED,
+                manager.authorizeNetherEntry(faction, second, start.plusSeconds(3), false, LANDING).status());
         assertEquals(
                 EntryStatus.JOINED_ACTIVE,
                 manager.authorizeNetherEntry(faction, first, start.plusSeconds(3), false, LANDING).status()
@@ -63,10 +61,10 @@ final class DimensionControlManagerTest {
         assertTrue(restarted.expireSessions(firstStart.plusSeconds(5402), id -> true).isEmpty());
 
         Instant secondStart = Instant.parse("2026-07-22T16:31:00Z");
-        assertEquals(
-                EntryStatus.STARTED_SESSION,
-                restarted.authorizeNetherEntry(faction, player, secondStart, false, LANDING).status()
-        );
+        assertEquals(EntryStatus.SECOND_SESSION_CONFIRMATION_REQUIRED,
+                restarted.authorizeNetherEntry(faction, player, secondStart, false, LANDING).status());
+        assertEquals(EntryStatus.STARTED_SESSION,
+                restarted.authorizeNetherEntry(faction, player, secondStart, false, true, LANDING).status());
         restarted.expireSessions(secondStart.plusSeconds(5401), id -> true);
         assertEquals(
                 EntryStatus.NO_SESSIONS_LEFT,
@@ -74,6 +72,68 @@ final class DimensionControlManagerTest {
                         faction, player, Instant.parse("2026-07-22T18:02:00Z"), false, LANDING
                 ).status()
         );
+    }
+
+    @Test
+    void lateEntryStartsAndEndsAtMoscowClosing() {
+        DimensionControlManager manager = manager();
+        UUID faction = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        Instant start = Instant.parse("2026-07-22T19:50:00Z");
+
+        var result = manager.authorizeNetherEntry(faction, player, start, false, LANDING);
+
+        assertEquals(EntryStatus.STARTED_SESSION, result.status());
+        assertEquals(Instant.parse("2026-07-22T20:00:00Z"), result.session().endsAt());
+        assertEquals(1, manager.remainingSessions(faction, start));
+    }
+
+    @Test
+    void confirmedSecondSessionRunsInParallelAndReentryMovesToNewestSession() {
+        DimensionControlManager manager = manager();
+        UUID faction = UUID.randomUUID();
+        UUID survivor = UUID.randomUUID();
+        UUID dead = UUID.randomUUID();
+        Instant start = Instant.parse("2026-07-22T15:00:00Z");
+        var first = manager.authorizeNetherEntry(faction, survivor, start, false, LANDING).session();
+        manager.authorizeNetherEntry(faction, dead, start.plusSeconds(1), false, LANDING);
+        assertTrue(manager.markDeath(faction, dead, start.plusSeconds(2)));
+
+        assertEquals(EntryStatus.SECOND_SESSION_CONFIRMATION_REQUIRED,
+                manager.authorizeNetherEntry(faction, dead, start.plusSeconds(3), false, LANDING).status());
+        assertEquals(1, manager.remainingSessions(faction, start.plusSeconds(3)));
+        var second = manager.authorizeNetherEntry(
+                faction, dead, start.plusSeconds(4), false, true, LANDING
+        ).session();
+
+        assertEquals(2, manager.activeSessions(faction, start.plusSeconds(5)).size());
+        assertEquals(first.sessionId(), manager.assignedSession(survivor, start.plusSeconds(5)).orElseThrow().sessionId());
+        assertEquals(second.sessionId(), manager.assignedSession(dead, start.plusSeconds(5)).orElseThrow().sessionId());
+        assertEquals(0, manager.remainingSessions(faction, start.plusSeconds(5)));
+
+        manager.leaveNether(survivor);
+        var rejoined = manager.authorizeNetherEntry(faction, survivor, start.plusSeconds(6), false, LANDING);
+        assertEquals(EntryStatus.JOINED_ACTIVE, rejoined.status());
+        assertEquals(second.sessionId(), rejoined.session().sessionId());
+    }
+
+    @Test
+    void secondSessionIsNeverConsumedWithoutExplicitConfirmation() {
+        DimensionControlManager manager = manager();
+        UUID faction = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        Instant start = Instant.parse("2026-07-22T15:00:00Z");
+        manager.authorizeNetherEntry(faction, player, start, false, LANDING);
+        manager.expireSessions(start.plusSeconds(5401), id -> true);
+
+        for (int attempt = 0; attempt < 3; attempt++) {
+            assertEquals(EntryStatus.SECOND_SESSION_CONFIRMATION_REQUIRED,
+                    manager.authorizeNetherEntry(
+                            faction, player, start.plusSeconds(5402 + attempt), false, LANDING
+                    ).status());
+        }
+        assertEquals(1, manager.remainingSessions(faction, start.plusSeconds(5405)));
+        assertTrue(manager.activeSessions(faction, start.plusSeconds(5405)).isEmpty());
     }
 
     @Test
@@ -96,9 +156,10 @@ final class DimensionControlManagerTest {
         ));
         assertTrue(manager.consumeReturn(binding, start.plusSeconds(1)));
         assertFalse(manager.consumeReturn(binding, start.plusSeconds(1)));
-        assertTrue(manager.issueReturn(session.sessionId(), player, start.plusSeconds(1)).isEmpty());
+        ReturnBinding replacement = manager.issueReturn(session.sessionId(), player, start.plusSeconds(1)).orElseThrow();
+        assertFalse(replacement.token().equals(binding.token()));
         assertEquals(1, manager.expireSessions(start.plusSeconds(2), id -> false).size());
-        assertFalse(manager.isValidReturn(binding, start.plusSeconds(3)));
+        assertFalse(manager.isValidReturn(replacement, start.plusSeconds(3)));
     }
 
     @Test

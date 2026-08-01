@@ -201,7 +201,9 @@ public final class ModConfigSpec {
 
         builder.push("netherSessions");
         NETHER_SESSION_DURATION_MINUTES = builder.defineInRange("sessionDurationMinutes", 90, 1, 300);
-        NETHER_REQUIRE_FULL_SESSION_BEFORE_CLOSE = builder.define("requireFullSessionBeforeClose", true);
+        NETHER_REQUIRE_FULL_SESSION_BEFORE_CLOSE = builder
+                .comment("Deprecated compatibility setting. Late Nether entries are always allowed until 23:00 Moscow time.")
+                .define("requireFullSessionBeforeClose", false);
         NETHER_LANDING_MIN_RADIUS = builder.defineInRange("landingMinRadius", 1000, 0, 100000);
         NETHER_LANDING_MAX_RADIUS = builder.defineInRange("landingMaxRadius", 5000, 1, 100000);
         NETHER_LANDING_ATTEMPTS = builder.defineInRange("landingAttempts", 8, 1, 8);

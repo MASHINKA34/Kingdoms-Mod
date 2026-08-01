@@ -159,6 +159,11 @@ public final class NetherSessionGameTests {
             Instant secondStart = Instant.parse("2026-07-22T16:31:00Z");
             helper.assertTrue(
                     manager.authorizeNetherEntry(faction, firstPlayer, secondStart, false, LANDING).status()
+                            == EntryStatus.SECOND_SESSION_CONFIRMATION_REQUIRED,
+                    "Second daily session did not require confirmation"
+            );
+            helper.assertTrue(
+                    manager.authorizeNetherEntry(faction, firstPlayer, secondStart, false, true, LANDING).status()
                             == EntryStatus.STARTED_SESSION,
                     "Second daily session did not start"
             );
