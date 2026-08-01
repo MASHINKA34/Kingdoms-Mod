@@ -231,6 +231,53 @@ public final class NetherSessionGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void deathRequiresConfirmationAndStartsParallelSecondSession(GameTestHelper helper) {
+        isolated(helper, path -> {
+            DimensionControlManager manager = DimensionControlManager.forTesting(path);
+            UUID faction = UUID.randomUUID();
+            UUID survivor = UUID.randomUUID();
+            UUID dead = UUID.randomUUID();
+            Instant start = Instant.parse("2026-07-22T15:00:00Z");
+            var first = manager.authorizeNetherEntry(faction, survivor, start, false, LANDING).session();
+            manager.authorizeNetherEntry(faction, dead, start.plusSeconds(1), false, LANDING);
+            helper.assertTrue(manager.markDeath(faction, dead, start.plusSeconds(2)), "Death was not recorded");
+            helper.assertTrue(
+                    manager.authorizeNetherEntry(faction, dead, start.plusSeconds(3), false, LANDING).status()
+                            == EntryStatus.SECOND_SESSION_CONFIRMATION_REQUIRED,
+                    "Portal touch consumed the second session without confirmation"
+            );
+            helper.assertTrue(manager.remainingSessions(faction, start.plusSeconds(3)) == 1,
+                    "Unconfirmed second session was consumed");
+            var second = manager.authorizeNetherEntry(
+                    faction, dead, start.plusSeconds(60), false, true, LANDING
+            ).session();
+            helper.assertTrue(
+                    manager.activeSessions(faction, start.plusSeconds(61)).size() == 2,
+                    "First and second sessions did not run in parallel"
+            );
+            helper.assertTrue(
+                    manager.assignedSession(survivor, start.plusSeconds(61)).orElseThrow().sessionId()
+                            .equals(first.sessionId()),
+                    "First-session survivor was moved into the second session"
+            );
+            helper.assertTrue(
+                    manager.assignedSession(dead, start.plusSeconds(61)).orElseThrow().sessionId()
+                            .equals(second.sessionId()),
+                    "Dead player was not assigned to the confirmed second session"
+            );
+            var ended = manager.expireSessions(start.plusSeconds(5401), id -> true);
+            helper.assertTrue(
+                    ended.size() == 1 && ended.getFirst().sessionId().equals(first.sessionId()),
+                    "Ending the first timer also ended the parallel second session"
+            );
+            helper.assertTrue(
+                    manager.activeSessionById(second.sessionId(), start.plusSeconds(5401)).isPresent(),
+                    "Second session did not survive the first timer"
+            );
+        });
+    }
+
+    @GameTest(template = "empty")
     public static void hudWindowAndPreviewDoNotMutateSessions(GameTestHelper helper) {
         isolated(helper, path -> {
             DimensionControlManager manager = DimensionControlManager.forTesting(path);

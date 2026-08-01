@@ -85,6 +85,7 @@ public final class DimensionControlEvents {
         PORTAL_IGNITIONS.clear();
         PENDING_PORTAL_REGISTRATIONS.clear();
         NetherHudService.clear();
+        NetherEntryConfirmations.clear();
         tickCounter = 0;
     }
 
@@ -152,13 +153,31 @@ public final class DimensionControlEvents {
         Instant entryTime = Instant.now();
         ActiveSession previousSession = control.activeSession(factionId, entryTime).orElse(null);
         boolean alreadyJoined = previousSession != null && previousSession.joinedPlayers().contains(player.getUUID());
+        boolean hadSecondConfirmation = NetherEntryConfirmations.isPending(
+                player.getUUID(), factionId, serverTick
+        );
+        boolean secondSessionConfirmed = NetherEntryConfirmations.consume(
+                player.getUUID(), factionId, serverTick, player.isShiftKeyDown()
+        );
         EntryResult result = control.authorizeNetherEntry(
                 factionId,
                 player.getUUID(),
                 entryTime,
                 false,
+                secondSessionConfirmed,
                 (occupied, previous, rules) -> NetherLandingFinder.find(nether, occupied, previous, rules)
         );
+        if (result.status() == DimensionControlManager.EntryStatus.SECOND_SESSION_CONFIRMATION_REQUIRED) {
+            event.setCanceled(true);
+            if (!hadSecondConfirmation) {
+                NetherEntryConfirmations.request(player.getUUID(), factionId, serverTick);
+                player.sendSystemMessage(Component.translatable("kingdoms.nether.session.second_confirm"));
+            }
+            player.displayClientMessage(
+                    Component.translatable("kingdoms.nether.session.second_confirm_action"), true
+            );
+            return;
+        }
         if (!result.allowed()) {
             deny(event, player, entryMessage(result, Instant.now()));
             return;
@@ -168,6 +187,7 @@ public final class DimensionControlEvents {
         if (session == null) {
             return;
         }
+        NetherEntryConfirmations.remove(player.getUUID());
         if (!NetherReturnIntegration.prepareCentralSlot(player)) {
             control.rollbackNetherEntry(
                     factionId,
@@ -320,6 +340,7 @@ public final class DimensionControlEvents {
         PENDING_RETURN_POSITIONS.remove(playerId);
         NetherHudService.removePlayer(playerId);
         removePlayerFromBossBars(event.getEntity().getUUID());
+        NetherEntryConfirmations.remove(playerId);
     }
 
     @SubscribeEvent
