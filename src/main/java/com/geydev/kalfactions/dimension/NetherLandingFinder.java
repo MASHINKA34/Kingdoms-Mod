@@ -2,9 +2,11 @@ package com.geydev.kalfactions.dimension;
 
 import com.geydev.kalfactions.dimension.DimensionControlManager.LandingPos;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.world.level.block.Blocks;
@@ -20,26 +22,54 @@ public final class NetherLandingFinder {
             LandingPos previous,
             NetherRules rules
     ) {
+        for (BlockPos center : candidateCenters(level, occupied, previous, rules)) {
+            ChunkPos chunk = new ChunkPos(center);
+            if (level.getChunkSource().getChunkNow(chunk.x, chunk.z) == null) {
+                continue;
+            }
+            Optional<LandingPos> landing = findInLoadedChunk(level, center);
+            if (landing.isPresent()) {
+                return landing;
+            }
+        }
+        return Optional.empty();
+    }
+
+    public static List<BlockPos> candidateCenters(
+            ServerLevel level,
+            List<LandingPos> occupied,
+            LandingPos previous,
+            NetherRules rules
+    ) {
         WorldBorder border = level.getWorldBorder();
-        Candidate fallback = null;
+        List<BlockPos> candidates = new ArrayList<>();
         for (int attempt = 0; attempt < rules.landingAttempts(); attempt++) {
             double angle = level.getRandom().nextDouble() * Math.PI * 2.0D;
             int radius = Mth.nextInt(level.getRandom(), rules.landingMinRadius(), rules.landingMaxRadius());
-            int x = Mth.floor(Math.cos(angle) * radius);
-            int z = Mth.floor(Math.sin(angle) * radius);
-            BlockPos center = new BlockPos(x, 64, z);
+            int rawX = Mth.floor(Math.cos(angle) * radius);
+            int rawZ = Mth.floor(Math.sin(angle) * radius);
+            int x = (rawX >> 4) * 16 + 8;
+            int z = (rawZ >> 4) * 16 + 8;
             if (!platformInsideBorder(border, x, z) || tooClose(x, z, occupied, previous, rules)) {
                 continue;
             }
-            level.getChunk(x >> 4, z >> 4);
-            for (int y = MAX_Y; y >= MIN_Y; y--) {
-                BlockPos feet = new BlockPos(x, y, z);
-                if (isSafe(level, feet)) {
-                    return Optional.of(new LandingPos(x, y, z));
-                }
-                if (fallback == null && hasOpenVolume(level, feet) && canBuildPlatform(level, feet)) {
-                    fallback = new Candidate(x, y, z);
-                }
+            BlockPos candidate = new BlockPos(x, 64, z);
+            if (!candidates.contains(candidate)) {
+                candidates.add(candidate);
+            }
+        }
+        return List.copyOf(candidates);
+    }
+
+    public static Optional<LandingPos> findInLoadedChunk(ServerLevel level, BlockPos center) {
+        Candidate fallback = null;
+        for (int y = MAX_Y; y >= MIN_Y; y--) {
+            BlockPos feet = new BlockPos(center.getX(), y, center.getZ());
+            if (isSafe(level, feet)) {
+                return Optional.of(new LandingPos(feet.getX(), feet.getY(), feet.getZ()));
+            }
+            if (fallback == null && hasOpenVolume(level, feet) && canBuildPlatform(level, feet)) {
+                fallback = new Candidate(feet.getX(), feet.getY(), feet.getZ());
             }
         }
         if (fallback == null) {

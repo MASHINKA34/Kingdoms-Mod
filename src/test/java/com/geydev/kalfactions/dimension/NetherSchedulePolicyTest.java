@@ -30,11 +30,14 @@ final class NetherSchedulePolicyTest {
     }
 
     @Test
-    void hudIsVisibleFromSeventeenFiftyFiveUntilClosing() {
-        assertFalse(NetherSchedulePolicy.isHudVisible(Instant.parse("2026-07-22T14:54:59Z")));
-        assertTrue(NetherSchedulePolicy.isHudVisible(Instant.parse("2026-07-22T14:55:00Z")));
-        assertEquals(300L, NetherSchedulePolicy.secondsUntilOpen(Instant.parse("2026-07-22T14:55:00Z")));
-        assertTrue(NetherSchedulePolicy.isHudVisible(Instant.parse("2026-07-22T19:59:59Z")));
-        assertFalse(NetherSchedulePolicy.isHudVisible(Instant.parse("2026-07-22T20:00:00Z")));
+    void nextOpeningUsesTodayBeforeEighteenAndTomorrowAfterwards() {
+        assertEquals(
+                Instant.parse("2026-07-22T15:00:00Z"),
+                NetherSchedulePolicy.nextOpenInstant(Instant.parse("2026-07-22T14:55:00Z"))
+        );
+        assertEquals(
+                Instant.parse("2026-07-23T15:00:00Z"),
+                NetherSchedulePolicy.nextOpenInstant(Instant.parse("2026-07-22T15:00:00Z"))
+        );
     }
 }

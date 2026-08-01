@@ -96,33 +96,47 @@ public final class DimensionPayloads {
         }
     }
 
-    public record S2CNetherHud(
-            boolean visible,
-            boolean opening,
-            boolean preview,
+    public record C2SNetherStatusRequest() implements CustomPacketPayload {
+        public static final C2SNetherStatusRequest INSTANCE = new C2SNetherStatusRequest();
+        public static final Type<C2SNetherStatusRequest> TYPE = payloadType("nether_status_request");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SNetherStatusRequest> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                },
+                buffer -> INSTANCE
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record S2CNetherStatus(
             long serverNowEpochMillis,
             long phaseEndsAtEpochMillis,
+            boolean openForPlayers,
+            boolean administrativelyClosed,
             int remainingSessions,
             int totalSessions,
             long sessionEndsAtEpochMillis
     ) implements CustomPacketPayload {
-        public static final Type<S2CNetherHud> TYPE = payloadType("nether_hud");
-        public static final StreamCodec<RegistryFriendlyByteBuf, S2CNetherHud> STREAM_CODEC = StreamCodec.of(
+        public static final Type<S2CNetherStatus> TYPE = payloadType("nether_status");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CNetherStatus> STREAM_CODEC = StreamCodec.of(
                 (buffer, payload) -> {
-                    buffer.writeBoolean(payload.visible);
-                    buffer.writeBoolean(payload.opening);
-                    buffer.writeBoolean(payload.preview);
                     buffer.writeLong(payload.serverNowEpochMillis);
                     buffer.writeLong(payload.phaseEndsAtEpochMillis);
+                    buffer.writeBoolean(payload.openForPlayers);
+                    buffer.writeBoolean(payload.administrativelyClosed);
                     buffer.writeVarInt(payload.remainingSessions + 1);
                     buffer.writeVarInt(payload.totalSessions);
                     buffer.writeLong(payload.sessionEndsAtEpochMillis);
                 },
-                buffer -> decodeHud(buffer)
+                S2CNetherStatus::decodeStatus
         );
 
-        public S2CNetherHud {
-            if (remainingSessions < -1 || remainingSessions > 16) {
+        public S2CNetherStatus {
+            if (remainingSessions < -1 || remainingSessions > 16
+                    || remainingSessions >= 0 && remainingSessions > totalSessions) {
                 throw new IllegalArgumentException("remainingSessions");
             }
             if (totalSessions < 1 || totalSessions > 16) {
@@ -138,21 +152,21 @@ public final class DimensionPayloads {
             return TYPE;
         }
 
-        private static S2CNetherHud decodeHud(RegistryFriendlyByteBuf buffer) {
-            boolean visible = buffer.readBoolean();
-            boolean opening = buffer.readBoolean();
-            boolean preview = buffer.readBoolean();
+        private static S2CNetherStatus decodeStatus(RegistryFriendlyByteBuf buffer) {
             long serverNow = buffer.readLong();
             long phaseEnd = buffer.readLong();
+            boolean open = buffer.readBoolean();
+            boolean closed = buffer.readBoolean();
             int remaining = buffer.readVarInt() - 1;
             int total = buffer.readVarInt();
             long sessionEnd = buffer.readLong();
             if (remaining < -1 || remaining > 16 || total < 1 || total > 16
-                    || phaseEnd < 0L || sessionEnd < 0L) {
-                throw new DecoderException("Invalid Nether HUD payload");
+                    || remaining >= 0 && remaining > total
+                    || serverNow < 0L || phaseEnd < 0L || sessionEnd < 0L) {
+                throw new DecoderException("Invalid Nether status payload");
             }
-            return new S2CNetherHud(
-                    visible, opening, preview, serverNow, phaseEnd, remaining, total, sessionEnd
+            return new S2CNetherStatus(
+                    serverNow, phaseEnd, open, closed, remaining, total, sessionEnd
             );
         }
     }

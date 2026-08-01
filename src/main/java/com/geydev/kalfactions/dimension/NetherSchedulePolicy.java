@@ -11,7 +11,6 @@ public final class NetherSchedulePolicy {
     public static final ZoneId MOSCOW = ZoneId.of("Europe/Moscow");
     public static final LocalTime OPENS_AT = LocalTime.of(18, 0);
     public static final LocalTime CLOSES_AT = LocalTime.of(23, 0);
-    public static final LocalTime HUD_STARTS_AT = OPENS_AT.minusMinutes(5);
 
     public static boolean isOpen(Instant now) {
         LocalTime time = now.atZone(MOSCOW).toLocalTime();
@@ -22,14 +21,10 @@ public final class NetherSchedulePolicy {
         return isOpen(now);
     }
 
-    public static boolean isHudVisible(Instant now) {
-        LocalTime time = now.atZone(MOSCOW).toLocalTime();
-        return !time.isBefore(HUD_STARTS_AT) && time.isBefore(CLOSES_AT);
-    }
-
-    public static Instant openInstant(Instant now) {
+    public static Instant nextOpenInstant(Instant now) {
         ZonedDateTime moscow = now.atZone(MOSCOW);
-        return ZonedDateTime.of(moscow.toLocalDate(), OPENS_AT, MOSCOW).toInstant();
+        ZonedDateTime today = ZonedDateTime.of(moscow.toLocalDate(), OPENS_AT, MOSCOW);
+        return now.isBefore(today.toInstant()) ? today.toInstant() : today.plusDays(1).toInstant();
     }
 
     public static Instant closeInstant(Instant now) {
@@ -46,13 +41,6 @@ public final class NetherSchedulePolicy {
             return 0L;
         }
         return Math.max(0L, Duration.between(now, closeInstant(now)).getSeconds());
-    }
-
-    public static long secondsUntilOpen(Instant now) {
-        if (!isHudVisible(now) || isOpen(now)) {
-            return 0L;
-        }
-        return Math.max(0L, Duration.between(now, openInstant(now)).getSeconds());
     }
 
     public static Instant sessionEnd(Instant start, Duration duration) {

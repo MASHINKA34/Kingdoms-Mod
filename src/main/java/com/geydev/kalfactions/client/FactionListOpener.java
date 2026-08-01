@@ -3,7 +3,7 @@ package com.geydev.kalfactions.client;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.screen.FactionListScreen;
 import com.geydev.kalfactions.client.screen.InviteBadgeButton;
-import com.geydev.kalfactions.client.screen.NewsScreen;
+import com.geydev.kalfactions.client.screen.NetherStatusScreen;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
@@ -56,13 +56,12 @@ public final class FactionListOpener {
                     20
             ));
             event.addListener(InviteBadgeButton.create(
-                    Component.literal("Н"),
-                    button -> NewsScreen.open(),
+                    Component.literal("А"),
+                    button -> NetherStatusScreen.open(),
                     screen.getGuiLeft() + screen.getXSize() - 42,
                     screen.getGuiTop() - 22,
                     20,
-                    20,
-                    ClientNewsState::unreadNews
+                    20
             ));
         }
     }

@@ -48,7 +48,6 @@ public final class KalFactions {
             com.geydev.kalfactions.client.FactionListOpener.register(modBus);
             com.geydev.kalfactions.client.KingdomsClientRenderers.register(modBus);
             com.geydev.kalfactions.client.KingdomsMenuScreens.register(modBus);
-            com.geydev.kalfactions.client.NetherHudOverlay.register(modBus);
         }
     }
 }

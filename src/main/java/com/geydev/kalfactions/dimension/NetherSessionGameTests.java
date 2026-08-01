@@ -96,10 +96,16 @@ public final class NetherSessionGameTests {
             Instant now = Instant.parse("2026-07-22T15:00:00Z");
             UUID faction = UUID.randomUUID();
             UUID player = UUID.randomUUID();
+            var operatorEntry = manager.authorizeNetherEntry(faction, player, now, true, LANDING);
             helper.assertTrue(
-                    manager.authorizeNetherEntry(faction, player, now, true, LANDING).status()
-                            == EntryStatus.OPERATOR_BYPASS,
+                    operatorEntry.status() == EntryStatus.OPERATOR_BYPASS && operatorEntry.session() != null,
                     "Operator was not allowed through a closed dimension"
+            );
+            helper.assertTrue(
+                    manager.issueReturn(
+                            operatorEntry.session().sessionId(), player, new BlockPos(4, 70, 4), now.plusSeconds(1)
+                    ).isPresent(),
+                    "Operator session could not issue a return stone binding"
             );
             helper.assertTrue(
                     manager.authorizeNetherEntry(faction, player, now, false, LANDING).status()
@@ -112,8 +118,12 @@ public final class NetherSessionGameTests {
     @GameTest(template = "empty")
     public static void ordinaryPlayerPortalCreationIsRejected(GameTestHelper helper) {
         helper.assertTrue(
-                !NetherPortalRegistration.mayCreatePortal(false, true, true),
+                !NetherPortalRegistration.mayCreatePortal(false, true),
                 "Ordinary player was allowed to create a Nether portal"
+        );
+        helper.assertTrue(
+                NetherPortalRegistration.mayCreatePortal(true, true),
+                "Operator was not allowed to create a remote Overworld portal"
         );
         helper.succeed();
     }
@@ -285,25 +295,18 @@ public final class NetherSessionGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void hudWindowAndPreviewDoNotMutateSessions(GameTestHelper helper) {
+    public static void scheduledOpeningOverridesOnlyPreOpeningClosure(GameTestHelper helper) {
         isolated(helper, path -> {
             DimensionControlManager manager = DimensionControlManager.forTesting(path);
-            UUID faction = UUID.randomUUID();
-            UUID player = UUID.randomUUID();
-            Instant openingTime = Instant.parse("2026-07-22T14:55:00Z");
-            var opening = NetherHudService.realPayload(manager, faction, player, openingTime);
-            helper.assertTrue(opening.visible() && opening.opening(), "HUD did not appear at 17:55 Moscow");
-            Instant beforeOpening = Instant.parse("2026-07-22T12:00:00Z");
-            int remaining = manager.remainingSessions(faction, beforeOpening);
-            var preview = NetherHudService.previewPayload(
-                    manager, faction, player, beforeOpening, false, 300
-            );
-            helper.assertTrue(preview.visible() && preview.preview(), "HUD preview was not visible");
+            manager.setClosed(Level.NETHER, true);
+            Instant opening = Instant.parse("2026-07-22T15:00:00Z");
+            helper.assertTrue(manager.applyScheduledNetherOpening(opening), "18:00 did not clear an earlier close");
+            manager.setClosed(Level.NETHER, true);
             helper.assertTrue(
-                    manager.remainingSessions(faction, beforeOpening) == remaining
-                            && manager.activeSessions(beforeOpening).isEmpty(),
-                    "HUD preview changed real session data"
+                    !manager.applyScheduledNetherOpening(opening.plusSeconds(60)),
+                    "A manual close after 18:00 was immediately undone"
             );
+            helper.assertTrue(manager.isClosed(Level.NETHER), "Manual post-opening close was lost");
         });
     }
 

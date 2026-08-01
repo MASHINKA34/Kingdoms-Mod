@@ -89,6 +89,49 @@ final class DimensionControlManagerTest {
     }
 
     @Test
+    void operatorGetsPersonalSessionAndReturnOutsideSchedule() {
+        DimensionControlManager manager = manager();
+        UUID operator = UUID.randomUUID();
+        Instant start = Instant.parse("2026-07-22T10:00:00Z");
+        manager.setClosed(Level.NETHER, true);
+
+        var preview = manager.previewNetherEntry(operator, operator, start, true, false);
+        assertEquals(EntryStatus.OPERATOR_BYPASS, preview.status());
+        assertTrue(manager.activeSessions(start).isEmpty());
+
+        var result = manager.authorizeNetherEntry(operator, operator, start, true, LANDING);
+        assertEquals(EntryStatus.OPERATOR_BYPASS, result.status());
+        assertEquals(0, result.session().ordinal());
+        assertEquals(start.plus(manager.rules().sessionDuration()), result.session().endsAt());
+        assertTrue(manager.issueReturn(
+                result.session().sessionId(), operator, new BlockPos(20, 70, 20), start.plusSeconds(1)
+        ).isPresent());
+
+        DimensionControlManager restarted = manager();
+        assertEquals(
+                result.session().sessionId(),
+                restarted.assignedSession(operator, start.plusSeconds(2)).orElseThrow().sessionId()
+        );
+    }
+
+    @Test
+    void playerWithoutFactionIsDeniedBeforeAnyScheduleOrSessionMutation() {
+        DimensionControlManager manager = manager();
+        UUID player = UUID.randomUUID();
+        Instant open = Instant.parse("2026-07-22T15:00:00Z");
+
+        assertEquals(
+                EntryStatus.FACTION_REQUIRED,
+                manager.previewNetherEntry(null, player, open, false, false).status()
+        );
+        assertEquals(
+                EntryStatus.FACTION_REQUIRED,
+                manager.authorizeNetherEntry(null, player, open, false, LANDING).status()
+        );
+        assertTrue(manager.activeSessions(open).isEmpty());
+    }
+
+    @Test
     void confirmedSecondSessionRunsInParallelAndReentryMovesToNewestSession() {
         DimensionControlManager manager = manager();
         UUID faction = UUID.randomUUID();
@@ -242,41 +285,19 @@ final class DimensionControlManagerTest {
     }
 
     @Test
-    void dailyResetNotificationCanOnlyBeClaimedOncePerMoscowDate() {
-        DimensionControlManager manager = manager();
-
-        assertTrue(manager.claimDailyResetNotification(Instant.parse("2026-07-21T21:00:00Z")));
-        assertFalse(manager.claimDailyResetNotification(Instant.parse("2026-07-22T15:00:00Z")));
-        assertFalse(manager.claimDailyResetNotification(Instant.parse("2026-07-22T19:00:00Z")));
-        assertTrue(manager.claimDailyResetNotification(Instant.parse("2026-07-22T21:00:00Z")));
-    }
-
-    @Test
-    void firstDailyNotificationDoesNotFireAtArbitraryStartupTime() {
-        DimensionControlManager manager = manager();
-
-        assertFalse(manager.claimDailyResetNotification(Instant.parse("2026-07-22T10:00:00Z")));
-        assertFalse(manager.claimDailyResetNotification(Instant.parse("2026-07-22T20:59:59Z")));
-        assertTrue(manager.claimDailyResetNotification(Instant.parse("2026-07-22T21:00:00Z")));
-    }
-
-    @Test
-    void netherOpenNotificationFiresOnceAtMoscowOpeningMinute() {
-        DimensionControlManager manager = manager();
-
-        assertFalse(manager.claimNetherOpenNotification(Instant.parse("2026-07-22T14:59:59Z")));
-        assertTrue(manager.claimNetherOpenNotification(Instant.parse("2026-07-22T15:00:00Z")));
-        assertFalse(manager.claimNetherOpenNotification(Instant.parse("2026-07-22T15:00:30Z")));
-        assertFalse(manager.claimNetherOpenNotification(Instant.parse("2026-07-22T16:00:00Z")));
-        assertTrue(manager.claimNetherOpenNotification(Instant.parse("2026-07-23T15:00:00Z")));
-    }
-
-    @Test
-    void closedNetherDoesNotAnnounceScheduledOpening() {
+    void scheduledOpeningClearsOnlyClosureMadeBeforeDailyOpening() {
         DimensionControlManager manager = manager();
         manager.setClosed(Level.NETHER, true);
 
-        assertFalse(manager.claimNetherOpenNotification(Instant.parse("2026-07-22T15:00:00Z")));
+        assertFalse(manager.applyScheduledNetherOpening(Instant.parse("2026-07-22T14:59:59Z")));
+        assertTrue(manager.applyScheduledNetherOpening(Instant.parse("2026-07-22T15:00:00Z")));
+        assertTrue(manager.isNetherOpenForPlayers(Instant.parse("2026-07-22T15:00:01Z")));
+
+        manager.setClosed(Level.NETHER, true);
+        assertFalse(manager.applyScheduledNetherOpening(Instant.parse("2026-07-22T16:00:00Z")));
+        assertTrue(manager.isClosed(Level.NETHER));
+        assertTrue(manager.applyScheduledNetherOpening(Instant.parse("2026-07-23T15:00:00Z")));
+        assertFalse(manager.isClosed(Level.NETHER));
     }
 
     private DimensionControlManager manager() {

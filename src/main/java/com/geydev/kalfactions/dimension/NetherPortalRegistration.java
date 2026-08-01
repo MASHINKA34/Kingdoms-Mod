@@ -11,20 +11,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
 
 public final class NetherPortalRegistration {
-    public static final int MAX_DISTANCE_FROM_SPAWN = 64;
     public static final int MAX_AXIS_SIZE = 16;
     private static final int MAX_PORTAL_BLOCKS = MAX_AXIS_SIZE * MAX_AXIS_SIZE;
 
-    public static boolean isNearSharedSpawn(ServerLevel level, BlockPos position) {
-        return isNear(level.getSharedSpawnPos(), position);
-    }
-
-    static boolean isNear(BlockPos spawn, BlockPos position) {
-        return spawn.distSqr(position) <= (long) MAX_DISTANCE_FROM_SPAWN * MAX_DISTANCE_FROM_SPAWN;
-    }
-
-    static boolean mayCreatePortal(boolean operator, boolean overworld, boolean nearSharedSpawn) {
-        return operator && (!overworld || nearSharedSpawn);
+    static boolean mayCreatePortal(boolean operator, boolean overworld) {
+        return operator && overworld;
     }
 
     public static Optional<PortalBounds> findConnectedPortal(ServerLevel level, BlockPos origin) {
@@ -32,13 +23,7 @@ public final class NetherPortalRegistration {
         if (connected.isEmpty()) {
             return Optional.empty();
         }
-        PortalBounds bounds = connected.get();
-        BlockPos center = new BlockPos(
-                (bounds.minX() + bounds.maxX()) / 2,
-                (bounds.minY() + bounds.maxY()) / 2,
-                (bounds.minZ() + bounds.maxZ()) / 2
-        );
-        return isNearSharedSpawn(level, center) ? connected : Optional.empty();
+        return connected;
     }
 
     static Optional<PortalBounds> findConnectedPortalBlocks(ServerLevel level, BlockPos origin) {

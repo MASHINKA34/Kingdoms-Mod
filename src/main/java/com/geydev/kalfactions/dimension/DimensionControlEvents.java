@@ -18,6 +18,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -25,15 +28,20 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerBossEvent;
+import net.minecraft.server.level.ChunkResult;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.world.BossEvent;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.portal.PortalShape;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityTravelToDimensionEvent;
@@ -56,7 +64,7 @@ public final class DimensionControlEvents {
     private static final Set<UUID> EXPECTED_NETHER_ARRIVALS = new HashSet<>();
     private static final Map<UUID, Long> ENTRY_GUARD_UNTIL = new HashMap<>();
     private static final Map<UUID, BlockPos> PENDING_RETURN_POSITIONS = new HashMap<>();
-    private static final Set<UUID> CLOSING_WARNED_SESSIONS = new HashSet<>();
+    private static final Map<UUID, PendingNetherEntry> PENDING_NETHER_ENTRIES = new HashMap<>();
     private static final Map<BlockPos, PortalIgnition> PORTAL_IGNITIONS = new HashMap<>();
     private static final List<PendingPortalRegistration> PENDING_PORTAL_REGISTRATIONS = new ArrayList<>();
     private static int tickCounter;
@@ -81,10 +89,9 @@ public final class DimensionControlEvents {
         EXPECTED_NETHER_ARRIVALS.clear();
         ENTRY_GUARD_UNTIL.clear();
         PENDING_RETURN_POSITIONS.clear();
-        CLOSING_WARNED_SESSIONS.clear();
+        PENDING_NETHER_ENTRIES.clear();
         PORTAL_IGNITIONS.clear();
         PENDING_PORTAL_REGISTRATIONS.clear();
-        NetherHudService.clear();
         NetherEntryConfirmations.clear();
         DimensionNetwork.clear();
         tickCounter = 0;
@@ -116,29 +123,33 @@ public final class DimensionControlEvents {
             }
             return;
         }
+        event.setCanceled(true);
+        if (PENDING_NETHER_ENTRIES.containsKey(player.getUUID())) {
+            return;
+        }
         long serverTick = server.getTickCount();
         Long guardedUntil = ENTRY_GUARD_UNTIL.get(player.getUUID());
         if (guardedUntil != null && guardedUntil > serverTick) {
-            event.setCanceled(true);
             return;
         }
         ENTRY_GUARD_UNTIL.put(player.getUUID(), serverTick + 60L);
+        BlockPos portalPosition = player.portalProcess == null
+                ? player.blockPosition().immutable()
+                : player.portalProcess.getEntryPosition().immutable();
         boolean portalTravel = Level.OVERWORLD.equals(player.level().dimension())
-                && player.level().getBlockState(player.blockPosition()).is(Blocks.NETHER_PORTAL);
+                && player.level().getBlockState(portalPosition).is(Blocks.NETHER_PORTAL);
         if (!portalTravel) {
-            if (player.hasPermissions(2)) {
-                return;
-            }
             deny(event, player, Component.translatable("kingdoms.nether.portal.unregistered"));
             return;
         }
-        if (!control.isInsideRegisteredPortal(player.blockPosition())) {
+        if (!control.isInsideRegisteredPortal(portalPosition)) {
             deny(event, player, Component.translatable("kingdoms.nether.portal.unregistered"));
             return;
         }
+        boolean operator = player.hasPermissions(2);
         FactionManager factions = FactionManager.get(server);
         UUID factionId = factions.getFactionIdForMember(player.getUUID()).orElse(null);
-        if (factionId == null) {
+        if (!operator && factionId == null) {
             deny(event, player, Component.translatable("kingdoms.nether.session.faction_required"));
             return;
         }
@@ -152,26 +163,23 @@ public final class DimensionControlEvents {
             return;
         }
         Instant entryTime = Instant.now();
-        ActiveSession previousSession = control.activeSession(factionId, entryTime).orElse(null);
-        boolean alreadyJoined = previousSession != null && previousSession.joinedPlayers().contains(player.getUUID());
-        boolean hadSecondConfirmation = NetherEntryConfirmations.isPending(
-                player.getUUID(), factionId, serverTick
+        UUID sessionOwner = operator ? player.getUUID() : factionId;
+        boolean hadSecondConfirmation = !operator && NetherEntryConfirmations.isPending(
+                player.getUUID(), sessionOwner, serverTick
         );
-        boolean secondSessionConfirmed = NetherEntryConfirmations.consume(
-                player.getUUID(), factionId, serverTick, player.isShiftKeyDown()
+        boolean secondSessionConfirmed = !operator && NetherEntryConfirmations.consume(
+                player.getUUID(), sessionOwner, serverTick, player.isShiftKeyDown()
         );
-        EntryResult result = control.authorizeNetherEntry(
-                factionId,
+        EntryResult preview = control.previewNetherEntry(
+                sessionOwner,
                 player.getUUID(),
                 entryTime,
-                false,
-                secondSessionConfirmed,
-                (occupied, previous, rules) -> NetherLandingFinder.find(nether, occupied, previous, rules)
+                operator,
+                secondSessionConfirmed
         );
-        if (result.status() == DimensionControlManager.EntryStatus.SECOND_SESSION_CONFIRMATION_REQUIRED) {
-            event.setCanceled(true);
+        if (preview.status() == DimensionControlManager.EntryStatus.SECOND_SESSION_CONFIRMATION_REQUIRED) {
             if (!hadSecondConfirmation) {
-                NetherEntryConfirmations.request(player.getUUID(), factionId, serverTick);
+                NetherEntryConfirmations.request(player.getUUID(), sessionOwner, serverTick);
                 player.sendSystemMessage(Component.translatable("kingdoms.nether.session.second_confirm"));
             }
             player.displayClientMessage(
@@ -179,40 +187,180 @@ public final class DimensionControlEvents {
             );
             return;
         }
-        if (!result.allowed()) {
-            deny(event, player, entryMessage(result, Instant.now()));
-            return;
-        }
-        event.setCanceled(true);
-        ActiveSession session = result.session();
-        if (session == null) {
+        if (!preview.allowed()) {
+            deny(event, player, entryMessage(preview, Instant.now()));
             return;
         }
         NetherEntryConfirmations.remove(player.getUUID());
+        PendingNetherEntry pending = new PendingNetherEntry(
+                player.getUUID(), sessionOwner, operator, secondSessionConfirmed,
+                portalPosition, portalPosition, preview
+        );
+        PENDING_NETHER_ENTRIES.put(player.getUUID(), pending);
+        player.displayClientMessage(Component.translatable("kingdoms.nether.session.preparing"), true);
+        prepareNetherLanding(server, nether, pending);
+    }
+
+    private static void prepareNetherLanding(
+            MinecraftServer server,
+            ServerLevel nether,
+            PendingNetherEntry pending
+    ) {
+        ActiveSession previewSession = pending.preview().session();
+        if (previewSession != null) {
+            loadExistingLanding(server, nether, pending, previewSession.landing().blockPos(), null);
+            return;
+        }
+        DimensionControlManager control = DimensionControlManager.get(server);
+        Instant now = Instant.now();
+        List<DimensionControlManager.LandingPos> occupied = control.activeSessions(now).stream()
+                .map(ActiveSession::landing)
+                .toList();
+        DimensionControlManager.LandingPos previous = pending.operator()
+                ? null : control.lastLanding(pending.ownerId()).orElse(null);
+        List<BlockPos> candidates = NetherLandingFinder.candidateCenters(
+                nether, occupied, previous, control.rules()
+        );
+        tryLandingCandidate(server, nether, pending, candidates, 0);
+    }
+
+    private static void tryLandingCandidate(
+            MinecraftServer server,
+            ServerLevel nether,
+            PendingNetherEntry pending,
+            List<BlockPos> candidates,
+            int index
+    ) {
+        if (!isCurrentPending(pending)) {
+            return;
+        }
+        if (index >= candidates.size()) {
+            failPending(server, pending, Component.translatable("kingdoms.nether.session.no_landing"));
+            return;
+        }
+        BlockPos center = candidates.get(index);
+        loadChunks(server, nether, pending, center, 0, loaded -> {
+            if (!loaded || !isCurrentPending(pending)) {
+                if (!loaded) {
+                    tryLandingCandidate(server, nether, pending, candidates, index + 1);
+                }
+                return;
+            }
+            Optional<DimensionControlManager.LandingPos> landing = NetherLandingFinder.findInLoadedChunk(nether, center);
+            if (landing.isEmpty()) {
+                tryLandingCandidate(server, nether, pending, candidates, index + 1);
+                return;
+            }
+            ActiveSession previewSession = pending.preview().session();
+            if (previewSession != null) {
+                DimensionControlManager.get(server).updateSessionLanding(previewSession.sessionId(), landing.get());
+            }
+            authorizePreparedEntry(server, nether, pending, landing.get().blockPos());
+        });
+    }
+
+    private static void loadExistingLanding(
+            MinecraftServer server,
+            ServerLevel nether,
+            PendingNetherEntry pending,
+            BlockPos stored,
+            AuthorizedNetherEntry authorized
+    ) {
+        loadChunks(server, nether, pending, stored, 1, loaded -> {
+            if (!loaded || !isCurrentPending(pending)) {
+                if (!loaded) {
+                    failAuthorizedOrPending(server, pending, authorized);
+                }
+                return;
+            }
+            DimensionControlManager control = DimensionControlManager.get(server);
+            ActiveSession session = authorized == null ? pending.preview().session() : authorized.result().session();
+            BlockPos landing = session == null ? null : resolveLanding(nether, control, session);
+            if (landing != null) {
+                if (authorized == null) {
+                    authorizePreparedEntry(server, nether, pending, landing);
+                } else {
+                    teleportAuthorizedEntry(server, nether, pending, authorized, landing);
+                }
+                return;
+            }
+            if (authorized != null) {
+                failAuthorizedOrPending(server, pending, authorized);
+                return;
+            }
+            Instant now = Instant.now();
+            List<DimensionControlManager.LandingPos> occupied = control.activeSessions(now).stream()
+                    .filter(candidate -> !candidate.sessionId().equals(session.sessionId()))
+                    .map(ActiveSession::landing)
+                    .toList();
+            List<BlockPos> candidates = NetherLandingFinder.candidateCenters(
+                    nether, occupied, session.landing(), control.rules()
+            );
+            tryLandingCandidate(server, nether, pending, candidates, 0);
+        });
+    }
+
+    private static void authorizePreparedEntry(
+            MinecraftServer server,
+            ServerLevel nether,
+            PendingNetherEntry pending,
+            BlockPos preparedLanding
+    ) {
+        ServerPlayer player = validPendingPlayer(server, pending);
+        if (player == null) {
+            PENDING_NETHER_ENTRIES.remove(pending.playerId(), pending);
+            return;
+        }
+        DimensionControlManager control = DimensionControlManager.get(server);
+        Instant now = Instant.now();
+        EntryResult result = control.authorizeNetherEntry(
+                pending.ownerId(),
+                player.getUUID(),
+                now,
+                pending.operator(),
+                pending.secondSessionConfirmed(),
+                (occupied, previous, rules) -> Optional.of(new DimensionControlManager.LandingPos(
+                        preparedLanding.getX(), preparedLanding.getY(), preparedLanding.getZ()
+                ))
+        );
+        if (!result.allowed() || result.session() == null) {
+            failPending(server, pending, entryMessage(result, now));
+            return;
+        }
+        boolean alreadyJoined = pending.preview().session() != null
+                && pending.preview().session().sessionId().equals(result.session().sessionId())
+                && pending.preview().session().joinedPlayers().contains(player.getUUID());
+        boolean startedSession = result.status() == DimensionControlManager.EntryStatus.STARTED_SESSION
+                || pending.operator() && pending.preview().session() == null;
+        AuthorizedNetherEntry authorized = new AuthorizedNetherEntry(result, startedSession, !alreadyJoined);
+        BlockPos actualLanding = result.session().landing().blockPos();
+        if (!actualLanding.equals(preparedLanding)) {
+            loadExistingLanding(server, nether, pending, actualLanding, authorized);
+            return;
+        }
+        teleportAuthorizedEntry(server, nether, pending, authorized, preparedLanding);
+    }
+
+    private static void teleportAuthorizedEntry(
+            MinecraftServer server,
+            ServerLevel nether,
+            PendingNetherEntry pending,
+            AuthorizedNetherEntry authorized,
+            BlockPos landing
+    ) {
+        ServerPlayer player = validPendingPlayer(server, pending);
+        if (player == null || (!pending.operator()
+                && !DimensionControlManager.get(server).isNetherOpenForPlayers(Instant.now()))) {
+            failAuthorizedOrPending(server, pending, authorized);
+            return;
+        }
         if (!NetherReturnIntegration.prepareCentralSlot(player)) {
-            control.rollbackNetherEntry(
-                    factionId,
-                    player.getUUID(),
-                    session.sessionId(),
-                    result.status() == DimensionControlManager.EntryStatus.STARTED_SESSION,
-                    !alreadyJoined
-            );
-            player.displayClientMessage(Component.translatable("kingdoms.nether.return.inventory_full"), true);
+            rollbackAuthorized(server, pending, authorized);
+            failPending(server, pending, Component.translatable("kingdoms.nether.return.inventory_full"));
             return;
         }
-        BlockPos landing = resolveLanding(nether, control, session, player.getUUID());
-        if (landing == null) {
-            control.rollbackNetherEntry(
-                    factionId,
-                    player.getUUID(),
-                    session.sessionId(),
-                    result.status() == DimensionControlManager.EntryStatus.STARTED_SESSION,
-                    !alreadyJoined
-            );
-            player.displayClientMessage(Component.translatable("kingdoms.nether.session.no_landing"), true);
-            return;
-        }
-        PENDING_RETURN_POSITIONS.put(player.getUUID(), player.blockPosition().immutable());
+        PENDING_NETHER_ENTRIES.remove(player.getUUID(), pending);
+        PENDING_RETURN_POSITIONS.put(player.getUUID(), pending.returnPosition());
         AUTHORIZED_TRANSFERS.add(player.getUUID());
         EXPECTED_NETHER_ARRIVALS.add(player.getUUID());
         boolean moved;
@@ -221,28 +369,115 @@ public final class DimensionControlEvents {
                     nether, landing.getX() + 0.5D, landing.getY(), landing.getZ() + 0.5D,
                     player.getYRot(), player.getXRot()
             );
-            moved = player.level() == nether
-                    && player.blockPosition().closerThan(landing, 4.0D);
+            moved = player.level() == nether && player.blockPosition().closerThan(landing, 4.0D);
         } finally {
             AUTHORIZED_TRANSFERS.remove(player.getUUID());
             EXPECTED_NETHER_ARRIVALS.remove(player.getUUID());
             PENDING_RETURN_POSITIONS.remove(player.getUUID());
         }
         if (!moved) {
-            control.rollbackNetherEntry(
-                    factionId,
-                    player.getUUID(),
-                    session.sessionId(),
-                    result.status() == DimensionControlManager.EntryStatus.STARTED_SESSION,
-                    !alreadyJoined
-            );
+            rollbackAuthorized(server, pending, authorized);
             player.displayClientMessage(Component.translatable("kingdoms.nether.session.no_landing"), true);
             return;
         }
-        if (result.status() == DimensionControlManager.EntryStatus.STARTED_SESSION) {
-            notifyFaction(server, factionId, Component.translatable(
-                    "kingdoms.nether.session.started", result.remainingSessions()
+        if (!pending.operator() && authorized.result().status() == DimensionControlManager.EntryStatus.STARTED_SESSION) {
+            notifyFaction(server, pending.ownerId(), Component.translatable(
+                    "kingdoms.nether.session.started", authorized.result().remainingSessions()
             ));
+        }
+    }
+
+    private static void loadChunks(
+            MinecraftServer server,
+            ServerLevel level,
+            PendingNetherEntry pending,
+            BlockPos center,
+            int chunkRadius,
+            Consumer<Boolean> completion
+    ) {
+        ChunkPos origin = new ChunkPos(center);
+        List<ChunkPos> chunks = new ArrayList<>();
+        List<CompletableFuture<ChunkResult<ChunkAccess>>> futures = new ArrayList<>();
+        for (int dx = -chunkRadius; dx <= chunkRadius; dx++) {
+            for (int dz = -chunkRadius; dz <= chunkRadius; dz++) {
+                ChunkPos chunk = new ChunkPos(origin.x + dx, origin.z + dz);
+                chunks.add(chunk);
+                level.getChunkSource().addRegionTicket(TicketType.PORTAL, chunk, 3, pending.portalPosition());
+                futures.add(level.getChunkSource().getChunkFuture(chunk.x, chunk.z, ChunkStatus.FULL, true));
+            }
+        }
+        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).whenComplete((ignored, error) ->
+                server.execute(() -> {
+                    boolean loaded = error == null && futures.stream().allMatch(future -> {
+                        try {
+                            return future.join().isSuccess();
+                        } catch (RuntimeException exception) {
+                            return false;
+                        }
+                    });
+                    for (ChunkPos chunk : chunks) {
+                        level.getChunkSource().removeRegionTicket(
+                                TicketType.PORTAL, chunk, 3, pending.portalPosition()
+                        );
+                    }
+                    completion.accept(loaded);
+                })
+        );
+    }
+
+    private static ServerPlayer validPendingPlayer(MinecraftServer server, PendingNetherEntry pending) {
+        if (!isCurrentPending(pending)) {
+            return null;
+        }
+        ServerPlayer player = server.getPlayerList().getPlayer(pending.playerId());
+        if (player == null || !Level.OVERWORLD.equals(player.level().dimension())
+                || !player.blockPosition().closerThan(pending.portalPosition(), 4.0D)
+                || !DimensionControlManager.get(server).isInsideRegisteredPortal(pending.portalPosition())) {
+            return null;
+        }
+        if (pending.operator()) {
+            return player.hasPermissions(2) ? player : null;
+        }
+        UUID currentFaction = FactionManager.get(server).getFactionIdForMember(player.getUUID()).orElse(null);
+        return pending.ownerId().equals(currentFaction) ? player : null;
+    }
+
+    private static boolean isCurrentPending(PendingNetherEntry pending) {
+        return PENDING_NETHER_ENTRIES.get(pending.playerId()) == pending;
+    }
+
+    private static void failAuthorizedOrPending(
+            MinecraftServer server,
+            PendingNetherEntry pending,
+            AuthorizedNetherEntry authorized
+    ) {
+        if (authorized != null) {
+            rollbackAuthorized(server, pending, authorized);
+        }
+        failPending(server, pending, Component.translatable("kingdoms.nether.session.no_landing"));
+    }
+
+    private static void rollbackAuthorized(
+            MinecraftServer server,
+            PendingNetherEntry pending,
+            AuthorizedNetherEntry authorized
+    ) {
+        DimensionControlManager.get(server).rollbackNetherEntry(
+                pending.ownerId(),
+                pending.playerId(),
+                authorized.result().session().sessionId(),
+                authorized.startedSession(),
+                authorized.joinedNow()
+        );
+    }
+
+    private static void failPending(MinecraftServer server, PendingNetherEntry pending, Component message) {
+        if (!PENDING_NETHER_ENTRIES.remove(pending.playerId(), pending)) {
+            return;
+        }
+        ServerPlayer player = server.getPlayerList().getPlayer(pending.playerId());
+        if (player != null) {
+            player.displayClientMessage(message, true);
         }
     }
 
@@ -262,8 +497,7 @@ public final class DimensionControlEvents {
             return;
         }
         boolean overworld = Level.OVERWORLD.equals(level.dimension());
-        boolean nearSpawn = !overworld || NetherPortalRegistration.isNearSharedSpawn(level, firePosition);
-        if (!NetherPortalRegistration.mayCreatePortal(player.hasPermissions(2), overworld, nearSpawn)) {
+        if (!NetherPortalRegistration.mayCreatePortal(player.hasPermissions(2), overworld)) {
             event.setCancellationResult(InteractionResult.FAIL);
             event.setCanceled(true);
             player.displayClientMessage(Component.translatable(player.hasPermissions(2)
@@ -290,9 +524,6 @@ public final class DimensionControlEvents {
             return;
         }
         if (!Level.OVERWORLD.equals(level.dimension())) {
-            return;
-        }
-        if (!NetherPortalRegistration.isNearSharedSpawn(level, event.getPos())) {
             event.setCanceled(true);
             actor.displayClientMessage(Component.translatable("commands.kingdoms.nether.portal.invalid"), true);
             return;
@@ -307,7 +538,6 @@ public final class DimensionControlEvents {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
-        NetherHudService.syncNow(player, Instant.now());
         ResourceKey<Level> dimension = player.level().dimension();
         if (!Level.NETHER.equals(dimension)) {
             NetherReturnIntegration.removeForPlayer(player);
@@ -320,10 +550,7 @@ public final class DimensionControlEvents {
             evacuatePlayer(player, "kingdoms.dimension.wiped_notice");
             return;
         }
-        if (player.hasPermissions(2)) {
-            return;
-        }
-        if (Level.END.equals(dimension) && control.isClosed(dimension)) {
+        if (Level.END.equals(dimension) && !player.hasPermissions(2) && control.isClosed(dimension)) {
             evacuatePlayer(player, "kingdoms.dimension.evicted");
             return;
         }
@@ -339,7 +566,7 @@ public final class DimensionControlEvents {
         AUTHORIZED_TRANSFERS.remove(playerId);
         EXPECTED_NETHER_ARRIVALS.remove(playerId);
         PENDING_RETURN_POSITIONS.remove(playerId);
-        NetherHudService.removePlayer(playerId);
+        PENDING_NETHER_ENTRIES.remove(playerId);
         removePlayerFromBossBars(event.getEntity().getUUID());
         NetherEntryConfirmations.remove(playerId);
         DimensionNetwork.removePlayer(playerId);
@@ -361,13 +588,11 @@ public final class DimensionControlEvents {
             return;
         }
         persistedData(player).putLong(wipeGenKey(target), control.wipeGeneration(target));
-        if (!Level.NETHER.equals(target) || player.hasPermissions(2)) {
+        if (!Level.NETHER.equals(target)) {
             return;
         }
-        UUID factionId = FactionManager.get(player.serverLevel().getServer())
-                .getFactionIdForMember(player.getUUID()).orElse(null);
         Instant now = Instant.now();
-        ActiveSession session = factionId == null ? null : control.assignedSession(player.getUUID(), now).orElse(null);
+        ActiveSession session = control.assignedSession(player.getUUID(), now).orElse(null);
         boolean expectedArrival = EXPECTED_NETHER_ARRIVALS.remove(player.getUUID());
         BlockPos returnPos = PENDING_RETURN_POSITIONS.remove(player.getUUID());
         if (!expectedArrival || session == null || !hasValidNetherSession(player, control, now)) {
@@ -432,6 +657,7 @@ public final class DimensionControlEvents {
         MinecraftServer server = event.getServer();
         Instant now = Instant.now();
         DimensionControlManager control = DimensionControlManager.get(server);
+        control.applyScheduledNetherOpening(now);
         validateRegisteredPortal(server, control);
         FactionManager factions = FactionManager.get(server);
         List<EndedSession> ended = control.expireSessions(now, id -> factions.getFactionById(id).isPresent());
@@ -444,33 +670,14 @@ public final class DimensionControlEvents {
             ServerLevel nether = server.getLevel(Level.NETHER);
             if (nether != null) {
                 for (ServerPlayer player : List.copyOf(nether.players())) {
-                    if (!player.hasPermissions(2) && !hasValidNetherSession(player, control, now)) {
+                    if (!hasValidNetherSession(player, control, now)) {
                         evacuatePlayer(player, "kingdoms.nether.session.expired");
                     }
                 }
             }
         }
-        if (control.claimDailyResetNotification(now)) {
-            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                player.sendSystemMessage(Component.translatable("kingdoms.nether.session.daily_reset"));
-            }
-        }
-        if (control.claimNetherOpenNotification(now)) {
-            server.getPlayerList().broadcastSystemMessage(
-                    Component.translatable("kingdoms.nether.access.opened"), false
-            );
-        }
         List<ActiveSession> activeSessions = control.activeSessions(now);
-        for (ActiveSession session : activeSessions) {
-            long remaining = Duration.between(now, session.endsAt()).getSeconds();
-            if (remaining > 0L && remaining <= 900L && CLOSING_WARNED_SESSIONS.add(session.sessionId())) {
-                notifyFaction(server, session.factionId(), Component.translatable(
-                        "kingdoms.nether.session.closing_soon", formatDuration(remaining)
-                ));
-            }
-        }
         updateBossBars(server, activeSessions, now);
-        NetherHudService.tick(server, now);
     }
 
     public static int evacuate(MinecraftServer server, ResourceKey<Level> dimension) {
@@ -483,6 +690,22 @@ public final class DimensionControlEvents {
             evacuatePlayer(player, "kingdoms.dimension.evicted");
         }
         return players.size();
+    }
+
+    public static int evacuateForClosure(MinecraftServer server, ResourceKey<Level> dimension) {
+        ServerLevel level = server.getLevel(dimension);
+        if (level == null) {
+            return 0;
+        }
+        int moved = 0;
+        for (ServerPlayer player : List.copyOf(level.players())) {
+            if (Level.NETHER.equals(dimension) && player.hasPermissions(2)) {
+                continue;
+            }
+            evacuatePlayer(player, "kingdoms.dimension.evicted");
+            moved++;
+        }
+        return moved;
     }
 
     public static void broadcastOpened(MinecraftServer server, ResourceKey<Level> dimension) {
@@ -589,6 +812,7 @@ public final class DimensionControlEvents {
 
     private static Component entryMessage(EntryResult result, Instant now) {
         return switch (result.status()) {
+            case FACTION_REQUIRED -> Component.translatable("kingdoms.nether.session.faction_required");
             case SCHEDULE_CLOSED -> Component.translatable("kingdoms.nether.session.closed");
             case NO_SESSIONS_LEFT -> Component.translatable("kingdoms.nether.session.limit");
             case DEATH_LOCKED -> Component.translatable(
@@ -607,6 +831,11 @@ public final class DimensionControlEvents {
             DimensionControlManager control,
             Instant now
     ) {
+        ActiveSession active = control.assignedSession(player.getUUID(), now).orElse(null);
+        if (player.hasPermissions(2)) {
+            return active != null && active.ordinal() == 0
+                    && active.joinedPlayers().contains(player.getUUID());
+        }
         if (!control.isNetherOpenForPlayers(now)) {
             return false;
         }
@@ -615,7 +844,6 @@ public final class DimensionControlEvents {
         if (factionId == null) {
             return false;
         }
-        ActiveSession active = control.assignedSession(player.getUUID(), now).orElse(null);
         return active != null
                 && active.factionId().equals(factionId)
                 && active.joinedPlayers().contains(player.getUUID())
@@ -625,22 +853,8 @@ public final class DimensionControlEvents {
     private static BlockPos resolveLanding(
             ServerLevel nether,
             DimensionControlManager control,
-            ActiveSession session,
-            UUID enteringPlayer
+            ActiveSession session
     ) {
-        Instant now = Instant.now();
-        for (ServerPlayer member : nether.players()) {
-            if (member.getUUID().equals(enteringPlayer)) {
-                continue;
-            }
-            ActiveSession assigned = control.assignedSession(member.getUUID(), now).orElse(null);
-            if (assigned != null && assigned.sessionId().equals(session.sessionId())) {
-                var nearby = NetherLandingFinder.findNear(nether, member.blockPosition());
-                if (nearby.isPresent()) {
-                    return nearby.get().blockPos();
-                }
-            }
-        }
         BlockPos stored = session.landing().blockPos();
         if (NetherLandingFinder.isSafe(nether, stored)) {
             return stored;
@@ -650,27 +864,17 @@ public final class DimensionControlEvents {
             control.updateSessionLanding(session.sessionId(), repaired.get());
             return repaired.get().blockPos();
         }
-        List<DimensionControlManager.LandingPos> occupied = control.activeSessions(now).stream()
-                .filter(candidate -> !candidate.sessionId().equals(session.sessionId()))
-                .map(ActiveSession::landing)
-                .toList();
-        var replacement = NetherLandingFinder.find(nether, occupied, session.landing(), control.rules());
-        if (replacement.isEmpty()) {
-            return null;
-        }
-        control.updateSessionLanding(session.sessionId(), replacement.get());
-        return replacement.get().blockPos();
+        return null;
     }
 
     private static void endSession(MinecraftServer server, EndedSession session) {
-        CLOSING_WARNED_SESSIONS.remove(session.sessionId());
         for (UUID playerId : session.joinedPlayers()) {
             ServerPlayer player = server.getPlayerList().getPlayer(playerId);
             if (player == null) {
                 continue;
             }
             NetherReturnIntegration.removeForSession(player, session.sessionId());
-            if (Level.NETHER.equals(player.level().dimension()) && !player.hasPermissions(2)) {
+            if (Level.NETHER.equals(player.level().dimension())) {
                 evacuatePlayer(player, "kingdoms.nether.session.expired");
             }
         }
@@ -778,14 +982,6 @@ public final class DimensionControlEvents {
                 player.sendSystemMessage(message);
             }
         }));
-    }
-
-    private static void notifyOperators(MinecraftServer server, Component message) {
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (player.hasPermissions(2)) {
-                player.sendSystemMessage(message);
-            }
-        }
     }
 
     private static void clearBossBars() {
@@ -899,6 +1095,20 @@ public final class DimensionControlEvents {
     }
 
     private record PendingPortalRegistration(BlockPos position, UUID operatorId, long gameTime) {
+    }
+
+    private record PendingNetherEntry(
+            UUID playerId,
+            UUID ownerId,
+            boolean operator,
+            boolean secondSessionConfirmed,
+            BlockPos portalPosition,
+            BlockPos returnPosition,
+            EntryResult preview
+    ) {
+    }
+
+    private record AuthorizedNetherEntry(EntryResult result, boolean startedSession, boolean joinedNow) {
     }
 
     private DimensionControlEvents() {

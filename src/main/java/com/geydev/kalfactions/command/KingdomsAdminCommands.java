@@ -2,7 +2,6 @@ package com.geydev.kalfactions.command;
 
 import com.geydev.kalfactions.dimension.DimensionControlEvents;
 import com.geydev.kalfactions.dimension.DimensionControlManager;
-import com.geydev.kalfactions.dimension.NetherHudService;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.ResearchNode;
@@ -243,15 +242,6 @@ public final class KingdomsAdminCommands {
             branch.then(Commands.literal("portal")
                     .then(Commands.literal("clear").executes(KingdomsAdminCommands::clearNetherPortal))
                     .then(Commands.literal("status").executes(KingdomsAdminCommands::netherPortalStatus)));
-            branch.then(Commands.literal("hud")
-                    .then(Commands.literal("test")
-                            .then(Commands.literal("opening")
-                                    .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 86_400))
-                                            .executes(context -> previewNetherHud(context, true))))
-                            .then(Commands.literal("open")
-                                    .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 86_400))
-                                            .executes(context -> previewNetherHud(context, false)))))
-                    .then(Commands.literal("clear").executes(KingdomsAdminCommands::clearNetherHud)));
         } else {
             branch.then(Commands.literal("wipe")
                     .executes(context -> scheduleDimensionWipe(context, dimension, displayName))
@@ -259,29 +249,6 @@ public final class KingdomsAdminCommands {
                             .executes(context -> cancelDimensionWipe(context, dimension, displayName))));
         }
         return branch;
-    }
-
-    private static int previewNetherHud(CommandContext<CommandSourceStack> context, boolean opening)
-            throws CommandSyntaxException {
-        int seconds = IntegerArgumentType.getInteger(context, "seconds");
-        NetherHudService.preview(context.getSource().getPlayerOrException(), opening, seconds);
-        context.getSource().sendSuccess(
-                () -> Component.translatable(
-                        opening ? "commands.kingdoms.nether.hud.preview_opening"
-                                : "commands.kingdoms.nether.hud.preview_open",
-                        seconds
-                ),
-                false
-        );
-        return 1;
-    }
-
-    private static int clearNetherHud(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        NetherHudService.clearPreview(context.getSource().getPlayerOrException());
-        context.getSource().sendSuccess(
-                () -> Component.translatable("commands.kingdoms.nether.hud.cleared"), false
-        );
-        return 1;
     }
 
     private static int clearNetherPortal(CommandContext<CommandSourceStack> context) {
@@ -325,7 +292,7 @@ public final class KingdomsAdminCommands {
             source.sendSuccess(() -> Component.literal(displayName + " открыт."), true);
             return 1;
         }
-        int moved = DimensionControlEvents.evacuate(source.getServer(), dimension);
+        int moved = DimensionControlEvents.evacuateForClosure(source.getServer(), dimension);
         source.sendSuccess(
                 () -> Component.literal(displayName + " закрыт. Игроков перемещено на спавн: " + moved + "."),
                 true
