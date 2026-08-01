@@ -109,10 +109,22 @@ final class DimensionControlManagerTest {
         assertEquals(2, manager.activeSessions(faction, start.plusSeconds(5)).size());
         assertEquals(first.sessionId(), manager.assignedSession(survivor, start.plusSeconds(5)).orElseThrow().sessionId());
         assertEquals(second.sessionId(), manager.assignedSession(dead, start.plusSeconds(5)).orElseThrow().sessionId());
+        assertFalse(first.endsAt().equals(second.endsAt()));
         assertEquals(0, manager.remainingSessions(faction, start.plusSeconds(5)));
 
-        manager.leaveNether(survivor);
-        var rejoined = manager.authorizeNetherEntry(faction, survivor, start.plusSeconds(6), false, LANDING);
+        DimensionControlManager restarted = manager();
+        assertEquals(2, restarted.activeSessions(faction, start.plusSeconds(5)).size());
+        assertEquals(
+                first.sessionId(),
+                restarted.assignedSession(survivor, start.plusSeconds(5)).orElseThrow().sessionId()
+        );
+        assertEquals(
+                second.sessionId(),
+                restarted.assignedSession(dead, start.plusSeconds(5)).orElseThrow().sessionId()
+        );
+
+        restarted.leaveNether(survivor);
+        var rejoined = restarted.authorizeNetherEntry(faction, survivor, start.plusSeconds(6), false, LANDING);
         assertEquals(EntryStatus.JOINED_ACTIVE, rejoined.status());
         assertEquals(second.sessionId(), rejoined.session().sessionId());
     }

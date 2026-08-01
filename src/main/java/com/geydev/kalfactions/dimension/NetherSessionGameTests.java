@@ -22,6 +22,8 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
+import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
@@ -355,6 +357,28 @@ public final class NetherSessionGameTests {
             player.containerMenu.setCarried(stone);
             NetherReturnIntegration.ensureInCentralSlot(player, binding);
             helper.assertTrue(player.containerMenu.getCarried().is(Items.DIRT), "Cursor swap item was lost");
+
+            stone = player.getInventory().getItem(NetherReturnIntegration.CENTRAL_HOTBAR_SLOT);
+            player.containerMenu.setCarried(ItemStack.EMPTY);
+            player.getInventory().setItem(NetherReturnIntegration.CENTRAL_HOTBAR_SLOT, new ItemStack(Items.GOLD_INGOT));
+            player.getInventory().setItem(40, stone);
+            NetherReturnIntegration.ensureInCentralSlot(player, binding);
+            helper.assertTrue(player.getInventory().getItem(40).is(Items.GOLD_INGOT), "Offhand swap item was lost");
+
+            stone = player.getInventory().getItem(NetherReturnIntegration.CENTRAL_HOTBAR_SLOT);
+            SimpleContainer chest = new SimpleContainer(27);
+            chest.setItem(0, stone);
+            player.getInventory().setItem(NetherReturnIntegration.CENTRAL_HOTBAR_SLOT, new ItemStack(Items.EMERALD));
+            player.containerMenu = ChestMenu.threeRows(83, player.getInventory(), chest);
+            NetherReturnIntegration.ensureInCentralSlot(player, binding);
+            helper.assertTrue(chest.getItem(0).is(Items.EMERALD), "Container swap item was lost");
+            helper.assertTrue(
+                    NetherReturnIntegration.binding(
+                            player.getInventory().getItem(NetherReturnIntegration.CENTRAL_HOTBAR_SLOT)
+                    ).filter(binding::equals).isPresent(),
+                    "Return stone did not return from a container to slot 4"
+            );
+
             NetherReturnIntegration.removeForPlayer(player);
             helper.assertTrue(
                     player.getInventory().getItem(NetherReturnIntegration.CENTRAL_HOTBAR_SLOT).isEmpty(),
