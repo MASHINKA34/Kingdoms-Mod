@@ -30,6 +30,21 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> WAR_ARCHIVE =
             ITEMS.registerSimpleBlockItem(ModBlocks.WAR_ARCHIVE);
 
+    public static final DeferredItem<BlockItem> OUTPOST_CORE =
+            ITEMS.registerSimpleBlockItem(ModBlocks.OUTPOST_CORE);
+
+    public static final DeferredItem<BlockItem> RESOURCE_CLUSTER_SCIENCE =
+            ITEMS.registerSimpleBlockItem(ModBlocks.RESOURCE_CLUSTER_SCIENCE);
+
+    public static final DeferredItem<BlockItem> RESOURCE_CLUSTER_ECONOMIC =
+            ITEMS.registerSimpleBlockItem(ModBlocks.RESOURCE_CLUSTER_ECONOMIC);
+
+    public static final DeferredItem<BlockItem> RESOURCE_CLUSTER_MILITARY =
+            ITEMS.registerSimpleBlockItem(ModBlocks.RESOURCE_CLUSTER_MILITARY);
+
+    public static final DeferredItem<BlockItem> RESOURCE_CLUSTER_DIAMOND =
+            ITEMS.registerSimpleBlockItem(ModBlocks.RESOURCE_CLUSTER_DIAMOND);
+
     public static final DeferredItem<BlockItem> GUIDE_BOARD =
             ITEMS.registerSimpleBlockItem(ModBlocks.GUIDE_BOARD);
 

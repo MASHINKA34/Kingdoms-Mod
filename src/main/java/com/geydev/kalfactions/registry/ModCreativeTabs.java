@@ -5,6 +5,8 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.world.item.Item;
+import java.util.List;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -20,38 +22,50 @@ public final class ModCreativeTabs {
                     .withTabsBefore(CreativeModeTabs.FUNCTIONAL_BLOCKS)
                     .icon(() -> ModItems.ACCESS_TOOL.get().getDefaultInstance())
                     .displayItems((parameters, output) -> {
-                        output.accept(ModItems.FACTION_TABLE.get());
-                        output.accept(ModItems.WAR_ARCHIVE.get());
-                        output.accept(ModItems.GUIDE_BOARD.get());
-                        output.accept(ModItems.NEWS_BOARD.get());
-                        output.accept(ModItems.SANCTUARY_CORE.get());
-                        output.accept(ModItems.WORLD_MAP.get());
-                        output.accept(ModItems.XAERO_MAP_ARCHIVE.get());
-                        output.accept(ModItems.ACCESS_TOOL.get());
-                        output.accept(ModItems.OUTPOST_CHARTER.get());
-                        output.accept(ModItems.QUARRY_CORE.get());
-                        output.accept(ModItems.QUARRY_ACTIVATOR.get());
-                        output.accept(ModItems.DRILL.get());
-                        output.accept(ModItems.TRADER_SPAWN_EGG.get());
-                        output.accept(ModItems.SELLER_SPAWN_EGG.get());
-                        output.accept(ModItems.BANKER_SPAWN_EGG.get());
-                        output.accept(ModItems.TRADER_REMOVER.get());
-                        output.accept(ModItems.TRADER_POINT_TOOL.get());
-                        output.accept(ModItems.SELLER_CATALOG.get());
-                        output.accept(ModItems.DIMENSION_KEY.get());
-                        output.accept(ModItems.PLOT_WAND.get());
-                        output.accept(ModItems.ADMIN_ANALYZER.get());
-                        output.accept(ModItems.FACTION_METER.get());
-                        output.accept(ModItems.WAR_TROPHY.get());
-                        output.accept(ModItems.CRYSTAL_SCIENCE.get());
-                        output.accept(ModItems.CRYSTAL_ECONOMIC.get());
-                        output.accept(ModItems.CRYSTAL_MILITARY.get());
+                        creativeItems().forEach(output::accept);
                     })
                     .build()
     );
 
     public static void register(IEventBus bus) {
         TABS.register(bus);
+    }
+
+    public static List<Item> creativeItems() {
+        return List.of(
+                ModItems.FACTION_TABLE.get(),
+                ModItems.WAR_ARCHIVE.get(),
+                ModItems.GUIDE_BOARD.get(),
+                ModItems.NEWS_BOARD.get(),
+                ModItems.SANCTUARY_CORE.get(),
+                ModItems.OUTPOST_CORE.get(),
+                ModItems.RESOURCE_CLUSTER_SCIENCE.get(),
+                ModItems.RESOURCE_CLUSTER_ECONOMIC.get(),
+                ModItems.RESOURCE_CLUSTER_MILITARY.get(),
+                ModItems.RESOURCE_CLUSTER_DIAMOND.get(),
+                ModItems.QUARRY_CORE.get(),
+                ModItems.DRILL.get(),
+                ModItems.WORLD_MAP.get(),
+                ModItems.XAERO_MAP_ARCHIVE.get(),
+                ModItems.ACCESS_TOOL.get(),
+                ModItems.OUTPOST_CHARTER.get(),
+                ModItems.QUARRY_ACTIVATOR.get(),
+                ModItems.TRADER_SPAWN_EGG.get(),
+                ModItems.SELLER_SPAWN_EGG.get(),
+                ModItems.BANKER_SPAWN_EGG.get(),
+                ModItems.TRADER_REMOVER.get(),
+                ModItems.TRADER_POINT_TOOL.get(),
+                ModItems.SELLER_CATALOG.get(),
+                ModItems.DIMENSION_KEY.get(),
+                ModItems.NETHER_RETURN.get(),
+                ModItems.PLOT_WAND.get(),
+                ModItems.ADMIN_ANALYZER.get(),
+                ModItems.FACTION_METER.get(),
+                ModItems.WAR_TROPHY.get(),
+                ModItems.CRYSTAL_SCIENCE.get(),
+                ModItems.CRYSTAL_ECONOMIC.get(),
+                ModItems.CRYSTAL_MILITARY.get()
+        );
     }
 
     private ModCreativeTabs() {

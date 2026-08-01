@@ -4,6 +4,8 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.dimension.DimensionControlManager.EntryStatus;
 import com.geydev.kalfactions.dimension.DimensionControlManager.LandingPos;
 import com.geydev.kalfactions.dimension.DimensionControlManager.PortalBounds;
+import com.geydev.kalfactions.registry.ModCreativeTabs;
+import com.geydev.kalfactions.registry.ModItems;
 import com.mojang.authlib.GameProfile;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,7 +14,10 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Set;
+import java.util.stream.Collectors;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
@@ -358,6 +363,26 @@ public final class NetherSessionGameTests {
         });
     }
 
+    @GameTest(template = "empty")
+    public static void creativeTabContainsEveryKingdomsItem(GameTestHelper helper) {
+        Set<net.minecraft.world.item.Item> registered = BuiltInRegistries.ITEM.stream()
+                .filter(item -> KalFactions.MOD_ID.equals(BuiltInRegistries.ITEM.getKey(item).getNamespace()))
+                .collect(Collectors.toSet());
+        Set<net.minecraft.world.item.Item> displayed = Set.copyOf(ModCreativeTabs.creativeItems());
+        helper.assertTrue(
+                displayed.equals(registered),
+                "Kingdoms creative tab differs from registered items; missing="
+                        + difference(registered, displayed) + ", unknown=" + difference(displayed, registered)
+        );
+        helper.assertTrue(displayed.contains(ModItems.NETHER_RETURN.get()), "Return stone is missing from creative tab");
+        ItemStack creativeCopy = new ItemStack(ModItems.NETHER_RETURN.get());
+        helper.assertTrue(
+                NetherReturnIntegration.binding(creativeCopy).isEmpty(),
+                "Creative return stone was incorrectly marked as a server session instance"
+        );
+        helper.succeed();
+    }
+
     private static void prepareLanding(GameTestHelper helper, BlockPos feet) {
         for (int x = -1; x <= 1; x++) {
             for (int z = -1; z <= 1; z++) {
@@ -377,6 +402,15 @@ public final class NetherSessionGameTests {
         return new ServerPlayer(
                 helper.getLevel().getServer(), helper.getLevel(), cookie.gameProfile(), cookie.clientInformation()
         );
+    }
+
+    private static Set<net.minecraft.world.item.Item> difference(
+            Set<net.minecraft.world.item.Item> left,
+            Set<net.minecraft.world.item.Item> right
+    ) {
+        java.util.HashSet<net.minecraft.world.item.Item> difference = new java.util.HashSet<>(left);
+        difference.removeAll(right);
+        return difference;
     }
 
     private static void isolated(GameTestHelper helper, Scenario scenario) {
