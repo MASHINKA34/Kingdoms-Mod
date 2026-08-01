@@ -192,9 +192,12 @@ public final class DimensionControlEvents {
             return;
         }
         NetherEntryConfirmations.remove(player.getUUID());
+        DimensionControlManager.LandingPos reusableLanding = !operator && preview.session() == null
+                ? control.reusableLanding(sessionOwner, entryTime).orElse(null)
+                : null;
         PendingNetherEntry pending = new PendingNetherEntry(
                 player.getUUID(), sessionOwner, operator, secondSessionConfirmed,
-                portalPosition, portalPosition, preview
+                portalPosition, portalPosition, preview, reusableLanding
         );
         PENDING_NETHER_ENTRIES.put(player.getUUID(), pending);
         player.displayClientMessage(Component.translatable("kingdoms.nether.session.preparing"), true);
@@ -211,6 +214,10 @@ public final class DimensionControlEvents {
             loadExistingLanding(server, nether, pending, previewSession.landing().blockPos(), null);
             return;
         }
+        if (pending.reusableLanding() != null) {
+            loadReusableLanding(server, nether, pending, pending.reusableLanding().blockPos());
+            return;
+        }
         DimensionControlManager control = DimensionControlManager.get(server);
         Instant now = Instant.now();
         List<DimensionControlManager.LandingPos> occupied = control.activeSessions(now).stream()
@@ -222,6 +229,43 @@ public final class DimensionControlEvents {
                 nether, occupied, previous, control.rules()
         );
         tryLandingCandidate(server, nether, pending, candidates, 0);
+    }
+
+    private static void loadReusableLanding(
+            MinecraftServer server,
+            ServerLevel nether,
+            PendingNetherEntry pending,
+            BlockPos stored
+    ) {
+        loadChunks(server, nether, pending, stored, 1, loaded -> {
+            if (!loaded || !isCurrentPending(pending)) {
+                if (!loaded) {
+                    failPending(server, pending, Component.translatable("kingdoms.nether.session.no_landing"));
+                }
+                return;
+            }
+            Optional<DimensionControlManager.LandingPos> safe = NetherLandingFinder.isSafe(nether, stored)
+                    ? Optional.of(pending.reusableLanding())
+                    : NetherLandingFinder.findNear(nether, stored);
+            if (safe.isPresent()) {
+                DimensionControlManager.LandingPos landing = safe.get();
+                if (!landing.equals(pending.reusableLanding())) {
+                    DimensionControlManager.get(server).updateReusableLanding(
+                            pending.ownerId(), Instant.now(), landing
+                    );
+                }
+                authorizePreparedEntry(server, nether, pending, landing.blockPos());
+                return;
+            }
+            DimensionControlManager control = DimensionControlManager.get(server);
+            List<DimensionControlManager.LandingPos> occupied = control.activeSessions(Instant.now()).stream()
+                    .map(ActiveSession::landing)
+                    .toList();
+            List<BlockPos> candidates = NetherLandingFinder.candidateCenters(
+                    nether, occupied, pending.reusableLanding(), control.rules()
+            );
+            tryLandingCandidate(server, nether, pending, candidates, 0);
+        });
     }
 
     private static void tryLandingCandidate(
@@ -254,6 +298,10 @@ public final class DimensionControlEvents {
             ActiveSession previewSession = pending.preview().session();
             if (previewSession != null) {
                 DimensionControlManager.get(server).updateSessionLanding(previewSession.sessionId(), landing.get());
+            } else if (pending.reusableLanding() != null) {
+                DimensionControlManager.get(server).updateReusableLanding(
+                        pending.ownerId(), Instant.now(), landing.get()
+                );
             }
             authorizePreparedEntry(server, nether, pending, landing.get().blockPos());
         });
@@ -817,7 +865,7 @@ public final class DimensionControlEvents {
             case NO_SESSIONS_LEFT -> Component.translatable("kingdoms.nether.session.limit");
             case DEATH_LOCKED -> Component.translatable(
                     "kingdoms.nether.session.death_locked",
-                    result.session() == null ? "00:00" : formatDuration(
+                    result.session() == null ? "00:00:00" : formatClock(
                             Math.max(0L, Duration.between(now, result.session().endsAt()).getSeconds())
                     )
             );
@@ -991,11 +1039,6 @@ public final class DimensionControlEvents {
         SESSION_BARS.clear();
     }
 
-    private static String formatDuration(long seconds) {
-        long safe = Math.max(0L, seconds);
-        return String.format(java.util.Locale.ROOT, "%02d:%02d", safe / 60L, safe % 60L);
-    }
-
     private static String formatClock(long seconds) {
         long safe = Math.max(0L, seconds);
         return String.format(
@@ -1104,7 +1147,8 @@ public final class DimensionControlEvents {
             boolean secondSessionConfirmed,
             BlockPos portalPosition,
             BlockPos returnPosition,
-            EntryResult preview
+            EntryResult preview,
+            DimensionControlManager.LandingPos reusableLanding
     ) {
     }
 

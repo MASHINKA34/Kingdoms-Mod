@@ -13,8 +13,9 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -96,6 +97,7 @@ public final class NetherSessionGameTests {
             Instant now = Instant.parse("2026-07-22T15:00:00Z");
             UUID faction = UUID.randomUUID();
             UUID player = UUID.randomUUID();
+            int factionPassesBefore = manager.remainingSessions(faction, now);
             var operatorEntry = manager.authorizeNetherEntry(faction, player, now, true, LANDING);
             helper.assertTrue(
                     operatorEntry.status() == EntryStatus.OPERATOR_BYPASS && operatorEntry.session() != null,
@@ -106,6 +108,11 @@ public final class NetherSessionGameTests {
                             operatorEntry.session().sessionId(), player, new BlockPos(4, 70, 4), now.plusSeconds(1)
                     ).isPresent(),
                     "Operator session could not issue a return stone binding"
+            );
+            helper.assertTrue(
+                    manager.remainingSessions(faction, now) == factionPassesBefore
+                            && manager.activeSessions(faction, now).isEmpty(),
+                    "Operator consumed a faction session"
             );
             helper.assertTrue(
                     manager.authorizeNetherEntry(faction, player, now, false, LANDING).status()
@@ -255,8 +262,14 @@ public final class NetherSessionGameTests {
             UUID survivor = UUID.randomUUID();
             UUID dead = UUID.randomUUID();
             Instant start = Instant.parse("2026-07-22T15:00:00Z");
-            var first = manager.authorizeNetherEntry(faction, survivor, start, false, LANDING).session();
-            manager.authorizeNetherEntry(faction, dead, start.plusSeconds(1), false, LANDING);
+            LandingPos dailyLanding = new LandingPos(1200, 64, 1200);
+            LandingPos unwantedSecondLanding = new LandingPos(-2400, 72, 1800);
+            AtomicInteger allocations = new AtomicInteger();
+            DimensionControlManager.LandingAllocator allocator = (occupied, previous, rules) -> Optional.of(
+                    allocations.getAndIncrement() == 0 ? dailyLanding : unwantedSecondLanding
+            );
+            var first = manager.authorizeNetherEntry(faction, survivor, start, false, allocator).session();
+            manager.authorizeNetherEntry(faction, dead, start.plusSeconds(1), false, allocator);
             helper.assertTrue(manager.markDeath(faction, dead, start.plusSeconds(2)), "Death was not recorded");
             helper.assertTrue(
                     manager.authorizeNetherEntry(faction, dead, start.plusSeconds(3), false, LANDING).status()
@@ -266,8 +279,12 @@ public final class NetherSessionGameTests {
             helper.assertTrue(manager.remainingSessions(faction, start.plusSeconds(3)) == 1,
                     "Unconfirmed second session was consumed");
             var second = manager.authorizeNetherEntry(
-                    faction, dead, start.plusSeconds(60), false, true, LANDING
+                    faction, dead, start.plusSeconds(60), false, true, allocator
             ).session();
+            helper.assertTrue(
+                    second.landing().equals(first.landing()) && allocations.get() == 1,
+                    "Second same-day session allocated a different landing"
+            );
             helper.assertTrue(
                     manager.activeSessions(faction, start.plusSeconds(61)).size() == 2,
                     "First and second sessions did not run in parallel"

@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import org.junit.jupiter.api.Test;
@@ -91,18 +92,22 @@ final class DimensionControlManagerTest {
     @Test
     void operatorGetsPersonalSessionAndReturnOutsideSchedule() {
         DimensionControlManager manager = manager();
+        UUID faction = UUID.randomUUID();
         UUID operator = UUID.randomUUID();
         Instant start = Instant.parse("2026-07-22T10:00:00Z");
         manager.setClosed(Level.NETHER, true);
+        int factionPassesBefore = manager.remainingSessions(faction, start);
 
-        var preview = manager.previewNetherEntry(operator, operator, start, true, false);
+        var preview = manager.previewNetherEntry(faction, operator, start, true, false);
         assertEquals(EntryStatus.OPERATOR_BYPASS, preview.status());
         assertTrue(manager.activeSessions(start).isEmpty());
 
-        var result = manager.authorizeNetherEntry(operator, operator, start, true, LANDING);
+        var result = manager.authorizeNetherEntry(faction, operator, start, true, LANDING);
         assertEquals(EntryStatus.OPERATOR_BYPASS, result.status());
         assertEquals(0, result.session().ordinal());
         assertEquals(start.plus(manager.rules().sessionDuration()), result.session().endsAt());
+        assertEquals(factionPassesBefore, manager.remainingSessions(faction, start));
+        assertTrue(manager.activeSessions(faction, start).isEmpty());
         assertTrue(manager.issueReturn(
                 result.session().sessionId(), operator, new BlockPos(20, 70, 20), start.plusSeconds(1)
         ).isPresent());
@@ -170,6 +175,35 @@ final class DimensionControlManagerTest {
         var rejoined = restarted.authorizeNetherEntry(faction, survivor, start.plusSeconds(6), false, LANDING);
         assertEquals(EntryStatus.JOINED_ACTIVE, rejoined.status());
         assertEquals(second.sessionId(), rejoined.session().sessionId());
+    }
+
+    @Test
+    void sameDaySecondSessionReusesLandingAndNextDayAllocatesANewOne() {
+        DimensionControlManager manager = manager();
+        UUID faction = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        Instant firstDay = Instant.parse("2026-07-22T15:00:00Z");
+        LandingPos firstLanding = new LandingPos(1200, 64, 1200);
+        LandingPos nextDayLanding = new LandingPos(-2400, 72, 1800);
+        AtomicInteger allocations = new AtomicInteger();
+        DimensionControlManager.LandingAllocator allocator = (occupied, previous, rules) -> Optional.of(
+                allocations.getAndIncrement() == 0 ? firstLanding : nextDayLanding
+        );
+
+        var first = manager.authorizeNetherEntry(faction, player, firstDay, false, allocator).session();
+        assertTrue(manager.markDeath(faction, player, firstDay.plusSeconds(1)));
+        var second = manager.authorizeNetherEntry(
+                faction, player, firstDay.plusSeconds(2), false, true, allocator
+        ).session();
+
+        assertEquals(firstLanding, first.landing());
+        assertEquals(firstLanding, second.landing());
+        assertEquals(1, allocations.get());
+
+        Instant nextDay = Instant.parse("2026-07-23T15:00:00Z");
+        var third = manager.authorizeNetherEntry(faction, player, nextDay, false, allocator).session();
+        assertEquals(nextDayLanding, third.landing());
+        assertEquals(2, allocations.get());
     }
 
     @Test

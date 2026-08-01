@@ -36,6 +36,7 @@ bin/
 run/
 run2/
 runServer/
+runGameTest/
 runClient/
 runs/
 !**/src/**/run/

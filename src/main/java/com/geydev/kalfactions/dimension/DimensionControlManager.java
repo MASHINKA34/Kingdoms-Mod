@@ -158,6 +158,7 @@ public final class DimensionControlManager {
         String factionKey = factionId.toString();
         FactionLedger ledger = state.netherFactions.computeIfAbsent(factionKey, ignored -> new FactionLedger());
         retireExpiredSessions(factionId, ledger, now);
+        LandingPos previousDailyLanding = ledger.lastLanding == null ? null : ledger.lastLanding.toValue();
         resetUsageDate(ledger, now);
         ActiveSessionData active = newestActiveData(ledger, now);
         String playerKey = playerId.toString();
@@ -187,12 +188,16 @@ public final class DimensionControlManager {
                     rules.sessionsPerDay() - ledger.sessionsUsed
             );
         }
-        List<LandingPos> occupied = state.netherFactions.values().stream()
-                .flatMap(value -> activeData(value, now).stream())
-                .map(value -> value.landing.toValue())
-                .toList();
-        LandingPos previous = ledger.lastLanding == null ? null : ledger.lastLanding.toValue();
-        Optional<LandingPos> allocated = allocator.allocate(occupied, previous, rules);
+        Optional<LandingPos> allocated;
+        if (ledger.sessionsUsed > 0 && ledger.lastLanding != null) {
+            allocated = Optional.of(ledger.lastLanding.toValue());
+        } else {
+            List<LandingPos> occupied = state.netherFactions.values().stream()
+                    .flatMap(value -> activeData(value, now).stream())
+                    .map(value -> value.landing.toValue())
+                    .toList();
+            allocated = allocator.allocate(occupied, previousDailyLanding, rules);
+        }
         if (allocated.isEmpty()) {
             return new EntryResult(EntryStatus.NO_SAFE_LANDING, null, rules.sessionsPerDay() - ledger.sessionsUsed);
         }
@@ -280,6 +285,36 @@ public final class DimensionControlManager {
                 : Optional.of(ledger.lastLanding.toValue());
     }
 
+    public synchronized Optional<LandingPos> reusableLanding(UUID factionId, Instant now) {
+        FactionLedger ledger = state.netherFactions.get(factionId.toString());
+        if (ledger == null
+                || ledger.sessionsUsed <= 0
+                || ledger.lastLanding == null
+                || !NetherSchedulePolicy.date(now).toString().equals(ledger.usageDate)) {
+            return Optional.empty();
+        }
+        return Optional.of(ledger.lastLanding.toValue());
+    }
+
+    public synchronized boolean updateReusableLanding(UUID factionId, Instant now, LandingPos landing) {
+        FactionLedger ledger = state.netherFactions.get(factionId.toString());
+        if (ledger == null
+                || ledger.sessionsUsed <= 0
+                || !NetherSchedulePolicy.date(now).toString().equals(ledger.usageDate)) {
+            return false;
+        }
+        LandingData updated = LandingData.from(landing);
+        ledger.lastLanding = updated;
+        long epochMillis = now.toEpochMilli();
+        for (ActiveSessionData active : ledger.activeSessions) {
+            if (active.endsAt > epochMillis) {
+                active.landing = updated;
+            }
+        }
+        save();
+        return true;
+    }
+
     private EntryResult authorizeOperatorEntry(UUID playerId, Instant now, LandingAllocator allocator) {
         String playerKey = playerId.toString();
         ActiveSessionData active = state.operatorSessions.get(playerKey);
@@ -349,7 +384,9 @@ public final class DimensionControlManager {
                     .filter(candidate -> candidate.id.equals(id))
                     .findFirst().orElse(null);
             if (active != null) {
-                active.landing = LandingData.from(landing);
+                LandingData updated = LandingData.from(landing);
+                active.landing = updated;
+                ledger.lastLanding = updated;
                 save();
                 return true;
             }
@@ -386,10 +423,9 @@ public final class DimensionControlManager {
         if (startedSession) {
             ledger.activeSessions.remove(active);
             ledger.sessionsUsed = Math.max(0, ledger.sessionsUsed - 1);
-            ActiveSessionData newest = ledger.activeSessions.stream()
-                    .max(Comparator.comparingLong(candidate -> candidate.startedAt))
-                    .orElse(null);
-            ledger.lastLanding = newest == null ? null : newest.landing;
+            if (ledger.sessionsUsed == 0) {
+                ledger.lastLanding = null;
+            }
         } else if (joinedNow) {
             active.joinedPlayers.remove(playerId.toString());
         }
@@ -744,6 +780,7 @@ public final class DimensionControlManager {
         if (!date.equals(ledger.usageDate)) {
             ledger.usageDate = date;
             ledger.sessionsUsed = 0;
+            ledger.lastLanding = null;
         }
     }
 
