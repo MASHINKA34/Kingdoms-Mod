@@ -137,6 +137,24 @@ final class DimensionControlManagerTest {
     }
 
     @Test
+    void differentFactionsReceiveDifferentPersistedLandings() {
+        DimensionControlManager manager = manager();
+        Instant start = Instant.parse("2026-07-22T15:00:00Z");
+        DimensionControlManager.LandingAllocator separated = (occupied, previous, rules) -> Optional.of(
+                new LandingPos(1200 + occupied.size() * 1000, 64, 1200)
+        );
+
+        var first = manager.authorizeNetherEntry(
+                UUID.randomUUID(), UUID.randomUUID(), start, false, separated
+        ).session();
+        var second = manager.authorizeNetherEntry(
+                UUID.randomUUID(), UUID.randomUUID(), start, false, separated
+        ).session();
+
+        assertFalse(first.landing().equals(second.landing()));
+    }
+
+    @Test
     void disbandEndsSessionAndReturnBindingCannotBeReused() {
         DimensionControlManager manager = manager();
         UUID faction = UUID.randomUUID();

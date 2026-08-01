@@ -49,6 +49,25 @@ public final class NetherLandingFinder {
         return Optional.of(new LandingPos(fallback.x, fallback.y, fallback.z));
     }
 
+    public static Optional<LandingPos> findNear(ServerLevel level, BlockPos origin) {
+        for (int radius = 0; radius <= 12; radius++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) {
+                        continue;
+                    }
+                    for (int dy = -4; dy <= 4; dy++) {
+                        BlockPos feet = origin.offset(dx, dy, dz);
+                        if (isSafe(level, feet)) {
+                            return Optional.of(new LandingPos(feet.getX(), feet.getY(), feet.getZ()));
+                        }
+                    }
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
     static boolean isSafe(ServerLevel level, BlockPos feet) {
         if (feet.getY() < MIN_Y || feet.getY() > MAX_Y || !hasOpenVolume(level, feet)) {
             return false;

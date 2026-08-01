@@ -56,6 +56,23 @@ public final class NetherSessionGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void sameSessionMemberFindsSafeNearbyLandingWithoutPortal(GameTestHelper helper) {
+        BlockPos memberFeet = new BlockPos(3, 93, 3);
+        prepareLanding(helper, memberFeet);
+        BlockPos absolute = helper.absolutePos(memberFeet);
+        LandingPos nearby = NetherLandingFinder.findNear(helper.getLevel(), absolute).orElseThrow();
+        helper.assertTrue(
+                nearby.blockPos().closerThan(absolute, 4.0D),
+                "Member of the same session was not placed nearby"
+        );
+        helper.assertTrue(
+                !helper.getLevel().getBlockState(nearby.blockPos()).is(Blocks.NETHER_PORTAL),
+                "A destination portal was created at the faction landing"
+        );
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void portalBoundsNormalizeAndOperatorBypassesClosure(GameTestHelper helper) {
         isolated(helper, path -> {
             DimensionControlManager manager = DimensionControlManager.forTesting(path);

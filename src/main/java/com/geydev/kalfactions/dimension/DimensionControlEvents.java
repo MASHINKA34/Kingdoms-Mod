@@ -55,6 +55,7 @@ public final class DimensionControlEvents {
     private static final Map<UUID, ServerBossEvent> SESSION_BARS = new HashMap<>();
     private static final Set<UUID> AUTHORIZED_TRANSFERS = new HashSet<>();
     private static final Set<UUID> EXPECTED_NETHER_ARRIVALS = new HashSet<>();
+    private static final Map<UUID, Long> ENTRY_GUARD_UNTIL = new HashMap<>();
     private static final Map<UUID, BlockPos> PENDING_RETURN_POSITIONS = new HashMap<>();
     private static final Set<UUID> CLOSING_WARNED_SESSIONS = new HashSet<>();
     private static final Map<BlockPos, PortalIgnition> PORTAL_IGNITIONS = new HashMap<>();
@@ -79,6 +80,7 @@ public final class DimensionControlEvents {
         clearBossBars();
         AUTHORIZED_TRANSFERS.clear();
         EXPECTED_NETHER_ARRIVALS.clear();
+        ENTRY_GUARD_UNTIL.clear();
         PENDING_RETURN_POSITIONS.clear();
         CLOSING_WARNED_SESSIONS.clear();
         PORTAL_IGNITIONS.clear();
@@ -112,6 +114,13 @@ public final class DimensionControlEvents {
             }
             return;
         }
+        long serverTick = server.getTickCount();
+        Long guardedUntil = ENTRY_GUARD_UNTIL.get(player.getUUID());
+        if (guardedUntil != null && guardedUntil > serverTick) {
+            event.setCanceled(true);
+            return;
+        }
+        ENTRY_GUARD_UNTIL.put(player.getUUID(), serverTick + 60L);
         boolean portalTravel = Level.OVERWORLD.equals(player.level().dimension())
                 && player.level().getBlockState(player.blockPosition()).is(Blocks.NETHER_PORTAL);
         if (!portalTravel) {
@@ -159,7 +168,18 @@ public final class DimensionControlEvents {
         if (session == null) {
             return;
         }
-        BlockPos landing = session.landing().blockPos();
+        BlockPos landing = resolveLanding(nether, control, session, player.getUUID());
+        if (landing == null) {
+            control.rollbackNetherEntry(
+                    factionId,
+                    player.getUUID(),
+                    session.sessionId(),
+                    result.status() == DimensionControlManager.EntryStatus.STARTED_SESSION,
+                    !alreadyJoined
+            );
+            player.displayClientMessage(Component.translatable("kingdoms.nether.session.no_landing"), true);
+            return;
+        }
         PENDING_RETURN_POSITIONS.put(player.getUUID(), player.blockPosition().immutable());
         AUTHORIZED_TRANSFERS.add(player.getUUID());
         EXPECTED_NETHER_ARRIVALS.add(player.getUUID());
@@ -280,13 +300,22 @@ public final class DimensionControlEvents {
     }
 
     @SubscribeEvent
+    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        UUID playerId = event.getEntity().getUUID();
+        ENTRY_GUARD_UNTIL.remove(playerId);
+        AUTHORIZED_TRANSFERS.remove(playerId);
+        EXPECTED_NETHER_ARRIVALS.remove(playerId);
+        PENDING_RETURN_POSITIONS.remove(playerId);
+    }
+
+    @SubscribeEvent
     public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
         DimensionControlManager control = DimensionControlManager.get(player.serverLevel().getServer());
         if (Level.NETHER.equals(event.getFrom())) {
-            control.invalidateReturnsForPlayer(player.getUUID());
+            control.leaveNether(player.getUUID());
             NetherReturnIntegration.removeForPlayer(player);
         }
         ResourceKey<Level> target = event.getTo();
@@ -300,7 +329,7 @@ public final class DimensionControlEvents {
         UUID factionId = FactionManager.get(player.serverLevel().getServer())
                 .getFactionIdForMember(player.getUUID()).orElse(null);
         Instant now = Instant.now();
-        ActiveSession session = factionId == null ? null : control.activeSession(factionId, now).orElse(null);
+        ActiveSession session = factionId == null ? null : control.assignedSession(player.getUUID(), now).orElse(null);
         boolean expectedArrival = EXPECTED_NETHER_ARRIVALS.remove(player.getUUID());
         BlockPos returnPos = PENDING_RETURN_POSITIONS.remove(player.getUUID());
         if (!expectedArrival || session == null || !hasValidNetherSession(player, control, now)) {
@@ -540,10 +569,51 @@ public final class DimensionControlEvents {
         if (factionId == null) {
             return false;
         }
-        ActiveSession active = control.activeSession(factionId, now).orElse(null);
+        ActiveSession active = control.assignedSession(player.getUUID(), now).orElse(null);
         return active != null
+                && active.factionId().equals(factionId)
                 && active.joinedPlayers().contains(player.getUUID())
                 && !control.isDeathLocked(factionId, player.getUUID(), now);
+    }
+
+    private static BlockPos resolveLanding(
+            ServerLevel nether,
+            DimensionControlManager control,
+            ActiveSession session,
+            UUID enteringPlayer
+    ) {
+        Instant now = Instant.now();
+        for (ServerPlayer member : nether.players()) {
+            if (member.getUUID().equals(enteringPlayer)) {
+                continue;
+            }
+            ActiveSession assigned = control.assignedSession(member.getUUID(), now).orElse(null);
+            if (assigned != null && assigned.sessionId().equals(session.sessionId())) {
+                var nearby = NetherLandingFinder.findNear(nether, member.blockPosition());
+                if (nearby.isPresent()) {
+                    return nearby.get().blockPos();
+                }
+            }
+        }
+        BlockPos stored = session.landing().blockPos();
+        if (NetherLandingFinder.isSafe(nether, stored)) {
+            return stored;
+        }
+        var repaired = NetherLandingFinder.findNear(nether, stored);
+        if (repaired.isPresent()) {
+            control.updateSessionLanding(session.sessionId(), repaired.get());
+            return repaired.get().blockPos();
+        }
+        List<DimensionControlManager.LandingPos> occupied = control.activeSessions(now).stream()
+                .filter(candidate -> !candidate.sessionId().equals(session.sessionId()))
+                .map(ActiveSession::landing)
+                .toList();
+        var replacement = NetherLandingFinder.find(nether, occupied, session.landing(), control.rules());
+        if (replacement.isEmpty()) {
+            return null;
+        }
+        control.updateSessionLanding(session.sessionId(), replacement.get());
+        return replacement.get().blockPos();
     }
 
     private static void endSession(MinecraftServer server, EndedSession session) {

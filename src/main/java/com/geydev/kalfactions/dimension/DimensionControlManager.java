@@ -235,6 +235,21 @@ public final class DimensionControlManager {
         return activeSessionById(UUID.fromString(assigned), now);
     }
 
+    public synchronized boolean updateSessionLanding(UUID sessionId, LandingPos landing) {
+        String id = sessionId.toString();
+        for (FactionLedger ledger : state.netherFactions.values()) {
+            ActiveSessionData active = ledger.activeSessions.stream()
+                    .filter(candidate -> candidate.id.equals(id))
+                    .findFirst().orElse(null);
+            if (active != null) {
+                active.landing = LandingData.from(landing);
+                save();
+                return true;
+            }
+        }
+        return false;
+    }
+
     public synchronized void rollbackNetherEntry(
             UUID factionId,
             UUID playerId,
