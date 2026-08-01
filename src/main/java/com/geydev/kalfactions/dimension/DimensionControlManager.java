@@ -824,7 +824,6 @@ public final class DimensionControlManager {
         JOINED_ACTIVE,
         OPERATOR_BYPASS,
         SCHEDULE_CLOSED,
-        TOO_LATE_TO_START,
         NO_SESSIONS_LEFT,
         SECOND_SESSION_CONFIRMATION_REQUIRED,
         DEATH_LOCKED,

@@ -590,7 +590,6 @@ public final class DimensionControlEvents {
     private static Component entryMessage(EntryResult result, Instant now) {
         return switch (result.status()) {
             case SCHEDULE_CLOSED -> Component.translatable("kingdoms.nether.session.closed");
-            case TOO_LATE_TO_START -> Component.translatable("kingdoms.nether.session.too_late");
             case NO_SESSIONS_LEFT -> Component.translatable("kingdoms.nether.session.limit");
             case DEATH_LOCKED -> Component.translatable(
                     "kingdoms.nether.session.death_locked",
