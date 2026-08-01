@@ -4,6 +4,7 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.dimension.DimensionControlManager.EntryStatus;
 import com.geydev.kalfactions.dimension.DimensionControlManager.LandingPos;
 import com.geydev.kalfactions.dimension.DimensionControlManager.PortalBounds;
+import com.mojang.authlib.GameProfile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,6 +15,10 @@ import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.CommonListenerCookie;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -248,6 +253,64 @@ public final class NetherSessionGameTests {
         });
     }
 
+    @GameTest(template = "empty")
+    public static void returnStoneReservesAndRepairsCentralHotbarSlot(GameTestHelper helper) {
+        ServerPlayer player = createPlayer(helper, "netherstone");
+        for (int slot = 9; slot <= 35; slot++) {
+            player.getInventory().setItem(slot, new ItemStack(Items.COBBLESTONE));
+        }
+        ItemStack protectedItem = new ItemStack(Items.DIAMOND);
+        player.getInventory().setItem(NetherReturnIntegration.CENTRAL_HOTBAR_SLOT, protectedItem);
+        helper.assertTrue(
+                !NetherReturnIntegration.canPrepareCentralSlot(player),
+                "Full main inventory allowed an occupied central slot"
+        );
+        helper.assertTrue(
+                player.getInventory().getItem(NetherReturnIntegration.CENTRAL_HOTBAR_SLOT).is(Items.DIAMOND),
+                "Failed reservation overwrote the central item"
+        );
+        player.getInventory().setItem(9, ItemStack.EMPTY);
+        helper.assertTrue(NetherReturnIntegration.prepareCentralSlot(player), "Central slot could not be reserved");
+        helper.assertTrue(player.getInventory().getItem(9).is(Items.DIAMOND), "Central item was not moved safely");
+
+        isolated(helper, path -> {
+            DimensionControlManager manager = DimensionControlManager.forTesting(path);
+            UUID faction = UUID.randomUUID();
+            Instant start = Instant.parse("2026-07-22T15:00:00Z");
+            var session = manager.authorizeNetherEntry(faction, player.getUUID(), start, false, LANDING).session();
+            ReturnBinding binding = manager.issueReturn(
+                    session.sessionId(), player.getUUID(), new BlockPos(2, 70, 2), start.plusSeconds(1)
+            ).orElseThrow();
+            helper.assertTrue(NetherReturnIntegration.give(player, binding), "Return stone was not issued");
+            ItemStack stone = player.getInventory().getItem(NetherReturnIntegration.CENTRAL_HOTBAR_SLOT);
+            ItemStack displaced = player.getInventory().getItem(10);
+            player.getInventory().setItem(NetherReturnIntegration.CENTRAL_HOTBAR_SLOT, displaced);
+            player.getInventory().setItem(10, stone);
+            helper.assertTrue(
+                    NetherReturnIntegration.ensureInCentralSlot(player, binding),
+                    "Server did not repair a slot swap"
+            );
+            helper.assertTrue(
+                    NetherReturnIntegration.binding(
+                            player.getInventory().getItem(NetherReturnIntegration.CENTRAL_HOTBAR_SLOT)
+                    ).filter(binding::equals).isPresent(),
+                    "Return stone did not return to slot 4"
+            );
+            helper.assertTrue(player.getInventory().getItem(10).is(Items.COBBLESTONE), "Swapped item was lost");
+
+            stone = player.getInventory().getItem(NetherReturnIntegration.CENTRAL_HOTBAR_SLOT);
+            player.getInventory().setItem(NetherReturnIntegration.CENTRAL_HOTBAR_SLOT, new ItemStack(Items.DIRT));
+            player.containerMenu.setCarried(stone);
+            NetherReturnIntegration.ensureInCentralSlot(player, binding);
+            helper.assertTrue(player.containerMenu.getCarried().is(Items.DIRT), "Cursor swap item was lost");
+            NetherReturnIntegration.removeForPlayer(player);
+            helper.assertTrue(
+                    player.getInventory().getItem(NetherReturnIntegration.CENTRAL_HOTBAR_SLOT).isEmpty(),
+                    "Return stone survived session exit"
+            );
+        });
+    }
+
     private static void prepareLanding(GameTestHelper helper, BlockPos feet) {
         for (int x = -1; x <= 1; x++) {
             for (int z = -1; z <= 1; z++) {
@@ -257,6 +320,16 @@ public final class NetherSessionGameTests {
                 }
             }
         }
+    }
+
+    private static ServerPlayer createPlayer(GameTestHelper helper, String prefix) {
+        GameProfile profile = new GameProfile(
+                UUID.randomUUID(), prefix + UUID.randomUUID().toString().substring(0, 6)
+        );
+        CommonListenerCookie cookie = CommonListenerCookie.createInitial(profile, false);
+        return new ServerPlayer(
+                helper.getLevel().getServer(), helper.getLevel(), cookie.gameProfile(), cookie.clientInformation()
+        );
     }
 
     private static void isolated(GameTestHelper helper, Scenario scenario) {

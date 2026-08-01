@@ -4,7 +4,6 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.dimension.DimensionControlManager.ActiveSession;
 import com.geydev.kalfactions.dimension.DimensionControlManager.EndedSession;
 import com.geydev.kalfactions.dimension.DimensionControlManager.EntryResult;
-import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.market.MarketPlot;
 import com.geydev.kalfactions.market.MarketPlotManager;
@@ -169,6 +168,17 @@ public final class DimensionControlEvents {
         if (session == null) {
             return;
         }
+        if (!NetherReturnIntegration.prepareCentralSlot(player)) {
+            control.rollbackNetherEntry(
+                    factionId,
+                    player.getUUID(),
+                    session.sessionId(),
+                    result.status() == DimensionControlManager.EntryStatus.STARTED_SESSION,
+                    !alreadyJoined
+            );
+            player.displayClientMessage(Component.translatable("kingdoms.nether.return.inventory_full"), true);
+            return;
+        }
         BlockPos landing = resolveLanding(nether, control, session, player.getUUID());
         if (landing == null) {
             control.rollbackNetherEntry(
@@ -309,6 +319,7 @@ public final class DimensionControlEvents {
         EXPECTED_NETHER_ARRIVALS.remove(playerId);
         PENDING_RETURN_POSITIONS.remove(playerId);
         NetherHudService.removePlayer(playerId);
+        removePlayerFromBossBars(event.getEntity().getUUID());
     }
 
     @SubscribeEvent
@@ -320,6 +331,7 @@ public final class DimensionControlEvents {
         if (Level.NETHER.equals(event.getFrom())) {
             control.leaveNether(player.getUUID());
             NetherReturnIntegration.removeForPlayer(player);
+            removePlayerFromBossBars(player.getUUID());
         }
         ResourceKey<Level> target = event.getTo();
         if (!DimensionControlManager.isControlled(target)) {
@@ -367,6 +379,7 @@ public final class DimensionControlEvents {
         }
         DimensionControlManager.get(player.serverLevel().getServer()).invalidateReturnsForPlayer(player.getUUID());
         NetherReturnIntegration.removeForPlayer(player);
+        removePlayerFromBossBars(player.getUUID());
     }
 
     @SubscribeEvent
@@ -433,7 +446,7 @@ public final class DimensionControlEvents {
                 ));
             }
         }
-        updateBossBars(server, activeSessions, factions, now);
+        updateBossBars(server, activeSessions, now);
         NetherHudService.tick(server, now);
     }
 
@@ -490,7 +503,14 @@ public final class DimensionControlEvents {
     }
 
     private static BlockPos safeOverworldReturn(ServerLevel level) {
-        return safeOverworldReturn(level, level.getSharedSpawnPos());
+        BlockPos origin = DimensionControlManager.get(level.getServer()).netherPortal()
+                .map(bounds -> new BlockPos(
+                        (bounds.minX() + bounds.maxX()) / 2,
+                        bounds.minY(),
+                        (bounds.minZ() + bounds.maxZ()) / 2
+                ))
+                .orElse(level.getSharedSpawnPos());
+        return safeOverworldReturn(level, origin);
     }
 
     private static BlockPos safeOverworldReturn(ServerLevel level, BlockPos origin) {
@@ -632,7 +652,7 @@ public final class DimensionControlEvents {
                 evacuatePlayer(player, "kingdoms.nether.session.expired");
             }
         }
-        ServerBossEvent bar = SESSION_BARS.remove(session.factionId());
+        ServerBossEvent bar = SESSION_BARS.remove(session.sessionId());
         if (bar != null) {
             bar.removeAllPlayers();
         }
@@ -653,6 +673,7 @@ public final class DimensionControlEvents {
     private static void evacuatePlayer(ServerPlayer player, String key) {
         DimensionControlManager.get(player.serverLevel().getServer()).invalidateReturnsForPlayer(player.getUUID());
         NetherReturnIntegration.removeForPlayer(player);
+        removePlayerFromBossBars(player.getUUID());
         teleportToOverworldSpawn(player);
         player.displayClientMessage(Component.translatable(key), false);
     }
@@ -660,18 +681,13 @@ public final class DimensionControlEvents {
     private static void updateBossBars(
             MinecraftServer server,
             List<ActiveSession> activeSessions,
-            FactionManager factions,
             Instant now
     ) {
-        Set<UUID> activeFactions = new HashSet<>();
+        Set<UUID> activeSessionIds = new HashSet<>();
         for (ActiveSession session : activeSessions) {
-            Faction faction = factions.getFactionById(session.factionId()).orElse(null);
-            if (faction == null) {
-                continue;
-            }
-            activeFactions.add(session.factionId());
+            activeSessionIds.add(session.sessionId());
             ServerBossEvent bar = SESSION_BARS.computeIfAbsent(
-                    session.factionId(),
+                    session.sessionId(),
                     ignored -> new ServerBossEvent(
                             Component.empty(), BossEvent.BossBarColor.RED, BossEvent.BossBarOverlay.PROGRESS
                     )
@@ -681,16 +697,17 @@ public final class DimensionControlEvents {
             bar.setProgress(Math.clamp((float) remainingMillis / totalMillis, 0.0F, 1.0F));
             bar.setName(Component.translatable(
                     "kingdoms.nether.session.bossbar",
-                    formatDuration(remainingMillis / 1000L),
-                    DimensionControlManager.get(server).remainingSessions(session.factionId(), now),
-                    DimensionControlManager.get(server).rules().sessionsPerDay(),
-                    formatDuration(NetherSchedulePolicy.secondsUntilClose(now))
+                    formatClock(remainingMillis / 1000L)
             ));
-            syncBossBarPlayers(server, faction, bar);
+            long remainingSeconds = remainingMillis / 1000L;
+            bar.setColor(remainingSeconds <= 60L
+                    ? BossEvent.BossBarColor.RED
+                    : remainingSeconds <= 300L ? BossEvent.BossBarColor.YELLOW : BossEvent.BossBarColor.PURPLE);
+            syncBossBarPlayers(server, session, bar, now);
         }
-        for (UUID factionId : List.copyOf(SESSION_BARS.keySet())) {
-            if (!activeFactions.contains(factionId)) {
-                ServerBossEvent removed = SESSION_BARS.remove(factionId);
+        for (UUID sessionId : List.copyOf(SESSION_BARS.keySet())) {
+            if (!activeSessionIds.contains(sessionId)) {
+                ServerBossEvent removed = SESSION_BARS.remove(sessionId);
                 if (removed != null) {
                     removed.removeAllPlayers();
                 }
@@ -698,10 +715,17 @@ public final class DimensionControlEvents {
         }
     }
 
-    private static void syncBossBarPlayers(MinecraftServer server, Faction faction, ServerBossEvent bar) {
-        List<ServerPlayer> desired = faction.members().keySet().stream()
-                .map(server.getPlayerList()::getPlayer)
-                .filter(java.util.Objects::nonNull)
+    private static void syncBossBarPlayers(
+            MinecraftServer server,
+            ActiveSession session,
+            ServerBossEvent bar,
+            Instant now
+    ) {
+        List<ServerPlayer> desired = server.getPlayerList().getPlayers().stream()
+                .filter(player -> Level.NETHER.equals(player.level().dimension()))
+                .filter(player -> DimensionControlManager.get(server).assignedSession(player.getUUID(), now)
+                        .map(assigned -> assigned.sessionId().equals(session.sessionId()))
+                        .orElse(false))
                 .toList();
         for (ServerPlayer player : List.copyOf(bar.getPlayers())) {
             if (!desired.contains(player)) {
@@ -711,6 +735,16 @@ public final class DimensionControlEvents {
         for (ServerPlayer player : desired) {
             if (!bar.getPlayers().contains(player)) {
                 bar.addPlayer(player);
+            }
+        }
+    }
+
+    private static void removePlayerFromBossBars(UUID playerId) {
+        for (ServerBossEvent bar : SESSION_BARS.values()) {
+            for (ServerPlayer player : List.copyOf(bar.getPlayers())) {
+                if (player.getUUID().equals(playerId)) {
+                    bar.removePlayer(player);
+                }
             }
         }
     }
@@ -742,6 +776,17 @@ public final class DimensionControlEvents {
     private static String formatDuration(long seconds) {
         long safe = Math.max(0L, seconds);
         return String.format(java.util.Locale.ROOT, "%02d:%02d", safe / 60L, safe % 60L);
+    }
+
+    private static String formatClock(long seconds) {
+        long safe = Math.max(0L, seconds);
+        return String.format(
+                java.util.Locale.ROOT,
+                "%02d:%02d:%02d",
+                safe / 3600L,
+                (safe % 3600L) / 60L,
+                safe % 60L
+        );
     }
 
     private static void processPortalRegistrations(MinecraftServer server) {

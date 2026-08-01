@@ -308,7 +308,9 @@ public final class DimensionControlManager {
     public synchronized boolean isDeathLocked(UUID factionId, UUID playerId, Instant now) {
         FactionLedger ledger = state.netherFactions.get(factionId.toString());
         String locked = state.deathLocks.get(playerId.toString());
-        return locked != null && activeData(ledger, now).stream().anyMatch(active -> active.id.equals(locked));
+        String assigned = state.playerSessions.get(playerId.toString());
+        return locked != null && locked.equals(assigned)
+                && activeData(ledger, now).stream().anyMatch(active -> active.id.equals(locked));
     }
 
     public synchronized boolean isValidReturn(ReturnBinding binding, Instant now) {
