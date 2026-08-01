@@ -383,6 +383,27 @@ public final class NetherSessionGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty")
+    public static void netherWipeRequiresDimensionKeyAndExecutesOnceOnStartup(GameTestHelper helper) {
+        isolated(helper, path -> {
+            DimensionControlManager manager = DimensionControlManager.forTesting(path);
+            helper.assertTrue(!manager.isWipePending(Level.NETHER), "Fresh server scheduled an automatic wipe");
+            helper.assertTrue(
+                    !manager.setWipePending(Level.NETHER, true),
+                    "Generic command path scheduled a Nether wipe"
+            );
+            helper.assertTrue(manager.requestNetherWipeFromDimensionKey(), "Dimension Key did not schedule wipe");
+            DimensionControlManager restarted = DimensionControlManager.forTesting(path);
+            helper.assertTrue(restarted.isWipePending(Level.NETHER), "Pending wipe was not persisted");
+            helper.assertTrue(restarted.cancelNetherWipeFromDimensionKey(), "Pending wipe could not be cancelled");
+            helper.assertTrue(!DimensionControlManager.forTesting(path).isWipePending(Level.NETHER),
+                    "Cancelled wipe reappeared after restart");
+            helper.assertTrue(restarted.requestNetherWipeFromDimensionKey(), "Wipe could not be requested again");
+            helper.assertTrue(restarted.completePendingWipe(Level.NETHER, 123L), "Pending wipe did not execute");
+            helper.assertTrue(!restarted.completePendingWipe(Level.NETHER, 123L), "Pending wipe executed twice");
+        });
+    }
+
     private static void prepareLanding(GameTestHelper helper, BlockPos feet) {
         for (int x = -1; x <= 1; x++) {
             for (int z = -1; z <= 1; z++) {

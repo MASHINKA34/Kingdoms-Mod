@@ -8,6 +8,7 @@ import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
+import java.util.UUID;
 
 public final class DimensionPayloads {
     public static final int ACTION_OPEN = 0;
@@ -15,20 +16,22 @@ public final class DimensionPayloads {
     public static final int ACTION_WIPE_SCHEDULE = 2;
     public static final int ACTION_WIPE_CANCEL = 3;
 
-    public record C2SDimensionAction(boolean end, int action) implements CustomPacketPayload {
+    public record C2SDimensionAction(UUID interactionId, boolean end, int action) implements CustomPacketPayload {
         public static final Type<C2SDimensionAction> TYPE = payloadType("dimension_action");
         public static final StreamCodec<RegistryFriendlyByteBuf, C2SDimensionAction> STREAM_CODEC = StreamCodec.of(
                 (buffer, payload) -> {
+                    buffer.writeUUID(payload.interactionId);
                     buffer.writeBoolean(payload.end);
                     buffer.writeVarInt(payload.action);
                 },
                 buffer -> {
+                    UUID interactionId = buffer.readUUID();
                     boolean end = buffer.readBoolean();
                     int action = buffer.readVarInt();
                     if (action < ACTION_OPEN || action > ACTION_WIPE_CANCEL) {
                         throw new DecoderException("Unknown dimension action " + action);
                     }
-                    return new C2SDimensionAction(end, action);
+                    return new C2SDimensionAction(interactionId, end, action);
                 }
         );
 
@@ -39,6 +42,7 @@ public final class DimensionPayloads {
     }
 
     public record S2CDimensionState(
+            UUID interactionId,
             boolean netherClosed,
             boolean netherWipePending,
             int netherPlayers,
@@ -55,6 +59,7 @@ public final class DimensionPayloads {
         public static final Type<S2CDimensionState> TYPE = payloadType("dimension_state");
         public static final StreamCodec<RegistryFriendlyByteBuf, S2CDimensionState> STREAM_CODEC = StreamCodec.of(
                 (buffer, payload) -> {
+                    buffer.writeUUID(payload.interactionId);
                     buffer.writeBoolean(payload.netherClosed);
                     buffer.writeBoolean(payload.netherWipePending);
                     buffer.writeVarInt(payload.netherPlayers);
@@ -69,6 +74,7 @@ public final class DimensionPayloads {
                     buffer.writeBoolean(payload.successful);
                 },
                 buffer -> new S2CDimensionState(
+                        buffer.readUUID(),
                         buffer.readBoolean(),
                         buffer.readBoolean(),
                         buffer.readVarInt(),

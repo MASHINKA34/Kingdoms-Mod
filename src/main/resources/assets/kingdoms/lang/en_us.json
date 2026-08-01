@@ -975,6 +975,7 @@
   "screen.kingdoms.dimension.wipe": "Wipe on restart",
   "screen.kingdoms.dimension.wipe_confirm": "Confirm wipe?",
   "screen.kingdoms.dimension.wipe_cancel": "Cancel wipe",
+  "screen.kingdoms.dimension.wipe_cancel_confirm": "Confirm cancellation?",
   "item.kingdoms.admin_analyzer": "Lag Analyzer",
   "item.kingdoms.faction_meter": "Faction Load Meter",
   "screen.kingdoms.analyzer.title": "Server Load Analyzer",

@@ -16,6 +16,8 @@ public final class DimensionControlScreen extends Screen {
     private DimensionPayloads.S2CDimensionState state;
     private boolean netherWipeArmed;
     private boolean endWipeArmed;
+    private boolean netherCancelArmed;
+    private boolean endCancelArmed;
     private int panelLeft;
     private int panelTop;
 
@@ -37,6 +39,8 @@ public final class DimensionControlScreen extends Screen {
         state = payload;
         netherWipeArmed = false;
         endWipeArmed = false;
+        netherCancelArmed = false;
+        endCancelArmed = false;
         rebuildWidgets();
     }
 
@@ -70,8 +74,22 @@ public final class DimensionControlScreen extends Screen {
         ));
         if (wipePending) {
             addRenderableWidget(KingdomsButton.create(
-                    Component.translatable("screen.kingdoms.dimension.wipe_cancel"),
-                    button -> send(end, DimensionPayloads.ACTION_WIPE_CANCEL),
+                Component.translatable("screen.kingdoms.dimension.wipe_cancel"),
+                    button -> {
+                        boolean armed = end ? endCancelArmed : netherCancelArmed;
+                        if (!armed) {
+                            if (end) {
+                                endCancelArmed = true;
+                            } else {
+                                netherCancelArmed = true;
+                            }
+                            button.setMessage(Component.translatable(
+                                    "screen.kingdoms.dimension.wipe_cancel_confirm"
+                            ));
+                            return;
+                        }
+                        send(end, DimensionPayloads.ACTION_WIPE_CANCEL);
+                    },
                     panelLeft + 133,
                     buttonsY,
                     119,
@@ -101,8 +119,10 @@ public final class DimensionControlScreen extends Screen {
         }
     }
 
-    private static void send(boolean end, int action) {
-        PacketDistributor.sendToServer(new DimensionPayloads.C2SDimensionAction(end, action));
+    private void send(boolean end, int action) {
+        PacketDistributor.sendToServer(new DimensionPayloads.C2SDimensionAction(
+                state.interactionId(), end, action
+        ));
     }
 
     @Override

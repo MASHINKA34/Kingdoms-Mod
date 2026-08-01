@@ -975,6 +975,7 @@
   "screen.kingdoms.dimension.wipe": "Вайп при рестарте",
   "screen.kingdoms.dimension.wipe_confirm": "Подтвердить вайп?",
   "screen.kingdoms.dimension.wipe_cancel": "Отменить вайп",
+  "screen.kingdoms.dimension.wipe_cancel_confirm": "Подтвердить отмену?",
   "item.kingdoms.admin_analyzer": "Анализатор нагрузки",
   "item.kingdoms.faction_meter": "Измеритель фракции",
   "screen.kingdoms.analyzer.title": "Анализатор нагрузки сервера",

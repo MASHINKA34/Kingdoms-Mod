@@ -238,11 +238,7 @@ public final class KingdomsAdminCommands {
                 .then(Commands.literal("close")
                         .executes(context -> setDimensionClosed(context, dimension, displayName, true)))
                 .then(Commands.literal("status")
-                        .executes(context -> dimensionStatus(context, dimension, displayName)))
-                .then(Commands.literal("wipe")
-                        .executes(context -> scheduleDimensionWipe(context, dimension, displayName))
-                        .then(Commands.literal("cancel")
-                                .executes(context -> cancelDimensionWipe(context, dimension, displayName))));
+                        .executes(context -> dimensionStatus(context, dimension, displayName)));
         if (Level.NETHER.equals(dimension)) {
             branch.then(Commands.literal("portal")
                     .then(Commands.literal("clear").executes(KingdomsAdminCommands::clearNetherPortal))
@@ -256,6 +252,11 @@ public final class KingdomsAdminCommands {
                                     .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 86_400))
                                             .executes(context -> previewNetherHud(context, false)))))
                     .then(Commands.literal("clear").executes(KingdomsAdminCommands::clearNetherHud)));
+        } else {
+            branch.then(Commands.literal("wipe")
+                    .executes(context -> scheduleDimensionWipe(context, dimension, displayName))
+                    .then(Commands.literal("cancel")
+                            .executes(context -> cancelDimensionWipe(context, dimension, displayName))));
         }
         return branch;
     }

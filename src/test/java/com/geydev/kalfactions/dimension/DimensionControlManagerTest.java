@@ -196,10 +196,28 @@ final class DimensionControlManagerTest {
         DimensionControlManager manager = manager();
 
         assertFalse(manager.isWipePending(Level.NETHER));
-        assertTrue(manager.setWipePending(Level.NETHER, true));
+        assertFalse(manager.setWipePending(Level.NETHER, true));
+        assertTrue(manager.requestNetherWipeFromDimensionKey());
         assertTrue(manager.isWipePending(Level.NETHER));
-        assertTrue(manager.setWipePending(Level.NETHER, false));
+        assertTrue(manager.cancelNetherWipeFromDimensionKey());
         assertFalse(manager.isWipePending(Level.NETHER));
+    }
+
+    @Test
+    void pendingNetherWipePersistsAndCompletesOnlyOnceAtSafeStartup() {
+        DimensionControlManager manager = manager();
+        assertTrue(manager.requestNetherWipeFromDimensionKey());
+
+        DimensionControlManager restarted = manager();
+        assertTrue(restarted.isWipePending(Level.NETHER));
+        assertTrue(restarted.completePendingWipe(Level.NETHER, 12345L));
+        assertFalse(restarted.isWipePending(Level.NETHER));
+        assertEquals(1L, restarted.wipeGeneration(Level.NETHER));
+        assertFalse(restarted.completePendingWipe(Level.NETHER, 12345L));
+
+        DimensionControlManager afterCompletion = manager();
+        assertFalse(afterCompletion.isWipePending(Level.NETHER));
+        assertEquals(1L, afterCompletion.wipeGeneration(Level.NETHER));
     }
 
     @Test

@@ -31,7 +31,7 @@ public final class DimensionKeyItem extends Item {
             );
             return InteractionResultHolder.fail(stack);
         }
-        DimensionNetwork.sendState(serverPlayer, Component.empty(), true);
+        DimensionNetwork.openControl(serverPlayer);
         return InteractionResultHolder.success(stack);
     }
 

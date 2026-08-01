@@ -495,11 +495,9 @@ public final class DimensionControlManager {
 
     public synchronized boolean setWipePending(ResourceKey<Level> dimension, boolean pending) {
         if (Level.NETHER.equals(dimension)) {
-            if (state.netherWipePending == pending) {
-                return false;
-            }
-            state.netherWipePending = pending;
-        } else if (Level.END.equals(dimension)) {
+            return false;
+        }
+        if (Level.END.equals(dimension)) {
             if (state.endWipePending == pending) {
                 return false;
             }
@@ -507,6 +505,24 @@ public final class DimensionControlManager {
         } else {
             return false;
         }
+        save();
+        return true;
+    }
+
+    synchronized boolean requestNetherWipeFromDimensionKey() {
+        if (state.netherWipePending) {
+            return false;
+        }
+        state.netherWipePending = true;
+        save();
+        return true;
+    }
+
+    synchronized boolean cancelNetherWipeFromDimensionKey() {
+        if (!state.netherWipePending) {
+            return false;
+        }
+        state.netherWipePending = false;
         save();
         return true;
     }
@@ -532,27 +548,36 @@ public final class DimensionControlManager {
     }
 
     public synchronized void runPendingWipes(MinecraftServer server) {
-        boolean changed = false;
         if (state.netherWipePending && wipeFolder(server, Level.NETHER)) {
-            state.netherWipePending = false;
-            state.netherWipeGen++;
-            state.netherSeed = nextSeed(generationSeed(Level.NETHER, server.getWorldData().worldGenOptions().seed()));
-            state.netherFactions.clear();
-            state.deathLocks.clear();
-            wipedThisStartup.add(Level.NETHER);
-            changed = true;
+            completePendingWipe(Level.NETHER, server.getWorldData().worldGenOptions().seed());
         }
         if (state.endWipePending && wipeFolder(server, Level.END)) {
+            completePendingWipe(Level.END, server.getWorldData().worldGenOptions().seed());
+            server.getWorldData().setEndDragonFightData(EndDragonFight.Data.DEFAULT);
+        }
+    }
+
+    synchronized boolean completePendingWipe(ResourceKey<Level> dimension, long defaultSeed) {
+        if (Level.NETHER.equals(dimension) && state.netherWipePending) {
+            state.netherWipePending = false;
+            state.netherWipeGen++;
+            state.netherSeed = nextSeed(generationSeed(Level.NETHER, defaultSeed));
+            state.netherFactions.clear();
+            state.deathLocks.clear();
+            state.playerSessions.clear();
+            wipedThisStartup.add(Level.NETHER);
+            save();
+            return true;
+        }
+        if (Level.END.equals(dimension) && state.endWipePending) {
             state.endWipePending = false;
             state.endWipeGen++;
-            state.endSeed = nextSeed(generationSeed(Level.END, server.getWorldData().worldGenOptions().seed()));
-            server.getWorldData().setEndDragonFightData(EndDragonFight.Data.DEFAULT);
+            state.endSeed = nextSeed(generationSeed(Level.END, defaultSeed));
             wipedThisStartup.add(Level.END);
-            changed = true;
-        }
-        if (changed) {
             save();
+            return true;
         }
+        return false;
     }
 
     public synchronized Set<ResourceKey<Level>> consumeWipedThisStartup() {

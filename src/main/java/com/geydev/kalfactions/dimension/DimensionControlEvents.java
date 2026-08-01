@@ -86,6 +86,7 @@ public final class DimensionControlEvents {
         PENDING_PORTAL_REGISTRATIONS.clear();
         NetherHudService.clear();
         NetherEntryConfirmations.clear();
+        DimensionNetwork.clear();
         tickCounter = 0;
     }
 
@@ -341,6 +342,7 @@ public final class DimensionControlEvents {
         NetherHudService.removePlayer(playerId);
         removePlayerFromBossBars(event.getEntity().getUUID());
         NetherEntryConfirmations.remove(playerId);
+        DimensionNetwork.removePlayer(playerId);
     }
 
     @SubscribeEvent

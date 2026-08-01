@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import java.time.Instant;
+import java.util.UUID;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -21,7 +22,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class DimensionNetwork {
-    private static final String PROTOCOL_VERSION = "3";
+    private static final String PROTOCOL_VERSION = "4";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -48,6 +49,12 @@ public final class DimensionNetwork {
             return;
         }
         MinecraftServer server = player.serverLevel().getServer();
+        UUID nextInteractionId = DimensionKeySessions.accept(
+                player.getUUID(), payload.interactionId(), server.getTickCount()
+        ).orElse(null);
+        if (nextInteractionId == null) {
+            return;
+        }
         DimensionControlManager control = DimensionControlManager.get(server);
         ResourceKey<Level> dimension = payload.end() ? Level.END : Level.NETHER;
         Component name = dimensionName(payload.end());
@@ -73,8 +80,10 @@ public final class DimensionNetwork {
                 }
             }
             case DimensionPayloads.ACTION_WIPE_SCHEDULE -> {
-                if (control.setWipePending(dimension, true)) {
-                    DimensionControlEvents.evacuate(server, dimension);
+                boolean changed = payload.end()
+                        ? control.setWipePending(Level.END, true)
+                        : control.requestNetherWipeFromDimensionKey();
+                if (changed) {
                     notice = Component.translatable("kingdoms.dimension.notice.wipe_scheduled", name);
                 } else {
                     notice = Component.translatable("kingdoms.dimension.notice.no_change");
@@ -82,7 +91,10 @@ public final class DimensionNetwork {
                 }
             }
             case DimensionPayloads.ACTION_WIPE_CANCEL -> {
-                if (control.setWipePending(dimension, false)) {
+                boolean changed = payload.end()
+                        ? control.setWipePending(Level.END, false)
+                        : control.cancelNetherWipeFromDimensionKey();
+                if (changed) {
                     notice = Component.translatable("kingdoms.dimension.notice.wipe_cancelled", name);
                 } else {
                     notice = Component.translatable("kingdoms.dimension.notice.no_change");
@@ -93,14 +105,27 @@ public final class DimensionNetwork {
                 return;
             }
         }
-        sendState(player, notice, successful);
+        sendState(player, nextInteractionId, notice, successful);
     }
 
-    public static void sendState(ServerPlayer player, Component notice, boolean successful) {
+    public static void openControl(ServerPlayer player) {
+        UUID interactionId = DimensionKeySessions.open(
+                player.getUUID(), player.serverLevel().getServer().getTickCount()
+        );
+        sendState(player, interactionId, Component.empty(), true);
+    }
+
+    private static void sendState(
+            ServerPlayer player,
+            UUID interactionId,
+            Component notice,
+            boolean successful
+    ) {
         MinecraftServer server = player.serverLevel().getServer();
         DimensionControlManager control = DimensionControlManager.get(server);
         Instant now = Instant.now();
         PacketDistributor.sendToPlayer(player, new DimensionPayloads.S2CDimensionState(
+                interactionId,
                 control.isClosed(Level.NETHER),
                 control.isWipePending(Level.NETHER),
                 playersIn(server, Level.NETHER),
@@ -114,6 +139,14 @@ public final class DimensionNetwork {
                 notice,
                 successful
         ));
+    }
+
+    public static void removePlayer(UUID playerId) {
+        DimensionKeySessions.remove(playerId);
+    }
+
+    public static void clear() {
+        DimensionKeySessions.clear();
     }
 
     private static int playersIn(MinecraftServer server, ResourceKey<Level> dimension) {
