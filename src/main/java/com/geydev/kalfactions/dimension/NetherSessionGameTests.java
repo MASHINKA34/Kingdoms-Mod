@@ -225,6 +225,29 @@ public final class NetherSessionGameTests {
         });
     }
 
+    @GameTest(template = "empty")
+    public static void hudWindowAndPreviewDoNotMutateSessions(GameTestHelper helper) {
+        isolated(helper, path -> {
+            DimensionControlManager manager = DimensionControlManager.forTesting(path);
+            UUID faction = UUID.randomUUID();
+            UUID player = UUID.randomUUID();
+            Instant openingTime = Instant.parse("2026-07-22T14:55:00Z");
+            var opening = NetherHudService.realPayload(manager, faction, player, openingTime);
+            helper.assertTrue(opening.visible() && opening.opening(), "HUD did not appear at 17:55 Moscow");
+            Instant beforeOpening = Instant.parse("2026-07-22T12:00:00Z");
+            int remaining = manager.remainingSessions(faction, beforeOpening);
+            var preview = NetherHudService.previewPayload(
+                    manager, faction, player, beforeOpening, false, 300
+            );
+            helper.assertTrue(preview.visible() && preview.preview(), "HUD preview was not visible");
+            helper.assertTrue(
+                    manager.remainingSessions(faction, beforeOpening) == remaining
+                            && manager.activeSessions(beforeOpening).isEmpty(),
+                    "HUD preview changed real session data"
+            );
+        });
+    }
+
     private static void prepareLanding(GameTestHelper helper, BlockPos feet) {
         for (int x = -1; x <= 1; x++) {
             for (int z = -1; z <= 1; z++) {

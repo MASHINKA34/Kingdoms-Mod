@@ -85,6 +85,7 @@ public final class DimensionControlEvents {
         CLOSING_WARNED_SESSIONS.clear();
         PORTAL_IGNITIONS.clear();
         PENDING_PORTAL_REGISTRATIONS.clear();
+        NetherHudService.clear();
         tickCounter = 0;
     }
 
@@ -275,6 +276,7 @@ public final class DimensionControlEvents {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
+        NetherHudService.syncNow(player, Instant.now());
         ResourceKey<Level> dimension = player.level().dimension();
         if (!Level.NETHER.equals(dimension)) {
             NetherReturnIntegration.removeForPlayer(player);
@@ -306,6 +308,7 @@ public final class DimensionControlEvents {
         AUTHORIZED_TRANSFERS.remove(playerId);
         EXPECTED_NETHER_ARRIVALS.remove(playerId);
         PENDING_RETURN_POSITIONS.remove(playerId);
+        NetherHudService.removePlayer(playerId);
     }
 
     @SubscribeEvent
@@ -431,6 +434,7 @@ public final class DimensionControlEvents {
             }
         }
         updateBossBars(server, activeSessions, factions, now);
+        NetherHudService.tick(server, now);
     }
 
     public static int evacuate(MinecraftServer server, ResourceKey<Level> dimension) {

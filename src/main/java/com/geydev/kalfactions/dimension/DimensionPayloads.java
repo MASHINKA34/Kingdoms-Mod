@@ -90,6 +90,67 @@ public final class DimensionPayloads {
         }
     }
 
+    public record S2CNetherHud(
+            boolean visible,
+            boolean opening,
+            boolean preview,
+            long serverNowEpochMillis,
+            long phaseEndsAtEpochMillis,
+            int remainingSessions,
+            int totalSessions,
+            long sessionEndsAtEpochMillis
+    ) implements CustomPacketPayload {
+        public static final Type<S2CNetherHud> TYPE = payloadType("nether_hud");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CNetherHud> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBoolean(payload.visible);
+                    buffer.writeBoolean(payload.opening);
+                    buffer.writeBoolean(payload.preview);
+                    buffer.writeLong(payload.serverNowEpochMillis);
+                    buffer.writeLong(payload.phaseEndsAtEpochMillis);
+                    buffer.writeVarInt(payload.remainingSessions + 1);
+                    buffer.writeVarInt(payload.totalSessions);
+                    buffer.writeLong(payload.sessionEndsAtEpochMillis);
+                },
+                buffer -> decodeHud(buffer)
+        );
+
+        public S2CNetherHud {
+            if (remainingSessions < -1 || remainingSessions > 16) {
+                throw new IllegalArgumentException("remainingSessions");
+            }
+            if (totalSessions < 1 || totalSessions > 16) {
+                throw new IllegalArgumentException("totalSessions");
+            }
+            if (phaseEndsAtEpochMillis < 0L || sessionEndsAtEpochMillis < 0L) {
+                throw new IllegalArgumentException("end time");
+            }
+        }
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+
+        private static S2CNetherHud decodeHud(RegistryFriendlyByteBuf buffer) {
+            boolean visible = buffer.readBoolean();
+            boolean opening = buffer.readBoolean();
+            boolean preview = buffer.readBoolean();
+            long serverNow = buffer.readLong();
+            long phaseEnd = buffer.readLong();
+            int remaining = buffer.readVarInt() - 1;
+            int total = buffer.readVarInt();
+            long sessionEnd = buffer.readLong();
+            if (remaining < -1 || remaining > 16 || total < 1 || total > 16
+                    || phaseEnd < 0L || sessionEnd < 0L) {
+                throw new DecoderException("Invalid Nether HUD payload");
+            }
+            return new S2CNetherHud(
+                    visible, opening, preview, serverNow, phaseEnd, remaining, total, sessionEnd
+            );
+        }
+    }
+
     private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> payloadType(String path) {
         return new CustomPacketPayload.Type<>(
                 ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, path)

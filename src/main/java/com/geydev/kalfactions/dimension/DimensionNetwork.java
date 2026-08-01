@@ -2,6 +2,7 @@ package com.geydev.kalfactions.dimension;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.screen.DimensionControlScreen;
+import com.geydev.kalfactions.client.NetherHudOverlay;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -20,7 +21,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class DimensionNetwork {
-    private static final String PROTOCOL_VERSION = "2";
+    private static final String PROTOCOL_VERSION = "3";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -34,6 +35,11 @@ public final class DimensionNetwork {
                 DimensionPayloads.S2CDimensionState.TYPE,
                 DimensionPayloads.S2CDimensionState.STREAM_CODEC,
                 DimensionNetwork::handleState
+        );
+        registrar.playToClient(
+                DimensionPayloads.S2CNetherHud.TYPE,
+                DimensionPayloads.S2CNetherHud.STREAM_CODEC,
+                DimensionNetwork::handleHud
         );
     }
 
@@ -122,6 +128,12 @@ public final class DimensionNetwork {
     private static void handleState(DimensionPayloads.S2CDimensionState payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             DimensionControlScreen.handle(payload);
+        }
+    }
+
+    private static void handleHud(DimensionPayloads.S2CNetherHud payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            NetherHudOverlay.handle(payload);
         }
     }
 
