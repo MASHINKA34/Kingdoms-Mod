@@ -14,11 +14,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
@@ -27,22 +29,25 @@ import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.BossEvent;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.world.level.portal.PortalShape;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityTravelToDimensionEvent;
 import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.common.ItemAbilities;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class DimensionControlEvents {
@@ -52,6 +57,8 @@ public final class DimensionControlEvents {
     private static final Set<UUID> EXPECTED_NETHER_ARRIVALS = new HashSet<>();
     private static final Map<UUID, BlockPos> PENDING_RETURN_POSITIONS = new HashMap<>();
     private static final Set<UUID> CLOSING_WARNED_SESSIONS = new HashSet<>();
+    private static final Map<BlockPos, PortalIgnition> PORTAL_IGNITIONS = new HashMap<>();
+    private static final List<PendingPortalRegistration> PENDING_PORTAL_REGISTRATIONS = new ArrayList<>();
     private static int tickCounter;
 
     @SubscribeEvent
@@ -74,6 +81,8 @@ public final class DimensionControlEvents {
         EXPECTED_NETHER_ARRIVALS.clear();
         PENDING_RETURN_POSITIONS.clear();
         CLOSING_WARNED_SESSIONS.clear();
+        PORTAL_IGNITIONS.clear();
+        PENDING_PORTAL_REGISTRATIONS.clear();
         tickCounter = 0;
     }
 
@@ -97,18 +106,22 @@ public final class DimensionControlEvents {
         if (Level.NETHER.equals(target) && AUTHORIZED_TRANSFERS.remove(player.getUUID())) {
             return;
         }
-        if (player.hasPermissions(2)) {
-            return;
-        }
         if (Level.END.equals(target)) {
-            if (control.isClosed(target)) {
+            if (!player.hasPermissions(2) && control.isClosed(target)) {
                 deny(event, player, Component.translatable("kingdoms.dimension.closed_notice"));
             }
             return;
         }
-        if (!Level.OVERWORLD.equals(player.level().dimension())
-                || !control.isInsideRegisteredPortal(player.blockPosition())
-                || !player.level().getBlockState(player.blockPosition()).is(Blocks.NETHER_PORTAL)) {
+        boolean portalTravel = Level.OVERWORLD.equals(player.level().dimension())
+                && player.level().getBlockState(player.blockPosition()).is(Blocks.NETHER_PORTAL);
+        if (!portalTravel) {
+            if (player.hasPermissions(2)) {
+                return;
+            }
+            deny(event, player, Component.translatable("kingdoms.nether.portal.unregistered"));
+            return;
+        }
+        if (!control.isInsideRegisteredPortal(player.blockPosition())) {
             deny(event, player, Component.translatable("kingdoms.nether.portal.unregistered"));
             return;
         }
@@ -182,20 +195,59 @@ public final class DimensionControlEvents {
     }
 
     @SubscribeEvent
+    public static void onPortalIgnition(PlayerInteractEvent.RightClickBlock event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)
+                || !(event.getLevel() instanceof ServerLevel level)
+                || !player.getItemInHand(event.getHand()).canPerformAction(ItemAbilities.FIRESTARTER_LIGHT)) {
+            return;
+        }
+        Direction face = event.getFace();
+        if (face == null) {
+            return;
+        }
+        BlockPos firePosition = event.getPos().relative(face).immutable();
+        if (PortalShape.findEmptyPortalShape(level, firePosition, Direction.Axis.X).isEmpty()) {
+            return;
+        }
+        boolean overworld = Level.OVERWORLD.equals(level.dimension());
+        boolean nearSpawn = !overworld || NetherPortalRegistration.isNearSharedSpawn(level, firePosition);
+        if (!NetherPortalRegistration.mayCreatePortal(player.hasPermissions(2), overworld, nearSpawn)) {
+            event.setCancellationResult(InteractionResult.FAIL);
+            event.setCanceled(true);
+            player.displayClientMessage(Component.translatable(player.hasPermissions(2)
+                    ? "commands.kingdoms.nether.portal.invalid"
+                    : "kingdoms.nether.portal.spawn_only"), true);
+            return;
+        }
+        PORTAL_IGNITIONS.put(firePosition, new PortalIgnition(player.getUUID(), level.getGameTime()));
+    }
+
+    @SubscribeEvent
     public static void onPortalSpawn(BlockEvent.PortalSpawnEvent event) {
         if (!(event.getLevel() instanceof ServerLevel level)) {
             return;
         }
-        MinecraftServer server = level.getServer();
-        DimensionControlManager control = DimensionControlManager.get(server);
-        if (Level.OVERWORLD.equals(level.dimension()) && control.isInsideRegisteredPortal(event.getPos())) {
+        PortalIgnition ignition = PORTAL_IGNITIONS.remove(event.getPos());
+        ServerPlayer actor = ignition == null ? null : level.getServer().getPlayerList().getPlayer(ignition.playerId());
+        if (ignition == null || level.getGameTime() - ignition.gameTime() > 2L
+                || actor == null || !actor.hasPermissions(2)) {
+            event.setCanceled(true);
+            if (actor != null) {
+                actor.displayClientMessage(Component.translatable("kingdoms.nether.portal.spawn_only"), true);
+            }
             return;
         }
-        AABB operatorRange = new AABB(event.getPos()).inflate(8.0D);
-        if (!level.getEntitiesOfClass(ServerPlayer.class, operatorRange, player -> player.hasPermissions(2)).isEmpty()) {
+        if (!Level.OVERWORLD.equals(level.dimension())) {
             return;
         }
-        event.setCanceled(true);
+        if (!NetherPortalRegistration.isNearSharedSpawn(level, event.getPos())) {
+            event.setCanceled(true);
+            actor.displayClientMessage(Component.translatable("commands.kingdoms.nether.portal.invalid"), true);
+            return;
+        }
+        PENDING_PORTAL_REGISTRATIONS.add(new PendingPortalRegistration(
+                event.getPos().immutable(), actor.getUUID(), level.getGameTime()
+        ));
     }
 
     @SubscribeEvent
@@ -304,6 +356,7 @@ public final class DimensionControlEvents {
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
+        processPortalRegistrations(event.getServer());
         if (++tickCounter < 20) {
             return;
         }
@@ -311,6 +364,7 @@ public final class DimensionControlEvents {
         MinecraftServer server = event.getServer();
         Instant now = Instant.now();
         DimensionControlManager control = DimensionControlManager.get(server);
+        validateRegisteredPortal(server, control);
         FactionManager factions = FactionManager.get(server);
         List<EndedSession> ended = control.expireSessions(now, id -> factions.getFactionById(id).isPresent());
         for (EndedSession session : ended) {
@@ -616,6 +670,45 @@ public final class DimensionControlEvents {
         return String.format(java.util.Locale.ROOT, "%02d:%02d", safe / 60L, safe % 60L);
     }
 
+    private static void processPortalRegistrations(MinecraftServer server) {
+        ServerLevel overworld = server.overworld();
+        long gameTime = overworld.getGameTime();
+        PORTAL_IGNITIONS.entrySet().removeIf(entry -> gameTime - entry.getValue().gameTime() > 5L);
+        for (PendingPortalRegistration pending : List.copyOf(PENDING_PORTAL_REGISTRATIONS)) {
+            if (gameTime <= pending.gameTime()) {
+                continue;
+            }
+            var bounds = NetherPortalRegistration.findConnectedPortal(overworld, pending.position());
+            if (bounds.isPresent()) {
+                DimensionControlManager.get(server).setNetherPortal(bounds.get());
+                ServerPlayer operator = server.getPlayerList().getPlayer(pending.operatorId());
+                if (operator != null) {
+                    var value = bounds.get();
+                    operator.sendSystemMessage(Component.translatable(
+                            "commands.kingdoms.nether.portal.registered",
+                            value.minX(), value.minY(), value.minZ(), value.maxX(), value.maxY(), value.maxZ()
+                    ));
+                }
+                PENDING_PORTAL_REGISTRATIONS.remove(pending);
+            } else if (gameTime - pending.gameTime() >= 5L) {
+                ServerPlayer operator = server.getPlayerList().getPlayer(pending.operatorId());
+                if (operator != null) {
+                    operator.displayClientMessage(
+                            Component.translatable("commands.kingdoms.nether.portal.invalid"), true
+                    );
+                }
+                PENDING_PORTAL_REGISTRATIONS.remove(pending);
+            }
+        }
+    }
+
+    private static void validateRegisteredPortal(MinecraftServer server, DimensionControlManager control) {
+        var registered = control.netherPortal().orElse(null);
+        if (registered != null && !NetherPortalRegistration.isIntact(server.overworld(), registered)) {
+            control.clearNetherPortal();
+        }
+    }
+
     private static void cleanupModDataFor(MinecraftServer server, ResourceKey<Level> dimension) {
         String dimensionId = dimension.location().toString();
         RogueOutpostManager rogueOutposts = RogueOutpostManager.get(server);
@@ -659,6 +752,12 @@ public final class DimensionControlEvents {
 
     private static String wipeGenKey(ResourceKey<Level> dimension) {
         return WIPE_GEN_KEY_PREFIX + dimension.location().getPath();
+    }
+
+    private record PortalIgnition(UUID playerId, long gameTime) {
+    }
+
+    private record PendingPortalRegistration(BlockPos position, UUID operatorId, long gameTime) {
     }
 
     private DimensionControlEvents() {

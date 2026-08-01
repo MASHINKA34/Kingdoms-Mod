@@ -35,7 +35,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.core.BlockPos;
 
@@ -245,62 +244,10 @@ public final class KingdomsAdminCommands {
                                 .executes(context -> cancelDimensionWipe(context, dimension, displayName))));
         if (Level.NETHER.equals(dimension)) {
             branch.then(Commands.literal("portal")
-                    .then(Commands.literal("set")
-                            .then(Commands.argument("from", BlockPosArgument.blockPos())
-                                    .then(Commands.argument("to", BlockPosArgument.blockPos())
-                                            .executes(KingdomsAdminCommands::setNetherPortal))))
                     .then(Commands.literal("clear").executes(KingdomsAdminCommands::clearNetherPortal))
                     .then(Commands.literal("status").executes(KingdomsAdminCommands::netherPortalStatus)));
         }
         return branch;
-    }
-
-    private static int setNetherPortal(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        CommandSourceStack source = context.getSource();
-        if (!Level.OVERWORLD.equals(source.getLevel().dimension())) {
-            source.sendFailure(Component.translatable("commands.kingdoms.nether.portal.overworld_only"));
-            return 0;
-        }
-        BlockPos from = BlockPosArgument.getLoadedBlockPos(context, "from");
-        BlockPos to = BlockPosArgument.getLoadedBlockPos(context, "to");
-        DimensionControlManager.PortalBounds bounds = new DimensionControlManager.PortalBounds(
-                from.getX(), from.getY(), from.getZ(), to.getX(), to.getY(), to.getZ()
-        );
-        if (!validPortalBounds(source.getLevel(), bounds)) {
-            source.sendFailure(Component.translatable("commands.kingdoms.nether.portal.invalid"));
-            return 0;
-        }
-        DimensionControlManager.get(source.getServer()).setNetherPortal(bounds);
-        source.sendSuccess(() -> Component.translatable(
-                "commands.kingdoms.nether.portal.set",
-                bounds.minX(), bounds.minY(), bounds.minZ(), bounds.maxX(), bounds.maxY(), bounds.maxZ()
-        ), true);
-        return 1;
-    }
-
-    private static boolean validPortalBounds(ServerLevel level, DimensionControlManager.PortalBounds bounds) {
-        int sizeX = bounds.maxX() - bounds.minX() + 1;
-        int sizeY = bounds.maxY() - bounds.minY() + 1;
-        int sizeZ = bounds.maxZ() - bounds.minZ() + 1;
-        if (sizeX > 16 || sizeY > 16 || sizeZ > 16 || (long) sizeX * sizeY * sizeZ > 4096L) {
-            return false;
-        }
-        BlockPos spawn = level.getSharedSpawnPos();
-        double centerX = (bounds.minX() + bounds.maxX()) * 0.5D;
-        double centerZ = (bounds.minZ() + bounds.maxZ()) * 0.5D;
-        if (Math.hypot(centerX - spawn.getX(), centerZ - spawn.getZ()) > 64.0D) {
-            return false;
-        }
-        for (int x = bounds.minX(); x <= bounds.maxX(); x++) {
-            for (int y = bounds.minY(); y <= bounds.maxY(); y++) {
-                for (int z = bounds.minZ(); z <= bounds.maxZ(); z++) {
-                    if (level.getBlockState(new BlockPos(x, y, z)).is(Blocks.NETHER_PORTAL)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
     }
 
     private static int clearNetherPortal(CommandContext<CommandSourceStack> context) {

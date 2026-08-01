@@ -81,6 +81,37 @@ public final class NetherSessionGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void ordinaryPlayerPortalCreationIsRejected(GameTestHelper helper) {
+        helper.assertTrue(
+                !NetherPortalRegistration.mayCreatePortal(false, true, true),
+                "Ordinary player was allowed to create a Nether portal"
+        );
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void operatorPortalIsDetectedAndRegistered(GameTestHelper helper) {
+        BlockPos bottom = new BlockPos(3, 93, 3);
+        for (int x = 0; x < 2; x++) {
+            for (int y = 0; y < 3; y++) {
+                helper.setBlock(bottom.offset(x, y, 0), Blocks.NETHER_PORTAL);
+            }
+        }
+        var bounds = NetherPortalRegistration.findConnectedPortalBlocks(
+                helper.getLevel(), helper.absolutePos(bottom)
+        ).orElseThrow();
+        isolated(helper, path -> {
+            DimensionControlManager manager = DimensionControlManager.forTesting(path);
+            manager.setNetherPortal(bounds);
+            DimensionControlManager restarted = DimensionControlManager.forTesting(path);
+            helper.assertTrue(
+                    restarted.isInsideRegisteredPortal(helper.absolutePos(bottom.offset(1, 2, 0))),
+                    "Detected operator portal was not registered persistently"
+            );
+        });
+    }
+
+    @GameTest(template = "empty")
     public static void returnBindingRejectsFakeExpiredAndReplay(GameTestHelper helper) {
         isolated(helper, path -> {
             DimensionControlManager manager = DimensionControlManager.forTesting(path);
