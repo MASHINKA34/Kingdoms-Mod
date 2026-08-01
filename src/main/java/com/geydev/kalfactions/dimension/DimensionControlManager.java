@@ -687,7 +687,12 @@ public final class DimensionControlManager {
     }
 
     private boolean wipeFolder(MinecraftServer server, ResourceKey<Level> dimension) {
-        Path folder = DimensionType.getStorageFolder(dimension, server.getWorldPath(LevelResource.ROOT).normalize());
+        Path worldRoot = server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize();
+        Path folder = DimensionType.getStorageFolder(dimension, worldRoot).toAbsolutePath().normalize();
+        if (!isSafeWipeFolder(worldRoot, folder)) {
+            KalFactions.LOGGER.error("Refusing to wipe unsafe dimension path {} outside world root {}", folder, worldRoot);
+            return false;
+        }
         if (!Files.exists(folder)) {
             KalFactions.LOGGER.info("Dimension folder {} is already absent, nothing to wipe", folder);
             return true;
@@ -700,6 +705,12 @@ public final class DimensionControlManager {
             KalFactions.LOGGER.error("Failed to wipe dimension folder {}, will retry on next startup", folder, exception);
             return false;
         }
+    }
+
+    static boolean isSafeWipeFolder(Path worldRoot, Path folder) {
+        Path normalizedRoot = worldRoot.toAbsolutePath().normalize();
+        Path normalizedFolder = folder.toAbsolutePath().normalize();
+        return !normalizedFolder.equals(normalizedRoot) && normalizedFolder.startsWith(normalizedRoot);
     }
 
     private static void deleteRecursively(Path root) throws IOException {

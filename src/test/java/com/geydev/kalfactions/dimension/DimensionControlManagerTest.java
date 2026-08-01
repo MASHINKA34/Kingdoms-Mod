@@ -233,6 +233,15 @@ final class DimensionControlManagerTest {
     }
 
     @Test
+    void wipeTargetMustStayInsideWorldRoot() {
+        Path worldRoot = temporary.resolve("world");
+
+        assertTrue(DimensionControlManager.isSafeWipeFolder(worldRoot, worldRoot.resolve("DIM-1")));
+        assertFalse(DimensionControlManager.isSafeWipeFolder(worldRoot, worldRoot));
+        assertFalse(DimensionControlManager.isSafeWipeFolder(worldRoot, worldRoot.resolve("..").resolve("other-world")));
+    }
+
+    @Test
     void dailyResetNotificationCanOnlyBeClaimedOncePerMoscowDate() {
         DimensionControlManager manager = manager();
 
