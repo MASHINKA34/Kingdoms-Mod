@@ -146,13 +146,13 @@ public final class DimensionControlManager {
             boolean secondSessionConfirmed,
             LandingAllocator allocator
     ) {
-        if (operator) {
+        if (operator && factionId == null) {
             return authorizeOperatorEntry(playerId, now, allocator);
         }
         if (factionId == null) {
             return new EntryResult(EntryStatus.FACTION_REQUIRED, null, 0);
         }
-        if (state.netherClosed || !NetherSchedulePolicy.isOpen(now)) {
+        if (!operator && (state.netherClosed || !NetherSchedulePolicy.isOpen(now))) {
             return new EntryResult(EntryStatus.SCHEDULE_CLOSED, null, remainingSessions(factionId, now));
         }
         String factionKey = factionId.toString();
@@ -171,17 +171,20 @@ public final class DimensionControlManager {
             }
             return new EntryResult(EntryStatus.JOINED_ACTIVE, active.toValue(factionId), remainingSessions(ledger, now));
         }
-        if (!NetherSchedulePolicy.canStartSession(now)) {
+        if (!operator && !NetherSchedulePolicy.canStartSession(now)) {
             return new EntryResult(EntryStatus.SCHEDULE_CLOSED, null, remainingSessions(ledger, now));
         }
         if (ledger.sessionsUsed >= rules.sessionsPerDay()) {
+            if (operator) {
+                return authorizeOperatorEntry(playerId, now, allocator);
+            }
             return new EntryResult(
                     deathLockedSession == null ? EntryStatus.NO_SESSIONS_LEFT : EntryStatus.DEATH_LOCKED,
                     active == null ? null : active.toValue(factionId),
                     0
             );
         }
-        if (ledger.sessionsUsed > 0 && !secondSessionConfirmed) {
+        if (!operator && ledger.sessionsUsed > 0 && !secondSessionConfirmed) {
             return new EntryResult(
                     EntryStatus.SECOND_SESSION_CONFIRMATION_REQUIRED,
                     active == null ? null : active.toValue(factionId),
@@ -201,7 +204,9 @@ public final class DimensionControlManager {
         if (allocated.isEmpty()) {
             return new EntryResult(EntryStatus.NO_SAFE_LANDING, null, rules.sessionsPerDay() - ledger.sessionsUsed);
         }
-        Instant end = NetherSchedulePolicy.sessionEnd(now, rules.sessionDuration());
+        Instant end = operator && !NetherSchedulePolicy.isOpen(now)
+                ? now.plus(rules.sessionDuration())
+                : NetherSchedulePolicy.sessionEnd(now, rules.sessionDuration());
         ActiveSessionData created = new ActiveSessionData();
         created.id = UUID.randomUUID().toString();
         created.startedAt = now.toEpochMilli();
@@ -232,18 +237,13 @@ public final class DimensionControlManager {
             boolean operator,
             boolean secondSessionConfirmed
     ) {
-        if (operator) {
-            ActiveSessionData active = activeOperatorData(playerId, now);
-            return new EntryResult(
-                    EntryStatus.OPERATOR_BYPASS,
-                    active == null ? null : active.toValue(playerId),
-                    rules.sessionsPerDay()
-            );
+        if (operator && factionId == null) {
+            return previewOperatorEntry(playerId, now);
         }
         if (factionId == null) {
             return new EntryResult(EntryStatus.FACTION_REQUIRED, null, 0);
         }
-        if (state.netherClosed || !NetherSchedulePolicy.isOpen(now)) {
+        if (!operator && (state.netherClosed || !NetherSchedulePolicy.isOpen(now))) {
             return new EntryResult(
                     EntryStatus.SCHEDULE_CLOSED,
                     null,
@@ -256,19 +256,22 @@ public final class DimensionControlManager {
         if (active != null && !active.id.equals(deathLockedSession)) {
             return new EntryResult(EntryStatus.JOINED_ACTIVE, active.toValue(factionId), remainingSessions(ledger, now));
         }
-        if (!NetherSchedulePolicy.canStartSession(now)) {
+        if (!operator && !NetherSchedulePolicy.canStartSession(now)) {
             return new EntryResult(EntryStatus.SCHEDULE_CLOSED, null, remainingSessions(factionId, now));
         }
         int used = ledger == null || !NetherSchedulePolicy.date(now).toString().equals(ledger.usageDate)
                 ? 0 : ledger.sessionsUsed;
         if (used >= rules.sessionsPerDay()) {
+            if (operator) {
+                return previewOperatorEntry(playerId, now);
+            }
             return new EntryResult(
                     deathLockedSession == null ? EntryStatus.NO_SESSIONS_LEFT : EntryStatus.DEATH_LOCKED,
                     active == null ? null : active.toValue(factionId),
                     0
             );
         }
-        if (used > 0 && !secondSessionConfirmed) {
+        if (!operator && used > 0 && !secondSessionConfirmed) {
             return new EntryResult(
                     EntryStatus.SECOND_SESSION_CONFIRMATION_REQUIRED,
                     active == null ? null : active.toValue(factionId),
@@ -283,6 +286,15 @@ public final class DimensionControlManager {
         return ledger == null || ledger.lastLanding == null
                 ? Optional.empty()
                 : Optional.of(ledger.lastLanding.toValue());
+    }
+
+    private EntryResult previewOperatorEntry(UUID playerId, Instant now) {
+        ActiveSessionData active = activeOperatorData(playerId, now);
+        return new EntryResult(
+                EntryStatus.OPERATOR_BYPASS,
+                active == null ? null : active.toValue(playerId),
+                rules.sessionsPerDay()
+        );
     }
 
     public synchronized Optional<LandingPos> reusableLanding(UUID factionId, Instant now) {

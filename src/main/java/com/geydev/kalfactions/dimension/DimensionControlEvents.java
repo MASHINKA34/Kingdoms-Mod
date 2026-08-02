@@ -163,15 +163,15 @@ public final class DimensionControlEvents {
             return;
         }
         Instant entryTime = Instant.now();
-        UUID sessionOwner = operator ? player.getUUID() : factionId;
+        UUID confirmationOwner = factionId == null ? player.getUUID() : factionId;
         boolean hadSecondConfirmation = !operator && NetherEntryConfirmations.isPending(
-                player.getUUID(), sessionOwner, serverTick
+                player.getUUID(), confirmationOwner, serverTick
         );
         boolean secondSessionConfirmed = !operator && NetherEntryConfirmations.consume(
-                player.getUUID(), sessionOwner, serverTick, player.isShiftKeyDown()
+                player.getUUID(), confirmationOwner, serverTick, player.isShiftKeyDown()
         );
         EntryResult preview = control.previewNetherEntry(
-                sessionOwner,
+                factionId,
                 player.getUUID(),
                 entryTime,
                 operator,
@@ -179,7 +179,7 @@ public final class DimensionControlEvents {
         );
         if (preview.status() == DimensionControlManager.EntryStatus.SECOND_SESSION_CONFIRMATION_REQUIRED) {
             if (!hadSecondConfirmation) {
-                NetherEntryConfirmations.request(player.getUUID(), sessionOwner, serverTick);
+                NetherEntryConfirmations.request(player.getUUID(), confirmationOwner, serverTick);
                 player.sendSystemMessage(Component.translatable("kingdoms.nether.session.second_confirm"));
             }
             player.displayClientMessage(
@@ -192,11 +192,14 @@ public final class DimensionControlEvents {
             return;
         }
         NetherEntryConfirmations.remove(player.getUUID());
-        DimensionControlManager.LandingPos reusableLanding = !operator && preview.session() == null
-                ? control.reusableLanding(sessionOwner, entryTime).orElse(null)
+        boolean factionBacked = factionId != null
+                && preview.status() != DimensionControlManager.EntryStatus.OPERATOR_BYPASS;
+        UUID sessionOwner = factionBacked ? factionId : player.getUUID();
+        DimensionControlManager.LandingPos reusableLanding = factionBacked && preview.session() == null
+                ? control.reusableLanding(factionId, entryTime).orElse(null)
                 : null;
         PendingNetherEntry pending = new PendingNetherEntry(
-                player.getUUID(), sessionOwner, operator, secondSessionConfirmed,
+                player.getUUID(), sessionOwner, factionId, operator, factionBacked, secondSessionConfirmed,
                 portalPosition, portalPosition, preview, reusableLanding
         );
         PENDING_NETHER_ENTRIES.put(player.getUUID(), pending);
@@ -223,8 +226,9 @@ public final class DimensionControlEvents {
         List<DimensionControlManager.LandingPos> occupied = control.activeSessions(now).stream()
                 .map(ActiveSession::landing)
                 .toList();
-        DimensionControlManager.LandingPos previous = pending.operator()
-                ? null : control.lastLanding(pending.ownerId()).orElse(null);
+        DimensionControlManager.LandingPos previous = pending.factionBacked()
+                ? control.lastLanding(pending.ownerId()).orElse(null)
+                : null;
         List<BlockPos> candidates = NetherLandingFinder.candidateCenters(
                 nether, occupied, previous, control.rules()
         );
@@ -362,7 +366,7 @@ public final class DimensionControlEvents {
         DimensionControlManager control = DimensionControlManager.get(server);
         Instant now = Instant.now();
         EntryResult result = control.authorizeNetherEntry(
-                pending.ownerId(),
+                pending.factionId(),
                 player.getUUID(),
                 now,
                 pending.operator(),
@@ -379,7 +383,8 @@ public final class DimensionControlEvents {
                 && pending.preview().session().sessionId().equals(result.session().sessionId())
                 && pending.preview().session().joinedPlayers().contains(player.getUUID());
         boolean startedSession = result.status() == DimensionControlManager.EntryStatus.STARTED_SESSION
-                || pending.operator() && pending.preview().session() == null;
+                || result.status() == DimensionControlManager.EntryStatus.OPERATOR_BYPASS
+                && pending.preview().session() == null;
         AuthorizedNetherEntry authorized = new AuthorizedNetherEntry(result, startedSession, !alreadyJoined);
         BlockPos actualLanding = result.session().landing().blockPos();
         if (!actualLanding.equals(preparedLanding)) {
@@ -428,7 +433,8 @@ public final class DimensionControlEvents {
             player.displayClientMessage(Component.translatable("kingdoms.nether.session.no_landing"), true);
             return;
         }
-        if (!pending.operator() && authorized.result().status() == DimensionControlManager.EntryStatus.STARTED_SESSION) {
+        if (authorized.result().status() == DimensionControlManager.EntryStatus.STARTED_SESSION
+                && authorized.result().session().ordinal() > 0) {
             notifyFaction(server, pending.ownerId(), Component.translatable(
                     "kingdoms.nether.session.started", authorized.result().remainingSessions()
             ));
@@ -881,8 +887,7 @@ public final class DimensionControlEvents {
     ) {
         ActiveSession active = control.assignedSession(player.getUUID(), now).orElse(null);
         if (player.hasPermissions(2)) {
-            return active != null && active.ordinal() == 0
-                    && active.joinedPlayers().contains(player.getUUID());
+            return active != null && active.joinedPlayers().contains(player.getUUID());
         }
         if (!control.isNetherOpenForPlayers(now)) {
             return false;
@@ -1143,7 +1148,9 @@ public final class DimensionControlEvents {
     private record PendingNetherEntry(
             UUID playerId,
             UUID ownerId,
+            UUID factionId,
             boolean operator,
+            boolean factionBacked,
             boolean secondSessionConfirmed,
             BlockPos portalPosition,
             BlockPos returnPosition,

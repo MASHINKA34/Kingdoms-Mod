@@ -7,12 +7,16 @@ import com.geydev.kalfactions.client.screen.NetherStatusScreen;
 import com.geydev.kalfactions.client.screen.NewsScreen;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.mojang.blaze3d.platform.InputConstants;
+import java.util.List;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
-import net.neoforged.bus.api.IEventBus;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -45,9 +49,14 @@ public final class FactionListOpener {
         }
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onScreenInit(ScreenEvent.Init.Post event) {
         if (event.getScreen() instanceof InventoryScreen screen) {
+            for (GuiEventListener listener : List.copyOf(event.getListenersList())) {
+                if (isCustomNpcInventoryTab(listener.getClass().getName())) {
+                    event.removeListener(listener);
+                }
+            }
             event.addListener(InviteBadgeButton.create(
                     Component.literal("K"),
                     button -> open(),
@@ -74,6 +83,24 @@ public final class FactionListOpener {
                     20,
                     () -> 0
             ));
+        }
+    }
+
+    static boolean isCustomNpcInventoryTab(String className) {
+        return className.startsWith("noppes.npcs.client.gui.player.tabs.InventoryTab");
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onScreenRenderPre(ScreenEvent.Render.Pre event) {
+        if (!(event.getScreen() instanceof InventoryScreen)) {
+            return;
+        }
+        for (GuiEventListener listener : event.getScreen().children()) {
+            if (listener instanceof AbstractWidget widget
+                    && isCustomNpcInventoryTab(listener.getClass().getName())) {
+                widget.visible = false;
+                widget.active = false;
+            }
         }
     }
 

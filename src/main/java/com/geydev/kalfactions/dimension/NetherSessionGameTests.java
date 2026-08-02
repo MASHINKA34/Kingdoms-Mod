@@ -100,7 +100,9 @@ public final class NetherSessionGameTests {
             int factionPassesBefore = manager.remainingSessions(faction, now);
             var operatorEntry = manager.authorizeNetherEntry(faction, player, now, true, LANDING);
             helper.assertTrue(
-                    operatorEntry.status() == EntryStatus.OPERATOR_BYPASS && operatorEntry.session() != null,
+                    operatorEntry.status() == EntryStatus.STARTED_SESSION
+                            && operatorEntry.session() != null
+                            && operatorEntry.session().ordinal() == 1,
                     "Operator was not allowed through a closed dimension"
             );
             helper.assertTrue(
@@ -110,14 +112,30 @@ public final class NetherSessionGameTests {
                     "Operator session could not issue a return stone binding"
             );
             helper.assertTrue(
-                    manager.remainingSessions(faction, now) == factionPassesBefore
-                            && manager.activeSessions(faction, now).isEmpty(),
-                    "Operator consumed a faction session"
+                    manager.remainingSessions(faction, now) == factionPassesBefore - 1
+                            && manager.activeSessions(faction, now).size() == 1,
+                    "Faction operator did not consume a faction session"
             );
             helper.assertTrue(
                     manager.authorizeNetherEntry(faction, player, now, false, LANDING).status()
                             == EntryStatus.SCHEDULE_CLOSED,
                     "Ordinary player bypassed a closed dimension"
+            );
+            helper.assertTrue(manager.markDeath(faction, player, now.plusSeconds(1)),
+                    "Faction operator death was not recorded");
+            var second = manager.authorizeNetherEntry(faction, player, now.plusSeconds(2), true, LANDING);
+            helper.assertTrue(
+                    second.status() == EntryStatus.STARTED_SESSION
+                            && second.session().ordinal() == 2
+                            && manager.remainingSessions(faction, now.plusSeconds(2)) == 0,
+                    "Faction operator death did not consume the second session"
+            );
+            helper.assertTrue(manager.markDeath(faction, player, now.plusSeconds(3)),
+                    "Second faction operator death was not recorded");
+            var bypass = manager.authorizeNetherEntry(faction, player, now.plusSeconds(4), true, LANDING);
+            helper.assertTrue(
+                    bypass.status() == EntryStatus.OPERATOR_BYPASS && bypass.session().ordinal() == 0,
+                    "Operator lost administrative access after both faction sessions"
             );
         });
     }

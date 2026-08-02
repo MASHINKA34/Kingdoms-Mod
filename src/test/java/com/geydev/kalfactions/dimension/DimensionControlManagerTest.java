@@ -90,7 +90,7 @@ final class DimensionControlManagerTest {
     }
 
     @Test
-    void operatorGetsPersonalSessionAndReturnOutsideSchedule() {
+    void operatorInFactionConsumesFactionSessionAndGetsReturnOutsideSchedule() {
         DimensionControlManager manager = manager();
         UUID faction = UUID.randomUUID();
         UUID operator = UUID.randomUUID();
@@ -99,15 +99,16 @@ final class DimensionControlManagerTest {
         int factionPassesBefore = manager.remainingSessions(faction, start);
 
         var preview = manager.previewNetherEntry(faction, operator, start, true, false);
-        assertEquals(EntryStatus.OPERATOR_BYPASS, preview.status());
+        assertEquals(EntryStatus.STARTED_SESSION, preview.status());
         assertTrue(manager.activeSessions(start).isEmpty());
 
         var result = manager.authorizeNetherEntry(faction, operator, start, true, LANDING);
-        assertEquals(EntryStatus.OPERATOR_BYPASS, result.status());
-        assertEquals(0, result.session().ordinal());
+        assertEquals(EntryStatus.STARTED_SESSION, result.status());
+        assertEquals(faction, result.session().factionId());
+        assertEquals(1, result.session().ordinal());
         assertEquals(start.plus(manager.rules().sessionDuration()), result.session().endsAt());
-        assertEquals(factionPassesBefore, manager.remainingSessions(faction, start));
-        assertTrue(manager.activeSessions(faction, start).isEmpty());
+        assertEquals(factionPassesBefore - 1, manager.remainingSessions(faction, start));
+        assertEquals(1, manager.activeSessions(faction, start).size());
         assertTrue(manager.issueReturn(
                 result.session().sessionId(), operator, new BlockPos(20, 70, 20), start.plusSeconds(1)
         ).isPresent());
@@ -117,6 +118,73 @@ final class DimensionControlManagerTest {
                 result.session().sessionId(),
                 restarted.assignedSession(operator, start.plusSeconds(2)).orElseThrow().sessionId()
         );
+    }
+
+    @Test
+    void operatorWithoutFactionUsesPersonalBypassSession() {
+        DimensionControlManager manager = manager();
+        UUID operator = UUID.randomUUID();
+        Instant start = Instant.parse("2026-07-22T10:00:00Z");
+        manager.setClosed(Level.NETHER, true);
+
+        assertEquals(
+                EntryStatus.OPERATOR_BYPASS,
+                manager.previewNetherEntry(null, operator, start, true, false).status()
+        );
+        var result = manager.authorizeNetherEntry(null, operator, start, true, LANDING);
+
+        assertEquals(EntryStatus.OPERATOR_BYPASS, result.status());
+        assertEquals(operator, result.session().factionId());
+        assertEquals(0, result.session().ordinal());
+        assertEquals(start.plus(manager.rules().sessionDuration()), result.session().endsAt());
+    }
+
+    @Test
+    void operatorDeathConsumesSecondFactionSessionThenFallsBackToPersonalBypass() {
+        DimensionControlManager manager = manager();
+        UUID faction = UUID.randomUUID();
+        UUID operator = UUID.randomUUID();
+        Instant start = Instant.parse("2026-07-22T10:00:00Z");
+        manager.setClosed(Level.NETHER, true);
+
+        var first = manager.authorizeNetherEntry(faction, operator, start, true, LANDING);
+        assertTrue(manager.markDeath(faction, operator, start.plusSeconds(1)));
+        var second = manager.authorizeNetherEntry(faction, operator, start.plusSeconds(2), true, LANDING);
+        assertEquals(EntryStatus.STARTED_SESSION, second.status());
+        assertEquals(2, second.session().ordinal());
+        assertEquals(first.session().landing(), second.session().landing());
+        assertEquals(0, manager.remainingSessions(faction, start.plusSeconds(2)));
+
+        assertTrue(manager.markDeath(faction, operator, start.plusSeconds(3)));
+        var bypass = manager.authorizeNetherEntry(faction, operator, start.plusSeconds(4), true, LANDING);
+        assertEquals(EntryStatus.OPERATOR_BYPASS, bypass.status());
+        assertEquals(0, bypass.session().ordinal());
+        assertEquals(0, manager.remainingSessions(faction, start.plusSeconds(4)));
+    }
+
+    @Test
+    void operatorFallsBackToPersonalBypassAfterFactionUsesBothSessions() {
+        DimensionControlManager manager = manager();
+        UUID faction = UUID.randomUUID();
+        UUID member = UUID.randomUUID();
+        UUID operator = UUID.randomUUID();
+        Instant firstStart = Instant.parse("2026-07-22T15:00:00Z");
+        manager.authorizeNetherEntry(faction, member, firstStart, false, LANDING);
+        manager.expireSessions(firstStart.plusSeconds(5401), id -> true);
+        Instant secondStart = firstStart.plusSeconds(5402);
+        manager.authorizeNetherEntry(faction, member, secondStart, false, true, LANDING);
+        manager.expireSessions(secondStart.plusSeconds(5401), id -> true);
+        Instant attempt = secondStart.plusSeconds(5402);
+
+        assertEquals(0, manager.remainingSessions(faction, attempt));
+        assertEquals(
+                EntryStatus.OPERATOR_BYPASS,
+                manager.previewNetherEntry(faction, operator, attempt, true, false).status()
+        );
+        var result = manager.authorizeNetherEntry(faction, operator, attempt, true, LANDING);
+        assertEquals(EntryStatus.OPERATOR_BYPASS, result.status());
+        assertEquals(0, result.session().ordinal());
+        assertEquals(0, manager.remainingSessions(faction, attempt));
     }
 
     @Test
