@@ -15,39 +15,26 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @PrefixGameTestTemplate(false)
 public final class SanctuaryGameTests {
     @GameTest(template = "empty")
-    public static void automaticSquareRelocationAndLayerRemoval(GameTestHelper helper) {
+    public static void remoteControlPointDoesNotMoveAutomaticSquare(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         SanctuaryManager manager = SanctuaryManager.get(level);
-        BlockPos original = level.getSharedSpawnPos();
-        BlockPos first = helper.absolutePos(new BlockPos(0, 2, 0));
-        BlockPos second = first.offset(1_024, 0, -1_024);
-
-        manager.relocateAutomaticSpawn(level, first);
-        Set<ClaimKey> firstClaims = SanctuaryManager.calculateAutomaticClaims(Level.OVERWORLD, first, 200);
-        helper.assertValueEqual(manager.claims().size(), firstClaims.size(), "automatic square size");
-        helper.assertTrue(manager.claims().containsAll(firstClaims), "automatic square continuity");
-
-        manager.relocateAutomaticSpawn(level, second);
-        Set<ClaimKey> secondClaims = SanctuaryManager.calculateAutomaticClaims(Level.OVERWORLD, second, 200);
-        helper.assertTrue(manager.claims().containsAll(secondClaims), "relocated automatic square");
-        helper.assertTrue(
-                firstClaims.stream()
-                        .filter(key -> !secondClaims.contains(key))
-                        .noneMatch(manager::isSanctuary),
-                "old automatic tail removed"
+        BlockPos worldSpawn = level.getSharedSpawnPos();
+        BlockPos remoteControl = worldSpawn.offset(1_024, 0, -1_024);
+        manager.initializeAutomaticSpawn(level);
+        Set<ClaimKey> spawnClaims = SanctuaryManager.calculateAutomaticClaims(
+                Level.OVERWORLD,
+                worldSpawn,
+                200
         );
 
-        ClaimKey automatic = secondClaims.iterator().next();
-        ClaimKey manual = new ClaimKey(Level.OVERWORLD, 2_000, 2_000);
-        manager.setClaim(automatic, false);
-        manager.setClaim(manual, true);
-        helper.assertTrue(!manager.isSanctuary(automatic), "automatic chunk explicitly removed");
-        helper.assertTrue(manager.isSanctuary(manual), "manual chunk added");
-        manager.clearManualClaims(Level.OVERWORLD);
-        manager.clearAutomaticSpawn();
-        helper.assertTrue(manager.claims().isEmpty(), "both sanctuary layers cleared");
+        manager.initializeAutomaticSpawn(Level.OVERWORLD, remoteControl, 200);
+        helper.assertTrue(manager.claims().containsAll(spawnClaims), "spawn square stays in place");
 
-        manager.relocateAutomaticSpawn(level, original);
+        ClaimKey extension = ClaimKey.of(level, remoteControl);
+        manager.setClaim(extension, true);
+        helper.assertTrue(manager.isSanctuary(extension), "remote control can extend sanctuary");
+        helper.assertTrue(manager.claims().containsAll(spawnClaims), "extension does not move spawn square");
+        manager.setClaim(extension, false);
         helper.succeed();
     }
 

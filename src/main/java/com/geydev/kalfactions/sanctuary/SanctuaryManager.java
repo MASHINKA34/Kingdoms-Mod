@@ -32,13 +32,16 @@ public final class SanctuaryManager extends SavedData {
     private static final String TAG_AUTOMATIC_EXCLUSIONS = "automaticExclusions";
     private static final String TAG_AUTOMATIC_INITIALIZED = "automaticInitialized";
     private static final String TAG_AUTOMATIC_ANCHOR = "automaticAnchor";
+    private static final String TAG_AUTOMATIC_ANCHOR_VERSION = "automaticAnchorVersion";
     private static final String TAG_WORLD_BORDER_INITIALIZED = "worldBorderInitialized";
+    private static final int CURRENT_AUTOMATIC_ANCHOR_VERSION = 1;
 
     private final Set<ClaimKey> manualClaims = new LinkedHashSet<>();
     private final Set<ClaimKey> automaticClaims = new LinkedHashSet<>();
     private final Set<ClaimKey> automaticExclusions = new LinkedHashSet<>();
     private boolean automaticInitialized;
     private BlockPos automaticAnchor;
+    private int automaticAnchorVersion;
     private boolean worldBorderInitialized;
     private long revision;
 
@@ -148,35 +151,40 @@ public final class SanctuaryManager extends SavedData {
             worldBorderInitialized = true;
             setDirty();
         }
+        return initializeAutomaticSpawn(
+                level.dimension(),
+                findCorePosition(level),
+                automaticRadius()
+        );
+    }
+
+    synchronized BlockPos initializeAutomaticSpawn(
+            ResourceKey<Level> dimension,
+            BlockPos initialAnchor,
+            int radius
+    ) {
+        Objects.requireNonNull(dimension, "dimension");
+        Objects.requireNonNull(initialAnchor, "initialAnchor");
+        if (!dimension.equals(Level.OVERWORLD)) {
+            throw new IllegalArgumentException("Automatic spawn sanctuary must be in the overworld");
+        }
         if (!automaticInitialized) {
             automaticInitialized = true;
-            automaticAnchor = findCorePosition(level);
-            replaceAutomaticClaims(level.dimension(), automaticAnchor, automaticRadius(), true);
+            automaticAnchor = initialAnchor.immutable();
+            automaticAnchorVersion = CURRENT_AUTOMATIC_ANCHOR_VERSION;
+            replaceAutomaticClaims(dimension, automaticAnchor, radius, true);
+            setDirty();
+        } else if (automaticAnchorVersion < CURRENT_AUTOMATIC_ANCHOR_VERSION) {
+            automaticAnchorVersion = CURRENT_AUTOMATIC_ANCHOR_VERSION;
+            if (automaticAnchor != null) {
+                automaticAnchor = initialAnchor.immutable();
+                replaceAutomaticClaims(dimension, automaticAnchor, radius, false);
+            }
+            setDirty();
         } else if (automaticAnchor != null) {
-            replaceAutomaticClaims(level.dimension(), automaticAnchor, automaticRadius(), false);
+            replaceAutomaticClaims(dimension, automaticAnchor, radius, false);
         }
         return automaticAnchor;
-    }
-
-    public synchronized boolean relocateAutomaticSpawn(ServerLevel level, BlockPos anchor) {
-        Objects.requireNonNull(level, "level");
-        Objects.requireNonNull(anchor, "anchor");
-        if (!level.dimension().equals(Level.OVERWORLD)) {
-            return false;
-        }
-        automaticInitialized = true;
-        automaticAnchor = anchor.immutable();
-        replaceAutomaticClaims(level.dimension(), automaticAnchor, automaticRadius(), true);
-        return true;
-    }
-
-    public synchronized boolean clearAutomaticSpawn(ServerLevel level, BlockPos anchor) {
-        if (!level.dimension().equals(Level.OVERWORLD)
-                || automaticAnchor == null
-                || !automaticAnchor.equals(anchor)) {
-            return false;
-        }
-        return clearAutomaticSpawn();
     }
 
     public synchronized boolean clearAutomaticSpawn() {
@@ -214,12 +222,6 @@ public final class SanctuaryManager extends SavedData {
                 .filter(key -> key.dimension().equals(dimension))
                 .filter(key -> !automaticExclusions.contains(key))
                 .count();
-    }
-
-    public synchronized boolean isAutomaticAnchor(ServerLevel level, BlockPos pos) {
-        return level.dimension().equals(Level.OVERWORLD)
-                && automaticAnchor != null
-                && automaticAnchor.equals(pos);
     }
 
     synchronized boolean replaceAutomaticClaims(
@@ -294,6 +296,7 @@ public final class SanctuaryManager extends SavedData {
                 .forEach(exclusionsTag::add);
         tag.put(TAG_AUTOMATIC_EXCLUSIONS, exclusionsTag);
         tag.putBoolean(TAG_AUTOMATIC_INITIALIZED, automaticInitialized);
+        tag.putInt(TAG_AUTOMATIC_ANCHOR_VERSION, automaticAnchorVersion);
         tag.putBoolean(TAG_WORLD_BORDER_INITIALIZED, worldBorderInitialized);
         if (automaticAnchor != null) {
             tag.putLong(TAG_AUTOMATIC_ANCHOR, automaticAnchor.asLong());
@@ -316,6 +319,7 @@ public final class SanctuaryManager extends SavedData {
             ClaimKey.load(exclusionsTag.getCompound(index)).ifPresent(manager.automaticExclusions::add);
         }
         manager.automaticInitialized = tag.getBoolean(TAG_AUTOMATIC_INITIALIZED);
+        manager.automaticAnchorVersion = tag.getInt(TAG_AUTOMATIC_ANCHOR_VERSION);
         manager.worldBorderInitialized = tag.getBoolean(TAG_WORLD_BORDER_INITIALIZED);
         manager.automaticAnchor = tag.contains(TAG_AUTOMATIC_ANCHOR)
                 ? BlockPos.of(tag.getLong(TAG_AUTOMATIC_ANCHOR))

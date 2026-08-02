@@ -31,19 +31,19 @@ final class SanctuaryManagerTest {
     }
 
     @Test
-    void relocatingAnchorLeavesNoAutomaticTail() {
+    void automaticSpawnAnchorIsCreatedOnlyOnce() {
         SanctuaryManager manager = new SanctuaryManager();
         BlockPos first = new BlockPos(0, 64, 0);
         BlockPos second = new BlockPos(1_024, 64, -768);
         Set<ClaimKey> firstClaims = SanctuaryManager.calculateAutomaticClaims(Level.OVERWORLD, first, 200);
         Set<ClaimKey> secondClaims = SanctuaryManager.calculateAutomaticClaims(Level.OVERWORLD, second, 200);
 
-        manager.replaceAutomaticClaims(Level.OVERWORLD, first, 200, true);
-        manager.replaceAutomaticClaims(Level.OVERWORLD, second, 200, true);
+        manager.initializeAutomaticSpawn(Level.OVERWORLD, first, 200);
+        manager.initializeAutomaticSpawn(Level.OVERWORLD, second, 200);
 
-        assertEquals(secondClaims, manager.claims());
-        assertTrue(firstClaims.stream()
-                .filter(key -> !secondClaims.contains(key))
+        assertEquals(firstClaims, manager.claims());
+        assertTrue(secondClaims.stream()
+                .filter(key -> !firstClaims.contains(key))
                 .noneMatch(manager::isSanctuary));
     }
 
@@ -87,24 +87,37 @@ final class SanctuaryManagerTest {
     }
 
     @Test
-    void legacyScatteredAutomaticDataIsNormalizedFromAnchor() {
-        BlockPos anchor = new BlockPos(31, 64, -47);
+    void legacyRelocatedAutomaticDataIsRestoredToWorldSpawnOnce() {
+        BlockPos misplacedAnchor = new BlockPos(1_024, 64, -768);
+        BlockPos worldSpawn = new BlockPos(31, 64, -47);
+        ClaimKey manual = new ClaimKey(Level.OVERWORLD, 2_000, 2_000);
         CompoundTag legacy = new CompoundTag();
         legacy.putBoolean("automaticInitialized", true);
-        legacy.putLong("automaticAnchor", anchor.asLong());
+        legacy.putLong("automaticAnchor", misplacedAnchor.asLong());
         ListTag scattered = new ListTag();
         scattered.add(new ClaimKey(Level.OVERWORLD, 900, -900).save());
         scattered.add(new ClaimKey(Level.OVERWORLD, -500, 700).save());
         legacy.put("automaticClaims", scattered);
+        ListTag manualClaims = new ListTag();
+        manualClaims.add(manual.save());
+        legacy.put("claims", manualClaims);
 
         SanctuaryManager loaded = SanctuaryManager.load(legacy, null);
         long before = loaded.revision();
-        assertTrue(loaded.replaceAutomaticClaims(Level.OVERWORLD, anchor, 200, false));
+        loaded.initializeAutomaticSpawn(Level.OVERWORLD, worldSpawn, 200);
 
-        assertEquals(
-                SanctuaryManager.calculateAutomaticClaims(Level.OVERWORLD, anchor, 200),
-                loaded.claims()
+        Set<ClaimKey> expected = SanctuaryManager.calculateAutomaticClaims(
+                Level.OVERWORLD,
+                worldSpawn,
+                200
         );
+        assertTrue(loaded.claims().containsAll(expected));
+        assertTrue(loaded.isSanctuary(manual));
+        assertEquals(expected.size() + 1, loaded.claims().size());
         assertNotEquals(before, loaded.revision());
+
+        loaded.initializeAutomaticSpawn(Level.OVERWORLD, new BlockPos(-2_048, 70, 2_048), 200);
+        assertTrue(loaded.claims().containsAll(expected));
+        assertEquals(expected.size() + 1, loaded.claims().size());
     }
 }
