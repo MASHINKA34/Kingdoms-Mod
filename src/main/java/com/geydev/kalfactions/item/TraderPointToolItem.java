@@ -52,7 +52,9 @@ public final class TraderPointToolItem extends Item {
         TraderWorldData.SpawnPoint nearest = data.nearestPoint(level.dimension(), pos, REMOVE_RADIUS).orElse(null);
         if (nearest != null) {
             TraderLifecycle.removePoint(level.getServer(), nearest.id());
-            player.displayClientMessage(Component.translatable("kingdoms.trader.point.removed", nearest.id()), false);
+            player.displayClientMessage(
+                    Component.translatable("kingdoms.trader.point.removed", nearest.id().toString()), false
+            );
             return InteractionResult.SUCCESS;
         }
         TraderWorldData.AddPointResult result = data.addPoint(level.dimension(), pos, player.getYRot());
@@ -60,7 +62,9 @@ public final class TraderPointToolItem extends Item {
             player.displayClientMessage(Component.translatable("kingdoms.trader.point.limit"), false);
             return InteractionResult.FAIL;
         }
-        player.displayClientMessage(Component.translatable("kingdoms.trader.point.added", result.point().id()), false);
+        player.displayClientMessage(
+                Component.translatable("kingdoms.trader.point.added", result.point().id().toString()), false
+        );
         player.displayClientMessage(
                 TraderLifecycle.spawnContrabandNow(level.getServer(), result.point().id())
                         ? Component.translatable("kingdoms.trader.point.spawned")
@@ -123,8 +127,8 @@ public final class TraderPointToolItem extends Item {
             player.sendSystemMessage(Component.translatable(
                     "kingdoms.trader.point.list.entry",
                     displayNumber,
-                    point.id(),
-                    point.dimension().location(),
+                    point.id().toString(),
+                    point.dimension().location().toString(),
                     point.pos().getX(),
                     point.pos().getY(),
                     point.pos().getZ(),

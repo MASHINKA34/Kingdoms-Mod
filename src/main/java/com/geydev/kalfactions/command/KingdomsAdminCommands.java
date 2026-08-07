@@ -497,8 +497,8 @@ public final class KingdomsAdminCommands {
             source.sendSuccess(() -> Component.translatable(
                     "kingdoms.trader.point.list.entry",
                     displayIndex,
-                    point.id(),
-                    point.dimension().location(),
+                    point.id().toString(),
+                    point.dimension().location().toString(),
                     point.pos().getX(),
                     point.pos().getY(),
                     point.pos().getZ(),
@@ -518,7 +518,7 @@ public final class KingdomsAdminCommands {
             return 0;
         }
         context.getSource().sendSuccess(
-                () -> Component.translatable("kingdoms.trader.point.added", result.point().id()), true
+                () -> Component.translatable("kingdoms.trader.point.added", result.point().id().toString()), true
         );
         boolean spawned = TraderLifecycle.spawnContrabandNow(context.getSource().getServer(), result.point().id());
         context.getSource().sendSuccess(
@@ -581,10 +581,12 @@ public final class KingdomsAdminCommands {
             return 0;
         }
         if (!TraderLifecycle.removePoint(context.getSource().getServer(), id)) {
-            context.getSource().sendFailure(Component.translatable("kingdoms.trader.point.not_found", id));
+            context.getSource().sendFailure(Component.translatable("kingdoms.trader.point.not_found", id.toString()));
             return 0;
         }
-        context.getSource().sendSuccess(() -> Component.translatable("kingdoms.trader.point.removed", id), true);
+        context.getSource().sendSuccess(
+                () -> Component.translatable("kingdoms.trader.point.removed", id.toString()), true
+        );
         return 1;
     }
 
