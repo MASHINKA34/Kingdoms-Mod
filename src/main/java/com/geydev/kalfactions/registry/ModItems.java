@@ -60,6 +60,9 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> XAERO_MAP_ARCHIVE =
             ITEMS.registerSimpleBlockItem(ModBlocks.XAERO_MAP_ARCHIVE);
 
+    public static final DeferredItem<BlockItem> STATUE_SCIENCE =
+            ITEMS.registerSimpleBlockItem(ModBlocks.STATUE_SCIENCE);
+
     public static final DeferredItem<AccessTool> ACCESS_TOOL = ITEMS.register(
             "access_tool",
             () -> new AccessTool(new Item.Properties().stacksTo(1))

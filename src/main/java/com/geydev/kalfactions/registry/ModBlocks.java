@@ -8,6 +8,7 @@ import com.geydev.kalfactions.block.NewsBoardBlock;
 import com.geydev.kalfactions.block.OutpostCoreBlock;
 import com.geydev.kalfactions.block.QuarryCoreBlock;
 import com.geydev.kalfactions.block.SanctuaryCoreBlock;
+import com.geydev.kalfactions.block.StatueScienceBlock;
 import com.geydev.kalfactions.block.WarArchiveBlock;
 import com.geydev.kalfactions.block.WorldMapBlock;
 import com.geydev.kalfactions.block.XaeroMapArchiveBlock;
@@ -129,6 +130,16 @@ public final class ModBlocks {
                     .strength(3.0F, 6.0F)
                     .sound(SoundType.WOOD)
                     .noOcclusion())
+    );
+
+    public static final DeferredBlock<StatueScienceBlock> STATUE_SCIENCE = BLOCKS.register(
+            "statue_science",
+            () -> new StatueScienceBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .strength(3.0F, 6.0F)
+                    .sound(SoundType.STONE)
+                    .noOcclusion()
+                    .dynamicShape())
     );
 
     public static void register(IEventBus bus) {

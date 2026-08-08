@@ -1,0 +1,12 @@
+{
+  "variants": {
+    "facing=north,half=lower": { "model": "kingdoms:block/statue_science_lower" },
+    "facing=east,half=lower": { "model": "kingdoms:block/statue_science_lower", "y": 90 },
+    "facing=south,half=lower": { "model": "kingdoms:block/statue_science_lower", "y": 180 },
+    "facing=west,half=lower": { "model": "kingdoms:block/statue_science_lower", "y": 270 },
+    "facing=north,half=upper": { "model": "kingdoms:block/statue_science_upper" },
+    "facing=east,half=upper": { "model": "kingdoms:block/statue_science_upper", "y": 90 },
+    "facing=south,half=upper": { "model": "kingdoms:block/statue_science_upper", "y": 180 },
+    "facing=west,half=upper": { "model": "kingdoms:block/statue_science_upper", "y": 270 }
+  }
+}

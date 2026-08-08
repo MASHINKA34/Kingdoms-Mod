@@ -38,6 +38,7 @@ public final class ModCreativeTabs {
                 ModItems.GUIDE_BOARD.get(),
                 ModItems.NEWS_BOARD.get(),
                 ModItems.SANCTUARY_CORE.get(),
+                ModItems.STATUE_SCIENCE.get(),
                 ModItems.OUTPOST_CORE.get(),
                 ModItems.RESOURCE_CLUSTER_SCIENCE.get(),
                 ModItems.RESOURCE_CLUSTER_ECONOMIC.get(),
