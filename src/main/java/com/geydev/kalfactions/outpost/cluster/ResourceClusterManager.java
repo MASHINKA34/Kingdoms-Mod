@@ -59,6 +59,7 @@ public final class ResourceClusterManager extends SavedData {
     private static final String TEXT_ROLE = "text";
     private static final long GENERATION_SALT = 0x9E3779B97F4A7C15L;
     private static final int MANUAL_UNITS_PER_BLOCK = 1;
+    private static final int RESET_SCAN_INTERVAL_TICKS = 20;
     private static final long DAY_MILLIS = 24L * 60L * 60L * 1000L;
 
     private final Map<Long, ResourceCluster> clusters = new LinkedHashMap<>();
@@ -69,6 +70,7 @@ public final class ResourceClusterManager extends SavedData {
     private final Map<Long, List<ResourceCluster>> staleClusters = new LinkedHashMap<>();
     private final Set<Long> runningTimers = new HashSet<>();
     private int generation;
+    private int sinceResetScan;
 
     public static ResourceClusterManager get(ServerLevel level) {
         return level.getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
@@ -358,6 +360,11 @@ public final class ResourceClusterManager extends SavedData {
         }
     }
 
+    public synchronized Optional<BlockPos> boundDrillAt(ChunkPos chunkPos) {
+        Long existing = boundDrill.get(chunkPos.toLong());
+        return existing == null ? Optional.empty() : Optional.of(BlockPos.of(existing));
+    }
+
     public synchronized boolean isBoundDrill(ChunkPos chunkPos, BlockPos drillPos) {
         Long existing = boundDrill.get(chunkPos.toLong());
         return existing != null && existing == drillPos.asLong();
@@ -387,8 +394,11 @@ public final class ResourceClusterManager extends SavedData {
         long gameTime = level.getGameTime();
         processPending(level, gameTime);
         List<Long> restored = new ArrayList<>();
-        if (!runningTimers.isEmpty() && gameTime % 20L == 0L) {
-            processResets(level, restored);
+        if (++sinceResetScan >= RESET_SCAN_INTERVAL_TICKS) {
+            sinceResetScan = 0;
+            if (!runningTimers.isEmpty()) {
+                processResets(level, restored);
+            }
         }
         if ((gameTime & 1L) == 0L) {
             rotateItems(level);

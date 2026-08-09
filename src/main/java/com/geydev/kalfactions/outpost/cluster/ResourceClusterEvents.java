@@ -47,6 +47,7 @@ public final class ResourceClusterEvents {
     public static void onServerTick(ServerTickEvent.Post event) {
         ServerLevel level = event.getServer().overworld();
         ResourceClusterManager.get(level).tick(level);
+        ClusterMaintenance.tick(level);
     }
 
     private ResourceClusterEvents() {

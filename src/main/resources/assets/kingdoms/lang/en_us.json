@@ -1147,5 +1147,19 @@
   "screen.kingdoms.drill.cluster_depleted": "Cluster is depleted",
   "screen.kingdoms.drill.cluster_depleted_short": "Depleted · in %sd %s",
   "screen.kingdoms.drill.cluster_restore_in": "Refills in %sd %s",
-  "screen.kingdoms.drill.target_lost": "The cluster is gone — pick a new target"
+  "screen.kingdoms.drill.target_lost": "The cluster is gone — pick a new target",
+  "commands.kingdoms.cluster.status.none": "No cluster in or near chunk %s, %s.",
+  "commands.kingdoms.cluster.status.header": "%s · chunk %s, %s · richness %s",
+  "commands.kingdoms.cluster.status.reserve": "Left: %s / %s · blocks at %s",
+  "commands.kingdoms.cluster.status.timer": "Refills in %sd %s",
+  "commands.kingdoms.cluster.status.no_timer": "Timer not running: nothing has been extracted yet.",
+  "commands.kingdoms.cluster.status.exhausted": "Cluster is depleted, blocks are removed until it refills.",
+  "commands.kingdoms.cluster.status.drill": "Bound drill: %s",
+  "commands.kingdoms.cluster.started": "Cluster maintenance started: %s chunks queued.",
+  "commands.kingdoms.cluster.progress": "Cluster maintenance: %s of %s chunks.",
+  "commands.kingdoms.cluster.done": "Cluster maintenance finished: %s chunks processed.",
+  "commands.kingdoms.cluster.busy": "Cluster maintenance is already running: %s of %s chunks.",
+  "commands.kingdoms.cluster.reset.confirm": "Reset of ALL clusters: %s clusters (%s with a running timer, %s depleted), %s removal marks. Limits and timers are cleared and blocks come back. Repeat the command within 30 seconds to confirm.",
+  "commands.kingdoms.cluster.regenerate.confirm": "REGENERATION of all clusters: %s clusters will be removed and rebuilt, %s drill bindings dropped, generation becomes %s. Types and positions change world-wide. Repeat the command within 30 seconds to confirm.",
+  "commands.kingdoms.cluster.regenerate.started": "New cluster generation: %s. Old clusters removed: %s; unloaded chunks update when they load."
 }

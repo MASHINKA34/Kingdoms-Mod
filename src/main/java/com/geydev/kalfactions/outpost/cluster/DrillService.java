@@ -53,6 +53,14 @@ public final class DrillService {
         }
     }
 
+    public static void notifyAllViewers(ServerLevel level) {
+        for (ServerPlayer player : level.players()) {
+            if (player.containerMenu instanceof DrillMenu menu && menu.serverDrill() != null) {
+                sendTargets(player, menu.serverDrill());
+            }
+        }
+    }
+
     public static void notifyDrillChanged(ServerLevel level, DrillBlockEntity drill) {
         for (ServerPlayer player : level.players()) {
             if (player.containerMenu instanceof DrillMenu menu && menu.serverDrill() == drill) {
