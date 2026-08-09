@@ -1,0 +1,640 @@
+{
+  "parent": "minecraft:block/block",
+  "ambientocclusion": false,
+  "textures": {
+    "0": "kingdoms:block/research_blackstone",
+    "1": "kingdoms:block/research_basalt",
+    "2": "kingdoms:block/research_lightstone",
+    "3": "kingdoms:block/research_dark_oak",
+    "4": "kingdoms:block/research_dark_gold",
+    "5": "kingdoms:block/research_crystal_runes",
+    "6": "kingdoms:block/research_crystal_core",
+    "particle": "kingdoms:block/research_blackstone"
+  },
+  "elements": [
+    {
+      "name": "crystal_floating_core",
+      "from": [
+        7.15,
+        5.449999999999999,
+        0.6
+      ],
+      "to": [
+        8.85,
+        7.149999999999999,
+        2.3
+      ],
+      "rotation": {
+        "angle": 45,
+        "axis": "z",
+        "origin": [
+          8,
+          6.300000000000001,
+          1.45
+        ]
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            2,
+            2
+          ],
+          "texture": "#6"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            2,
+            2
+          ],
+          "texture": "#6"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            2,
+            2
+          ],
+          "texture": "#6"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            2,
+            2
+          ],
+          "texture": "#6"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            2,
+            2
+          ],
+          "texture": "#6"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            2,
+            2
+          ],
+          "texture": "#6"
+        }
+      }
+    },
+    {
+      "name": "crystal_floating_tip",
+      "from": [
+        7.45,
+        6.949999999999999,
+        0.9
+      ],
+      "to": [
+        8.55,
+        8.05,
+        2
+      ],
+      "rotation": {
+        "angle": 45,
+        "axis": "z",
+        "origin": [
+          8,
+          7.5,
+          1.45
+        ]
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            1.2,
+            1.2
+          ],
+          "texture": "#6"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            1.2,
+            1.2
+          ],
+          "texture": "#6"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            1.2,
+            1.2
+          ],
+          "texture": "#6"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            1.2,
+            1.2
+          ],
+          "texture": "#6"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            1.2,
+            1.2
+          ],
+          "texture": "#6"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            1.2,
+            1.2
+          ],
+          "texture": "#6"
+        }
+      }
+    },
+    {
+      "name": "crystal_floating_base",
+      "from": [
+        7.45,
+        4.850000000000001,
+        0.9
+      ],
+      "to": [
+        8.55,
+        5.949999999999999,
+        2
+      ],
+      "rotation": {
+        "angle": 45,
+        "axis": "z",
+        "origin": [
+          8,
+          5.399999999999999,
+          1.45
+        ]
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            1.2,
+            1.2
+          ],
+          "texture": "#6"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            1.2,
+            1.2
+          ],
+          "texture": "#6"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            1.2,
+            1.2
+          ],
+          "texture": "#6"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            1.2,
+            1.2
+          ],
+          "texture": "#6"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            1.2,
+            1.2
+          ],
+          "texture": "#6"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            1.2,
+            1.2
+          ],
+          "texture": "#6"
+        }
+      }
+    },
+    {
+      "name": "crystal_floating_highlight",
+      "from": [
+        7.65,
+        5.850000000000001,
+        0.27
+      ],
+      "to": [
+        8.25,
+        6.75,
+        0.67
+      ],
+      "rotation": {
+        "angle": 45,
+        "axis": "z",
+        "origin": [
+          8,
+          6.300000000000001,
+          0.47
+        ]
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            0.3,
+            0.45
+          ],
+          "texture": "#6"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            0.45
+          ],
+          "texture": "#6"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            0.3,
+            0.45
+          ],
+          "texture": "#6"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            0.45
+          ],
+          "texture": "#6"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            0.3,
+            0.2
+          ],
+          "texture": "#6"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            0.3,
+            0.2
+          ],
+          "texture": "#6"
+        }
+      }
+    },
+    {
+      "name": "crystal_hover_spark",
+      "from": [
+        7.75,
+        4.100000000000001,
+        1.2
+      ],
+      "to": [
+        8.25,
+        4.5,
+        1.7
+      ],
+      "rotation": {
+        "angle": 45,
+        "axis": "z",
+        "origin": [
+          8,
+          4.300000000000001,
+          1.45
+        ]
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            0.25,
+            0.25
+          ],
+          "texture": "#6"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            0.25,
+            0.25
+          ],
+          "texture": "#6"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            0.25,
+            0.25
+          ],
+          "texture": "#6"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            0.25,
+            0.25
+          ],
+          "texture": "#6"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            0.25,
+            0.25
+          ],
+          "texture": "#6"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            0.25,
+            0.25
+          ],
+          "texture": "#6"
+        }
+      }
+    },
+    {
+      "name": "crystal_facet_left",
+      "from": [
+        6.92,
+        5.719999999999999,
+        0.81
+      ],
+      "to": [
+        7.55,
+        6.84,
+        1.99
+      ],
+      "rotation": {
+        "angle": 22.5,
+        "axis": "z",
+        "origin": [
+          7.28,
+          6.280000000000001,
+          1.4
+        ]
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            0.315,
+            0.56
+          ],
+          "texture": "#6"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            0.59,
+            0.56
+          ],
+          "texture": "#6"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            0.315,
+            0.56
+          ],
+          "texture": "#6"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            0.59,
+            0.56
+          ],
+          "texture": "#6"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            0.315,
+            0.59
+          ],
+          "texture": "#6"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            0.315,
+            0.59
+          ],
+          "texture": "#6"
+        }
+      }
+    },
+    {
+      "name": "crystal_facet_right",
+      "from": [
+        8.45,
+        5.699999999999999,
+        0.79
+      ],
+      "to": [
+        9.08,
+        6.82,
+        2.01
+      ],
+      "rotation": {
+        "angle": -22.5,
+        "axis": "z",
+        "origin": [
+          8.72,
+          6.280000000000001,
+          1.4
+        ]
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            0.315,
+            0.56
+          ],
+          "texture": "#6"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            0.61,
+            0.56
+          ],
+          "texture": "#6"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            0.315,
+            0.56
+          ],
+          "texture": "#6"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            0.61,
+            0.56
+          ],
+          "texture": "#6"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            0.315,
+            0.61
+          ],
+          "texture": "#6"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            0.315,
+            0.61
+          ],
+          "texture": "#6"
+        }
+      }
+    },
+    {
+      "name": "crystal_facet_back",
+      "from": [
+        7.32,
+        5.350000000000001,
+        2.11
+      ],
+      "to": [
+        8.68,
+        6.949999999999999,
+        2.57
+      ],
+      "rotation": {
+        "angle": 45,
+        "axis": "z",
+        "origin": [
+          8,
+          6.149999999999999,
+          2.33
+        ]
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            0.68,
+            0.8
+          ],
+          "texture": "#6"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            0.23,
+            0.8
+          ],
+          "texture": "#6"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            0.68,
+            0.8
+          ],
+          "texture": "#6"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            0.23,
+            0.8
+          ],
+          "texture": "#6"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            0.68,
+            0.23
+          ],
+          "texture": "#6"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            0.68,
+            0.23
+          ],
+          "texture": "#6"
+        }
+      }
+    }
+  ]
+}

@@ -39,7 +39,6 @@ public final class ModBlockEntities {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "statue_science");
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<StatueScienceBlockEntity>> STATUE_SCIENCE =
             DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, STATUE_SCIENCE_ID);
-
     @SubscribeEvent
     public static void register(RegisterEvent event) {
         event.register(Registries.BLOCK_ENTITY_TYPE, FACTION_TABLE_ID, () -> {

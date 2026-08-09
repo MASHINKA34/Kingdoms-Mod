@@ -1,12 +1,8 @@
 package com.geydev.kalfactions.block;
 
-import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.particles.DustParticleOptions;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
+import javax.annotation.Nullable;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -29,29 +25,18 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import org.joml.Vector3f;
 
 public final class StatueScienceBlock extends Block implements EntityBlock {
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final EnumProperty<DoubleBlockHalf> HALF = BlockStateProperties.DOUBLE_BLOCK_HALF;
-    public static final float CRYSTAL_BOB_AMPLITUDE = 0.09F;
-    public static final float CRYSTAL_BOB_SPEED = 0.05F;
 
-    private static final DustParticleOptions CRYSTAL_DUST =
-            new DustParticleOptions(new Vector3f(0.18F, 0.58F, 1.0F), 0.85F);
-    private static final VoxelShape LOWER_PLATFORM_SHAPE = Shapes.or(
-            Block.box(1.0D, 0.0D, 1.0D, 15.0D, 2.0D, 15.0D),
-            Block.box(2.0D, 2.0D, 2.0D, 14.0D, 4.0D, 14.0D),
-            Block.box(3.0D, 4.0D, 3.0D, 13.0D, 5.0D, 13.0D)
+    private static final VoxelShape LOWER_STATUE_SHAPE = Shapes.or(
+            Block.box(0.0D, 0.0D, 0.0D, 16.0D, 4.0D, 16.0D),
+            Block.box(2.0D, 4.0D, 4.0D, 14.0D, 16.0D, 13.0D)
     );
-    private static final VoxelShape LOWER_CRYSTAL_OUTLINE_SHAPE = Shapes.or(
-            Block.box(5.0D, 6.0D, 5.0D, 11.0D, 16.0D, 11.0D)
-    );
-    private static final VoxelShape UPPER_CRYSTAL_OUTLINE_SHAPE = Shapes.or(
-            Block.box(3.5D, 0.0D, 5.0D, 12.5D, 5.0D, 11.0D),
-            Block.box(4.5D, 5.0D, 4.5D, 11.5D, 9.0D, 11.5D),
-            Block.box(5.5D, 9.0D, 5.5D, 10.5D, 13.0D, 10.5D),
-            Block.box(6.25D, 13.0D, 6.5D, 9.0D, 15.5D, 9.5D)
+    private static final VoxelShape UPPER_STATUE_SHAPE = Shapes.or(
+            Block.box(1.0D, 0.0D, 0.0D, 15.0D, 8.5D, 13.0D),
+            Block.box(4.0D, 8.0D, 4.0D, 12.0D, 16.0D, 12.0D)
     );
 
     public StatueScienceBlock(BlockBehaviour.Properties properties) {
@@ -93,14 +78,9 @@ public final class StatueScienceBlock extends Block implements EntityBlock {
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        double bob = crystalBobOffset(level);
-        VoxelShape crystal = state.getValue(HALF) == DoubleBlockHalf.UPPER
-                ? UPPER_CRYSTAL_OUTLINE_SHAPE
-                : LOWER_CRYSTAL_OUTLINE_SHAPE;
-        crystal = crystal.move(0.0D, bob, 0.0D);
         return state.getValue(HALF) == DoubleBlockHalf.UPPER
-                ? crystal
-                : Shapes.or(LOWER_PLATFORM_SHAPE, crystal);
+                ? UPPER_STATUE_SHAPE
+                : LOWER_STATUE_SHAPE;
     }
 
     @Override
@@ -110,38 +90,7 @@ public final class StatueScienceBlock extends Block implements EntityBlock {
             BlockPos pos,
             CollisionContext context
     ) {
-        return state.getValue(HALF) == DoubleBlockHalf.UPPER
-                ? Shapes.empty()
-                : LOWER_PLATFORM_SHAPE;
-    }
-
-    @Override
-    public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
-        if (state.getValue(HALF) != DoubleBlockHalf.UPPER || random.nextInt(2) != 0) {
-            return;
-        }
-
-        double angle = random.nextDouble() * Mth.TWO_PI;
-        double radius = 0.18D + random.nextDouble() * 0.30D;
-        double x = pos.getX() + 0.5D + Mth.cos((float) angle) * radius;
-        double y = pos.getY() - 0.45D + random.nextDouble() * 1.35D
-                + crystalBobOffset(level.getGameTime(), 0.0F);
-        double z = pos.getZ() + 0.5D + Mth.sin((float) angle) * radius;
-        double outwardSpeed = 0.006D + random.nextDouble() * 0.014D;
-        double velocityX = Mth.cos((float) angle) * outwardSpeed;
-        double velocityY = 0.004D + random.nextDouble() * 0.012D;
-        double velocityZ = Mth.sin((float) angle) * outwardSpeed;
-
-        level.addParticle(CRYSTAL_DUST, x, y, z, velocityX, velocityY, velocityZ);
-        if (random.nextInt(12) == 0) {
-            level.addParticle(ParticleTypes.END_ROD, x, y, z,
-                    velocityX * 0.35D, velocityY * 0.5D, velocityZ * 0.35D);
-        }
-    }
-
-    public static float crystalBobOffset(long gameTime, float partialTick) {
-        float time = gameTime % 24000L + partialTick;
-        return Mth.sin(time * CRYSTAL_BOB_SPEED) * CRYSTAL_BOB_AMPLITUDE;
+        return getShape(state, level, pos, context);
     }
 
     @Override
@@ -190,9 +139,4 @@ public final class StatueScienceBlock extends Block implements EntityBlock {
         return state.is(this) && state.getValue(FACING) == facing && state.getValue(HALF) == half;
     }
 
-    private static float crystalBobOffset(BlockGetter level) {
-        return level instanceof Level concreteLevel
-                ? crystalBobOffset(concreteLevel.getGameTime(), 0.0F)
-                : 0.0F;
-    }
 }

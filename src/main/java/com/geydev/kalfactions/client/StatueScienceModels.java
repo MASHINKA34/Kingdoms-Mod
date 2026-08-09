@@ -9,16 +9,19 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ModelEvent;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID, value = Dist.CLIENT)
-public final class StatueModels {
-    public static final ModelResourceLocation CRYSTAL_SCIENCE = ModelResourceLocation.standalone(
-            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "block/statue_crystal_science")
+public final class StatueScienceModels {
+    public static final ModelResourceLocation FLOATING_CRYSTAL = ModelResourceLocation.standalone(
+            ResourceLocation.fromNamespaceAndPath(
+                    KalFactions.MOD_ID,
+                    "block/statue_science_floating_crystal"
+            )
     );
 
     @SubscribeEvent
     public static void onRegisterAdditional(ModelEvent.RegisterAdditional event) {
-        event.register(CRYSTAL_SCIENCE);
+        event.register(FLOATING_CRYSTAL);
     }
 
-    private StatueModels() {
+    private StatueScienceModels() {
     }
 }

@@ -13,15 +13,21 @@ import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.core.Direction;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 
-public final class StatueCrystalRenderer implements BlockEntityRenderer<StatueScienceBlockEntity> {
-    private static final float SPIN_DEGREES_PER_TICK = 0.8F;
+public final class StatueScienceCrystalRenderer implements BlockEntityRenderer<StatueScienceBlockEntity> {
+    private static final float BOB_AMPLITUDE = 0.06F;
+    private static final float BOB_SPEED = 0.10F;
+    private static final float SPIN_DEGREES_PER_TICK = 0.65F;
+    private static final double CRYSTAL_PIVOT_X = 0.5D;
+    private static final double CRYSTAL_PIVOT_Z = 1.40D / 16.0D;
 
     private final BlockRenderDispatcher blockRenderer;
 
-    public StatueCrystalRenderer(BlockEntityRendererProvider.Context context) {
+    public StatueScienceCrystalRenderer(BlockEntityRendererProvider.Context context) {
         this.blockRenderer = context.getBlockRenderDispatcher();
     }
 
@@ -32,7 +38,7 @@ public final class StatueCrystalRenderer implements BlockEntityRenderer<StatueSc
 
     @Override
     public AABB getRenderBoundingBox(StatueScienceBlockEntity blockEntity) {
-        return new AABB(blockEntity.getBlockPos()).inflate(0.5D, 1.0D, 0.5D);
+        return new AABB(blockEntity.getBlockPos()).inflate(0.75D);
     }
 
     @Override
@@ -48,15 +54,27 @@ public final class StatueCrystalRenderer implements BlockEntityRenderer<StatueSc
         if (level == null) {
             return;
         }
-        BakedModel model = Minecraft.getInstance().getModelManager().getModel(StatueModels.CRYSTAL_SCIENCE);
+
         float time = level.getGameTime() % 24000L + partialTick;
-        float bob = StatueScienceBlock.crystalBobOffset(level.getGameTime(), partialTick);
+        float bob = (Mth.sin(time * BOB_SPEED) * 0.5F + 0.5F) * BOB_AMPLITUDE;
         float spin = time * SPIN_DEGREES_PER_TICK;
+        Direction facing = blockEntity.getBlockState().getValue(StatueScienceBlock.FACING);
+        float facingRotation = switch (facing) {
+            case EAST -> 90.0F;
+            case SOUTH -> 180.0F;
+            case WEST -> 270.0F;
+            default -> 0.0F;
+        };
+        BakedModel model = Minecraft.getInstance().getModelManager()
+                .getModel(StatueScienceModels.FLOATING_CRYSTAL);
 
         pose.pushPose();
-        pose.translate(0.5D, bob, 0.5D);
-        pose.mulPose(Axis.YP.rotationDegrees(spin));
+        pose.translate(0.5D, 0.0D, 0.5D);
+        pose.mulPose(Axis.YP.rotationDegrees(facingRotation));
         pose.translate(-0.5D, 0.0D, -0.5D);
+        pose.translate(CRYSTAL_PIVOT_X, bob, CRYSTAL_PIVOT_Z);
+        pose.mulPose(Axis.YP.rotationDegrees(spin));
+        pose.translate(-CRYSTAL_PIVOT_X, 0.0D, -CRYSTAL_PIVOT_Z);
 
         VertexConsumer consumer = buffer.getBuffer(RenderType.cutout());
         blockRenderer.getModelRenderer().renderModel(
