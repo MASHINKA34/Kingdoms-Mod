@@ -14,7 +14,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class DrillTargetScreen extends Screen {
     private static final int GOLD = 0xFFD3A73D;
-    private static final int CARD_HEIGHT = 34;
+    private static final int CARD_HEIGHT = 46;
     private static final int CARD_GAP = 4;
     private final DrillScreen parent;
     private DrillPayloads.S2CTargets state;
@@ -99,7 +99,7 @@ public final class DrillTargetScreen extends Screen {
 
         ResourceClusterType type = ResourceClusterType.parse(target.type()).orElse(null);
         if (type != null) {
-            graphics.renderItem(new ItemStack(type.displayItem()), card.left() + 8, card.top() + 9);
+            graphics.renderItem(new ItemStack(type.displayItem()), card.left() + 8, card.top() + 15);
         }
         Component name = type == null
                 ? Component.literal(target.type())
@@ -119,11 +119,33 @@ public final class DrillTargetScreen extends Screen {
                 target.available() ? 0xFFB9C8D5 : 0xFF7E8790,
                 false
         );
+        long restoreIn = restoreMillis(target);
+        graphics.drawString(
+                font,
+                target.depleted()
+                        ? DrillScreen.depletedShortComponent(restoreIn)
+                        : Component.translatable(
+                                "screen.kingdoms.drill.cluster_reserve",
+                                target.remaining(),
+                                target.limit()
+                        ),
+                card.left() + 32,
+                card.top() + 31,
+                target.depleted() ? 0xFFE08A7A : 0xFF9FD6A8,
+                false
+        );
         if (target.selected()) {
-            graphics.drawString(font, "✔", card.right() - 16, card.top() + 12, 0xFF69D68C, false);
+            graphics.drawString(font, "✔", card.right() - 16, card.top() + 18, 0xFF69D68C, false);
         } else if (!target.available()) {
-            graphics.drawString(font, "✖", card.right() - 16, card.top() + 12, 0xFFB65B5B, false);
+            graphics.drawString(font, "✖", card.right() - 16, card.top() + 18, 0xFFB65B5B, false);
         }
+    }
+
+    private long restoreMillis(DrillPayloads.TargetInfo target) {
+        return Math.max(
+                0L,
+                target.restoreInMillis() - ClientDrillTargets.ageMillis(parent.getMenu().containerId)
+        );
     }
 
     private void renderScrollbar(GuiGraphics graphics, Layout layout, int count) {
@@ -156,21 +178,26 @@ public final class DrillTargetScreen extends Screen {
         Component name = ResourceClusterType.parse(target.type())
                 .map(type -> Component.literal(type.displayName()))
                 .orElse(Component.literal(target.type()));
-        graphics.renderComponentTooltip(
-                font,
-                List.of(
-                        name,
-                        Component.translatable(
-                                "screen.kingdoms.drill.selector_details",
-                                chunk.x,
-                                chunk.z,
-                                target.richness()
-                        ),
-                        Component.translatable(key)
+        List<Component> tooltip = new java.util.ArrayList<>(List.of(
+                name,
+                Component.translatable(
+                        "screen.kingdoms.drill.selector_details",
+                        chunk.x,
+                        chunk.z,
+                        target.richness()
                 ),
-                mouseX,
-                mouseY
-        );
+                Component.translatable(
+                        "screen.kingdoms.drill.cluster_reserve",
+                        target.remaining(),
+                        target.limit()
+                )
+        ));
+        long restoreIn = restoreMillis(target);
+        if (restoreIn > 0L) {
+            tooltip.add(DrillScreen.restoreComponent(restoreIn));
+        }
+        tooltip.add(Component.translatable(key));
+        graphics.renderComponentTooltip(font, tooltip, mouseX, mouseY);
     }
 
     @Override

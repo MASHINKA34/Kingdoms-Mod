@@ -1142,5 +1142,10 @@
   "kingdoms.scout.error.too_large": "That area is too large.",
   "kingdoms.scout.error.border": "The area reaches past the world border.",
   "kingdoms.scout.error.busy": "The faction already has an active scouting order.",
-  "kingdoms.scout.error.funds": "The treasury is short: %1$s needed"
+  "kingdoms.scout.error.funds": "The treasury is short: %1$s needed",
+  "screen.kingdoms.drill.cluster_reserve": "Left: %s / %s",
+  "screen.kingdoms.drill.cluster_depleted": "Cluster is depleted",
+  "screen.kingdoms.drill.cluster_depleted_short": "Depleted · in %sd %s",
+  "screen.kingdoms.drill.cluster_restore_in": "Refills in %sd %s",
+  "screen.kingdoms.drill.target_lost": "The cluster is gone — pick a new target"
 }

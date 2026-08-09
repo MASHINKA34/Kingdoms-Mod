@@ -43,6 +43,8 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     private static final int CHANGE_BUTTON_Y = 121;
     private static final int CHANGE_BUTTON_WIDTH = 73;
     private static final int CHANGE_BUTTON_HEIGHT = 16;
+    private static final int BANNER_LINE_HEIGHT = 10;
+    private static final int BANNER_GAP = 3;
     private boolean openingSelector;
 
     public DrillScreen(DrillMenu menu, Inventory playerInventory, Component title) {
@@ -101,22 +103,27 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
             return;
         }
         ChunkPos chunk = new ChunkPos(selected.chunk());
-        graphics.renderComponentTooltip(
-                font,
-                List.of(
-                        ResourceClusterType.parse(selected.type())
-                                .map(type -> (Component) Component.literal(type.displayName()))
-                                .orElse(Component.literal(selected.type())),
-                        Component.translatable(
-                                "screen.kingdoms.drill.selector_details",
-                                chunk.x,
-                                chunk.z,
-                                selected.richness()
-                        )
+        List<Component> tooltip = new java.util.ArrayList<>(List.of(
+                ResourceClusterType.parse(selected.type())
+                        .map(type -> (Component) Component.literal(type.displayName()))
+                        .orElse(Component.literal(selected.type())),
+                Component.translatable(
+                        "screen.kingdoms.drill.selector_details",
+                        chunk.x,
+                        chunk.z,
+                        selected.richness()
                 ),
-                mouseX,
-                mouseY
-        );
+                Component.translatable(
+                        "screen.kingdoms.drill.cluster_reserve",
+                        selected.remaining(),
+                        selected.limit()
+                )
+        ));
+        long restoreIn = restoreMillis(selected);
+        if (restoreIn > 0L) {
+            tooltip.add(restoreComponent(restoreIn));
+        }
+        graphics.renderComponentTooltip(font, tooltip, mouseX, mouseY);
     }
 
     @Override
@@ -141,8 +148,84 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
             );
         }
         renderSelectedTarget(graphics);
+        renderStatusBanner(graphics);
         renderDrillSlots(graphics);
         renderPlayerInventoryPanel(graphics);
+    }
+
+    private void renderStatusBanner(GuiGraphics graphics) {
+        DrillPayloads.S2CTargets state = ClientDrillTargets.get(menu.containerId);
+        List<Component> lines = statusLines(state);
+        if (lines.isEmpty()) {
+            return;
+        }
+        int left = leftPos + PROGRESS_X;
+        int top = topPos + PROGRESS_Y - BANNER_GAP - lines.size() * BANNER_LINE_HEIGHT;
+        int bottom = topPos + PROGRESS_Y - BANNER_GAP;
+        graphics.fill(left - 2, top - 3, left + FILL_WIDTH + 2, bottom, 0xE0080D14);
+        graphics.fill(left - 2, top - 3, left + FILL_WIDTH + 2, top - 2, 0xFFB98E35);
+        for (int index = 0; index < lines.size(); index++) {
+            graphics.drawString(
+                    font,
+                    lines.get(index),
+                    left + 2,
+                    top + index * BANNER_LINE_HEIGHT,
+                    index == 0 ? bannerColor(state) : 0xFFB9C8D5,
+                    false
+            );
+        }
+    }
+
+    private List<Component> statusLines(DrillPayloads.S2CTargets state) {
+        if (state == null) {
+            return List.of();
+        }
+        DrillPayloads.TargetInfo selected = selectedTarget(state);
+        if (selected == null) {
+            return state.targetLost()
+                    ? List.of(Component.translatable("screen.kingdoms.drill.target_lost"))
+                    : List.of();
+        }
+        long restoreIn = restoreMillis(selected);
+        if (selected.depleted()) {
+            return List.of(
+                    Component.translatable("screen.kingdoms.drill.cluster_depleted"),
+                    restoreComponent(restoreIn)
+            );
+        }
+        Component reserve = Component.translatable(
+                "screen.kingdoms.drill.cluster_reserve",
+                selected.remaining(),
+                selected.limit()
+        );
+        return restoreIn > 0L ? List.of(reserve, restoreComponent(restoreIn)) : List.of(reserve);
+    }
+
+    private static int bannerColor(DrillPayloads.S2CTargets state) {
+        DrillPayloads.TargetInfo selected = selectedTarget(state);
+        return selected == null || selected.depleted() ? 0xFFE08A7A : 0xFFF0D99D;
+    }
+
+    private long restoreMillis(DrillPayloads.TargetInfo target) {
+        return Math.max(0L, target.restoreInMillis() - ClientDrillTargets.ageMillis(menu.containerId));
+    }
+
+    static Component restoreComponent(long millis) {
+        long seconds = Math.max(0L, millis) / 1000L;
+        return Component.translatable(
+                "screen.kingdoms.drill.cluster_restore_in",
+                seconds / 86400L,
+                String.format("%02d:%02d", seconds % 86400L / 3600L, seconds % 3600L / 60L)
+        );
+    }
+
+    static Component depletedShortComponent(long millis) {
+        long seconds = Math.max(0L, millis) / 1000L;
+        return Component.translatable(
+                "screen.kingdoms.drill.cluster_depleted_short",
+                seconds / 86400L,
+                String.format("%02d:%02d", seconds % 86400L / 3600L, seconds % 3600L / 60L)
+        );
     }
 
     private void renderSelectedTarget(GuiGraphics graphics) {

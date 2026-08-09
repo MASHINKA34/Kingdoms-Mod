@@ -1142,5 +1142,10 @@
   "kingdoms.scout.error.too_large": "Такой участок слишком велик.",
   "kingdoms.scout.error.border": "Участок выходит за границу мира.",
   "kingdoms.scout.error.busy": "У фракции уже есть активный заказ разведки.",
-  "kingdoms.scout.error.funds": "В казне не хватает средств: нужно %1$s"
+  "kingdoms.scout.error.funds": "В казне не хватает средств: нужно %1$s",
+  "screen.kingdoms.drill.cluster_reserve": "Осталось: %s / %s",
+  "screen.kingdoms.drill.cluster_depleted": "Кластер истощён",
+  "screen.kingdoms.drill.cluster_depleted_short": "Истощён · через %sд %s",
+  "screen.kingdoms.drill.cluster_restore_in": "Восстановление через %sд %s",
+  "screen.kingdoms.drill.target_lost": "Кластер пропал — выберите новую цель"
 }
