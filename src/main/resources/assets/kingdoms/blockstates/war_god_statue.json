@@ -1,0 +1,12 @@
+{
+  "variants": {
+    "facing=north,half=lower": { "model": "kingdoms:block/war_god_statue_anchor" },
+    "facing=east,half=lower": { "model": "kingdoms:block/war_god_statue_anchor" },
+    "facing=south,half=lower": { "model": "kingdoms:block/war_god_statue_anchor" },
+    "facing=west,half=lower": { "model": "kingdoms:block/war_god_statue_anchor" },
+    "facing=north,half=upper": { "model": "kingdoms:block/war_god_statue_anchor" },
+    "facing=east,half=upper": { "model": "kingdoms:block/war_god_statue_anchor" },
+    "facing=south,half=upper": { "model": "kingdoms:block/war_god_statue_anchor" },
+    "facing=west,half=upper": { "model": "kingdoms:block/war_god_statue_anchor" }
+  }
+}

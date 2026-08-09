@@ -10,6 +10,7 @@ import com.geydev.kalfactions.block.QuarryCoreBlock;
 import com.geydev.kalfactions.block.SanctuaryCoreBlock;
 import com.geydev.kalfactions.block.StatueScienceBlock;
 import com.geydev.kalfactions.block.WarArchiveBlock;
+import com.geydev.kalfactions.block.WarGodStatueBlock;
 import com.geydev.kalfactions.block.WorldMapBlock;
 import com.geydev.kalfactions.block.XaeroMapArchiveBlock;
 import net.minecraft.world.level.block.Block;
@@ -137,6 +138,16 @@ public final class ModBlocks {
             () -> new StatueScienceBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.STONE)
                     .strength(3.0F, 6.0F)
+                    .sound(SoundType.STONE)
+                    .noOcclusion()
+                    .dynamicShape())
+    );
+
+    public static final DeferredBlock<WarGodStatueBlock> WAR_GOD_STATUE = BLOCKS.register(
+            "war_god_statue",
+            () -> new WarGodStatueBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BLACK)
+                    .strength(6.0F, 1200.0F)
                     .sound(SoundType.STONE)
                     .noOcclusion()
                     .dynamicShape())

@@ -5,6 +5,7 @@ import com.geydev.kalfactions.block.DrillBlockEntity;
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
 import com.geydev.kalfactions.block.GuideBoardBlockEntity;
 import com.geydev.kalfactions.block.StatueScienceBlockEntity;
+import com.geydev.kalfactions.block.WarGodStatueBlockEntity;
 import com.geydev.kalfactions.block.WorldMapBlockEntity;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -39,6 +40,10 @@ public final class ModBlockEntities {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "statue_science");
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<StatueScienceBlockEntity>> STATUE_SCIENCE =
             DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, STATUE_SCIENCE_ID);
+    public static final ResourceLocation WAR_GOD_STATUE_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "war_god_statue");
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WarGodStatueBlockEntity>> WAR_GOD_STATUE =
+            DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, WAR_GOD_STATUE_ID);
     @SubscribeEvent
     public static void register(RegisterEvent event) {
         event.register(Registries.BLOCK_ENTITY_TYPE, FACTION_TABLE_ID, () -> {
@@ -85,6 +90,15 @@ public final class ModBlockEntities {
                 );
             }
             return BlockEntityType.Builder.of(StatueScienceBlockEntity::new, block).build(null);
+        });
+        event.register(Registries.BLOCK_ENTITY_TYPE, WAR_GOD_STATUE_ID, () -> {
+            Block block = BuiltInRegistries.BLOCK.get(WAR_GOD_STATUE_ID);
+            if (block == Blocks.AIR) {
+                throw new IllegalStateException(
+                        "kingdoms:war_god_statue must be registered before its block entity type"
+                );
+            }
+            return BlockEntityType.Builder.of(WarGodStatueBlockEntity::new, block).build(null);
         });
     }
 

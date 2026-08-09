@@ -60,9 +60,9 @@ public final class StatueScienceCrystalRenderer implements BlockEntityRenderer<S
         float spin = time * SPIN_DEGREES_PER_TICK;
         Direction facing = blockEntity.getBlockState().getValue(StatueScienceBlock.FACING);
         float facingRotation = switch (facing) {
-            case EAST -> 90.0F;
+            case EAST -> 270.0F;
             case SOUTH -> 180.0F;
-            case WEST -> 270.0F;
+            case WEST -> 90.0F;
             default -> 0.0F;
         };
         BakedModel model = Minecraft.getInstance().getModelManager()
