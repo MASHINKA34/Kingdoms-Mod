@@ -13,6 +13,8 @@ import net.minecraft.resources.ResourceLocation;
 
 public final class DrillPayloads {
     public static final int MAX_TARGETS = 2048;
+    public static final int MAX_RESERVE = 1_000_000;
+    public static final long MAX_RESTORE_MILLIS = 3650L * 24L * 60L * 60L * 1000L;
     private static final int MAX_TYPE_LENGTH = 16;
 
     public record C2SSelectTarget(int containerId, long targetChunk) implements CustomPacketPayload {
@@ -48,6 +50,7 @@ public final class DrillPayloads {
             int containerId,
             BlockPos drillPos,
             boolean hasTarget,
+            boolean targetLost,
             List<TargetInfo> targets
     ) implements CustomPacketPayload {
         public static final Type<S2CTargets> TYPE = payloadType("drill_targets");
@@ -59,6 +62,7 @@ public final class DrillPayloads {
                     buffer.writeVarInt(payload.containerId);
                     buffer.writeBlockPos(payload.drillPos);
                     buffer.writeBoolean(payload.hasTarget);
+                    buffer.writeBoolean(payload.targetLost);
                     buffer.writeVarInt(payload.targets.size());
                     for (TargetInfo target : payload.targets) {
                         target.encode(buffer);
@@ -68,6 +72,7 @@ public final class DrillPayloads {
                     int containerId = buffer.readVarInt();
                     BlockPos drillPos = buffer.readBlockPos();
                     boolean hasTarget = buffer.readBoolean();
+                    boolean targetLost = buffer.readBoolean();
                     int size = buffer.readVarInt();
                     if (size < 0 || size > MAX_TARGETS) {
                         throw new DecoderException("Drill target count " + size + " exceeds " + MAX_TARGETS);
@@ -76,7 +81,7 @@ public final class DrillPayloads {
                     for (int index = 0; index < size; index++) {
                         targets.add(TargetInfo.decode(buffer));
                     }
-                    return new S2CTargets(containerId, drillPos, hasTarget, List.copyOf(targets));
+                    return new S2CTargets(containerId, drillPos, hasTarget, targetLost, List.copyOf(targets));
                 }
         );
 
@@ -96,8 +101,15 @@ public final class DrillPayloads {
             String type,
             int richness,
             boolean selected,
-            boolean available
+            boolean available,
+            int remaining,
+            int limit,
+            long restoreInMillis
     ) {
+        public boolean depleted() {
+            return limit > 0 && remaining <= 0;
+        }
+
         private void encode(RegistryFriendlyByteBuf buffer) {
             buffer.writeLong(chunk);
             buffer.writeBlockPos(pos);
@@ -105,6 +117,9 @@ public final class DrillPayloads {
             buffer.writeVarInt(richness);
             buffer.writeBoolean(selected);
             buffer.writeBoolean(available);
+            buffer.writeVarInt(Math.max(0, remaining));
+            buffer.writeVarInt(Math.max(0, limit));
+            buffer.writeVarLong(Math.max(0L, restoreInMillis));
         }
 
         private static TargetInfo decode(RegistryFriendlyByteBuf buffer) {
@@ -114,7 +129,10 @@ public final class DrillPayloads {
                     buffer.readUtf(MAX_TYPE_LENGTH),
                     Math.clamp(buffer.readVarInt(), 0, 16),
                     buffer.readBoolean(),
-                    buffer.readBoolean()
+                    buffer.readBoolean(),
+                    Math.clamp(buffer.readVarInt(), 0, MAX_RESERVE),
+                    Math.clamp(buffer.readVarInt(), 0, MAX_RESERVE),
+                    Math.clamp(buffer.readVarLong(), 0L, MAX_RESTORE_MILLIS)
             );
         }
     }

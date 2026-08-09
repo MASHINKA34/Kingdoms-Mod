@@ -36,8 +36,29 @@ public final class DrillService {
                 menu.containerId,
                 drill.getBlockPos(),
                 drill.targetClusterChunk() != null,
+                drill.targetLost(),
                 targets
         ));
+    }
+
+    public static void notifyClusterChanged(ServerLevel level, ChunkPos clusterChunk) {
+        long chunk = clusterChunk.toLong();
+        for (ServerPlayer player : level.players()) {
+            if (player.containerMenu instanceof DrillMenu menu
+                    && menu.serverDrill() != null
+                    && menu.serverDrill().targetClusterChunk() != null
+                    && menu.serverDrill().targetClusterChunk() == chunk) {
+                sendTargets(player, menu.serverDrill());
+            }
+        }
+    }
+
+    public static void notifyDrillChanged(ServerLevel level, DrillBlockEntity drill) {
+        for (ServerPlayer player : level.players()) {
+            if (player.containerMenu instanceof DrillMenu menu && menu.serverDrill() == drill) {
+                sendTargets(player, drill);
+            }
+        }
     }
 
     public static List<DrillPayloads.TargetInfo> targetsFor(
@@ -83,7 +104,10 @@ public final class DrillService {
                     cluster.type().id(),
                     cluster.richness(),
                     isSelected,
-                    available
+                    available,
+                    cluster.reserve().remaining(),
+                    cluster.reserve().limit(),
+                    cluster.reserve().restoreInMillis()
             ));
         }
         return List.copyOf(targets);

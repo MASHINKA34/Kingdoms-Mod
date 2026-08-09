@@ -154,6 +154,12 @@ public final class ModConfigSpec {
     public static final IntValue NETHER_LANDING_MAX_RADIUS;
     public static final IntValue NETHER_LANDING_ATTEMPTS;
     public static final IntValue NETHER_LANDING_MINIMUM_SEPARATION;
+    public static final IntValue CLUSTER_UNITS_RICHNESS_1;
+    public static final IntValue CLUSTER_UNITS_RICHNESS_2;
+    public static final IntValue CLUSTER_UNITS_RICHNESS_3;
+    public static final IntValue CLUSTER_RESET_DAYS;
+    public static final IntValue CLUSTER_GENERATION;
+    public static final IntValue CLUSTER_MAINTENANCE_CHUNKS_PER_TICK;
 
     static {
         Builder builder = new Builder();
@@ -525,6 +531,27 @@ public final class ModConfigSpec {
             .comment("Dimensions the map scout is allowed to survey.")
             .defineList("allowedDimensions", java.util.List.of("minecraft:overworld"),
                 value -> value instanceof String text && !text.isBlank());
+        builder.pop();
+
+        builder.push("resourceClusters");
+        CLUSTER_UNITS_RICHNESS_1 = builder
+            .comment("Resource units a richness 1 surface cluster holds before it runs dry.")
+            .defineInRange("richness1Units", 300, 1, 1_000_000);
+        CLUSTER_UNITS_RICHNESS_2 = builder
+            .comment("Resource units a richness 2 surface cluster holds before it runs dry.")
+            .defineInRange("richness2Units", 650, 1, 1_000_000);
+        CLUSTER_UNITS_RICHNESS_3 = builder
+            .comment("Resource units a richness 3 surface cluster holds before it runs dry.")
+            .defineInRange("richness3Units", 1200, 1, 1_000_000);
+        CLUSTER_RESET_DAYS = builder
+            .comment("Real-time days from the first extraction until a cluster refills completely; 0 refills instantly.")
+            .defineInRange("clusterResetDays", 7, 0, 3650);
+        CLUSTER_GENERATION = builder
+            .comment("Base generation counter mixed into cluster placement; /kingdoms cluster regenerate all adds to it.")
+            .defineInRange("clusterGeneration", 0, 0, 1_000_000);
+        CLUSTER_MAINTENANCE_CHUNKS_PER_TICK = builder
+            .comment("Chunks processed per server tick by /kingdoms cluster reset and regenerate.")
+            .defineInRange("maintenanceChunksPerTick", 16, 1, 4096);
         builder.pop();
         SPEC = builder.build();
     }
