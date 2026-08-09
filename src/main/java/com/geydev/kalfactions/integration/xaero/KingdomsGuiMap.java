@@ -38,14 +38,32 @@ final class KingdomsGuiMap extends GuiMap {
     private static Field rightClickXField;
     private static Field rightClickZField;
     private static Field rightClickDimField;
+    private static Field cameraXField;
+    private static Field cameraZField;
+    private static Field scaleField;
+    private static Field mouseBlockXField;
+    private static Field mouseBlockZField;
     private static boolean failureLogged;
+    private static boolean cameraFailureLogged;
 
     private Component noticeMessage;
     private boolean noticeSuccessful;
     private long noticeShownAt;
 
+    private final boolean scoutMode;
+    private boolean centreChosen;
+    private int centreChunkX;
+    private int centreChunkZ;
+    private net.minecraft.client.gui.components.Button confirmButton;
+    private net.minecraft.client.gui.components.Button cancelButton;
+
     KingdomsGuiMap(Screen parent, Screen escape, MapProcessor processor, Entity player) {
+        this(parent, escape, processor, player, false);
+    }
+
+    KingdomsGuiMap(Screen parent, Screen escape, MapProcessor processor, Entity player, boolean scoutMode) {
         super(parent, escape, processor, player);
+        this.scoutMode = scoutMode;
     }
 
     void showNotice(Component message, boolean successful) {
@@ -55,8 +73,67 @@ final class KingdomsGuiMap extends GuiMap {
     }
 
     @Override
+    public void init() {
+        super.init();
+        if (!scoutMode) {
+            return;
+        }
+        confirmButton = addRenderableWidget(com.geydev.kalfactions.client.screen.KingdomsButton.create(
+                Component.translatable("screen.kingdoms.scout.confirm"),
+                button -> {
+                    com.geydev.kalfactions.client.ScoutAreaSelection.confirm(centreChunkX, centreChunkZ);
+                    onClose();
+                },
+                width / 2 - 136,
+                height - 30,
+                130,
+                20
+        ));
+        cancelButton = addRenderableWidget(com.geydev.kalfactions.client.screen.KingdomsButton.create(
+                Component.translatable("screen.kingdoms.scout.cancel"),
+                button -> onClose(),
+                width / 2 + 6,
+                height - 30,
+                130,
+                20
+        ));
+        confirmButton.visible = centreChosen;
+        confirmButton.active = centreChosen;
+    }
+
+    @Override
+    public void mapClicked(int button, int mouseX, int mouseY) {
+        if (scoutMode && button == 0) {
+            long hovered = hoveredChunk();
+            if (hovered != Long.MIN_VALUE) {
+                ChunkPos chunk = new ChunkPos(hovered);
+                centreChunkX = chunk.x;
+                centreChunkZ = chunk.z;
+                centreChosen = true;
+                if (confirmButton != null) {
+                    confirmButton.visible = true;
+                    confirmButton.active = true;
+                }
+            }
+            return;
+        }
+        super.mapClicked(button, mouseX, mouseY);
+    }
+
+    @Override
+    public void onClose() {
+        if (scoutMode) {
+            com.geydev.kalfactions.client.ScoutAreaSelection.clear();
+        }
+        super.onClose();
+    }
+
+    @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
+        if (scoutMode) {
+            renderScoutPreview(graphics);
+        }
         if (noticeMessage == null) {
             return;
         }
@@ -100,8 +177,139 @@ final class KingdomsGuiMap extends GuiMap {
         }
     }
 
+    private void renderScoutPreview(GuiGraphics graphics) {
+        com.geydev.kalfactions.scout.ScoutPayloads.PackageEntry entry =
+                com.geydev.kalfactions.client.ScoutAreaSelection.pending();
+        if (entry == null) {
+            return;
+        }
+        int chunkX;
+        int chunkZ;
+        if (centreChosen) {
+            chunkX = centreChunkX;
+            chunkZ = centreChunkZ;
+        } else {
+            long hovered = hoveredChunk();
+            if (hovered == Long.MIN_VALUE) {
+                return;
+            }
+            ChunkPos chunk = new ChunkPos(hovered);
+            chunkX = chunk.x;
+            chunkZ = chunk.z;
+        }
+
+        int size = Math.max(1, entry.sizeChunks());
+        int half = (size - 1) / 2;
+        int minBlockX = (chunkX - half) << 4;
+        int minBlockZ = (chunkZ - half) << 4;
+        int maxBlockX = minBlockX + size * 16;
+        int maxBlockZ = minBlockZ + size * 16;
+
+        double[] transform = cameraTransform();
+        if (transform == null) {
+            return;
+        }
+        int left = (int) Math.round(screenCoordinate(minBlockX, transform[0], transform[2], width));
+        int right = (int) Math.round(screenCoordinate(maxBlockX, transform[0], transform[2], width));
+        int top = (int) Math.round(screenCoordinate(minBlockZ, transform[1], transform[2], height));
+        int bottom = (int) Math.round(screenCoordinate(maxBlockZ, transform[1], transform[2], height));
+        if (right <= left) {
+            right = left + 1;
+        }
+        if (bottom <= top) {
+            bottom = top + 1;
+        }
+        int frame = centreChosen ? 0xFF6FD2F5 : 0xFFF3D58B;
+        graphics.fill(left, top, right, bottom, 0x2233A0C8);
+        graphics.fill(left, top, right, top + 1, frame);
+        graphics.fill(left, bottom - 1, right, bottom, frame);
+        graphics.fill(left, top, left + 1, bottom, frame);
+        graphics.fill(right - 1, top, right, bottom, frame);
+
+        Font font = Minecraft.getInstance().font;
+        Component line = Component.translatable(
+                "screen.kingdoms.scout.preview",
+                size,
+                size,
+                size * 16,
+                size * 16,
+                NumismaticsEconomy.format(entry.price()).getString()
+        );
+        Component hint = Component.translatable(centreChosen
+                ? "screen.kingdoms.scout.preview_chosen"
+                : "screen.kingdoms.scout.preview_hint", chunkX, chunkZ);
+        int boxWidth = Math.max(font.width(line), font.width(hint)) + 16;
+        int boxLeft = (width - boxWidth) / 2;
+        int boxTop = 6;
+        graphics.fill(boxLeft, boxTop, boxLeft + boxWidth, boxTop + 30, 0xC0101018);
+        graphics.fill(boxLeft, boxTop, boxLeft + boxWidth, boxTop + 1, frame);
+        graphics.drawString(font, line, boxLeft + 8, boxTop + 7, 0xFFF3D58B, true);
+        graphics.drawString(font, hint, boxLeft + 8, boxTop + 18, 0xFFCFC7B4, true);
+    }
+
+    private long hoveredChunk() {
+        try {
+            resolveCameraFields();
+            int blockX = mouseBlockXField.getInt(this);
+            int blockZ = mouseBlockZField.getInt(this);
+            return ChunkPos.asLong(blockX >> 4, blockZ >> 4);
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            logCameraFailure(exception);
+            return Long.MIN_VALUE;
+        }
+    }
+
+    private double[] cameraTransform() {
+        try {
+            resolveCameraFields();
+            return new double[]{
+                    cameraXField.getDouble(this),
+                    cameraZField.getDouble(this),
+                    scaleField.getDouble(this)
+            };
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            logCameraFailure(exception);
+            return null;
+        }
+    }
+
+    private static double screenCoordinate(double world, double camera, double scale, int guiSize) {
+        return (world - camera) * scale / Minecraft.getInstance().getWindow().getGuiScale() + guiSize / 2.0;
+    }
+
+    private static void logCameraFailure(Throwable exception) {
+        if (!cameraFailureLogged) {
+            cameraFailureLogged = true;
+            KalFactions.LOGGER.warn("Could not read the Xaero world map camera for the scout preview", exception);
+        }
+    }
+
+    private static void resolveCameraFields() throws ReflectiveOperationException {
+        if (cameraXField != null) {
+            return;
+        }
+        Field camX = GuiMap.class.getDeclaredField("cameraX");
+        camX.setAccessible(true);
+        Field camZ = GuiMap.class.getDeclaredField("cameraZ");
+        camZ.setAccessible(true);
+        Field mapScale = GuiMap.class.getDeclaredField("scale");
+        mapScale.setAccessible(true);
+        Field blockX = GuiMap.class.getDeclaredField("mouseBlockPosX");
+        blockX.setAccessible(true);
+        Field blockZ = GuiMap.class.getDeclaredField("mouseBlockPosZ");
+        blockZ.setAccessible(true);
+        cameraZField = camZ;
+        scaleField = mapScale;
+        mouseBlockXField = blockX;
+        mouseBlockZField = blockZ;
+        cameraXField = camX;
+    }
+
     @Override
     public ArrayList<RightClickOption> getRightClickOptions() {
+        if (scoutMode) {
+            return new ArrayList<>();
+        }
         ArrayList<RightClickOption> options = super.getRightClickOptions();
         try {
             ResourceKey<Level> clickedDimension = clickedDimension();

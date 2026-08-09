@@ -15,6 +15,10 @@ final class XaeroWorldMapScreens {
     }
 
     static boolean open() {
+        return open(false);
+    }
+
+    static boolean open(boolean scoutMode) {
         WorldMapSession session = WorldMapSession.getCurrentSession();
         if (session == null) {
             return false;
@@ -28,7 +32,7 @@ final class XaeroWorldMapScreens {
         if (camera == null) {
             return false;
         }
-        minecraft.setScreen(new KingdomsGuiMap(null, null, processor, camera));
+        minecraft.setScreen(new KingdomsGuiMap(null, null, processor, camera, scoutMode));
         return true;
     }
 

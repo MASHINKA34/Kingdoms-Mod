@@ -104,6 +104,18 @@ public final class ModConfigSpec {
     public static final LongValue FACTION_METER_COST;
     public static final IntValue NEWS_MAX_ARTICLES_PER_FACTION;
     public static final IntValue NEWS_PUBLISH_COOLDOWN_MINUTES;
+    public static final IntValue SCOUT_SMALL_SIZE;
+    public static final IntValue SCOUT_SMALL_MINUTES;
+    public static final LongValue SCOUT_SMALL_PRICE;
+    public static final IntValue SCOUT_MEDIUM_SIZE;
+    public static final IntValue SCOUT_MEDIUM_MINUTES;
+    public static final LongValue SCOUT_MEDIUM_PRICE;
+    public static final IntValue SCOUT_LARGE_SIZE;
+    public static final IntValue SCOUT_LARGE_MINUTES;
+    public static final LongValue SCOUT_LARGE_PRICE;
+    public static final IntValue SCOUT_CHUNKS_PER_TICK;
+    public static final IntValue SCOUT_MAX_CHUNKS_PER_ORDER;
+    public static final ConfigValue<java.util.List<? extends String>> SCOUT_ALLOWED_DIMENSIONS;
     public static final IntValue RESOURCE_WORLD_BORDER_SIZE;
     public static final IntValue RESOURCE_BLUE_RADIUS;
     public static final IntValue RESOURCE_YELLOW_RADIUS;
@@ -473,6 +485,46 @@ public final class ModConfigSpec {
         NEWS_PUBLISH_COOLDOWN_MINUTES = builder
             .comment("Real-time minutes a faction must wait between news publications (0 disables).")
             .defineInRange("publishCooldownMinutes", 10, 0, 10080);
+        builder.pop();
+
+        builder.push("scout");
+        SCOUT_SMALL_SIZE = builder
+            .comment("Side of the small scouting package, in chunks.")
+            .defineInRange("smallSizeChunks", 5, 1, 64);
+        SCOUT_SMALL_MINUTES = builder
+            .comment("Real-time minutes the small scouting package takes.")
+            .defineInRange("smallMinutes", 30, 1, 10080);
+        SCOUT_SMALL_PRICE = builder
+            .comment("Spurs charged from the faction treasury for the small scouting package.")
+            .defineInRange("smallPrice", 600L, 0L, Long.MAX_VALUE);
+        SCOUT_MEDIUM_SIZE = builder
+            .comment("Side of the medium scouting package, in chunks.")
+            .defineInRange("mediumSizeChunks", 10, 1, 64);
+        SCOUT_MEDIUM_MINUTES = builder
+            .comment("Real-time minutes the medium scouting package takes.")
+            .defineInRange("mediumMinutes", 50, 1, 10080);
+        SCOUT_MEDIUM_PRICE = builder
+            .comment("Spurs charged from the faction treasury for the medium scouting package.")
+            .defineInRange("mediumPrice", 1300L, 0L, Long.MAX_VALUE);
+        SCOUT_LARGE_SIZE = builder
+            .comment("Side of the large scouting package, in chunks.")
+            .defineInRange("largeSizeChunks", 13, 1, 64);
+        SCOUT_LARGE_MINUTES = builder
+            .comment("Real-time minutes the large scouting package takes.")
+            .defineInRange("largeMinutes", 70, 1, 10080);
+        SCOUT_LARGE_PRICE = builder
+            .comment("Spurs charged from the faction treasury for the large scouting package.")
+            .defineInRange("largePrice", 1500L, 0L, Long.MAX_VALUE);
+        SCOUT_CHUNKS_PER_TICK = builder
+            .comment("Chunks the scout may load or generate per server tick across all orders.")
+            .defineInRange("chunksPerTick", 1, 1, 64);
+        SCOUT_MAX_CHUNKS_PER_ORDER = builder
+            .comment("Hard cap on the chunks a single scouting order may cover.")
+            .defineInRange("maxChunksPerOrder", 400, 1, 4096);
+        SCOUT_ALLOWED_DIMENSIONS = builder
+            .comment("Dimensions the map scout is allowed to survey.")
+            .defineList("allowedDimensions", java.util.List.of("minecraft:overworld"),
+                value -> value instanceof String text && !text.isBlank());
         builder.pop();
         SPEC = builder.build();
     }

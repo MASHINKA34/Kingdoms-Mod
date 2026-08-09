@@ -23,6 +23,21 @@ public final class XaeroMaps {
         }
     }
 
+    public static boolean openScoutPicker() {
+        if (!ModList.get().isLoaded(WORLD_MAP_MOD_ID)) {
+            return false;
+        }
+        try {
+            return XaeroWorldMapScreens.open(true);
+        } catch (RuntimeException | LinkageError exception) {
+            if (!failureLogged) {
+                failureLogged = true;
+                KalFactions.LOGGER.warn("Could not open the Xaero world map for the scout", exception);
+            }
+            return false;
+        }
+    }
+
     public static boolean showMapNotice(Component message, boolean successful) {
         if (!ModList.get().isLoaded(WORLD_MAP_MOD_ID)) {
             return false;

@@ -14,6 +14,9 @@ import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager;
 import com.geydev.kalfactions.outpost.cluster.distribution.ResourceZone;
 import com.geydev.kalfactions.quarry.QuarryManager;
 import com.geydev.kalfactions.sanctuary.SanctuaryExecutionManager;
+import com.geydev.kalfactions.scout.ScoutManager;
+import com.geydev.kalfactions.scout.ScoutOrder;
+import com.geydev.kalfactions.scout.ScoutService;
 import com.geydev.kalfactions.worldmap.WorldMapRenderManager;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -126,6 +129,25 @@ public final class KingdomsAdminCommands {
                         .then(Commands.literal("remove")
                                 .then(Commands.argument("pos", BlockPosArgument.blockPos())
                                         .executes(KingdomsAdminCommands::quarryRemove))))
+                .then(Commands.literal("scout")
+                        .then(Commands.literal("spawn")
+                                .executes(KingdomsAdminCommands::scoutSpawn))
+                        .then(Commands.literal("status")
+                                .executes(context -> scoutStatus(context, null))
+                                .then(Commands.argument("faction", StringArgumentType.greedyString())
+                                        .suggests(FACTION_SUGGESTIONS)
+                                        .executes(context -> scoutStatus(
+                                                context,
+                                                StringArgumentType.getString(context, "faction")
+                                        ))))
+                        .then(Commands.literal("cancel")
+                                .then(Commands.argument("faction", StringArgumentType.greedyString())
+                                        .suggests(FACTION_SUGGESTIONS)
+                                        .executes(KingdomsAdminCommands::scoutCancel)))
+                        .then(Commands.literal("complete")
+                                .then(Commands.argument("faction", StringArgumentType.greedyString())
+                                        .suggests(FACTION_SUGGESTIONS)
+                                        .executes(KingdomsAdminCommands::scoutComplete))))
                 .then(Commands.literal("map")
                         .then(Commands.literal("render")
                                 .executes(context -> startRender(context, DEFAULT_MAP_RESOLUTION))
@@ -136,6 +158,87 @@ public final class KingdomsAdminCommands {
                                 .executes(KingdomsAdminCommands::cancelRender))
                         .then(Commands.literal("status")
                                 .executes(KingdomsAdminCommands::mapStatus))));
+    }
+
+    private static int scoutSpawn(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = player.serverLevel();
+        if (!ScoutService.spawn(level, player.getX(), player.getY(), player.getZ(), player.getYRot())) {
+            source.sendFailure(Component.literal("Не удалось создать разведчика карт."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Разведчик карт создан."), true);
+        return 1;
+    }
+
+    private static int scoutStatus(CommandContext<CommandSourceStack> context, String factionName) {
+        CommandSourceStack source = context.getSource();
+        FactionManager factions = FactionManager.get(source.getServer());
+        ScoutManager scouts = ScoutManager.get(source.getServer());
+        java.util.List<java.util.Map.Entry<UUID, ScoutOrder>> active = scouts.activeOrders();
+        UUID filter = null;
+        if (factionName != null) {
+            Faction faction = factions.getFactionByName(factionName).orElse(null);
+            if (faction == null) {
+                source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+                return 0;
+            }
+            filter = faction.id();
+        }
+        int shown = 0;
+        for (java.util.Map.Entry<UUID, ScoutOrder> entry : active) {
+            if (filter != null && !filter.equals(entry.getKey())) {
+                continue;
+            }
+            ScoutOrder order = entry.getValue();
+            String name = factions.getFactionById(entry.getKey()).map(Faction::name).orElse(entry.getKey().toString());
+            String line = name
+                    + " · " + order.sizeChunks() + "x" + order.sizeChunks()
+                    + " · центр " + order.centerChunkX() + ", " + order.centerChunkZ()
+                    + " · " + order.dimension().location()
+                    + " · разведано " + order.progressPercent() + "%"
+                    + " · осталось " + ScoutService.formatRemaining(order.remainingMillis(System.currentTimeMillis()))
+                    + (order.scanned() ? " · данные готовы" : "");
+            source.sendSuccess(() -> Component.literal(line), false);
+            shown++;
+        }
+        if (shown == 0) {
+            source.sendSuccess(() -> Component.literal("Активных заказов разведки нет."), false);
+        }
+        return shown;
+    }
+
+    private static int scoutCancel(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        String factionName = StringArgumentType.getString(context, "faction");
+        Faction faction = FactionManager.get(source.getServer()).getFactionByName(factionName).orElse(null);
+        if (faction == null) {
+            source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+            return 0;
+        }
+        if (!ScoutService.cancel(source.getServer(), faction.id())) {
+            source.sendFailure(Component.literal("У фракции нет активного заказа разведки."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Заказ разведки отменён, деньги возвращены в казну."), true);
+        return 1;
+    }
+
+    private static int scoutComplete(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        String factionName = StringArgumentType.getString(context, "faction");
+        Faction faction = FactionManager.get(source.getServer()).getFactionByName(factionName).orElse(null);
+        if (faction == null) {
+            source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+            return 0;
+        }
+        if (!ScoutService.completeNow(source.getServer(), faction.id())) {
+            source.sendFailure(Component.literal("У фракции нет активного заказа разведки."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Заказ разведки завершён досрочно."), true);
+        return 1;
     }
 
     private static int quarryCreate(CommandContext<CommandSourceStack> context) {

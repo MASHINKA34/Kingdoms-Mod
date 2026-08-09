@@ -2,6 +2,7 @@ package com.geydev.kalfactions.registry;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.entity.BankerEntity;
+import com.geydev.kalfactions.entity.MapScoutEntity;
 import com.geydev.kalfactions.entity.OutpostTraderEntity;
 import com.geydev.kalfactions.entity.SellerTraderEntity;
 import net.minecraft.core.registries.Registries;
@@ -43,6 +44,14 @@ public final class ModEntities {
                     .clientTrackingRange(10)
                     .build("banker"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<MapScoutEntity>> MAP_SCOUT =
+            ENTITIES.register("map_scout", () -> EntityType.Builder
+                    .<MapScoutEntity>of(MapScoutEntity::new, MobCategory.MISC)
+                    .sized(0.6F, 1.95F)
+                    .eyeHeight(1.74F)
+                    .clientTrackingRange(10)
+                    .build("map_scout"));
+
     public static void register(IEventBus bus) {
         ENTITIES.register(bus);
     }
@@ -52,6 +61,7 @@ public final class ModEntities {
         event.put(OUTPOST_TRADER.get(), OutpostTraderEntity.createAttributes().build());
         event.put(SELLER_TRADER.get(), SellerTraderEntity.createAttributes().build());
         event.put(BANKER.get(), BankerEntity.createAttributes().build());
+        event.put(MAP_SCOUT.get(), MapScoutEntity.createAttributes().build());
     }
 
     private ModEntities() {

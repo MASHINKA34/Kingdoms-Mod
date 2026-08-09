@@ -19,6 +19,7 @@ public final class KingdomsClientRenderers {
         event.registerEntityRenderer(ModEntities.OUTPOST_TRADER.get(), KingdomsTraderRenderer::new);
         event.registerEntityRenderer(ModEntities.SELLER_TRADER.get(), KingdomsSellerTraderRenderer::new);
         event.registerEntityRenderer(ModEntities.BANKER.get(), KingdomsBankerRenderer::new);
+        event.registerEntityRenderer(ModEntities.MAP_SCOUT.get(), KingdomsMapScoutRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.WORLD_MAP.get(), WorldMapRenderer::new);
         event.registerBlockEntityRenderer(
                 ModBlockEntities.STATUE_SCIENCE.get(),

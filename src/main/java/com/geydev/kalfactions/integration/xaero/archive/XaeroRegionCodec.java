@@ -3,6 +3,7 @@ package com.geydev.kalfactions.integration.xaero.archive;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
+import net.minecraft.util.Mth;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -37,6 +38,23 @@ public final class XaeroRegionCodec {
     private static final int OVERLAY_PALETTE_NEW = 0x00000400;
     private static final int MAX_NBT_BYTES = 1024 * 1024;
     private static final int MAX_PALETTE_SIZE = 65_536;
+
+    private static final int LIGHT_SHIFT = 8;
+    private static final int HEIGHT_LOW_SHIFT = 12;
+    private static final int HEIGHT_HIGH_SHIFT = 25;
+    private static final int OVERLAY_LIGHT_SHIFT = 4;
+    private static final int OVERLAY_OPACITY_SHIFT = 11;
+
+    public static final int MAP_CHUNKS_PER_REGION = 8;
+    public static final int TILES_PER_MAP_CHUNK = 4;
+    public static final int CHUNKS_PER_REGION = MAP_CHUNKS_PER_REGION * TILES_PER_MAP_CHUNK;
+    public static final int PIXELS_PER_TILE = 256;
+    public static final int MAX_OVERLAYS = 10;
+    public static final int SURFACE_INTERPRETATION_VERSION = 1;
+    public static final int SURFACE_CAVE_START = Integer.MAX_VALUE;
+    public static final int SURFACE_CAVE_DEPTH = 8;
+    public static final int MIN_HEIGHT = -2048;
+    public static final int MAX_HEIGHT = 2047;
 
     public static RegionStats inspect(Path source) throws IOException {
         RegionData data = read(source);
@@ -305,6 +323,119 @@ public final class XaeroRegionCodec {
     }
 
     public record RegionStats(long compressedSize, long uncompressedSize, int tileCount) {
+    }
+
+    public record SurfaceOverlay(CompoundTag state, boolean water, int light, int opacity) {
+        public SurfaceOverlay {
+            if (!water && state == null) {
+                throw new IllegalArgumentException("Xaero overlay needs a block state unless it is water");
+            }
+            light = Mth.clamp(light, 0, 15);
+            opacity = Mth.clamp(opacity, 0, 15);
+        }
+    }
+
+    public record SurfacePixel(
+            CompoundTag state,
+            int height,
+            int topHeight,
+            int light,
+            String biome,
+            List<SurfaceOverlay> overlays
+    ) {
+        public SurfacePixel {
+            if (height < MIN_HEIGHT || height > MAX_HEIGHT) {
+                throw new IllegalArgumentException("Xaero pixel height is out of the 12 bit range");
+            }
+            if (biome != null && biome.length() > 256) {
+                throw new IllegalArgumentException("Xaero biome identifier is too long");
+            }
+            overlays = overlays == null ? List.of() : List.copyOf(overlays);
+            if (overlays.size() > MAX_OVERLAYS) {
+                throw new IllegalArgumentException("Too many Xaero overlays for one pixel");
+            }
+            light = Mth.clamp(light, 0, 15);
+        }
+    }
+
+    public static final class RegionBuilder {
+        private final Map<Integer, TileData> tiles = new LinkedHashMap<>();
+
+        public void tile(int chunkX, int chunkZ, List<SurfacePixel> pixels) {
+            int mapChunkX = Math.floorDiv(chunkX, TILES_PER_MAP_CHUNK) & (MAP_CHUNKS_PER_REGION - 1);
+            int mapChunkZ = Math.floorDiv(chunkZ, TILES_PER_MAP_CHUNK) & (MAP_CHUNKS_PER_REGION - 1);
+            int tileX = Math.floorMod(chunkX, TILES_PER_MAP_CHUNK);
+            int tileZ = Math.floorMod(chunkZ, TILES_PER_MAP_CHUNK);
+            if (pixels.size() != PIXELS_PER_TILE) {
+                throw new IllegalArgumentException("A Xaero tile needs exactly 256 pixels");
+            }
+            ArrayList<PixelData> converted = new ArrayList<>(PIXELS_PER_TILE);
+            for (SurfacePixel pixel : pixels) {
+                converted.add(toPixelData(pixel));
+            }
+            int index = (mapChunkX * MAP_CHUNKS_PER_REGION + mapChunkZ) * 16 + tileX * TILES_PER_MAP_CHUNK + tileZ;
+            tiles.put(index, new TileData(
+                    List.copyOf(converted),
+                    (byte) SURFACE_INTERPRETATION_VERSION,
+                    SURFACE_CAVE_START,
+                    (byte) SURFACE_CAVE_DEPTH
+            ));
+        }
+
+        public int tileCount() {
+            return tiles.size();
+        }
+
+        public boolean isEmpty() {
+            return tiles.isEmpty();
+        }
+
+        public RegionStats writeTo(Path destination) throws IOException {
+            if (tiles.isEmpty()) {
+                throw new IOException("Refusing to write an empty Xaero region");
+            }
+            write(new RegionData(new LinkedHashMap<>(tiles), 0L), destination);
+            return inspect(destination);
+        }
+    }
+
+    private static PixelData toPixelData(SurfacePixel pixel) {
+        boolean grass = pixel.state() == null;
+        int height = pixel.height();
+        int parameters = 0;
+        if (!grass) {
+            parameters |= STATE_PRESENT;
+        }
+        if (!pixel.overlays().isEmpty()) {
+            parameters |= OVERLAYS_PRESENT;
+        }
+        parameters |= (pixel.light() & 15) << LIGHT_SHIFT;
+        parameters |= (height & 255) << HEIGHT_LOW_SHIFT;
+        if (pixel.biome() != null) {
+            parameters |= BIOME_PRESENT;
+        }
+        boolean separateTopHeight = pixel.topHeight() != height;
+        if (separateTopHeight) {
+            parameters |= TOP_HEIGHT_PRESENT;
+        }
+        parameters |= ((height >> 8) & 15) << HEIGHT_HIGH_SHIFT;
+        ArrayList<OverlayData> overlays = new ArrayList<>(pixel.overlays().size());
+        for (SurfaceOverlay overlay : pixel.overlays()) {
+            int overlayParameters = 0;
+            if (!overlay.water()) {
+                overlayParameters |= STATE_PRESENT;
+            }
+            overlayParameters |= (overlay.light() & 15) << OVERLAY_LIGHT_SHIFT;
+            overlayParameters |= (overlay.opacity() & 15) << OVERLAY_OPACITY_SHIFT;
+            overlays.add(new OverlayData(overlayParameters, overlay.water() ? null : overlay.state()));
+        }
+        return new PixelData(
+                parameters,
+                grass ? null : pixel.state(),
+                separateTopHeight ? (byte) pixel.topHeight() : null,
+                List.copyOf(overlays),
+                pixel.biome()
+        );
     }
 
     private record PixelData(
