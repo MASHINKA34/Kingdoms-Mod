@@ -66,7 +66,9 @@ public final class PvpHandler {
         if (event.getEntity() instanceof LivingEntity victim
                 && FactionAccess.hasAnyBonus(attacker, FactionBonus.ASSASSINS)
                 && isBehind(attacker, victim)) {
-            event.setAmount(event.getAmount() * ModConfigSpec.ASSASSIN_BACK_DAMAGE_MULTIPLIER.get().floatValue());
+            double extra = Math.max(0.0D, ModConfigSpec.ASSASSIN_BACK_DAMAGE_MULTIPLIER.getAsDouble() - 1.0D)
+                    * FactionAccess.legacyMultiplier(attacker, FactionBonus.ASSASSINS);
+            event.setAmount(event.getAmount() * (float) (1.0D + extra));
         }
 
         if (!(event.getEntity() instanceof Enemy)) {

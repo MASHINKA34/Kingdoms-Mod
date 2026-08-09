@@ -111,9 +111,12 @@ public final class CuriosHookahIntegration {
     }
 
     public static float combatMultiplier(ServerPlayer player) {
-        return hasActiveHookahBonus(player)
-                ? ModConfigSpec.HOOKAH_DAMAGE_MULTIPLIER.get().floatValue()
-                : 1.0F;
+        if (!hasActiveHookahBonus(player)) {
+            return 1.0F;
+        }
+        double extra = Math.max(0.0D, ModConfigSpec.HOOKAH_DAMAGE_MULTIPLIER.getAsDouble() - 1.0D)
+                * FactionAccess.legacyMultiplier(player, FactionBonus.HOOKAH);
+        return (float) (1.0D + extra);
     }
 
     public static boolean isEquipped(ServerPlayer player, Predicate<ItemStack> matcher) {
@@ -165,7 +168,8 @@ public final class CuriosHookahIntegration {
             return;
         }
 
-        double armorAmount = Math.max(0.0D, ModConfigSpec.HOOKAH_ARMOR_BONUS.getAsDouble());
+        double legacy = FactionAccess.legacyMultiplier(player, FactionBonus.HOOKAH);
+        double armorAmount = Math.max(0.0D, ModConfigSpec.HOOKAH_ARMOR_BONUS.getAsDouble()) * legacy;
         if (armor != null && armorAmount > 0.0D) {
             armor.addOrUpdateTransientModifier(new AttributeModifier(
                     HOOKAH_ARMOR_MODIFIER_ID,
@@ -176,7 +180,7 @@ public final class CuriosHookahIntegration {
             removeModifier(armor, HOOKAH_ARMOR_MODIFIER_ID);
         }
 
-        double speedAmount = Math.max(0.0D, ModConfigSpec.HOOKAH_SPEED_BONUS.getAsDouble());
+        double speedAmount = Math.max(0.0D, ModConfigSpec.HOOKAH_SPEED_BONUS.getAsDouble()) * legacy;
         if (speed != null && speedAmount > 0.0D) {
             speed.addOrUpdateTransientModifier(new AttributeModifier(
                     HOOKAH_SPEED_MODIFIER_ID,

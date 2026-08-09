@@ -36,7 +36,7 @@ public final class EnchanterBonusHandler {
     public static void onAnvilUpdate(AnvilUpdateEvent event) {
         if (event.getPlayer() instanceof ServerPlayer player
                 && FactionAccess.hasAnyBonus(player, FactionBonus.ENCHANTERS)) {
-            ItemStack output = createOutput(event);
+            ItemStack output = createOutput(event, player);
             if (!output.isEmpty()) {
                 event.setOutput(output);
             }
@@ -53,7 +53,7 @@ public final class EnchanterBonusHandler {
         }
     }
 
-    private static ItemStack createOutput(AnvilUpdateEvent event) {
+    private static ItemStack createOutput(AnvilUpdateEvent event, ServerPlayer player) {
         ItemStack left = event.getLeft();
         ItemStack right = event.getRight();
         if (left.isEmpty() || !EnchantmentHelper.canStoreEnchantments(left)) {
@@ -150,7 +150,9 @@ public final class EnchanterBonusHandler {
             result.set(DataComponents.REPAIR_COST, AnvilMenu.calculateIncreasedRepairCost(repairCost));
         }
 
-        event.setCost(Mth.clamp(baseCost + operationCost, 1L, ModConfigSpec.ENCHANTER_ANVIL_MAX_COST.getAsInt()));
+        double legacy = FactionAccess.legacyMultiplier(player, FactionBonus.ENCHANTERS);
+        long discounted = (long) Math.ceil((baseCost + operationCost) / Math.max(0.0001D, legacy));
+        event.setCost(Mth.clamp(discounted, 1L, ModConfigSpec.ENCHANTER_ANVIL_MAX_COST.getAsInt()));
         event.setMaterialCost(materialCost);
         return result;
     }
