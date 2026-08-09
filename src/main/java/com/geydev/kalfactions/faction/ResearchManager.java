@@ -11,7 +11,9 @@ public final class ResearchManager {
             ResearchNode node,
             ServerPlayer player
     ) {
-        int crystalCost = ResearchCrystalCosts.forTier(node.tier());
+        int crystalCost = node.legacy()
+                ? LegacyResearch.crystalCost(node.legacyLevel())
+                : ResearchCrystalCosts.forTier(node.tier());
         return manager.startResearch(
                 factionId,
                 node,

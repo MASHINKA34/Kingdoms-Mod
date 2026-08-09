@@ -894,9 +894,12 @@ public final class FactionManager extends SavedData {
     }
 
     private static int outpostSize(Faction faction) {
-        return faction.hasBonus(FactionBonus.BUILDERS)
-            ? ModConfigSpec.BUILDER_OUTPOST_SIZE.getAsInt()
-            : 2;
+        if (!faction.hasBonus(FactionBonus.BUILDERS)) {
+            return 2;
+        }
+        int base = ModConfigSpec.BUILDER_OUTPOST_SIZE.getAsInt();
+        double scaledExtra = Math.max(0, base - 2) * faction.legacyMultiplier(FactionBonus.BUILDERS);
+        return Math.min(15, 2 + (int) Math.floor(scaledExtra));
     }
 
     public enum RelocateStatus {
@@ -1071,16 +1074,30 @@ public final class FactionManager extends SavedData {
         if (!faction.isResearchAvailable(node)) {
             return StartResearchResult.UNAVAILABLE;
         }
-        if (faction.influence(node.type()) < node.cost()) {
-            return StartResearchResult.INSUFFICIENT_INFLUENCE;
+        List<InfluenceType> costTypes = node.costTypes();
+        long influencePerType = node.influenceCostPerType();
+        int crystalsPerType = node.crystalCostPerType(crystalCost);
+        for (InfluenceType type : costTypes) {
+            if (faction.influence(type) < influencePerType) {
+                return StartResearchResult.INSUFFICIENT_INFLUENCE;
+            }
         }
-        if (crystalCost < 0 || crystalPayment.available(node.type()) < crystalCost) {
+        if (crystalCost < 0) {
             return StartResearchResult.INSUFFICIENT_CRYSTALS;
         }
-        if (!crystalPayment.consumeExact(node.type(), crystalCost)) {
-            return StartResearchResult.CRYSTAL_PAYMENT_CHANGED;
+        for (InfluenceType type : costTypes) {
+            if (crystalPayment.available(type) < crystalsPerType) {
+                return StartResearchResult.INSUFFICIENT_CRYSTALS;
+            }
         }
-        faction.spendInfluence(node.type(), node.cost());
+        for (InfluenceType type : costTypes) {
+            if (!crystalPayment.consumeExact(type, crystalsPerType)) {
+                return StartResearchResult.CRYSTAL_PAYMENT_CHANGED;
+            }
+        }
+        for (InfluenceType type : costTypes) {
+            faction.spendInfluence(type, influencePerType);
+        }
         faction.startResearch(node, nowMillis);
         setDirty();
         return StartResearchResult.STARTED;
@@ -1114,8 +1131,12 @@ public final class FactionManager extends SavedData {
                 continue;
             }
             ResearchNode node = active.get().node();
+            List<InfluenceType> costTypes = node.costTypes();
+            long baselinePerType = LegacyResearch.share(baselinePerNode, costTypes.size());
             faction.completeResearch(node);
-            faction.addSafeBaseline(node.type(), baselinePerNode);
+            for (InfluenceType type : costTypes) {
+                faction.addSafeBaseline(type, baselinePerType);
+            }
             faction.clearActiveResearch();
             completed++;
         }
@@ -1161,9 +1182,10 @@ public final class FactionManager extends SavedData {
             if (periods <= 0L) {
                 continue;
             }
+            double factionPercent = incomePercent * faction.legacyMultiplier(FactionBonus.MERCHANTS);
             for (long period = 0L; period < periods; period++) {
                 long balance = faction.treasuryBalance();
-                long income = PriceMath.percentageCeil(balance, incomePercent);
+                long income = PriceMath.percentageCeil(balance, factionPercent);
                 long available = Long.MAX_VALUE - balance;
                 long deposit = Math.min(income, available);
                 if (deposit <= 0L) {

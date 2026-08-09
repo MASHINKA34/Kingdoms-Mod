@@ -41,7 +41,18 @@ public enum ResearchNode {
     WAR_TNT(InfluenceType.MILITARY, "WAR_ARMOR", 950L, 14, ResearchBonus.TNT_RESIST, 140, -85),
     WAR_WARN_2(InfluenceType.MILITARY, "WAR_ARMOR", 1100L, 16, ResearchBonus.RAID_WARNING, 150, 60),
     WAR_REWARD_2(InfluenceType.MILITARY, "WAR_TNT", 1200L, 15, ResearchBonus.RAID_REWARD, 260, -75),
-    WAR_MOB_3(InfluenceType.MILITARY, "WAR_REWARD_2,WAR_WARN_2", 1600L, 22, ResearchBonus.WARRIOR_DAMAGE, 320, -5);
+    WAR_MOB_3(InfluenceType.MILITARY, "WAR_REWARD_2,WAR_WARN_2", 1600L, 22, ResearchBonus.WARRIOR_DAMAGE, 320, -5),
+
+    LEG_A_1(0, 1, null, 10, -232, -50),
+    LEG_A_2(0, 2, "LEG_A_1", 13, -116, -50),
+    LEG_A_3(0, 3, "LEG_A_2", 16, 0, -50),
+    LEG_A_4(0, 4, "LEG_A_3", 19, 116, -50),
+    LEG_A_5(0, 5, "LEG_A_4", 22, 232, -50),
+    LEG_B_1(1, 1, null, 10, -232, 50),
+    LEG_B_2(1, 2, "LEG_B_1", 13, -116, 50),
+    LEG_B_3(1, 3, "LEG_B_2", 16, 0, 50),
+    LEG_B_4(1, 4, "LEG_B_3", 19, 116, 50),
+    LEG_B_5(1, 5, "LEG_B_4", 22, 232, 50);
 
     public static final int MAX_NODES_PER_BRANCH = 13;
 
@@ -53,6 +64,8 @@ public enum ResearchNode {
     private final String bonusTag;
     private final int treeX;
     private final int treeY;
+    private final int legacySlot;
+    private final int legacyLevel;
 
     ResearchNode(
             InfluenceType type,
@@ -84,10 +97,56 @@ public enum ResearchNode {
         this.bonusTag = bonusTag;
         this.treeX = treeX;
         this.treeY = treeY;
+        this.legacySlot = -1;
+        this.legacyLevel = 0;
+    }
+
+    ResearchNode(
+            int legacySlot,
+            int legacyLevel,
+            String prerequisiteNames,
+            int durationHours,
+            int treeX,
+            int treeY
+    ) {
+        this.type = null;
+        this.prerequisiteNames = prerequisiteNames;
+        this.cost = 0L;
+        this.durationHours = durationHours;
+        this.bonus = null;
+        this.bonusTag = "";
+        this.treeX = treeX;
+        this.treeY = treeY;
+        this.legacySlot = legacySlot;
+        this.legacyLevel = legacyLevel;
     }
 
     public InfluenceType type() {
         return type;
+    }
+
+    public boolean legacy() {
+        return legacySlot >= 0;
+    }
+
+    public int legacySlot() {
+        return legacySlot;
+    }
+
+    public int legacyLevel() {
+        return legacyLevel;
+    }
+
+    public List<InfluenceType> costTypes() {
+        return legacy() ? List.of(InfluenceType.VALUES) : List.of(type);
+    }
+
+    public long influenceCostPerType() {
+        return LegacyResearch.share(cost(), costTypes().size());
+    }
+
+    public int crystalCostPerType(int totalCrystals) {
+        return LegacyResearch.share(totalCrystals, costTypes().size());
     }
 
     public int tier() {
@@ -107,7 +166,7 @@ public enum ResearchNode {
     }
 
     public long cost() {
-        return cost;
+        return legacy() ? LegacyResearch.influenceCost(legacyLevel) : cost;
     }
 
     public int durationHours() {
@@ -161,6 +220,26 @@ public enum ResearchNode {
         List<ResearchNode> nodes = new ArrayList<>();
         for (ResearchNode node : values()) {
             if (node.type == type) {
+                nodes.add(node);
+            }
+        }
+        return List.copyOf(nodes);
+    }
+
+    public static List<ResearchNode> legacyBranch() {
+        List<ResearchNode> nodes = new ArrayList<>();
+        for (ResearchNode node : values()) {
+            if (node.legacy()) {
+                nodes.add(node);
+            }
+        }
+        return List.copyOf(nodes);
+    }
+
+    public static List<ResearchNode> legacySlotNodes(int slot) {
+        List<ResearchNode> nodes = new ArrayList<>();
+        for (ResearchNode node : values()) {
+            if (node.legacySlot == slot) {
                 nodes.add(node);
             }
         }
