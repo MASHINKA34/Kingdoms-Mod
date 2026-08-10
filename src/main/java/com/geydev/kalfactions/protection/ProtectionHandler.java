@@ -160,6 +160,11 @@ public final class ProtectionHandler {
             if (isPlotProtectedContainer(player, level, pos)) {
                 cancelInteraction(event);
                 deny(player, event.getHand(), "kingdoms.protection.no_container");
+                return;
+            }
+            if (isSanctuaryBlockedInteraction(player, level, pos)) {
+                cancelInteraction(event);
+                deny(player, event.getHand(), "kingdoms.protection.no_sanctuary_interact");
             }
             return;
         }
@@ -316,6 +321,10 @@ public final class ProtectionHandler {
 
     private static final TagKey<Block> INTERACTABLE =
             TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "interactable"));
+    private static final TagKey<Block> SANCTUARY_BLOCKED_INTERACTION = TagKey.create(
+            Registries.BLOCK,
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "sanctuary_blocked_interaction")
+    );
     private static final ResourceLocation GRAVESTONE_BLOCK_ID =
             ResourceLocation.fromNamespaceAndPath("gravestone", "gravestone");
 
@@ -414,6 +423,12 @@ public final class ProtectionHandler {
     private static boolean isSanctuaryProtected(ServerPlayer player, ServerLevel level, BlockPos pos) {
         return !player.hasPermissions(2)
                 && SanctuaryManager.get(level).isSanctuary(level, pos)
+                && !MarketPlotService.canEdit(player, level, pos);
+    }
+
+    private static boolean isSanctuaryBlockedInteraction(ServerPlayer player, ServerLevel level, BlockPos pos) {
+        return !player.hasPermissions(2)
+                && level.getBlockState(pos).is(SANCTUARY_BLOCKED_INTERACTION)
                 && !MarketPlotService.canEdit(player, level, pos);
     }
 

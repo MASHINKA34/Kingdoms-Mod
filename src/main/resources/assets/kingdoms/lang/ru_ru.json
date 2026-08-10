@@ -120,6 +120,7 @@
   "kingdoms.protection.no_interact": "Нельзя взаимодействовать с блоками на этой территории фракции.",
   "kingdoms.protection.no_container": "Нет доступа к этому контейнеру.",
   "kingdoms.protection.no_edit_container": "Нельзя менять содержимое этого контейнера.",
+  "kingdoms.protection.no_sanctuary_interact": "Этот блок нельзя использовать на спавне.",
   "kingdoms.pvp.friendly_fire_disabled": "Урон по своим во фракции отключён.",
   "kingdoms.permission.title": "Королевства: %s",
   "kingdoms.permission.command.faction": "Использовать команду /f.",
