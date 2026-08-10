@@ -1193,8 +1193,8 @@
   "block.kingdoms.war_god_stone_8blocks": "Каменная статуя бога войны (8 блоков)",
   "block.kingdoms.economy_god_stone_8blocks": "Каменная статуя бога экономики (8 блоков)",
   "kingdoms.research.legacy.title_short": "%1$s · ур. %2$s",
-  "kingdoms.cluster.display.reserve": "%1$s / %2$s",
   "kingdoms.cluster.display.depleted": "Истощён · %1$sд %2$s",
   "screen.kingdoms.drill.stopped_depleted": "Бур не добывает: кластер истощён",
-  "commands.kingdoms.cluster.drain.done": "Кластер в чанке %1$s, %2$s опустошён: снято %3$s единиц, восстановление через %4$sд %5$s."
+  "commands.kingdoms.cluster.drain.done": "Кластер в чанке %1$s, %2$s опустошён: снято %3$s единиц, восстановление через %4$sд %5$s.",
+  "kingdoms.cluster.display.richness": "Богатство %s"
 }

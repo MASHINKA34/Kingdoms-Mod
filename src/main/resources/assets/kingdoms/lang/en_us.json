@@ -1193,8 +1193,8 @@
   "block.kingdoms.war_god_stone_8blocks": "Stone Statue of the God of War (8 Blocks)",
   "block.kingdoms.economy_god_stone_8blocks": "Stone Statue of the God of Economy (8 Blocks)",
   "kingdoms.research.legacy.title_short": "%1$s · lv. %2$s",
-  "kingdoms.cluster.display.reserve": "%1$s / %2$s",
   "kingdoms.cluster.display.depleted": "Depleted · %1$sd %2$s",
   "screen.kingdoms.drill.stopped_depleted": "The drill is idle: the cluster is depleted",
-  "commands.kingdoms.cluster.drain.done": "Cluster in chunk %1$s, %2$s drained: %3$s units taken, refills in %4$sd %5$s."
+  "commands.kingdoms.cluster.drain.done": "Cluster in chunk %1$s, %2$s drained: %3$s units taken, refills in %4$sd %5$s.",
+  "kingdoms.cluster.display.richness": "Richness %s"
 }
