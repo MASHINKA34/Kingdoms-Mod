@@ -19,8 +19,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.monster.Pillager;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ClickType;
@@ -44,6 +44,7 @@ import top.ribs.scguns.util.BlueprintRecipeData;
 public final class ScorchedIntegrationGameTests {
     private static final ResourceLocation DEEP_DARK_RECIPE = scguns("guns/echoes_2_from_gun_bench");
     private static final ResourceLocation IRON_RECIPE = scguns("guns/auvtomag_from_gun_bench");
+    private static final String GUNNER_MOB_KEY = "scguns:GunnerMob";
 
     @GameTest(template = "empty")
     public static void raidFlareRegistryAndRecipesAreDisabled(GameTestHelper helper) {
@@ -227,16 +228,36 @@ public final class ScorchedIntegrationGameTests {
             GunMobValues.enabled = true;
             GunMobValues.scaleToDifficulty = false;
             GunMobValues.gunnerSpawnChance = 100.0D;
-            for (int attempt = 0; attempt < 4; attempt++) {
-                Pillager armed = spawnPillager(helper, spawned, zoneCenter(level, ResourceZone.RED));
-                helper.assertTrue(DisabledMobGuns.holdsScorchedGun(armed),
-                        "Red zone gunner must spawn with a Scorched Guns firearm");
+            EntityType<?> alwaysGunner = entityType(helper, scguns("hornlin"));
+            BlockPos red = zoneCenter(level, ResourceZone.RED);
+            BlockPos yellow = zoneCenter(level, ResourceZone.YELLOW);
 
-                Pillager unarmed = spawnPillager(helper, spawned, zoneCenter(level, ResourceZone.YELLOW));
+            PathfinderMob armed = null;
+            for (int attempt = 0; attempt < 64 && armed == null; attempt++) {
+                PathfinderMob candidate = spawnGunner(helper, spawned, alwaysGunner, red);
+                helper.assertTrue(candidate.getPersistentData().getBoolean(GUNNER_MOB_KEY),
+                        "Red zone gunner must run through the Scorched Guns equipment routine");
+                if (DisabledMobGuns.holdsScorchedGun(candidate)) {
+                    armed = candidate;
+                }
+            }
+            helper.assertTrue(armed != null, "Red zone gunner must spawn with a Scorched Guns firearm");
+            helper.assertTrue(GunnerMobSpawner.hasGunAttackGoal(armed),
+                    "Red zone gunner must receive a gun attack goal");
+
+            for (int attempt = 0; attempt < 16; attempt++) {
+                PathfinderMob unarmed = spawnGunner(helper, spawned, alwaysGunner, yellow);
+                helper.assertFalse(unarmed.getPersistentData().getBoolean(GUNNER_MOB_KEY),
+                        "Yellow zone gunner must never reach the Scorched Guns equipment routine");
                 helper.assertFalse(DisabledMobGuns.holdsScorchedGun(unarmed),
                         "Yellow zone gunner must spawn without a firearm");
                 helper.assertFalse(GunnerMobSpawner.hasGunAttackGoal(unarmed),
                         "Yellow zone gunner must not receive a gun attack goal");
+            }
+            for (int attempt = 0; attempt < 24; attempt++) {
+                PathfinderMob vanilla = spawnGunner(helper, spawned, EntityType.PILLAGER, yellow);
+                helper.assertFalse(DisabledMobGuns.holdsScorchedGun(vanilla),
+                        "Yellow zone pillager must spawn without a firearm");
             }
         } finally {
             spawned.forEach(Entity::discard);
@@ -272,10 +293,20 @@ public final class ScorchedIntegrationGameTests {
         helper.succeed();
     }
 
-    private static Pillager spawnPillager(GameTestHelper helper, List<Entity> spawned, BlockPos pos) {
-        Pillager pillager = EntityType.PILLAGER.create(helper.getLevel());
-        helper.assertTrue(pillager != null, "Pillager entity type must be available");
-        return join(helper, spawned, pillager, pos);
+    private static EntityType<?> entityType(GameTestHelper helper, ResourceLocation id) {
+        helper.assertTrue(BuiltInRegistries.ENTITY_TYPE.containsKey(id), "Missing registered entity " + id);
+        return BuiltInRegistries.ENTITY_TYPE.get(id);
+    }
+
+    private static PathfinderMob spawnGunner(
+            GameTestHelper helper,
+            List<Entity> spawned,
+            EntityType<?> type,
+            BlockPos pos
+    ) {
+        Entity entity = type.create(helper.getLevel());
+        helper.assertTrue(entity instanceof PathfinderMob, "Gunner test entity must be a pathfinder mob: " + type);
+        return join(helper, spawned, (PathfinderMob) entity, pos);
     }
 
     private static Zombie spawnArmedZombie(GameTestHelper helper, List<Entity> spawned, BlockPos pos) {
