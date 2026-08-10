@@ -8,19 +8,28 @@
     }
   ],
   "pattern": [
-    " M ",
+    "GDG",
     "MBM",
-    "SSS"
+    "LOL"
   ],
   "key": {
+    "G": {
+      "item": "minecraft:gold_block"
+    },
+    "D": {
+      "item": "minecraft:diamond"
+    },
     "M": {
       "item": "minecraft:magma_block"
     },
     "B": {
       "item": "create:empty_blaze_burner"
     },
-    "S": {
-      "item": "minecraft:blackstone"
+    "L": {
+      "item": "minecraft:lava_bucket"
+    },
+    "O": {
+      "item": "minecraft:ominous_bottle"
     }
   },
   "result": {

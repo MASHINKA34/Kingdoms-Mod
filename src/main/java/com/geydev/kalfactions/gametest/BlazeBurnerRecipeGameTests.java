@@ -43,15 +43,41 @@ public final class BlazeBurnerRecipeGameTests {
 
         CraftingRecipe recipe = (CraftingRecipe) holder.value();
         CraftingInput input = CraftingInput.of(3, 3, List.of(
-                ItemStack.EMPTY, new ItemStack(Items.MAGMA_BLOCK), ItemStack.EMPTY,
+                new ItemStack(Items.GOLD_BLOCK), new ItemStack(Items.DIAMOND), new ItemStack(Items.GOLD_BLOCK),
                 new ItemStack(Items.MAGMA_BLOCK), new ItemStack(item("create:empty_blaze_burner")), new ItemStack(Items.MAGMA_BLOCK),
-                new ItemStack(Items.BLACKSTONE), new ItemStack(Items.BLACKSTONE), new ItemStack(Items.BLACKSTONE)
+                new ItemStack(Items.LAVA_BUCKET), new ItemStack(Items.OMINOUS_BOTTLE), new ItemStack(Items.LAVA_BUCKET)
         ));
         helper.assertTrue(recipe.matches(input, level), "blaze burner pattern does not match its own recipe");
 
         ItemStack result = recipe.assemble(input, level.registryAccess());
         helper.assertTrue(result.is(item("create:blaze_burner")), "recipe result is not create:blaze_burner, was " + result);
         helper.assertValueEqual(result.getCount(), 1, "blaze burner result count");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "blaze_burner_recipe")
+    public static void lavaBucketsComeBackEmpty(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        RecipeHolder<?> holder = level.getRecipeManager()
+                .byKey(ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "blaze_burner"))
+                .orElse(null);
+        helper.assertTrue(holder != null, "kingdoms:blaze_burner recipe did not load");
+
+        CraftingRecipe recipe = (CraftingRecipe) holder.value();
+        CraftingInput input = CraftingInput.of(3, 3, List.of(
+                new ItemStack(Items.GOLD_BLOCK), new ItemStack(Items.DIAMOND), new ItemStack(Items.GOLD_BLOCK),
+                new ItemStack(Items.MAGMA_BLOCK), new ItemStack(item("create:empty_blaze_burner")), new ItemStack(Items.MAGMA_BLOCK),
+                new ItemStack(Items.LAVA_BUCKET), new ItemStack(Items.OMINOUS_BOTTLE), new ItemStack(Items.LAVA_BUCKET)
+        ));
+        java.util.List<ItemStack> remaining = recipe.getRemainingItems(input);
+        helper.assertValueEqual(remaining.size(), 9, "remaining item count");
+        for (int slot : new int[]{6, 8}) {
+            helper.assertTrue(
+                    remaining.get(slot).is(Items.BUCKET),
+                    "lava bucket slot " + slot + " did not leave an empty bucket, was " + remaining.get(slot)
+            );
+        }
+        helper.assertTrue(remaining.get(7).isEmpty(), "the ominous bottle should be consumed");
         helper.succeed();
     }
 
