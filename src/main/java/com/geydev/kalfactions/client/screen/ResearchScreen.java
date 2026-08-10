@@ -327,7 +327,7 @@ public final class ResearchScreen extends FactionScreen {
         }
         int lineLeft = left + TREE_LEFT;
         int lineRight = lineLeft + TREE_WIDTH;
-        int cursor = Math.max(lineLeft + 150, lineRight - costWidth);
+        int cursor = Math.max(lineLeft, lineRight - costWidth);
         graphics.drawString(
                 font,
                 clipToWidth(selectionTitle(selectedNode), Math.max(0, cursor - 8 - lineLeft)),
