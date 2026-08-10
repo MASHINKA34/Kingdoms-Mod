@@ -825,6 +825,7 @@
   "block.kingdoms.world_map": "Карта мира",
   "block.kingdoms.statue_science": "Статуя бога науки",
   "block.kingdoms.war_god_statue": "Статуя бога войны",
+  "block.kingdoms.economy_god_statue": "Статуя бога экономики",
   "kingdoms.sanctuary.not_operator": "Управлять защитой спавна может только оператор.",
   "kingdoms.sanctuary.not_core": "Это не Краеугольный камень спавна.",
   "kingdoms.sanctuary.claimed": "Чанк отмечен как зона спавна.",

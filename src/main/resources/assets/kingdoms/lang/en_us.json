@@ -825,6 +825,7 @@
   "block.kingdoms.world_map": "World Map",
   "block.kingdoms.statue_science": "Statue of the God of Science",
   "block.kingdoms.war_god_statue": "Statue of the God of War",
+  "block.kingdoms.economy_god_statue": "Statue of the God of Economy",
   "kingdoms.sanctuary.not_operator": "Only an operator can manage the spawn sanctuary.",
   "kingdoms.sanctuary.not_core": "That is not a Spawn Sanctuary Cornerstone.",
   "kingdoms.sanctuary.claimed": "Chunk marked as spawn sanctuary.",

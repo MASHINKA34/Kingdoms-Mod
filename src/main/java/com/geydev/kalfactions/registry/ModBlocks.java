@@ -2,6 +2,7 @@ package com.geydev.kalfactions.registry;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.DrillBlock;
+import com.geydev.kalfactions.block.EconomyGodStatueBlock;
 import com.geydev.kalfactions.block.FactionTableBlock;
 import com.geydev.kalfactions.block.GuideBoardBlock;
 import com.geydev.kalfactions.block.NewsBoardBlock;
@@ -146,6 +147,16 @@ public final class ModBlocks {
     public static final DeferredBlock<WarGodStatueBlock> WAR_GOD_STATUE = BLOCKS.register(
             "war_god_statue",
             () -> new WarGodStatueBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BLACK)
+                    .strength(6.0F, 1200.0F)
+                    .sound(SoundType.STONE)
+                    .noOcclusion()
+                    .dynamicShape())
+    );
+
+    public static final DeferredBlock<EconomyGodStatueBlock> ECONOMY_GOD_STATUE = BLOCKS.register(
+            "economy_god_statue",
+            () -> new EconomyGodStatueBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_BLACK)
                     .strength(6.0F, 1200.0F)
                     .sound(SoundType.STONE)

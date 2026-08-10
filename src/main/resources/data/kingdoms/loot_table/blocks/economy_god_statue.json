@@ -1,0 +1,28 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "bonus_rolls": 0.0,
+      "conditions": [
+        {
+          "condition": "minecraft:block_state_property",
+          "block": "kingdoms:economy_god_statue",
+          "properties": {
+            "half": "lower"
+          }
+        },
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "kingdoms:economy_god_statue"
+        }
+      ],
+      "rolls": 1.0
+    }
+  ],
+  "random_sequence": "kingdoms:blocks/economy_god_statue"
+}

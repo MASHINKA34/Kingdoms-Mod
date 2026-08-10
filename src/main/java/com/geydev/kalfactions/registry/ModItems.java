@@ -66,6 +66,9 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> WAR_GOD_STATUE =
             ITEMS.registerSimpleBlockItem(ModBlocks.WAR_GOD_STATUE);
 
+    public static final DeferredItem<BlockItem> ECONOMY_GOD_STATUE =
+            ITEMS.registerSimpleBlockItem(ModBlocks.ECONOMY_GOD_STATUE);
+
     public static final DeferredItem<AccessTool> ACCESS_TOOL = ITEMS.register(
             "access_tool",
             () -> new AccessTool(new Item.Properties().stacksTo(1))
