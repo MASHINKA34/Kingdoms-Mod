@@ -7,7 +7,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
@@ -35,6 +39,89 @@ public final class SanctuaryGameTests {
         helper.assertTrue(manager.isSanctuary(extension), "remote control can extend sanctuary");
         helper.assertTrue(manager.claims().containsAll(spawnClaims), "extension does not move spawn square");
         manager.setClaim(extension, false);
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "sanctuary_fire", timeoutTicks = 600)
+    public static void fireIsExtinguishedAndCannotSpreadIntoSanctuary(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        SanctuaryManager manager = SanctuaryManager.get(level);
+        BlockPos anchor = level.getSharedSpawnPos().offset(4_096, 0, 4_096);
+        ChunkPos sanctuaryChunk = new ChunkPos(anchor);
+        ChunkPos wildChunk = new ChunkPos(sanctuaryChunk.x + 1, sanctuaryChunk.z);
+        level.getChunk(sanctuaryChunk.x, sanctuaryChunk.z);
+        level.getChunk(wildChunk.x, wildChunk.z);
+
+        int y = level.getSeaLevel() + 24;
+        BlockPos insideFloor = new BlockPos(sanctuaryChunk.getMaxBlockX(), y, sanctuaryChunk.getMinBlockZ() + 8);
+        BlockPos outsideFloor = insideFloor.east();
+        BlockPos insideFuel = insideFloor.above();
+        BlockPos outsideFire = outsideFloor.above();
+
+        ClaimKey sanctuaryKey = ClaimKey.of(level, insideFloor);
+        boolean fireTick = level.getGameRules().getBoolean(GameRules.RULE_DOFIRETICK);
+        manager.setClaim(sanctuaryKey, true);
+        level.getGameRules().getRule(GameRules.RULE_DOFIRETICK).set(true, level.getServer());
+        try {
+            helper.assertTrue(manager.isSanctuary(sanctuaryKey), "test chunk is a sanctuary");
+            helper.assertFalse(
+                    manager.isSanctuary(ClaimKey.of(level, outsideFloor)),
+                    "neighbour chunk stays wild"
+            );
+
+            level.setBlockAndUpdate(insideFloor, Blocks.STONE.defaultBlockState());
+            level.setBlockAndUpdate(outsideFloor, Blocks.OAK_PLANKS.defaultBlockState());
+            level.setBlockAndUpdate(insideFuel, Blocks.OAK_PLANKS.defaultBlockState());
+
+            BlockState fire = Blocks.FIRE.defaultBlockState();
+            helper.assertFalse(
+                    fire.canSurvive(level, insideFuel.above()),
+                    "fire cannot survive inside the sanctuary"
+            );
+            helper.assertTrue(
+                    fire.canSurvive(level, outsideFire),
+                    "fire still survives outside the sanctuary"
+            );
+
+            level.setBlockAndUpdate(insideFuel.above(), fire);
+            helper.assertTrue(
+                    level.getBlockState(insideFuel.above()).isAir(),
+                    "fire placed inside the sanctuary is removed at once"
+            );
+
+            for (int attempt = 0; attempt < 400; attempt++) {
+                level.setBlock(outsideFloor, Blocks.OAK_PLANKS.defaultBlockState(), 3);
+                if (!level.getBlockState(outsideFire).is(Blocks.FIRE)) {
+                    level.setBlock(outsideFire, fire, 3);
+                }
+                level.getBlockState(outsideFire).tick(level, outsideFire, level.getRandom());
+            }
+
+            helper.assertTrue(
+                    level.getBlockState(insideFuel).is(Blocks.OAK_PLANKS),
+                    "sanctuary fuel next to burning wild fire never burns out"
+            );
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    for (int dy = -1; dy <= 4; dy++) {
+                        BlockPos probe = outsideFire.offset(dx, dy, dz);
+                        if (!manager.isSanctuary(ClaimKey.of(level, probe))) {
+                            continue;
+                        }
+                        helper.assertFalse(
+                                level.getBlockState(probe).is(Blocks.FIRE),
+                                "fire never spreads into the sanctuary at " + probe
+                        );
+                    }
+                }
+            }
+        } finally {
+            level.getGameRules().getRule(GameRules.RULE_DOFIRETICK).set(fireTick, level.getServer());
+            manager.setClaim(sanctuaryKey, false);
+            for (BlockPos pos : new BlockPos[] {insideFloor, outsideFloor, insideFuel, outsideFire}) {
+                level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+            }
+        }
         helper.succeed();
     }
 

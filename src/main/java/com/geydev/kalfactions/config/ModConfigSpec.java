@@ -83,6 +83,7 @@ public final class ModConfigSpec {
     public static final BooleanValue SANCTUARY_DISABLE_PVP;
     public static final BooleanValue SANCTUARY_DISABLE_MOB_SPAWNS;
     public static final BooleanValue SANCTUARY_EXPLOSION_IMMUNITY;
+    public static final BooleanValue SANCTUARY_DISABLE_FIRE_SPREAD;
     public static final LongValue QUARRY_LEVEL_2_COST;
     public static final LongValue QUARRY_LEVEL_3_COST;
     public static final LongValue QUARRY_LEVEL_4_COST;
@@ -445,6 +446,9 @@ public final class ModConfigSpec {
         SANCTUARY_EXPLOSION_IMMUNITY = builder
             .comment("Make spawn sanctuary chunks immune to all explosions (creeper, TNT, etc.).")
             .define("explosionImmunity", true);
+        SANCTUARY_DISABLE_FIRE_SPREAD = builder
+            .comment("Extinguish fire inside spawn sanctuary chunks and stop it from spreading into or within them.")
+            .define("disableFireSpread", true);
         builder.pop();
 
         builder.push("quarry");
