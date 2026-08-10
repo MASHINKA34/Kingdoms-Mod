@@ -2,6 +2,7 @@ package com.geydev.kalfactions.registry;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.DrillBlockEntity;
+import com.geydev.kalfactions.block.EconomyGodStatueBlockEntity;
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
 import com.geydev.kalfactions.block.GuideBoardBlockEntity;
 import com.geydev.kalfactions.block.StatueScienceBlockEntity;
@@ -44,6 +45,10 @@ public final class ModBlockEntities {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "war_god_statue");
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WarGodStatueBlockEntity>> WAR_GOD_STATUE =
             DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, WAR_GOD_STATUE_ID);
+    public static final ResourceLocation ECONOMY_GOD_STATUE_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "economy_god_statue");
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<EconomyGodStatueBlockEntity>> ECONOMY_GOD_STATUE =
+            DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, ECONOMY_GOD_STATUE_ID);
     @SubscribeEvent
     public static void register(RegisterEvent event) {
         event.register(Registries.BLOCK_ENTITY_TYPE, FACTION_TABLE_ID, () -> {
@@ -99,6 +104,15 @@ public final class ModBlockEntities {
                 );
             }
             return BlockEntityType.Builder.of(WarGodStatueBlockEntity::new, block).build(null);
+        });
+        event.register(Registries.BLOCK_ENTITY_TYPE, ECONOMY_GOD_STATUE_ID, () -> {
+            Block block = BuiltInRegistries.BLOCK.get(ECONOMY_GOD_STATUE_ID);
+            if (block == Blocks.AIR) {
+                throw new IllegalStateException(
+                        "kingdoms:economy_god_statue must be registered before its block entity type"
+                );
+            }
+            return BlockEntityType.Builder.of(EconomyGodStatueBlockEntity::new, block).build(null);
         });
     }
 

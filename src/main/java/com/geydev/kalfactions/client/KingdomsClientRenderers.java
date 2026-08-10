@@ -29,6 +29,10 @@ public final class KingdomsClientRenderers {
                 ModBlockEntities.WAR_GOD_STATUE.get(),
                 WarGodStatueRenderer::new
         );
+        event.registerBlockEntityRenderer(
+                ModBlockEntities.ECONOMY_GOD_STATUE.get(),
+                EconomyGodStatueCrystalRenderer::new
+        );
     }
 
     private static void onRegisterClientExtensions(RegisterClientExtensionsEvent event) {
