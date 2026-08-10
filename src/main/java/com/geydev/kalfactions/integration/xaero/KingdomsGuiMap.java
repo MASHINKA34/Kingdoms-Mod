@@ -313,6 +313,14 @@ final class KingdomsGuiMap extends GuiMap {
     }
 
     @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (scoutMode && button == 1) {
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
     public ArrayList<RightClickOption> getRightClickOptions() {
         if (scoutMode) {
             return new ArrayList<>();
