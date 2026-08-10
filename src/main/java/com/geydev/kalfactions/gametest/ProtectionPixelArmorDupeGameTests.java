@@ -89,6 +89,46 @@ public final class ProtectionPixelArmorDupeGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void hangingArmorOnAnEmptyHangerKeepsIt(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        placeHanger(helper, ItemStack.EMPTY, ItemStack.EMPTY);
+        player.setItemInHand(InteractionHand.MAIN_HAND, plated(CHESTPLATE, 7));
+        BlockPos abs = helper.absolutePos(HANGER_POS);
+        player.moveTo(abs.getX() + 0.5, abs.getY() - 2.0, abs.getZ() + 1.5);
+
+        helper.useBlock(HANGER_POS, player);
+
+        Container hanger = (Container) helper.getLevel().getBlockEntity(abs);
+        helper.assertTrue(
+                plateValue(hanger.getItem(0)) == 7,
+                "Hanging a chestplate did not store it in the hanger, slot 0 = " + hanger.getItem(0)
+        );
+        helper.assertTrue(player.getMainHandItem().isEmpty(), "The hung chestplate stayed in hand as well");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void swappingArmorOnHangerExchangesTheRightPieces(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        placeHanger(helper, plated(CHESTPLATE, HELD_PLATES), ItemStack.EMPTY);
+        player.setItemInHand(InteractionHand.MAIN_HAND, plated(CHESTPLATE, 7));
+        BlockPos abs = helper.absolutePos(HANGER_POS);
+        player.moveTo(abs.getX() + 0.5, abs.getY() - 2.0, abs.getZ() + 1.5);
+
+        helper.useBlock(HANGER_POS, player);
+
+        Container hanger = (Container) helper.getLevel().getBlockEntity(abs);
+        helper.assertTrue(
+                plateValue(hanger.getItem(0)) == 7,
+                "The hanger kept its old chestplate instead of the offered one, slot 0 plates = "
+                        + plateValue(hanger.getItem(0))
+        );
+        boolean gotOldPiece = player.getInventory().items.stream().anyMatch(stack -> plateValue(stack) == HELD_PLATES);
+        helper.assertTrue(gotOldPiece, "The player did not get the previously hung chestplate back");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void armorStandBrokenByPlayerDropsOnlyItsOwnArmor(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         ArmorStand stand = placeStand(helper, plated(CHESTPLATE, HELD_PLATES), plated(LEGGINGS, 3));

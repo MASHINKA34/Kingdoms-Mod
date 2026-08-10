@@ -28,6 +28,7 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.IBlockCapabilityProvider;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.IItemHandlerModifiable;
 
 /**
  * Best-effort wrapper for item capabilities registered before Kingdoms.
@@ -74,9 +75,7 @@ public final class AutomationBoundaryHandler {
                             blockEntity,
                             side
                     );
-                    return delegate == null
-                            ? null
-                            : new BoundaryItemHandler(delegate, level, pos.immutable(), side);
+                    return delegate == null ? null : wrap(delegate, level, pos.immutable(), side);
                 });
             }
             KalFactions.LOGGER.info(
@@ -89,6 +88,12 @@ public final class AutomationBoundaryHandler {
                     exception
             );
         }
+    }
+
+    private static IItemHandler wrap(IItemHandler delegate, Level level, BlockPos pos, Direction side) {
+        return delegate instanceof IItemHandlerModifiable modifiable
+                ? new ModifiableBoundaryItemHandler(modifiable, level, pos, side)
+                : new BoundaryItemHandler(delegate, level, pos, side);
     }
 
     private static IItemHandler firstAvailable(
@@ -146,11 +151,11 @@ public final class AutomationBoundaryHandler {
         return targetPlot != automationPlot;
     }
 
-    private static final class BoundaryItemHandler implements IItemHandler {
+    private static class BoundaryItemHandler implements IItemHandler {
         private final IItemHandler delegate;
-        private final Level level;
-        private final BlockPos targetPos;
-        private final Direction targetSide;
+        protected final Level level;
+        protected final BlockPos targetPos;
+        protected final Direction targetSide;
 
         private BoundaryItemHandler(
                 IItemHandler delegate,
@@ -197,6 +202,28 @@ public final class AutomationBoundaryHandler {
         public boolean isItemValid(int slot, ItemStack stack) {
             return !crossesProtectedBoundary(level, targetPos, targetSide)
                     && delegate.isItemValid(slot, stack);
+        }
+    }
+
+    private static final class ModifiableBoundaryItemHandler extends BoundaryItemHandler
+            implements IItemHandlerModifiable {
+        private final IItemHandlerModifiable modifiable;
+
+        private ModifiableBoundaryItemHandler(
+                IItemHandlerModifiable modifiable,
+                Level level,
+                BlockPos targetPos,
+                Direction targetSide
+        ) {
+            super(modifiable, level, targetPos, targetSide);
+            this.modifiable = modifiable;
+        }
+
+        @Override
+        public void setStackInSlot(int slot, ItemStack stack) {
+            if (!crossesProtectedBoundary(level, targetPos, targetSide)) {
+                modifiable.setStackInSlot(slot, stack);
+            }
         }
     }
 
