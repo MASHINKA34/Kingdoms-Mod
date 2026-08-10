@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "create"
+    }
+  ],
+  "pattern": [
+    " M ",
+    "MBM",
+    "SSS"
+  ],
+  "key": {
+    "M": {
+      "item": "minecraft:magma_block"
+    },
+    "B": {
+      "item": "create:empty_blaze_burner"
+    },
+    "S": {
+      "item": "minecraft:blackstone"
+    }
+  },
+  "result": {
+    "id": "create:blaze_burner",
+    "count": 1
+  }
+}
