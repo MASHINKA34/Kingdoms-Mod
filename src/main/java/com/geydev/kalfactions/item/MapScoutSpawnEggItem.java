@@ -2,6 +2,7 @@ package com.geydev.kalfactions.item;
 
 import com.geydev.kalfactions.scout.ScoutService;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -21,7 +22,7 @@ public final class MapScoutSpawnEggItem extends Item {
         }
         BlockPos pos = context.getClickedPos().relative(context.getClickedFace());
         Player player = context.getPlayer();
-        float yRot = player == null ? 0.0F : player.getYRot();
+        float yRot = player == null ? 0.0F : Mth.wrapDegrees(player.getYRot() + 180.0F);
         if (ScoutService.spawn(level, pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, yRot)) {
             ItemStack stack = context.getItemInHand();
             if (player == null || !player.isCreative()) {

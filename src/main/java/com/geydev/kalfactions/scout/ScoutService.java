@@ -551,6 +551,7 @@ public final class ScoutService {
         }
         scout.moveTo(x, y, z, yRot, 0.0F);
         scout.setYBodyRot(yRot);
+        scout.setYHeadRot(yRot);
         scout.yBodyRotO = yRot;
         scout.yHeadRotO = yRot;
         if (!level.addFreshEntity(scout)) {

@@ -165,7 +165,8 @@ public final class KingdomsAdminCommands {
         CommandSourceStack source = context.getSource();
         ServerPlayer player = source.getPlayerOrException();
         ServerLevel level = player.serverLevel();
-        if (!ScoutService.spawn(level, player.getX(), player.getY(), player.getZ(), player.getYRot())) {
+        float facing = net.minecraft.util.Mth.wrapDegrees(player.getYRot() + 180.0F);
+        if (!ScoutService.spawn(level, player.getX(), player.getY(), player.getZ(), facing)) {
             source.sendFailure(Component.literal("Не удалось создать разведчика карт."));
             return 0;
         }
