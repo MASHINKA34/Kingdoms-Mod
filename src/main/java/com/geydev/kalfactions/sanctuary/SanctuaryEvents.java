@@ -5,8 +5,7 @@ import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.monster.Enemy;
-import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.MobSpawnType;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.FinalizeSpawnEvent;
@@ -17,13 +16,20 @@ public final class SanctuaryEvents {
     public static void onFinalizeSpawn(FinalizeSpawnEvent event) {
         if (!ModConfigSpec.SANCTUARY_DISABLE_MOB_SPAWNS.get()
                 || !(event.getLevel().getLevel() instanceof ServerLevel level)
-                || (!(event.getEntity() instanceof Monster) && !(event.getEntity() instanceof Enemy))) {
+                || !blocksSpawnType(event.getSpawnType())) {
             return;
         }
         BlockPos pos = BlockPos.containing(event.getX(), event.getY(), event.getZ());
         if (SanctuaryManager.get(level).isSanctuary(ClaimKey.of(level, pos))) {
             event.setSpawnCancelled(true);
         }
+    }
+
+    private static boolean blocksSpawnType(MobSpawnType type) {
+        return switch (type) {
+            case SPAWN_EGG, COMMAND, BUCKET, BREEDING, MOB_SUMMONED, CONVERSION, DISPENSER, TRIGGERED -> false;
+            default -> true;
+        };
     }
 
     private SanctuaryEvents() {
