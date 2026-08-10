@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.command;
 
 import com.geydev.kalfactions.outpost.cluster.ClusterMaintenance;
+import com.geydev.kalfactions.outpost.cluster.DrillService;
 import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -41,7 +42,8 @@ public final class ClusterCommands {
                                         ))))
                         .then(Commands.literal("all").executes(ClusterCommands::resetAll)))
                 .then(Commands.literal("regenerate")
-                        .then(Commands.literal("all").executes(ClusterCommands::regenerateAll)));
+                        .then(Commands.literal("all").executes(ClusterCommands::regenerateAll)))
+                .then(Commands.literal("drain").executes(ClusterCommands::drain));
     }
 
     private static int status(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
@@ -86,6 +88,30 @@ public final class ClusterCommands {
                 "commands.kingdoms.cluster.status.drill",
                 drill.toShortString()
         ), false));
+        return 1;
+    }
+
+    private static int drain(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ServerLevel level = source.getLevel();
+        ResourceClusterManager manager = ResourceClusterManager.get(level);
+        ChunkPos origin = new ChunkPos(BlockPos.containing(source.getPosition()));
+        ChunkPos found = nearestCluster(manager, origin);
+        if (found == null) {
+            source.sendFailure(Component.translatable("commands.kingdoms.cluster.status.none", origin.x, origin.z));
+            return 0;
+        }
+        int drained = manager.drain(level, found);
+        DrillService.notifyClusterChanged(level, found);
+        ResourceClusterManager.ReserveView reserve = manager.reserveAt(found).orElseThrow();
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.cluster.drain.done",
+                found.x,
+                found.z,
+                drained,
+                days(reserve.restoreInMillis()),
+                clock(reserve.restoreInMillis())
+        ), true);
         return 1;
     }
 

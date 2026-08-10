@@ -336,6 +336,17 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
         if (!menu.hasTarget() || !isMouseOverProgress(mouseX, mouseY)) {
             return;
         }
+        DrillPayloads.TargetInfo selected = selectedTarget(ClientDrillTargets.get(menu.containerId));
+        if (selected != null && selected.depleted()) {
+            List<Component> tooltip = new java.util.ArrayList<>();
+            tooltip.add(Component.translatable("screen.kingdoms.drill.stopped_depleted"));
+            long restoreIn = restoreMillis(selected);
+            if (restoreIn > 0L) {
+                tooltip.add(restoreComponent(restoreIn));
+            }
+            graphics.renderComponentTooltip(font, tooltip, mouseX, mouseY);
+            return;
+        }
         Component timer = Component.translatable("screen.kingdoms.drill.remaining", formatTicks(menu.remainingTicks()));
         graphics.renderTooltip(font, timer, mouseX, mouseY);
     }
