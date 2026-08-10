@@ -7,11 +7,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
@@ -123,6 +126,52 @@ public final class SanctuaryGameTests {
             }
         }
         helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "sanctuary_lightning", timeoutTicks = 600)
+    public static void lightningNeverStrikesInsideSanctuary(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        SanctuaryManager manager = SanctuaryManager.get(level);
+        BlockPos anchor = level.getSharedSpawnPos().offset(-4_096, 0, 4_096);
+        ChunkPos sanctuaryChunk = new ChunkPos(anchor);
+        ChunkPos wildChunk = new ChunkPos(sanctuaryChunk.x + 1, sanctuaryChunk.z);
+        level.getChunk(sanctuaryChunk.x, sanctuaryChunk.z);
+        level.getChunk(wildChunk.x, wildChunk.z);
+
+        int y = level.getSeaLevel() + 24;
+        BlockPos inside = new BlockPos(sanctuaryChunk.getMaxBlockX(), y, sanctuaryChunk.getMinBlockZ() + 8);
+        BlockPos outside = inside.east();
+
+        ClaimKey sanctuaryKey = ClaimKey.of(level, inside);
+        manager.setClaim(sanctuaryKey, true);
+        try {
+            helper.assertTrue(manager.isSanctuary(sanctuaryKey), "test chunk is a sanctuary");
+            helper.assertFalse(
+                    manager.isSanctuary(ClaimKey.of(level, outside)),
+                    "neighbour chunk stays wild"
+            );
+
+            LightningBolt blocked = spawnBolt(level, inside);
+            helper.assertFalse(level.addFreshEntity(blocked), "sanctuary rejects the lightning bolt");
+            helper.assertFalse(blocked.isAddedToLevel(), "rejected bolt never joins the level");
+
+            LightningBolt allowed = spawnBolt(level, outside);
+            helper.assertTrue(level.addFreshEntity(allowed), "lightning still strikes outside the sanctuary");
+            allowed.discard();
+        } finally {
+            manager.setClaim(sanctuaryKey, false);
+        }
+        helper.succeed();
+    }
+
+    private static LightningBolt spawnBolt(ServerLevel level, BlockPos pos) {
+        LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
+        if (bolt == null) {
+            throw new IllegalStateException("Lightning bolt could not be created");
+        }
+        bolt.moveTo(Vec3.atBottomCenterOf(pos));
+        bolt.setVisualOnly(true);
+        return bolt;
     }
 
     private SanctuaryGameTests() {

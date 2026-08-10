@@ -84,6 +84,7 @@ public final class ModConfigSpec {
     public static final BooleanValue SANCTUARY_DISABLE_MOB_SPAWNS;
     public static final BooleanValue SANCTUARY_EXPLOSION_IMMUNITY;
     public static final BooleanValue SANCTUARY_DISABLE_FIRE_SPREAD;
+    public static final BooleanValue SANCTUARY_DISABLE_LIGHTNING;
     public static final LongValue QUARRY_LEVEL_2_COST;
     public static final LongValue QUARRY_LEVEL_3_COST;
     public static final LongValue QUARRY_LEVEL_4_COST;
@@ -449,6 +450,9 @@ public final class ModConfigSpec {
         SANCTUARY_DISABLE_FIRE_SPREAD = builder
             .comment("Extinguish fire inside spawn sanctuary chunks and stop it from spreading into or within them.")
             .define("disableFireSpread", true);
+        SANCTUARY_DISABLE_LIGHTNING = builder
+            .comment("Stop lightning bolts from striking inside spawn sanctuary chunks (weather, lightning rods, tridents and /summon alike).")
+            .define("disableLightning", true);
         builder.pop();
 
         builder.push("quarry");
