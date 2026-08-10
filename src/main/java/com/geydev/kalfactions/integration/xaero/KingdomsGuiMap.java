@@ -33,6 +33,8 @@ final class KingdomsGuiMap extends GuiMap {
     private static final long NOTICE_FADE_OUT_MILLIS = 500L;
     private static final long NOTICE_DURATION_MILLIS =
             NOTICE_FADE_IN_MILLIS + NOTICE_HOLD_MILLIS + NOTICE_FADE_OUT_MILLIS;
+    private static final int SCOUT_BUTTON_BOTTOM_GAP = 56;
+    private static final int SCOUT_PREVIEW_TOP = 20;
 
     private static Field selectionField;
     private static Field rightClickXField;
@@ -85,7 +87,7 @@ final class KingdomsGuiMap extends GuiMap {
                     onClose();
                 },
                 width / 2 - 136,
-                height - 30,
+                height - SCOUT_BUTTON_BOTTOM_GAP,
                 130,
                 20
         ));
@@ -93,7 +95,7 @@ final class KingdomsGuiMap extends GuiMap {
                 Component.translatable("screen.kingdoms.scout.cancel"),
                 button -> onClose(),
                 width / 2 + 6,
-                height - 30,
+                height - SCOUT_BUTTON_BOTTOM_GAP,
                 130,
                 20
         ));
@@ -163,7 +165,7 @@ final class KingdomsGuiMap extends GuiMap {
         int boxWidth = textWidth + 16;
         int boxHeight = lines.size() * 10 + 10;
         int boxLeft = (width - boxWidth) / 2;
-        int boxTop = height - 58 - boxHeight;
+        int boxTop = height - (scoutMode ? SCOUT_BUTTON_BOTTOM_GAP + 8 : 58) - boxHeight;
         int slide = (int) ((1.0F - alpha) * 6.0F);
         boxTop += slide;
         graphics.fill(boxLeft, boxTop, boxLeft + boxWidth, boxTop + boxHeight, (int) (alpha * 0xC0) << 24 | 0x101018);
@@ -240,7 +242,7 @@ final class KingdomsGuiMap extends GuiMap {
                 : "screen.kingdoms.scout.preview_hint", chunkX, chunkZ);
         int boxWidth = Math.max(font.width(line), font.width(hint)) + 16;
         int boxLeft = (width - boxWidth) / 2;
-        int boxTop = 6;
+        int boxTop = SCOUT_PREVIEW_TOP;
         graphics.fill(boxLeft, boxTop, boxLeft + boxWidth, boxTop + 30, 0xC0101018);
         graphics.fill(boxLeft, boxTop, boxLeft + boxWidth, boxTop + 1, frame);
         graphics.drawString(font, line, boxLeft + 8, boxTop + 7, 0xFFF3D58B, true);
@@ -303,6 +305,11 @@ final class KingdomsGuiMap extends GuiMap {
         mouseBlockXField = blockX;
         mouseBlockZField = blockZ;
         cameraXField = camX;
+    }
+
+    @Override
+    public boolean isRightClickValid() {
+        return !scoutMode && super.isRightClickValid();
     }
 
     @Override
