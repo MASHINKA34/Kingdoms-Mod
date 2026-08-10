@@ -42,6 +42,10 @@ public final class KolyvanEntity extends PathfinderMob {
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D);
     }
 
+    public boolean isHunting(UUID playerId) {
+        return targetPlayerId != null && targetPlayerId.equals(playerId);
+    }
+
     public void hunt(ServerPlayer player, int lifetimeSeconds) {
         targetPlayerId = player.getUUID();
         despawnAtGameTime = level().getGameTime() + Math.max(1, lifetimeSeconds) * 20L;

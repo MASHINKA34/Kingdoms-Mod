@@ -49,7 +49,8 @@ public final class KolyvanSpawner {
     private static boolean alreadyHunting(ServerLevel level, ServerPlayer player) {
         List<KolyvanEntity> nearby = level.getEntitiesOfClass(
                 KolyvanEntity.class,
-                player.getBoundingBox().inflate(SEARCH_RADIUS)
+                player.getBoundingBox().inflate(SEARCH_RADIUS),
+                kolyvan -> kolyvan.isHunting(player.getUUID())
         );
         return !nearby.isEmpty();
     }
