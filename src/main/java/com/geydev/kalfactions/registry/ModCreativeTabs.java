@@ -56,6 +56,7 @@ public final class ModCreativeTabs {
                 ModItems.TRADER_SPAWN_EGG.get(),
                 ModItems.SELLER_SPAWN_EGG.get(),
                 ModItems.BANKER_SPAWN_EGG.get(),
+                ModItems.MAP_SCOUT_SPAWN_EGG.get(),
                 ModItems.TRADER_REMOVER.get(),
                 ModItems.TRADER_POINT_TOOL.get(),
                 ModItems.SELLER_CATALOG.get(),

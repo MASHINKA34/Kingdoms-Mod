@@ -443,6 +443,7 @@
   "item.kingdoms.trader_spawn_egg": "Яйцо призыва торговца",
   "item.kingdoms.trader_remover": "Удалитель торговца",
   "item.kingdoms.banker_spawn_egg": "Яйцо призыва банкира",
+  "item.kingdoms.map_scout_spawn_egg": "Яйцо призыва разведчика карт",
   "item.kingdoms.seller_catalog": "Каталог скупщиков",
   "entity.kingdoms.outpost_trader": "Торговец Королевств",
   "entity.kingdoms.banker": "Банкир Королевств",

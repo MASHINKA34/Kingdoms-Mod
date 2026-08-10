@@ -10,6 +10,7 @@ import com.geydev.kalfactions.item.FactionMeterItem;
 import com.geydev.kalfactions.item.NetherReturnItem;
 import com.geydev.kalfactions.item.PlotWandItem;
 import com.geydev.kalfactions.item.SellerCatalogItem;
+import com.geydev.kalfactions.item.MapScoutSpawnEggItem;
 import com.geydev.kalfactions.item.SellerSpawnEggItem;
 import com.geydev.kalfactions.item.TraderRemoverItem;
 import com.geydev.kalfactions.item.TraderSpawnEggItem;
@@ -103,6 +104,11 @@ public final class ModItems {
     public static final DeferredItem<BankerSpawnEggItem> BANKER_SPAWN_EGG = ITEMS.register(
             "banker_spawn_egg",
             () -> new BankerSpawnEggItem(new Item.Properties())
+    );
+
+    public static final DeferredItem<MapScoutSpawnEggItem> MAP_SCOUT_SPAWN_EGG = ITEMS.register(
+            "map_scout_spawn_egg",
+            () -> new MapScoutSpawnEggItem(new Item.Properties())
     );
 
     public static final DeferredItem<TraderRemoverItem> TRADER_REMOVER = ITEMS.register(
