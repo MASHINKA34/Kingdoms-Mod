@@ -112,18 +112,22 @@ public final class DisabledMobGuns {
         return false;
     }
 
-    @SubscribeEvent
-    public static void onEntityTick(EntityTickEvent.Post event) {
-        Entity entity = event.getEntity();
-        if (entity.tickCount % SWEEP_INTERVAL_TICKS != 0
-                || !(entity instanceof Mob mob)
-                || !(mob.level() instanceof ServerLevel level)
+    public static boolean sweep(Mob mob) {
+        if (!(mob.level() instanceof ServerLevel level)
                 || !isSweepable(mob)
                 || !holdsScorchedGun(mob)
                 || !isGunFreeZone(level, mob.blockPosition())) {
-            return;
+            return false;
         }
-        disarm(mob);
+        return disarm(mob);
+    }
+
+    @SubscribeEvent
+    public static void onEntityTick(EntityTickEvent.Post event) {
+        Entity entity = event.getEntity();
+        if (entity.tickCount % SWEEP_INTERVAL_TICKS == 0 && entity instanceof Mob mob) {
+            sweep(mob);
+        }
     }
 
     private DisabledMobGuns() {
