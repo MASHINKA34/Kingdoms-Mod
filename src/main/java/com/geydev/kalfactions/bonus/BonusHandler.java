@@ -61,10 +61,12 @@ public final class BonusHandler {
         if (isOre
                 && (FactionAccess.hasAnyBonus(player, FactionBonus.MINERS)
                     || (faction != null && faction.researchBonusCount("ORE_DROP") > 0))) {
-            chance = ModConfigSpec.ORE_BONUS_CHANCE.get();
+            chance = ModConfigSpec.ORE_BONUS_CHANCE.get()
+                    * FactionAccess.legacyMultiplier(player, FactionBonus.MINERS);
         } else if (event.getState().is(BlockTags.CROPS)
                 && FactionAccess.hasAnyBonus(player, FactionBonus.FARMERS)) {
-            chance = ModConfigSpec.HARVEST_BONUS_CHANCE.get();
+            chance = ModConfigSpec.HARVEST_BONUS_CHANCE.get()
+                    * FactionAccess.legacyMultiplier(player, FactionBonus.FARMERS);
         } else {
             return;
         }
@@ -116,7 +118,8 @@ public final class BonusHandler {
                 || !(event.getParentB() instanceof AgeableMob parentB)
                 || event.getChild() == null
                 || !FactionAccess.hasAnyBonus(player, FactionBonus.FARMERS)
-                || player.getRandom().nextDouble() >= ModConfigSpec.FARMER_BREEDING_TWIN_CHANCE.getAsDouble()) {
+                || player.getRandom().nextDouble() >= ModConfigSpec.FARMER_BREEDING_TWIN_CHANCE.getAsDouble()
+                    * FactionAccess.legacyMultiplier(player, FactionBonus.FARMERS)) {
             return;
         }
         AgeableMob extraChild = parentA.getBreedOffspring(player.serverLevel(), parentB);
@@ -310,7 +313,8 @@ public final class BonusHandler {
         }
         speed.addOrUpdateTransientModifier(new AttributeModifier(
                 NOMAD_MOUNT_SPEED_ID,
-                ModConfigSpec.NOMAD_MOUNT_SPEED_BONUS.getAsDouble(),
+                ModConfigSpec.NOMAD_MOUNT_SPEED_BONUS.getAsDouble()
+                        * FactionAccess.legacyMultiplier(player, FactionBonus.NOMADS),
                 AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
         ));
     }

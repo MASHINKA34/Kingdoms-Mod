@@ -12,6 +12,7 @@ import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.FactionMember;
 import com.geydev.kalfactions.faction.FactionRole;
 import com.geydev.kalfactions.faction.InfluenceType;
+import com.geydev.kalfactions.faction.LegacyResearch;
 import com.geydev.kalfactions.faction.ResearchManager;
 import com.geydev.kalfactions.faction.ResearchNode;
 import com.geydev.kalfactions.faction.ResearchCrystalCosts;
@@ -606,10 +607,7 @@ public final class FactionManagerService implements FactionServerHooks.Service {
         return switch (result) {
             case STARTED -> new FactionServerHooks.Result(
                     true,
-                    Component.translatable(
-                            "kingdoms.research.started",
-                            Component.translatable(node.translationKey())
-                    ),
+                    Component.translatable("kingdoms.research.started", researchName(faction, node)),
                     view(player, tablePos)
             );
             case ALREADY_ACTIVE -> FactionServerHooks.Result.denied(
@@ -625,11 +623,16 @@ public final class FactionManagerService implements FactionServerHooks.Service {
                     view(player, tablePos)
             );
             case INSUFFICIENT_CRYSTALS -> FactionServerHooks.Result.denied(
-                    Component.translatable(
-                            "kingdoms.error.research_crystals",
-                            ResearchCrystalCosts.forTier(node.tier()),
-                            Component.translatable(ModItems.crystalFor(node.type()).getDescriptionId())
-                    ),
+                    node.legacy()
+                            ? Component.translatable(
+                                    "kingdoms.error.research_crystals_each",
+                                    node.crystalCostPerType(LegacyResearch.crystalCost(node.legacyLevel()))
+                            )
+                            : Component.translatable(
+                                    "kingdoms.error.research_crystals",
+                                    ResearchCrystalCosts.forTier(node.tier()),
+                                    Component.translatable(ModItems.crystalFor(node.type()).getDescriptionId())
+                            ),
                     view(player, tablePos)
             );
             case CRYSTAL_PAYMENT_CHANGED -> FactionServerHooks.Result.denied(
@@ -1402,6 +1405,19 @@ public final class FactionManagerService implements FactionServerHooks.Service {
             return notice(true, summary);
         }
         return notice(true, Component.empty().append(summary).append(" ").append(message(lastFailure)));
+    }
+
+    public static Component researchName(Faction faction, ResearchNode node) {
+        if (!node.legacy()) {
+            return Component.translatable(node.translationKey());
+        }
+        return faction.legacyBonus(node.legacySlot())
+                .map(bonus -> (Component) Component.translatable(
+                        "kingdoms.research.legacy.title",
+                        Component.translatable(bonus.translationKey()),
+                        node.legacyLevel()
+                ))
+                .orElseGet(() -> Component.translatable("kingdoms.research.legacy.empty"));
     }
 
     private static FactionServerHooks.Result notice(boolean successful, Component message) {

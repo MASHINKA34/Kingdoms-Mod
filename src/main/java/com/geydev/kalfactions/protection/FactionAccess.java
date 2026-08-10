@@ -60,6 +60,14 @@ public final class FactionAccess {
         return Arrays.stream(bonuses).anyMatch(owned::contains);
     }
 
+    public static double legacyMultiplier(ServerPlayer player, FactionBonus bonus) {
+        if (player == null || bonus == null) {
+            return 1.0D;
+        }
+        double multiplier = backend.legacyMultiplier(player, bonus);
+        return Double.isFinite(multiplier) && multiplier > 0.0D ? multiplier : 1.0D;
+    }
+
     public static boolean internalPvpEnabled(ServerPlayer player) {
         return backend.internalPvpEnabled(player);
     }
@@ -87,6 +95,10 @@ public final class FactionAccess {
 
         default Set<FactionBonus> bonusesOf(ServerPlayer player) {
             return Set.of();
+        }
+
+        default double legacyMultiplier(ServerPlayer player, FactionBonus bonus) {
+            return 1.0D;
         }
 
         default boolean internalPvpEnabled(ServerPlayer player) {
@@ -127,6 +139,14 @@ public final class FactionAccess {
                     .getFactionForMember(player.getUUID())
                     .map(Faction::bonuses)
                     .orElse(Set.of());
+        }
+
+        @Override
+        public double legacyMultiplier(ServerPlayer player, FactionBonus bonus) {
+            return FactionManager.get(player.serverLevel())
+                    .getFactionForMember(player.getUUID())
+                    .map(faction -> faction.legacyMultiplier(bonus))
+                    .orElse(1.0D);
         }
 
         @Override

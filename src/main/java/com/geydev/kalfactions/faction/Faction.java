@@ -200,7 +200,7 @@ public final class Faction {
     public double claimDiscount() {
         double discount = 0.0D;
         for (FactionBonus bonus : bonuses) {
-            discount = Math.max(discount, bonus.claimDiscount());
+            discount = Math.max(discount, Math.min(0.90D, bonus.claimDiscount() * legacyMultiplier(bonus)));
         }
         int researchLevels = researchBonusCount("CLAIM_DISCOUNT");
         if (researchLevels > 0) {
@@ -386,10 +386,40 @@ public final class Faction {
         return 5 * researchBonusCount("CHUNK_SLOT");
     }
 
+    public List<FactionBonus> legacySlots() {
+        return LegacyResearch.slots(bonuses);
+    }
+
+    public Optional<FactionBonus> legacyBonus(int slot) {
+        return LegacyResearch.bonusAt(bonuses, slot);
+    }
+
+    public int legacyLevel(int slot) {
+        if (slot < 0 || legacyBonus(slot).isEmpty()) {
+            return 0;
+        }
+        int level = 0;
+        for (ResearchNode node : completedResearch) {
+            if (node.legacySlot() == slot) {
+                level++;
+            }
+        }
+        return Math.min(LegacyResearch.MAX_LEVEL, level);
+    }
+
+    public int legacyLevel(FactionBonus bonus) {
+        return legacyLevel(LegacyResearch.slotOf(bonuses, bonus));
+    }
+
+    public double legacyMultiplier(FactionBonus bonus) {
+        return LegacyResearch.multiplier(legacyLevel(bonus));
+    }
+
     public double miningSpeedMultiplier() {
         double multiplier = 1.0D + 0.05D * researchBonusCount("MINING_SPEED");
         if (hasBonus(FactionBonus.MINERS)) {
-            multiplier += ModConfigSpec.MINER_MINING_SPEED_BONUS.getAsDouble();
+            multiplier += ModConfigSpec.MINER_MINING_SPEED_BONUS.getAsDouble()
+                * legacyMultiplier(FactionBonus.MINERS);
         }
         return multiplier;
     }
@@ -399,7 +429,8 @@ public final class Faction {
         if (!hasBonus(FactionBonus.RESEARCHERS)) {
             return duration;
         }
-        double speed = 1.0D + ModConfigSpec.RESEARCHER_RESEARCH_SPEED_BONUS.getAsDouble();
+        double speed = 1.0D + ModConfigSpec.RESEARCHER_RESEARCH_SPEED_BONUS.getAsDouble()
+            * legacyMultiplier(FactionBonus.RESEARCHERS);
         return Math.max(1L, (long) Math.ceil(duration / Math.max(0.0001D, speed)));
     }
 
@@ -409,6 +440,9 @@ public final class Faction {
 
     public boolean isResearchAvailable(ResearchNode node) {
         if (completedResearch.contains(node)) {
+            return false;
+        }
+        if (node.legacy() && legacyBonus(node.legacySlot()).isEmpty()) {
             return false;
         }
         return node.prerequisites().stream().allMatch(completedResearch::contains);

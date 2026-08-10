@@ -726,6 +726,7 @@ public final class TraderService {
                 researchLevels(player, "BUY_RATE"),
                 FactionAccess.hasAnyBonus(player, FactionBonus.MERCHANTS),
                 ModConfigSpec.MERCHANT_SELL_BONUS_PERCENT.getAsDouble()
+                        * FactionAccess.legacyMultiplier(player, FactionBonus.MERCHANTS)
         );
     }
 

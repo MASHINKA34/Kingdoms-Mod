@@ -2,7 +2,9 @@ package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.faction.InfluenceType;
+import com.geydev.kalfactions.faction.LegacyResearch;
 import com.geydev.kalfactions.faction.ResearchNode;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
@@ -25,6 +27,7 @@ public final class ResearchScreen extends FactionScreen {
     private static final ResourceLocation TAB_SCIENCE = tex("research/tab_science");
     private static final ResourceLocation TAB_ECONOMIC = tex("research/tab_economic");
     private static final ResourceLocation TAB_MILITARY = tex("research/tab_military");
+    private static final ResourceLocation TAB_LEGACY = tex("research/tab_legacy");
     private static final ResourceLocation NODE_ROOT = tex("research/node_root");
     private static final ResourceLocation NODE_LOCKED = tex("research/node_locked");
     private static final ResourceLocation NODE_AVAILABLE = tex("research/node_available");
@@ -44,9 +47,13 @@ public final class ResearchScreen extends FactionScreen {
     private static final int TREE_HEIGHT = 148;
     private static final int TAB_WIDTH = 44;
     private static final int TAB_HEIGHT = 34;
-    private static final int TAB_STEP = 52;
+    private static final int TAB_STEP = 48;
+    private static final int LEGACY_TAB = InfluenceType.VALUES.length;
+    private static final int TAB_COUNT = LEGACY_TAB + 1;
     private static final int NODE_SIZE = 30;
     private static final int ROOT_SIZE = 46;
+    private static final int LEGACY_ICON_INSET = 6;
+    private static final int LEGACY_ROW_SHIFT = 50;
     private static final int FORCE_LOAD_SLOTS_PER_LEVEL = 5;
     private static final int MINING_SPEED_PERCENT_PER_LEVEL = 5;
     private static final int DRILL_BASE_OUTPUT = 32;
@@ -54,7 +61,7 @@ public final class ResearchScreen extends FactionScreen {
     private static final int DRILL_INTERVAL_REDUCTION_SECONDS = 2 * 60 * 60;
     private static final int DRILL_INTERVAL_FLOOR_SECONDS = 4 * 60 * 60;
 
-    private InfluenceType selectedType = InfluenceType.SCIENCE;
+    private int selectedTab;
     private ResearchNode selectedNode = ResearchNode.SCI_SMELT;
     private Button startButton;
     private float panX;
@@ -120,8 +127,8 @@ public final class ResearchScreen extends FactionScreen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         renderWidgets(graphics, mouseX, mouseY, partialTick);
-        int titleAreaLeft = left + 184;
-        int titleAreaWidth = WINDOW_WIDTH - 208;
+        int titleAreaLeft = left + 224;
+        int titleAreaWidth = WINDOW_WIDTH - 248;
         graphics.drawString(font, title, titleAreaLeft + (titleAreaWidth - font.width(title)) / 2, top + 34, 0xFFFFE8AA, true);
         renderTabs(graphics, mouseX, mouseY);
         renderTree(graphics, mouseX, mouseY);
@@ -135,17 +142,17 @@ public final class ResearchScreen extends FactionScreen {
         } else {
             int tab = hoveredTab(mouseX, mouseY);
             if (tab >= 0) {
-                graphics.renderTooltip(font, text(InfluenceType.VALUES[tab].translationKey()), mouseX, mouseY);
+                graphics.renderTooltip(font, tabTitle(tab), mouseX, mouseY);
             }
         }
     }
 
     private void renderTabs(GuiGraphics graphics, int mouseX, int mouseY) {
-        ResourceLocation[] tabs = {TAB_SCIENCE, TAB_ECONOMIC, TAB_MILITARY};
+        ResourceLocation[] tabs = {TAB_SCIENCE, TAB_ECONOMIC, TAB_MILITARY, TAB_LEGACY};
         for (int i = 0; i < tabs.length; i++) {
             int tabX = tabX(i);
             int tabY = tabY(i);
-            boolean active = selectedType == InfluenceType.VALUES[i];
+            boolean active = selectedTab == i;
             boolean hovered = mouseX >= tabX && mouseX < tabX + TAB_WIDTH && mouseY >= tabY && mouseY < tabY + TAB_HEIGHT;
             int frame = active ? 0xFFFFCE4A : hovered ? 0xFFC9A24C : 0x663A3D47;
             graphics.fill(tabX - 2, tabY - 2, tabX + TAB_WIDTH + 2, tabY - 1, frame);
@@ -165,15 +172,56 @@ public final class ResearchScreen extends FactionScreen {
         int clipRight = clipLeft + TREE_WIDTH;
         int clipBottom = clipTop + TREE_HEIGHT;
         graphics.enableScissor(clipLeft, clipTop, clipRight, clipBottom);
-        for (ResearchNode node : ResearchNode.branch(selectedType)) {
+        List<ResearchNode> nodes = visibleNodes();
+        for (ResearchNode node : nodes) {
             for (ResearchNode parent : node.prerequisites()) {
                 renderConnection(graphics, parent, node);
             }
         }
-        for (ResearchNode node : ResearchNode.branch(selectedType)) {
+        for (ResearchNode node : nodes) {
             renderNode(graphics, node, node == hoveredNode(mouseX, mouseY));
         }
         graphics.disableScissor();
+    }
+
+    private List<ResearchNode> visibleNodes() {
+        if (selectedTab != LEGACY_TAB) {
+            return ResearchNode.branch(InfluenceType.VALUES[selectedTab]);
+        }
+        List<ResearchNode> nodes = new ArrayList<>();
+        for (int slot = 0; slot < LegacyResearch.MAX_SLOTS; slot++) {
+            if (legacyBonus(slot) != null) {
+                nodes.addAll(ResearchNode.legacySlotNodes(slot));
+            }
+        }
+        return List.copyOf(nodes);
+    }
+
+    private List<FactionBonus> legacySlots() {
+        List<FactionBonus> parsed = new ArrayList<>();
+        for (String name : snapshot.bonuses()) {
+            try {
+                parsed.add(FactionBonus.parse(name));
+            } catch (IllegalArgumentException ignored) {
+                continue;
+            }
+        }
+        return LegacyResearch.slots(parsed);
+    }
+
+    private FactionBonus legacyBonus(int slot) {
+        List<FactionBonus> slots = legacySlots();
+        return slot < 0 || slot >= slots.size() ? null : slots.get(slot);
+    }
+
+    private int legacyLevel(int slot) {
+        int level = 0;
+        for (ResearchNode node : ResearchNode.legacySlotNodes(slot)) {
+            if (snapshot.completedResearch().contains(node.name())) {
+                level++;
+            }
+        }
+        return level;
     }
 
     private void renderConnection(GuiGraphics graphics, ResearchNode parent, ResearchNode child) {
@@ -196,7 +244,8 @@ public final class ResearchScreen extends FactionScreen {
 
     private void renderNode(GuiGraphics graphics, ResearchNode node, boolean hovered) {
         NodeState nodeState = state(node);
-        ResourceLocation texture = node.root()
+        boolean bigRoot = node.root() && !node.legacy();
+        ResourceLocation texture = bigRoot
                 ? NODE_ROOT
                 : switch (nodeState) {
                     case DONE -> NODE_DONE;
@@ -204,14 +253,34 @@ public final class ResearchScreen extends FactionScreen {
                     case AVAILABLE -> NODE_AVAILABLE;
                     case LOCKED -> NODE_LOCKED;
                 };
-        int size = node.root() ? ROOT_SIZE : NODE_SIZE;
+        int size = bigRoot ? ROOT_SIZE : NODE_SIZE;
         int x = screenX(node) - size / 2;
         int y = screenY(node) - size / 2;
         if (hovered || node == selectedNode) {
             drawSelectionFrame(graphics, x - 3, y - 3, size + 6, hovered ? 0xCCC9A24C : 0xCC6FE3D4);
         }
-        int sourceSize = node.root() ? 64 : 64;
+        int sourceSize = 64;
         graphics.blit(texture, x, y, size, size, 0.0F, 0.0F, sourceSize, sourceSize, sourceSize, sourceSize);
+        FactionBonus legacyBonus = node.legacy() ? legacyBonus(node.legacySlot()) : null;
+        if (legacyBonus != null) {
+            int iconSize = size - LEGACY_ICON_INSET * 2;
+            float alpha = nodeState == NodeState.LOCKED ? 0.45F : 1.0F;
+            graphics.setColor(1.0F, 1.0F, 1.0F, alpha);
+            graphics.blit(
+                    FactionCreateScreen.bonusIcon(legacyBonus),
+                    x + LEGACY_ICON_INSET,
+                    y + LEGACY_ICON_INSET,
+                    iconSize,
+                    iconSize,
+                    0.0F,
+                    0.0F,
+                    64,
+                    64,
+                    64,
+                    64
+            );
+            graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+        }
         if (nodeState == NodeState.ACTIVE) {
             long remaining = Math.max(0L, snapshot.activeResearchEndMillis() - System.currentTimeMillis());
             long duration = Math.max(1L, effectiveDurationMillis(node));
@@ -238,26 +307,36 @@ public final class ResearchScreen extends FactionScreen {
         if (selectedNode == null) {
             return;
         }
-        Component name = text(selectedNode.translationKey());
-        Component influence = text(
-                "screen.kingdoms.research_cost_short",
-                selectedNode.cost(),
-                effectiveDurationHours(selectedNode)
-        );
+        Component name = nodeTitle(selectedNode);
         graphics.drawString(font, name, left + TREE_LEFT, top + 218, 0xFFFFE8AA, true);
         int cursor = left + TREE_LEFT + 150;
-        graphics.blit(iconFor(selectedNode.type()), cursor, top + 216, 12, 12, 0.0F, 0.0F, 16, 16, 16, 16);
-        cursor += 16;
+        List<InfluenceType> types = selectedNode.costTypes();
+        for (InfluenceType type : types) {
+            graphics.blit(iconFor(type), cursor, top + 216, 12, 12, 0.0F, 0.0F, 16, 16, 16, 16);
+            cursor += 14;
+        }
+        Component influence = text(
+                types.size() > 1
+                        ? "screen.kingdoms.research_cost_each_short"
+                        : "screen.kingdoms.research_cost_short",
+                selectedNode.influenceCostPerType(),
+                effectiveDurationHours(selectedNode)
+        );
+        cursor += 2;
         graphics.drawString(font, influence, cursor, top + 218, 0xFFD7C57C, true);
         cursor += font.width(influence) + 8;
-        int cost = crystalCost(selectedNode);
+        int cost = crystalCostPerType(selectedNode);
         if (cost > 0) {
-            graphics.renderItem(crystalStack(selectedNode.type()), cursor, top + 214);
-            cursor += 20;
+            for (InfluenceType type : types) {
+                graphics.renderItem(crystalStack(type), cursor, top + 214);
+                cursor += 18;
+            }
             graphics.drawString(
                     font,
-                    text("screen.kingdoms.research_crystal_cost_line", cost, crystalsOf(selectedNode.type())),
-                    cursor,
+                    types.size() > 1
+                            ? text("screen.kingdoms.research_crystal_cost_each_line", cost, ownedCrystalsText(types))
+                            : text("screen.kingdoms.research_crystal_cost_line", cost, crystalsOf(types.getFirst())),
+                    cursor + 2,
                     top + 218,
                     0xFFB9CFF6,
                     true
@@ -275,14 +354,15 @@ public final class ResearchScreen extends FactionScreen {
 
     private void renderNodeTooltip(GuiGraphics graphics, ResearchNode node, int mouseX, int mouseY) {
         int boxWidth = 232;
-        List<FormattedCharSequence> desc = font.split(text(node.descriptionKey()), boxWidth - 20);
-        List<FormattedCharSequence> effect = font.split(
-                text("screen.kingdoms.research_effect", bonusText(node)),
-                boxWidth - 20
-        );
+        List<FormattedCharSequence> desc = font.split(nodeDescription(node), boxWidth - 20);
+        List<FormattedCharSequence> effect = new ArrayList<>();
+        for (Component line : effectLines(node)) {
+            effect.addAll(font.split(line, boxWidth - 20));
+        }
+        List<InfluenceType> types = node.costTypes();
         int descBlock = desc.size() * 11;
         int effectBlock = effect.size() * 11;
-        boolean showCrystals = crystalCost(node) > 0;
+        boolean showCrystals = crystalCostPerType(node) > 0;
         int boxHeight = (showCrystals ? 90 : 71) + descBlock + effectBlock;
         int x = Math.min(mouseX + 14, width - boxWidth - 6);
         int y = mouseY + 12;
@@ -295,32 +375,52 @@ public final class ResearchScreen extends FactionScreen {
         graphics.fill(x, y, x + boxWidth, y + boxHeight, 0xFC15171D);
         graphics.fill(x + 1, y + 1, x + boxWidth - 1, y + 2, 0xFFC9A24C);
         graphics.fill(x + 1, y + boxHeight - 2, x + boxWidth - 1, y + boxHeight - 1, 0xFF3A3D47);
-        graphics.drawString(font, text(node.translationKey()), x + 10, y + 8, colorFor(node.type()), true);
+        graphics.drawString(font, nodeTitle(node), x + 10, y + 8, colorFor(node), true);
         for (int i = 0; i < desc.size(); i++) {
             graphics.drawString(font, desc.get(i), x + 10, y + 23 + i * 11, 0xFFEFE0B4, true);
         }
         int lineY = y + 28 + descBlock;
-        graphics.blit(iconFor(node.type()), x + 10, lineY - 2, 12, 12, 0.0F, 0.0F, 16, 16, 16, 16);
+        int cursor = x + 10;
+        for (InfluenceType type : types) {
+            graphics.blit(iconFor(type), cursor, lineY - 2, 12, 12, 0.0F, 0.0F, 16, 16, 16, 16);
+            cursor += 14;
+        }
         graphics.drawString(
                 font,
-                text("screen.kingdoms.research_cost_short", node.cost(), effectiveDurationHours(node)),
-                x + 26,
+                text(
+                        types.size() > 1
+                                ? "screen.kingdoms.research_cost_each_short"
+                                : "screen.kingdoms.research_cost_short",
+                        node.influenceCostPerType(),
+                        effectiveDurationHours(node)
+                ),
+                cursor + 2,
                 lineY,
                 0xFFE6CE7E,
                 true
         );
         int statusY = lineY + 12;
         if (showCrystals) {
-            graphics.renderItem(crystalStack(node.type()), x + 8, lineY + 10);
+            int crystalCursor = x + 8;
+            for (InfluenceType type : types) {
+                graphics.renderItem(crystalStack(type), crystalCursor, lineY + 10);
+                crystalCursor += 18;
+            }
             graphics.drawString(
                     font,
-                    text(
-                            "screen.kingdoms.research_crystal_cost_short",
-                            crystalCost(node),
-                            crystalName(node.type()),
-                            crystalsOf(node.type())
-                    ),
-                    x + 28,
+                    types.size() > 1
+                            ? text(
+                                    "screen.kingdoms.research_crystal_cost_each_short",
+                                    crystalCostPerType(node),
+                                    ownedCrystalsText(types)
+                            )
+                            : text(
+                                    "screen.kingdoms.research_crystal_cost_short",
+                                    crystalCostPerType(node),
+                                    crystalName(types.getFirst()),
+                                    crystalsOf(types.getFirst())
+                            ),
+                    crystalCursor + 2,
                     lineY + 14,
                     0xFFB9CFF6,
                     true
@@ -331,6 +431,148 @@ public final class ResearchScreen extends FactionScreen {
         for (int i = 0; i < effect.size(); i++) {
             graphics.drawString(font, effect.get(i), x + 10, statusY + 15 + i * 11, 0xFFCBD6F0, true);
         }
+    }
+
+    private Component nodeTitle(ResearchNode node) {
+        if (!node.legacy()) {
+            return text(node.translationKey());
+        }
+        FactionBonus bonus = legacyBonus(node.legacySlot());
+        return bonus == null
+                ? text("kingdoms.research.legacy.empty")
+                : text("kingdoms.research.legacy.title", text(bonus.translationKey()), node.legacyLevel());
+    }
+
+    private Component nodeDescription(ResearchNode node) {
+        if (!node.legacy()) {
+            return text(node.descriptionKey());
+        }
+        FactionBonus bonus = legacyBonus(node.legacySlot());
+        return bonus == null
+                ? text("kingdoms.research.legacy.empty.desc")
+                : text("kingdoms.research.legacy.desc", text(bonus.translationKey()));
+    }
+
+    private List<Component> effectLines(ResearchNode node) {
+        if (!node.legacy()) {
+            return List.of(text("screen.kingdoms.research_effect", bonusText(node)));
+        }
+        FactionBonus bonus = legacyBonus(node.legacySlot());
+        if (bonus == null) {
+            return List.of(text("kingdoms.research.legacy.empty.desc"));
+        }
+        double from = LegacyResearch.multiplier(node.legacyLevel() - 1);
+        double to = LegacyResearch.multiplier(node.legacyLevel());
+        List<Component> lines = new ArrayList<>();
+        switch (bonus) {
+            case MINERS -> {
+                lines.add(legacyPercent("ore_drop", ModConfigSpec.ORE_BONUS_CHANCE.getAsDouble(), from, to));
+                lines.add(legacySignedPercent(
+                        "mining_speed",
+                        ModConfigSpec.MINER_MINING_SPEED_BONUS.getAsDouble(),
+                        from,
+                        to
+                ));
+            }
+            case FARMERS -> {
+                lines.add(legacyPercent("harvest", ModConfigSpec.HARVEST_BONUS_CHANCE.getAsDouble(), from, to));
+                lines.add(legacyPercent("twins", ModConfigSpec.FARMER_BREEDING_TWIN_CHANCE.getAsDouble(), from, to));
+            }
+            case BUILDERS -> {
+                lines.add(legacyPercent("claim_discount", ModConfigSpec.BUILDER_DISCOUNT.getAsDouble(), from, to));
+                lines.add(legacyEffectLine(
+                        "outpost_size",
+                        outpostSizeText(from),
+                        outpostSizeText(to)
+                ));
+            }
+            case ASSASSINS -> lines.add(legacySignedPercent(
+                    "back_damage",
+                    ModConfigSpec.ASSASSIN_BACK_DAMAGE_MULTIPLIER.getAsDouble() - 1.0D,
+                    from,
+                    to
+            ));
+            case HOOKAH -> {
+                lines.add(legacyEffectLine(
+                        "hookah_armor",
+                        decimal(ModConfigSpec.HOOKAH_ARMOR_BONUS.getAsDouble() * from),
+                        decimal(ModConfigSpec.HOOKAH_ARMOR_BONUS.getAsDouble() * to)
+                ));
+                lines.add(legacySignedPercent("hookah_speed", ModConfigSpec.HOOKAH_SPEED_BONUS.getAsDouble(), from, to));
+                lines.add(legacySignedPercent(
+                        "hookah_damage",
+                        ModConfigSpec.HOOKAH_DAMAGE_MULTIPLIER.getAsDouble() - 1.0D,
+                        from,
+                        to
+                ));
+            }
+            case ENCHANTERS -> lines.add(legacyEffectLine(
+                    "anvil_discount",
+                    decimalPercent(1.0D - 1.0D / from),
+                    decimalPercent(1.0D - 1.0D / to)
+            ));
+            case MERCHANTS -> {
+                lines.add(legacySignedPercent(
+                        "sell_price",
+                        ModConfigSpec.MERCHANT_SELL_BONUS_PERCENT.getAsDouble(),
+                        from,
+                        to
+                ));
+                lines.add(legacyPercent(
+                        "treasury_income",
+                        ModConfigSpec.MERCHANT_TREASURY_INCOME_PERCENT.getAsDouble(),
+                        from,
+                        to
+                ));
+            }
+            case NOMADS -> lines.add(legacySignedPercent(
+                    "mount_speed",
+                    ModConfigSpec.NOMAD_MOUNT_SPEED_BONUS.getAsDouble(),
+                    from,
+                    to
+            ));
+            case RESEARCHERS -> lines.add(legacySignedPercent(
+                    "research_speed",
+                    ModConfigSpec.RESEARCHER_RESEARCH_SPEED_BONUS.getAsDouble(),
+                    from,
+                    to
+            ));
+        }
+        return List.copyOf(lines);
+    }
+
+    private static Component legacyPercent(String name, double base, double from, double to) {
+        return legacyEffectLine(name, decimalPercent(base * from), decimalPercent(base * to));
+    }
+
+    private static Component legacySignedPercent(String name, double base, double from, double to) {
+        return legacyEffectLine(name, "+" + decimalPercent(base * from), "+" + decimalPercent(base * to));
+    }
+
+    private static Component legacyEffectLine(String name, String from, String to) {
+        return text(
+                "kingdoms.research.legacy.effect_line",
+                text("kingdoms.research.legacy.effect." + name),
+                from,
+                to
+        );
+    }
+
+    private static String outpostSizeText(double multiplier) {
+        int base = ModConfigSpec.BUILDER_OUTPOST_SIZE.getAsInt();
+        int size = Math.min(15, 2 + (int) Math.floor(Math.max(0, base - 2) * multiplier));
+        return size + "x" + size;
+    }
+
+    private static String decimal(double value) {
+        double safe = Math.max(0.0D, value);
+        return Math.abs(safe - Math.rint(safe)) < 0.05D
+                ? String.valueOf((int) Math.rint(safe))
+                : String.format(Locale.ROOT, "%.1f", safe);
+    }
+
+    private static String decimalPercent(double fraction) {
+        return decimal(fraction * 100.0D) + "%";
     }
 
     private Component bonusText(ResearchNode node) {
@@ -538,10 +780,10 @@ public final class ResearchScreen extends FactionScreen {
         if (!snapshot.canManage() && !snapshot.isOfficer()) {
             return text("screen.kingdoms.research_officer_required");
         }
-        if (influenceOf(node.type()) < node.cost()) {
+        if (!hasInfluenceFor(node)) {
             return text("screen.kingdoms.research_not_enough_influence");
         }
-        if (crystalsOf(node.type()) < crystalCost(node)) {
+        if (!hasCrystalsFor(node)) {
             return text("screen.kingdoms.research_not_enough_crystals");
         }
         return text("screen.kingdoms.research_available");
@@ -555,12 +797,30 @@ public final class ResearchScreen extends FactionScreen {
         if (nodeState == NodeState.ACTIVE) {
             return 0xFFFFCE4A;
         }
-        if (nodeState == NodeState.AVAILABLE
-                && influenceOf(node.type()) >= node.cost()
-                && crystalsOf(node.type()) >= crystalCost(node)) {
+        if (nodeState == NodeState.AVAILABLE && hasInfluenceFor(node) && hasCrystalsFor(node)) {
             return 0xFF5AFF8A;
         }
         return 0xFFFF9E9E;
+    }
+
+    private boolean hasInfluenceFor(ResearchNode node) {
+        long perType = node.influenceCostPerType();
+        for (InfluenceType type : node.costTypes()) {
+            if (influenceOf(type) < perType) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean hasCrystalsFor(ResearchNode node) {
+        int perType = crystalCostPerType(node);
+        for (InfluenceType type : node.costTypes()) {
+            if (crystalsOf(type) < perType) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void startSelectedNode() {
@@ -581,13 +841,27 @@ public final class ResearchScreen extends FactionScreen {
         return state(node) == NodeState.AVAILABLE
                 && (snapshot.canManage() || snapshot.isOfficer())
                 && snapshot.activeResearchNode().isEmpty()
-                && influenceOf(node.type()) >= node.cost()
-                && crystalsOf(node.type()) >= crystalCost(node);
+                && hasInfluenceFor(node)
+                && hasCrystalsFor(node);
     }
 
-    private int crystalCost(ResearchNode node) {
-        int index = Math.clamp(node.tier(), 1, snapshot.researchCrystalCosts().size()) - 1;
-        return snapshot.researchCrystalCosts().get(index);
+    private int crystalCostPerType(ResearchNode node) {
+        int total = node.legacy()
+                ? LegacyResearch.crystalCost(node.legacyLevel())
+                : snapshot.researchCrystalCosts()
+                        .get(Math.clamp(node.tier(), 1, snapshot.researchCrystalCosts().size()) - 1);
+        return node.crystalCostPerType(total);
+    }
+
+    private Component ownedCrystalsText(List<InfluenceType> types) {
+        StringBuilder owned = new StringBuilder();
+        for (InfluenceType type : types) {
+            if (!owned.isEmpty()) {
+                owned.append('/');
+            }
+            owned.append(crystalsOf(type));
+        }
+        return Component.literal(owned.toString());
     }
 
     private int crystalsOf(InfluenceType type) {
@@ -614,13 +888,14 @@ public final class ResearchScreen extends FactionScreen {
         if (button != 0) {
             return false;
         }
-        for (int i = 0; i < InfluenceType.VALUES.length; i++) {
+        for (int i = 0; i < TAB_COUNT; i++) {
             int tabX = tabX(i);
             int tabY = tabY(i);
             if (mouseX >= tabX && mouseX < tabX + TAB_WIDTH && mouseY >= tabY && mouseY < tabY + TAB_HEIGHT) {
-                if (selectedType != InfluenceType.VALUES[i]) {
-                    selectedType = InfluenceType.VALUES[i];
-                    selectedNode = ResearchNode.branch(selectedType).getFirst();
+                if (selectedTab != i) {
+                    selectedTab = i;
+                    List<ResearchNode> nodes = visibleNodes();
+                    selectedNode = nodes.isEmpty() ? null : nodes.getFirst();
                     panX = 0.0F;
                     panY = 0.0F;
                     rebuildWidgets();
@@ -644,7 +919,7 @@ public final class ResearchScreen extends FactionScreen {
     }
 
     private int hoveredTab(double mouseX, double mouseY) {
-        for (int i = 0; i < InfluenceType.VALUES.length; i++) {
+        for (int i = 0; i < TAB_COUNT; i++) {
             int x = tabX(i);
             int y = tabY(i);
             if (mouseX >= x && mouseX < x + TAB_WIDTH && mouseY >= y && mouseY < y + TAB_HEIGHT) {
@@ -654,12 +929,18 @@ public final class ResearchScreen extends FactionScreen {
         return -1;
     }
 
+    private static Component tabTitle(int index) {
+        return index == LEGACY_TAB
+                ? text("kingdoms.research.legacy.branch")
+                : text(InfluenceType.VALUES[index].translationKey());
+    }
+
     private int tabX(int index) {
         return left + TREE_LEFT + 4 + index * TAB_STEP;
     }
 
     private int tabY(int index) {
-        return top + (selectedType == InfluenceType.VALUES[index] ? 16 : 19);
+        return top + (selectedTab == index ? 16 : 19);
     }
 
     @Override
@@ -699,8 +980,8 @@ public final class ResearchScreen extends FactionScreen {
         if (!insideTree(mouseX, mouseY)) {
             return null;
         }
-        for (ResearchNode node : ResearchNode.branch(selectedType)) {
-            int size = node.root() ? ROOT_SIZE : NODE_SIZE;
+        for (ResearchNode node : visibleNodes()) {
+            int size = node.root() && !node.legacy() ? ROOT_SIZE : NODE_SIZE;
             int x = screenX(node);
             int y = screenY(node);
             if (mouseX >= x - size / 2.0 && mouseX < x + size / 2.0
@@ -721,7 +1002,14 @@ public final class ResearchScreen extends FactionScreen {
     }
 
     private int screenY(ResearchNode node) {
-        return Math.round(top + TREE_TOP + TREE_HEIGHT / 2.0F + (node.treeY() + panY) * zoom);
+        return Math.round(top + TREE_TOP + TREE_HEIGHT / 2.0F + (treeY(node) + panY) * zoom);
+    }
+
+    private int treeY(ResearchNode node) {
+        if (!node.legacy() || legacyBonus(1) != null) {
+            return node.treeY();
+        }
+        return node.treeY() + LEGACY_ROW_SHIFT;
     }
 
     private boolean connectionComplete(ResearchNode parent, ResearchNode child) {
@@ -756,8 +1044,11 @@ public final class ResearchScreen extends FactionScreen {
         };
     }
 
-    private static int colorFor(InfluenceType type) {
-        return switch (type) {
+    private static int colorFor(ResearchNode node) {
+        if (node.legacy()) {
+            return 0xFFFFCE4A;
+        }
+        return switch (node.type()) {
             case SCIENCE -> 0xFF9AD0FF;
             case ECONOMIC -> 0xFFFFE79A;
             case MILITARY -> 0xFFFFB0B0;
