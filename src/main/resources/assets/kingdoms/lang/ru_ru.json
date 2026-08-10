@@ -1164,9 +1164,9 @@
   "commands.kingdoms.cluster.reset.confirm": "Сброс ВСЕХ кластеров: %s кластеров (запущенных таймеров %s, истощённых %s), меток снятых кластеров %s. Лимиты и таймеры обнулятся, блоки вернутся. Повторите команду в течение 30 секунд для подтверждения.",
   "commands.kingdoms.cluster.regenerate.confirm": "ПЕРЕКАТ всех кластеров: %s кластеров будут удалены и созданы заново, привязок буров сброшено %s, поколение станет %s. Типы и позиции изменятся по всему миру. Повторите команду в течение 30 секунд для подтверждения.",
   "commands.kingdoms.cluster.regenerate.started": "Новое поколение кластеров: %s. Старых кластеров снято: %s; незагруженные чанки обновятся при загрузке.",
-  "screen.kingdoms.research_cost_each_short": "%1$s влияния каждого · %2$sч",
+  "screen.kingdoms.research_cost_each_short": "по %1$s · %2$sч",
   "screen.kingdoms.research_crystal_cost_each_short": "%1$s каждого типа · есть %2$s",
-  "screen.kingdoms.research_crystal_cost_each_line": "%1$s каждого типа · есть %2$s",
+  "screen.kingdoms.research_crystal_cost_each_line": "по %1$s · есть %2$s",
   "kingdoms.error.research_crystals_each": "Не хватает кристаллов: нужно по %s каждого типа.",
   "kingdoms.research.legacy.branch": "Наследие фракции",
   "kingdoms.research.legacy.title": "Наследие: %1$s · уровень %2$s",
@@ -1191,5 +1191,10 @@
   "kingdoms.research.legacy.effect.research_speed": "Скорость исследований",
   "block.kingdoms.research_god_stone_8blocks": "Каменная статуя бога исследований (8 блоков)",
   "block.kingdoms.war_god_stone_8blocks": "Каменная статуя бога войны (8 блоков)",
-  "block.kingdoms.economy_god_stone_8blocks": "Каменная статуя бога экономики (8 блоков)"
+  "block.kingdoms.economy_god_stone_8blocks": "Каменная статуя бога экономики (8 блоков)",
+  "kingdoms.research.legacy.title_short": "%1$s · ур. %2$s",
+  "kingdoms.cluster.display.reserve": "%1$s / %2$s",
+  "kingdoms.cluster.display.depleted": "Истощён · %1$sд %2$s",
+  "screen.kingdoms.drill.stopped_depleted": "Бур не добывает: кластер истощён",
+  "commands.kingdoms.cluster.drain.done": "Кластер в чанке %1$s, %2$s опустошён: снято %3$s единиц, восстановление через %4$sд %5$s."
 }
