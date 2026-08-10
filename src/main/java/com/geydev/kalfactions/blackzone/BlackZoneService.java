@@ -63,7 +63,7 @@ public final class BlackZoneService {
         boolean released = false;
         boolean announceRelease = false;
 
-        if (!toll.isEmpty() && now - toll.lastInZoneAt() >= releaseMillis()) {
+        if (!toll.equals(BlackZoneToll.EMPTY) && now - toll.lastInZoneAt() >= releaseMillis()) {
             BlackZonePenalties.adoptFor(playerId, toll.accumulatedMillis());
             toll = BlackZoneToll.EMPTY;
             released = true;

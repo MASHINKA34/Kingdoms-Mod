@@ -37,7 +37,7 @@ public final class BlackZoneData extends SavedData {
 
     public synchronized void put(UUID playerId, BlackZoneToll toll) {
         BlackZoneToll previous = tolls.get(playerId);
-        if (toll == null || (toll.isEmpty() && toll.notifiedStage() < 0 && toll.lastKolyvanAt() <= 0L)) {
+        if (toll == null || toll.equals(BlackZoneToll.EMPTY)) {
             if (tolls.remove(playerId) != null) {
                 setDirty();
             }
