@@ -1598,6 +1598,32 @@ public final class FactionPayloads {
     public record TrainView(String name, float x, float z) {
     }
 
+    public record S2CBlackZoneState(int stage, int accumulatedSeconds, boolean inZone) implements CustomPacketPayload {
+        public static final Type<S2CBlackZoneState> TYPE = FactionPayloads.payloadType("black_zone_state");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CBlackZoneState> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeVarInt(payload.stage + 1);
+                    buffer.writeVarInt(payload.accumulatedSeconds);
+                    buffer.writeBoolean(payload.inZone);
+                },
+                buffer -> new S2CBlackZoneState(
+                        buffer.readVarInt() - 1,
+                        buffer.readVarInt(),
+                        buffer.readBoolean()
+                )
+        );
+
+        public S2CBlackZoneState {
+            stage = Math.max(-1, stage);
+            accumulatedSeconds = Math.max(0, accumulatedSeconds);
+        }
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> payloadType(String path) {
         return new CustomPacketPayload.Type<>(
                 ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, path)

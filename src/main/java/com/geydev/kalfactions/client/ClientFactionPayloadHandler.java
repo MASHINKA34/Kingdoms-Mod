@@ -61,6 +61,10 @@ public final class ClientFactionPayloadHandler {
         ClientResearchBonuses.setMiningMultiplier(payload.multiplier());
     }
 
+    public static void handleBlackZoneState(FactionPayloads.S2CBlackZoneState payload) {
+        ClientBlackZoneState.accept(payload.stage(), payload.accumulatedSeconds(), payload.inZone());
+    }
+
     public static void handleFactionList(FactionPayloads.S2CFactionList payload) {
         Minecraft minecraft = Minecraft.getInstance();
         minecraft.execute(() -> {
