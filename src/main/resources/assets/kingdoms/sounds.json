@@ -1,0 +1,12 @@
+{
+  "kolyvan": {
+    "category": "hostile",
+    "subtitle": "subtitles.kingdoms.kolyvan",
+    "sounds": [
+      {
+        "name": "kingdoms:kolyvan",
+        "stream": false
+      }
+    ]
+  }
+}
