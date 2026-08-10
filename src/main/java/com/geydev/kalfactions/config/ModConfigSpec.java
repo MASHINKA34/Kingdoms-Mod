@@ -171,6 +171,8 @@ public final class ModConfigSpec {
     public static final IntValue LEGACY_CRYSTAL_COST_LEVEL_3;
     public static final IntValue LEGACY_CRYSTAL_COST_LEVEL_4;
     public static final IntValue LEGACY_CRYSTAL_COST_LEVEL_5;
+    public static final BooleanValue SCORCHED_DISABLE_MOB_GUNS_IN_YELLOW_ZONE;
+    public static final ConfigValue<java.util.List<? extends String>> SCORCHED_MOB_GUN_FREE_ZONES;
 
     static {
         Builder builder = new Builder();
@@ -578,6 +580,16 @@ public final class ModConfigSpec {
         CLUSTER_MAINTENANCE_CHUNKS_PER_TICK = builder
             .comment("Chunks processed per server tick by /kingdoms cluster reset and regenerate.")
             .defineInRange("maintenanceChunksPerTick", 16, 1, 4096);
+        builder.pop();
+
+        builder.push("scorched");
+        SCORCHED_DISABLE_MOB_GUNS_IN_YELLOW_ZONE = builder
+            .comment("Keep Scorched Guns firearms away from hostile mobs inside the listed resource zones.")
+            .define("disableMobGunsInYellowZone", true);
+        SCORCHED_MOB_GUN_FREE_ZONES = builder
+            .comment("Overworld resource zones cleared of mob firearms: BLUE, YELLOW, RED, BLACK.")
+            .defineList("mobGunFreeZones", java.util.List.of("YELLOW"),
+                value -> value instanceof String text && !text.isBlank());
         builder.pop();
         SPEC = builder.build();
     }
