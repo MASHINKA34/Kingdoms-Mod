@@ -619,20 +619,17 @@ public final class ResourceClusterManager extends SavedData {
 
     private static Component displayText(ResourceCluster cluster) {
         ReserveView reserve = reserveOf(cluster);
-        Component status = reserve.exhausted()
-                ? Component.translatable(
-                        "kingdoms.cluster.display.depleted",
-                        displayDays(reserve.restoreInMillis()),
-                        displayClock(reserve.restoreInMillis())
-                )
-                : Component.translatable(
-                        "kingdoms.cluster.display.reserve",
-                        reserve.remaining(),
-                        reserve.limit()
-                );
-        return Component.literal(cluster.type().displayName())
+        net.minecraft.network.chat.MutableComponent text = Component.literal(cluster.type().displayName())
                 .append(Component.literal("\n"))
-                .append(status);
+                .append(Component.translatable("kingdoms.cluster.display.richness", cluster.richness()));
+        if (reserve.exhausted()) {
+            text.append(Component.literal("\n")).append(Component.translatable(
+                    "kingdoms.cluster.display.depleted",
+                    displayDays(reserve.restoreInMillis()),
+                    displayClock(reserve.restoreInMillis())
+            ));
+        }
+        return text;
     }
 
     private static long displayDays(long millis) {
