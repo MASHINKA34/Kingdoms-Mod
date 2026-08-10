@@ -44,7 +44,9 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     private static final int CHANGE_BUTTON_WIDTH = 73;
     private static final int CHANGE_BUTTON_HEIGHT = 16;
     private static final int BANNER_LINE_HEIGHT = 10;
-    private static final int BANNER_GAP = 3;
+    private static final int STATUS_X = 14;
+    private static final int STATUS_Y = READOUT_Y;
+    private static final int STATUS_WIDTH = 70;
     private boolean openingSelector;
 
     public DrillScreen(DrillMenu menu, Inventory playerInventory, Component title) {
@@ -159,18 +161,31 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
         if (lines.isEmpty()) {
             return;
         }
-        int left = leftPos + PROGRESS_X;
-        int top = topPos + PROGRESS_Y - BANNER_GAP - lines.size() * BANNER_LINE_HEIGHT;
-        int bottom = topPos + PROGRESS_Y - BANNER_GAP;
-        graphics.fill(left - 2, top - 3, left + FILL_WIDTH + 2, bottom, 0xE0080D14);
-        graphics.fill(left - 2, top - 3, left + FILL_WIDTH + 2, top - 2, 0xFFB98E35);
+        List<net.minecraft.util.FormattedCharSequence> wrapped = new java.util.ArrayList<>();
+        List<Integer> colors = new java.util.ArrayList<>();
+        int headColor = bannerColor(state);
         for (int index = 0; index < lines.size(); index++) {
+            int color = index == 0 ? headColor : 0xFFB9C8D5;
+            for (net.minecraft.util.FormattedCharSequence part : font.split(lines.get(index), STATUS_WIDTH - 8)) {
+                wrapped.add(part);
+                colors.add(color);
+            }
+        }
+        int plateLeft = leftPos + STATUS_X;
+        int plateTop = topPos + STATUS_Y;
+        int plateRight = plateLeft + STATUS_WIDTH;
+        int plateHeight = Math.max(READOUT_HEIGHT, wrapped.size() * BANNER_LINE_HEIGHT + 14);
+        graphics.fill(plateLeft, plateTop, plateRight, plateTop + plateHeight, 0xFF080B10);
+        graphics.fill(plateLeft + 1, plateTop + 1, plateRight - 1, plateTop + plateHeight - 1, 0xFF17222F);
+        graphics.fill(plateLeft, plateTop, plateRight, plateTop + 2, 0xFFC6A24C);
+        for (int index = 0; index < wrapped.size(); index++) {
+            net.minecraft.util.FormattedCharSequence line = wrapped.get(index);
             graphics.drawString(
                     font,
-                    lines.get(index),
-                    left + 2,
-                    top + index * BANNER_LINE_HEIGHT,
-                    index == 0 ? bannerColor(state) : 0xFFB9C8D5,
+                    line,
+                    plateLeft + (STATUS_WIDTH - font.width(line)) / 2,
+                    plateTop + 8 + index * BANNER_LINE_HEIGHT,
+                    colors.get(index),
                     false
             );
         }
