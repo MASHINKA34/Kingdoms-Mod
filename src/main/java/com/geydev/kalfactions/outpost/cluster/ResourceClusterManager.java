@@ -138,9 +138,24 @@ public final class ResourceClusterManager extends SavedData {
         cluster.setSpent(cluster.spent() + granted);
         if (cluster.spent() >= limit) {
             exhaust(level, cluster);
+        } else {
+            refreshTextDisplay(level, cluster);
         }
         setDirty();
         return granted;
+    }
+
+    public synchronized int drain(ServerLevel level, ChunkPos chunkPos) {
+        ResourceCluster cluster = clusters.get(chunkPos.toLong());
+        if (cluster == null) {
+            return 0;
+        }
+        int remaining = Math.max(0, limitFor(cluster.richness()) - cluster.spent());
+        if (remaining > 0) {
+            return consume(level, chunkPos, remaining);
+        }
+        exhaust(level, cluster);
+        return 0;
     }
 
     public synchronized int consumeMinedBlock(ServerLevel level, BlockPos pos) {
@@ -188,6 +203,7 @@ public final class ResourceClusterManager extends SavedData {
         }
         if (level != null) {
             removeClusterBlocks(level, cluster);
+            refreshTextDisplay(level, cluster);
         }
     }
 
@@ -227,6 +243,7 @@ public final class ResourceClusterManager extends SavedData {
         if (level != null && level.hasChunk(chunkPos.x, chunkPos.z)) {
             ensureBlocks(level, cluster);
         }
+        refreshTextDisplay(level, cluster);
     }
 
     public synchronized int pendingChunkCount() {
@@ -515,6 +532,8 @@ public final class ResourceClusterManager extends SavedData {
         Display.TextDisplay textDisplay = findTextDisplay(level, cluster);
         if (textDisplay == null) {
             textDisplay = createTextDisplay(level, cluster);
+        } else {
+            refreshTextDisplay(level, cluster);
         }
         if (textDisplay != null && !textDisplay.getUUID().equals(cluster.textDisplayId())) {
             cluster.setTextDisplayId(textDisplay.getUUID());
@@ -590,10 +609,59 @@ public final class ResourceClusterManager extends SavedData {
         tag.putBoolean("shadow", true);
         tag.putBoolean("see_through", false);
         tag.putInt("background", 0x60000000);
-        Component text = Component.literal(cluster.type().displayName());
-        tag.putString(Display.TextDisplay.TAG_TEXT, Component.Serializer.toJson(text, level.registryAccess()));
+        tag.putString(
+                Display.TextDisplay.TAG_TEXT,
+                Component.Serializer.toJson(displayText(cluster), level.registryAccess())
+        );
         display.load(tag);
         return level.addFreshEntity(display) ? display : existingTextById(level, cluster);
+    }
+
+    private static Component displayText(ResourceCluster cluster) {
+        ReserveView reserve = reserveOf(cluster);
+        Component status = reserve.exhausted()
+                ? Component.translatable(
+                        "kingdoms.cluster.display.depleted",
+                        displayDays(reserve.restoreInMillis()),
+                        displayClock(reserve.restoreInMillis())
+                )
+                : Component.translatable(
+                        "kingdoms.cluster.display.reserve",
+                        reserve.remaining(),
+                        reserve.limit()
+                );
+        return Component.literal(cluster.type().displayName())
+                .append(Component.literal("\n"))
+                .append(status);
+    }
+
+    private static long displayDays(long millis) {
+        return Math.max(0L, millis) / 1000L / 86400L;
+    }
+
+    private static String displayClock(long millis) {
+        long seconds = Math.max(0L, millis) / 1000L;
+        return String.format("%02d:%02d", seconds % 86400L / 3600L, seconds % 3600L / 60L);
+    }
+
+    private void refreshTextDisplay(ServerLevel level, ResourceCluster cluster) {
+        if (level == null) {
+            return;
+        }
+        ChunkPos chunkPos = new ChunkPos(cluster.basePos());
+        if (!level.hasChunk(chunkPos.x, chunkPos.z)) {
+            return;
+        }
+        Display.TextDisplay display = findTextDisplay(level, cluster);
+        if (display == null) {
+            return;
+        }
+        CompoundTag tag = display.saveWithoutId(new CompoundTag());
+        tag.putString(
+                Display.TextDisplay.TAG_TEXT,
+                Component.Serializer.toJson(displayText(cluster), level.registryAccess())
+        );
+        display.load(tag);
     }
 
     private void configureBaseDisplay(
