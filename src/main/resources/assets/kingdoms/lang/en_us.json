@@ -1188,5 +1188,8 @@
   "kingdoms.research.legacy.effect.sell_price": "Trader sell prices",
   "kingdoms.research.legacy.effect.treasury_income": "Treasury income",
   "kingdoms.research.legacy.effect.mount_speed": "Mount speed",
-  "kingdoms.research.legacy.effect.research_speed": "Research speed"
+  "kingdoms.research.legacy.effect.research_speed": "Research speed",
+  "block.kingdoms.research_god_stone_8blocks": "Stone Statue of the God of Research (8 Blocks)",
+  "block.kingdoms.war_god_stone_8blocks": "Stone Statue of the God of War (8 Blocks)",
+  "block.kingdoms.economy_god_stone_8blocks": "Stone Statue of the God of Economy (8 Blocks)"
 }

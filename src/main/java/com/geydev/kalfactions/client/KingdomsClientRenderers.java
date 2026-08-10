@@ -33,6 +33,10 @@ public final class KingdomsClientRenderers {
                 ModBlockEntities.ECONOMY_GOD_STATUE.get(),
                 EconomyGodStatueCrystalRenderer::new
         );
+        event.registerBlockEntityRenderer(
+                ModBlockEntities.STONE_GOD_STATUE.get(),
+                StoneGodStatueRenderer::new
+        );
     }
 
     private static void onRegisterClientExtensions(RegisterClientExtensionsEvent event) {
@@ -47,6 +51,20 @@ public final class KingdomsClientRenderers {
                 return renderer;
             }
         }, ModItems.WAR_GOD_STATUE.get());
+        IClientItemExtensions stoneStatueExtension = new IClientItemExtensions() {
+            private BlockEntityWithoutLevelRenderer renderer;
+
+            @Override
+            public BlockEntityWithoutLevelRenderer getCustomRenderer() {
+                if (renderer == null) {
+                    renderer = new StoneGodStatueItemRenderer();
+                }
+                return renderer;
+            }
+        };
+        event.registerItem(stoneStatueExtension, ModItems.RESEARCH_GOD_STONE_8BLOCKS.get());
+        event.registerItem(stoneStatueExtension, ModItems.WAR_GOD_STONE_8BLOCKS.get());
+        event.registerItem(stoneStatueExtension, ModItems.ECONOMY_GOD_STONE_8BLOCKS.get());
     }
 
     private KingdomsClientRenderers() {

@@ -6,6 +6,7 @@ import com.geydev.kalfactions.block.EconomyGodStatueBlockEntity;
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
 import com.geydev.kalfactions.block.GuideBoardBlockEntity;
 import com.geydev.kalfactions.block.StatueScienceBlockEntity;
+import com.geydev.kalfactions.block.StoneGodStatueBlockEntity;
 import com.geydev.kalfactions.block.WarGodStatueBlockEntity;
 import com.geydev.kalfactions.block.WorldMapBlockEntity;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -49,6 +50,10 @@ public final class ModBlockEntities {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "economy_god_statue");
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<EconomyGodStatueBlockEntity>> ECONOMY_GOD_STATUE =
             DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, ECONOMY_GOD_STATUE_ID);
+    public static final ResourceLocation STONE_GOD_STATUE_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "stone_god_statue");
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<StoneGodStatueBlockEntity>> STONE_GOD_STATUE =
+            DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, STONE_GOD_STATUE_ID);
     @SubscribeEvent
     public static void register(RegisterEvent event) {
         event.register(Registries.BLOCK_ENTITY_TYPE, FACTION_TABLE_ID, () -> {
@@ -113,6 +118,21 @@ public final class ModBlockEntities {
                 );
             }
             return BlockEntityType.Builder.of(EconomyGodStatueBlockEntity::new, block).build(null);
+        });
+        event.register(Registries.BLOCK_ENTITY_TYPE, STONE_GOD_STATUE_ID, () -> {
+            Block research = BuiltInRegistries.BLOCK.get(
+                    ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "research_god_stone_8blocks")
+            );
+            Block war = BuiltInRegistries.BLOCK.get(
+                    ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "war_god_stone_8blocks")
+            );
+            Block economy = BuiltInRegistries.BLOCK.get(
+                    ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "economy_god_stone_8blocks")
+            );
+            if (research == Blocks.AIR || war == Blocks.AIR || economy == Blocks.AIR) {
+                throw new IllegalStateException("Stone god statues must be registered before their block entity type");
+            }
+            return BlockEntityType.Builder.of(StoneGodStatueBlockEntity::new, research, war, economy).build(null);
         });
     }
 

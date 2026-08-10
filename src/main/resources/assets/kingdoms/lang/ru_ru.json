@@ -1188,5 +1188,8 @@
   "kingdoms.research.legacy.effect.sell_price": "Цены продажи торговцам",
   "kingdoms.research.legacy.effect.treasury_income": "Доход казны",
   "kingdoms.research.legacy.effect.mount_speed": "Скорость ездового животного",
-  "kingdoms.research.legacy.effect.research_speed": "Скорость исследований"
+  "kingdoms.research.legacy.effect.research_speed": "Скорость исследований",
+  "block.kingdoms.research_god_stone_8blocks": "Каменная статуя бога исследований (8 блоков)",
+  "block.kingdoms.war_god_stone_8blocks": "Каменная статуя бога войны (8 блоков)",
+  "block.kingdoms.economy_god_stone_8blocks": "Каменная статуя бога экономики (8 блоков)"
 }

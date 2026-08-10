@@ -10,6 +10,7 @@ import com.geydev.kalfactions.block.OutpostCoreBlock;
 import com.geydev.kalfactions.block.QuarryCoreBlock;
 import com.geydev.kalfactions.block.SanctuaryCoreBlock;
 import com.geydev.kalfactions.block.StatueScienceBlock;
+import com.geydev.kalfactions.block.StoneGodStatueBlock;
 import com.geydev.kalfactions.block.WarArchiveBlock;
 import com.geydev.kalfactions.block.WarGodStatueBlock;
 import com.geydev.kalfactions.block.WorldMapBlock;
@@ -164,6 +165,33 @@ public final class ModBlocks {
                     .dynamicShape())
     );
 
+    public static final DeferredBlock<StoneGodStatueBlock> RESEARCH_GOD_STONE_8BLOCKS = BLOCKS.register(
+            "research_god_stone_8blocks",
+            () -> new StoneGodStatueBlock(
+                    stoneGodStatueProperties(),
+                    Block.box(-24.0D, 0.0D, -24.0D, 40.0D, 16.0D, 40.0D),
+                    Block.box(-24.0D, 0.0D, -24.0D, 40.0D, 16.0D, 40.0D)
+            )
+    );
+
+    public static final DeferredBlock<StoneGodStatueBlock> WAR_GOD_STONE_8BLOCKS = BLOCKS.register(
+            "war_god_stone_8blocks",
+            () -> new StoneGodStatueBlock(
+                    stoneGodStatueProperties(),
+                    Block.box(-40.0D, 0.0D, -20.0D, 56.0D, 16.0D, 36.0D),
+                    Block.box(-20.0D, 0.0D, -40.0D, 36.0D, 16.0D, 56.0D)
+            )
+    );
+
+    public static final DeferredBlock<StoneGodStatueBlock> ECONOMY_GOD_STONE_8BLOCKS = BLOCKS.register(
+            "economy_god_stone_8blocks",
+            () -> new StoneGodStatueBlock(
+                    stoneGodStatueProperties(),
+                    Block.box(-24.0D, 0.0D, -24.0D, 40.0D, 16.0D, 40.0D),
+                    Block.box(-24.0D, 0.0D, -24.0D, 40.0D, 16.0D, 40.0D)
+            )
+    );
+
     public static void register(IEventBus bus) {
         BLOCKS.register(bus);
     }
@@ -174,6 +202,16 @@ public final class ModBlocks {
                 .strength(-1.0F, 3_600_000.0F)
                 .sound(SoundType.STONE)
                 .noLootTable();
+    }
+
+    private static BlockBehaviour.Properties stoneGodStatueProperties() {
+        return BlockBehaviour.Properties.of()
+                .mapColor(MapColor.COLOR_GRAY)
+                .strength(8.0F, 1200.0F)
+                .sound(SoundType.STONE)
+                .pushReaction(PushReaction.BLOCK)
+                .noOcclusion()
+                .dynamicShape();
     }
 
     private ModBlocks() {

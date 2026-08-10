@@ -1,0 +1,9 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "kingdoms:block/economy_god_stone_8blocks_anchor"
+      }
+    }
+  ]
+}
