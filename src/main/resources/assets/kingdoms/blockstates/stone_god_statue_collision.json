@@ -1,0 +1,9 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "kingdoms:block/stone_god_statue_collision"
+      }
+    }
+  ]
+}

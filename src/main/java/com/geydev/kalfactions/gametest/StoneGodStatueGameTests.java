@@ -3,6 +3,7 @@ package com.geydev.kalfactions.gametest;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.StoneGodStatueBlock;
 import com.geydev.kalfactions.block.StoneGodStatueBlockEntity;
+import com.geydev.kalfactions.block.StoneGodStatueCollisionBlock;
 import com.geydev.kalfactions.registry.ModBlocks;
 import java.util.List;
 import net.minecraft.core.BlockPos;
@@ -10,8 +11,8 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
@@ -25,9 +26,8 @@ public final class StoneGodStatueGameTests {
                 ModBlocks.WAR_GOD_STONE_8BLOCKS.get(),
                 ModBlocks.ECONOMY_GOD_STONE_8BLOCKS.get()
         );
-        for (int index = 0; index < statues.size(); index++) {
-            StoneGodStatueBlock block = statues.get(index);
-            BlockPos base = helper.absolutePos(new BlockPos(1 + index * 2, 1, 1));
+        for (StoneGodStatueBlock block : statues) {
+            BlockPos base = helper.absolutePos(new BlockPos(4, 1, 4));
             BlockState state = block.defaultBlockState();
             helper.getLevel().setBlock(base, state, Block.UPDATE_ALL);
             block.setPlacedBy(helper.getLevel(), base, state, null, ItemStack.EMPTY);
@@ -51,12 +51,48 @@ public final class StoneGodStatueGameTests {
                 );
             }
 
-            helper.getLevel().destroyBlock(base.above(4), false);
-            for (int segment = 0; segment < StoneGodStatueBlock.HEIGHT; segment++) {
-                helper.assertTrue(
-                        helper.getLevel().getBlockState(base.above(segment)).is(Blocks.AIR),
-                        "Statue segment survived removal at " + segment
-                );
+            BlockPos collisionSegment = null;
+            int collisionSegmentCount = 0;
+            for (int offsetX = -3; offsetX <= 3; offsetX++) {
+                for (int offsetZ = -3; offsetZ <= 3; offsetZ++) {
+                    for (int segment = 0; segment < StoneGodStatueBlock.HEIGHT; segment++) {
+                        BlockPos candidate = base.offset(offsetX, segment, offsetZ);
+                        BlockState candidateState = helper.getLevel().getBlockState(candidate);
+                        if (candidateState.getBlock() instanceof StoneGodStatueCollisionBlock) {
+                            collisionSegmentCount++;
+                            if (collisionSegment == null) {
+                                collisionSegment = candidate.immutable();
+                            }
+                        }
+                    }
+                }
+            }
+            helper.assertTrue(collisionSegmentCount > 0, "Statue has no distributed collision segments");
+            helper.assertTrue(collisionSegment != null, "Could not find a collision segment");
+            BlockState collisionState = helper.getLevel().getBlockState(collisionSegment);
+            helper.assertTrue(
+                    !collisionState.getCollisionShape(
+                            helper.getLevel(),
+                            collisionSegment,
+                            CollisionContext.empty()
+                    ).isEmpty(),
+                    "Distributed statue collision is empty"
+            );
+
+            helper.getLevel().destroyBlock(collisionSegment, false);
+            for (int offsetX = -3; offsetX <= 3; offsetX++) {
+                for (int offsetZ = -3; offsetZ <= 3; offsetZ++) {
+                    for (int segment = 0; segment < StoneGodStatueBlock.HEIGHT; segment++) {
+                        BlockPos remainingPos = base.offset(offsetX, segment, offsetZ);
+                        BlockState remainingState = helper.getLevel().getBlockState(remainingPos);
+                        helper.assertTrue(
+                                !(remainingState.getBlock() instanceof StoneGodStatueBlock)
+                                        && !(remainingState.getBlock() instanceof StoneGodStatueCollisionBlock),
+                                "Statue collision or anchor survived removal at "
+                                        + offsetX + "," + segment + "," + offsetZ + ": " + remainingState
+                        );
+                    }
+                }
             }
         }
         helper.succeed();

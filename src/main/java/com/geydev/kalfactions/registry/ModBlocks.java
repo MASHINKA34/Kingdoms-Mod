@@ -11,6 +11,7 @@ import com.geydev.kalfactions.block.QuarryCoreBlock;
 import com.geydev.kalfactions.block.SanctuaryCoreBlock;
 import com.geydev.kalfactions.block.StatueScienceBlock;
 import com.geydev.kalfactions.block.StoneGodStatueBlock;
+import com.geydev.kalfactions.block.StoneGodStatueCollisionBlock;
 import com.geydev.kalfactions.block.WarArchiveBlock;
 import com.geydev.kalfactions.block.WarGodStatueBlock;
 import com.geydev.kalfactions.block.WorldMapBlock;
@@ -190,6 +191,18 @@ public final class ModBlocks {
                     Block.box(-24.0D, 0.0D, -24.0D, 40.0D, 16.0D, 40.0D),
                     Block.box(-24.0D, 0.0D, -24.0D, 40.0D, 16.0D, 40.0D)
             )
+    );
+
+    public static final DeferredBlock<StoneGodStatueCollisionBlock> STONE_GOD_STATUE_COLLISION = BLOCKS.register(
+            "stone_god_statue_collision",
+            () -> new StoneGodStatueCollisionBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_GRAY)
+                    .strength(8.0F, 1200.0F)
+                    .sound(SoundType.STONE)
+                    .pushReaction(PushReaction.BLOCK)
+                    .noOcclusion()
+                    .dynamicShape()
+                    .noLootTable())
     );
 
     public static void register(IEventBus bus) {
