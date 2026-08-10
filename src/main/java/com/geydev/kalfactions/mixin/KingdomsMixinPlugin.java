@@ -26,7 +26,8 @@ public final class KingdomsMixinPlugin implements IMixinConfigPlugin {
                 || mixinClassName.endsWith("ScorchedOsborneProjectileMixin")
                 || mixinClassName.endsWith("ScorchedBeamMiningMixin")
                 || mixinClassName.endsWith("ScorchedFlarePistolMixin")
-                || mixinClassName.endsWith("ScorchedGunBenchResultSlotMixin")) {
+                || mixinClassName.endsWith("ScorchedGunBenchResultSlotMixin")
+                || mixinClassName.contains(".ProtectionPixel")) {
             return classExists(targetClassName);
         }
         if (mixinClassName.endsWith("XaeroCommonMinimapRadarListMixin")
