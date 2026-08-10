@@ -157,7 +157,8 @@ public final class KingdomsAdminCommands {
                         .then(Commands.literal("cancel")
                                 .executes(KingdomsAdminCommands::cancelRender))
                         .then(Commands.literal("status")
-                                .executes(KingdomsAdminCommands::mapStatus))));
+                                .executes(KingdomsAdminCommands::mapStatus)))
+                .then(ClusterCommands.build()));
     }
 
     private static int scoutSpawn(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {

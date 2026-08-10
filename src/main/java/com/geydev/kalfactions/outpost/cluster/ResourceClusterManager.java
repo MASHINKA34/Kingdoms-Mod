@@ -47,20 +47,30 @@ public final class ResourceClusterManager extends SavedData {
     private static final int MAX_PLACEMENTS_PER_TICK = 16;
     private static final String TAG_CLUSTERS = "clusters";
     private static final String TAG_REMOVED = "removed";
-    private static final int DATA_VERSION = 4;
+    private static final int DATA_VERSION = 5;
     private static final String TAG_VERSION = "formatVersion";
     private static final String TAG_DRILL_BINDINGS = "drillBindings";
     private static final String TAG_PENDING_CHUNKS = "pendingChunks";
+    private static final String TAG_GENERATION = "generation";
+    private static final String TAG_STALE = "staleClusters";
     private static final String ENTITY_CLUSTER_KEY = KalFactions.MOD_ID + "ResourceCluster";
     private static final String ENTITY_ROLE_KEY = KalFactions.MOD_ID + "ResourceClusterRole";
     private static final String ITEM_ROLE = "item";
     private static final String TEXT_ROLE = "text";
+    private static final long GENERATION_SALT = 0x9E3779B97F4A7C15L;
+    private static final int MANUAL_UNITS_PER_BLOCK = 1;
+    private static final int RESET_SCAN_INTERVAL_TICKS = 20;
+    private static final long DAY_MILLIS = 24L * 60L * 60L * 1000L;
 
     private final Map<Long, ResourceCluster> clusters = new LinkedHashMap<>();
     private final Map<Long, Long> pendingChunks = new HashMap<>();
     private final Set<Long> activeChunks = new HashSet<>();
     private final Map<Long, Long> boundDrill = new HashMap<>();
     private final Set<Long> removedChunks = new HashSet<>();
+    private final Map<Long, List<ResourceCluster>> staleClusters = new LinkedHashMap<>();
+    private final Set<Long> runningTimers = new HashSet<>();
+    private int generation;
+    private int sinceResetScan;
 
     public static ResourceClusterManager get(ServerLevel level) {
         return level.getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
@@ -93,11 +103,130 @@ public final class ResourceClusterManager extends SavedData {
                     cluster.basePos(),
                     cluster.type(),
                     cluster.richness(),
-                    boundDrill.get(entry.getKey())
+                    boundDrill.get(entry.getKey()),
+                    reserveOf(cluster)
             ));
         }
         result.sort(java.util.Comparator.comparingLong(SurfaceClusterView::chunk));
         return List.copyOf(result);
+    }
+
+    public synchronized Optional<ReserveView> reserveAt(ChunkPos chunkPos) {
+        ResourceCluster cluster = clusters.get(chunkPos.toLong());
+        return cluster == null ? Optional.empty() : Optional.of(reserveOf(cluster));
+    }
+
+    public synchronized int consume(ServerLevel level, ChunkPos chunkPos, int units) {
+        if (units <= 0) {
+            return 0;
+        }
+        long key = chunkPos.toLong();
+        ResourceCluster cluster = clusters.get(key);
+        if (cluster == null) {
+            return 0;
+        }
+        int limit = limitFor(cluster.richness());
+        int granted = Math.min(units, Math.max(0, limit - cluster.spent()));
+        if (granted <= 0) {
+            exhaust(level, cluster);
+            return 0;
+        }
+        if (cluster.firstExtractionMillis() == 0L) {
+            cluster.setFirstExtractionMillis(ClusterClock.now());
+            runningTimers.add(key);
+        }
+        cluster.setSpent(cluster.spent() + granted);
+        if (cluster.spent() >= limit) {
+            exhaust(level, cluster);
+        }
+        setDirty();
+        return granted;
+    }
+
+    public synchronized int consumeMinedBlock(ServerLevel level, BlockPos pos) {
+        ResourceCluster cluster = clusters.get(ChunkPos.asLong(pos));
+        if (cluster == null || !isClusterColumn(cluster, pos)) {
+            return 0;
+        }
+        return consume(level, new ChunkPos(pos), MANUAL_UNITS_PER_BLOCK);
+    }
+
+    public static int limitFor(int richness) {
+        return switch (Math.clamp(richness, 1, 3)) {
+            case 1 -> ModConfigSpec.CLUSTER_UNITS_RICHNESS_1.getAsInt();
+            case 2 -> ModConfigSpec.CLUSTER_UNITS_RICHNESS_2.getAsInt();
+            default -> ModConfigSpec.CLUSTER_UNITS_RICHNESS_3.getAsInt();
+        };
+    }
+
+    private static long resetMillis() {
+        return ModConfigSpec.CLUSTER_RESET_DAYS.getAsInt() * DAY_MILLIS;
+    }
+
+    private static ReserveView reserveOf(ResourceCluster cluster) {
+        int limit = limitFor(cluster.richness());
+        long restoreIn = 0L;
+        if (cluster.firstExtractionMillis() != 0L) {
+            restoreIn = Math.max(
+                    0L,
+                    cluster.firstExtractionMillis() + resetMillis() - ClusterClock.now()
+            );
+        }
+        return new ReserveView(
+                Math.max(0, limit - cluster.spent()),
+                limit,
+                restoreIn,
+                cluster.firstExtractionMillis() != 0L,
+                cluster.exhausted()
+        );
+    }
+
+    private void exhaust(ServerLevel level, ResourceCluster cluster) {
+        if (!cluster.exhausted()) {
+            cluster.setExhausted(true);
+            setDirty();
+        }
+        if (level != null) {
+            removeClusterBlocks(level, cluster);
+        }
+    }
+
+    private void processResets(ServerLevel level, List<Long> restored) {
+        long now = ClusterClock.now();
+        long resetMillis = resetMillis();
+        List<Long> due = new ArrayList<>();
+        for (Long key : runningTimers) {
+            ResourceCluster cluster = clusters.get(key);
+            if (cluster == null
+                    || cluster.firstExtractionMillis() == 0L
+                    || cluster.firstExtractionMillis() + resetMillis <= now) {
+                due.add(key);
+            }
+        }
+        for (Long key : due) {
+            ResourceCluster cluster = clusters.get(key);
+            if (cluster == null) {
+                runningTimers.remove(key);
+                continue;
+            }
+            refill(level, cluster);
+            restored.add(key);
+        }
+        if (!due.isEmpty()) {
+            setDirty();
+        }
+    }
+
+    private void refill(ServerLevel level, ResourceCluster cluster) {
+        cluster.setSpent(0);
+        cluster.setFirstExtractionMillis(0L);
+        cluster.setExhausted(false);
+        runningTimers.remove(new ChunkPos(cluster.basePos()).toLong());
+        setDirty();
+        ChunkPos chunkPos = new ChunkPos(cluster.basePos());
+        if (level != null && level.hasChunk(chunkPos.x, chunkPos.z)) {
+            ensureBlocks(level, cluster);
+        }
     }
 
     public synchronized int pendingChunkCount() {
@@ -168,12 +297,28 @@ public final class ResourceClusterManager extends SavedData {
         if (cluster == null || !isClusterColumn(cluster, pos)) {
             return Optional.empty();
         }
+        removeClusterBlocks(level, cluster);
+        removeClusterDisplays(level, cluster);
+        clusters.remove(key);
+        pendingChunks.remove(key);
+        activeChunks.remove(key);
+        boundDrill.remove(key);
+        runningTimers.remove(key);
+        removedChunks.add(key);
+        setDirty();
+        return Optional.of(cluster.type());
+    }
+
+    private void removeClusterBlocks(ServerLevel level, ResourceCluster cluster) {
         for (int offset = 0; offset < 3; offset++) {
             BlockPos blockPos = cluster.basePos().above(offset);
             if (level.getBlockState(blockPos).is(cluster.type().block())) {
                 level.removeBlock(blockPos, false);
             }
         }
+    }
+
+    private void removeClusterDisplays(ServerLevel level, ResourceCluster cluster) {
         Display.ItemDisplay itemDisplay = findItemDisplay(level, cluster);
         if (itemDisplay != null) {
             itemDisplay.discard();
@@ -182,13 +327,6 @@ public final class ResourceClusterManager extends SavedData {
         if (textDisplay != null) {
             textDisplay.discard();
         }
-        clusters.remove(key);
-        pendingChunks.remove(key);
-        activeChunks.remove(key);
-        boundDrill.remove(key);
-        removedChunks.add(key);
-        setDirty();
-        return Optional.of(cluster.type());
     }
 
     private static boolean isClusterColumn(ResourceCluster cluster, BlockPos pos) {
@@ -222,6 +360,11 @@ public final class ResourceClusterManager extends SavedData {
         }
     }
 
+    public synchronized Optional<BlockPos> boundDrillAt(ChunkPos chunkPos) {
+        Long existing = boundDrill.get(chunkPos.toLong());
+        return existing == null ? Optional.empty() : Optional.of(BlockPos.of(existing));
+    }
+
     public synchronized boolean isBoundDrill(ChunkPos chunkPos, BlockPos drillPos) {
         Long existing = boundDrill.get(chunkPos.toLong());
         return existing != null && existing == drillPos.asLong();
@@ -250,11 +393,21 @@ public final class ResourceClusterManager extends SavedData {
     public synchronized void tick(ServerLevel level) {
         long gameTime = level.getGameTime();
         processPending(level, gameTime);
+        List<Long> restored = new ArrayList<>();
+        if (++sinceResetScan >= RESET_SCAN_INTERVAL_TICKS) {
+            sinceResetScan = 0;
+            if (!runningTimers.isEmpty()) {
+                processResets(level, restored);
+            }
+        }
         if ((gameTime & 1L) == 0L) {
             rotateItems(level);
         }
         if (gameTime % 200L == 0L) {
             repairActive(level);
+        }
+        for (Long key : restored) {
+            DrillService.notifyClusterChanged(level, new ChunkPos(key));
         }
     }
 
@@ -272,12 +425,25 @@ public final class ResourceClusterManager extends SavedData {
             pendingChunks.remove(key);
             ChunkPos chunkPos = new ChunkPos(key);
             if (level.hasChunk(chunkPos.x, chunkPos.z)) {
+                clearStale(level, key);
                 ensureCluster(level, chunkPos);
             }
         }
         if (!ready.isEmpty()) {
             setDirty();
         }
+    }
+
+    private void clearStale(ServerLevel level, long chunkKey) {
+        List<ResourceCluster> stale = staleClusters.remove(chunkKey);
+        if (stale == null) {
+            return;
+        }
+        for (ResourceCluster cluster : stale) {
+            removeClusterBlocks(level, cluster);
+            removeClusterDisplays(level, cluster);
+        }
+        setDirty();
     }
 
     private void ensureCluster(ServerLevel level, ChunkPos loadedChunk) {
@@ -304,6 +470,7 @@ public final class ResourceClusterManager extends SavedData {
             );
             UUID clusterId = namedUuid(
                     level.dimension().location() + ":" + plan.cellX() + ":" + plan.cellZ()
+                            + (effectiveGeneration() == 0 ? "" : ":" + effectiveGeneration())
             );
             cluster = new ResourceCluster(
                     clusterId,
@@ -323,6 +490,10 @@ public final class ResourceClusterManager extends SavedData {
     }
 
     private void ensureBlocks(ServerLevel level, ResourceCluster cluster) {
+        if (cluster.exhausted()) {
+            removeClusterBlocks(level, cluster);
+            return;
+        }
         for (int offset = 0; offset < 3; offset++) {
             BlockPos pos = cluster.basePos().above(offset);
             if (!level.getBlockState(pos).is(cluster.type().block())) {
@@ -509,12 +680,12 @@ public final class ResourceClusterManager extends SavedData {
         );
     }
 
-    private static Plan plan(ServerLevel level, ChunkPos loadedChunk) {
+    private Plan plan(ServerLevel level, ChunkPos loadedChunk) {
         int blue = ModConfigSpec.RESOURCE_BLUE_RADIUS.getAsInt();
         int yellow = Math.max(blue, ModConfigSpec.RESOURCE_YELLOW_RADIUS.getAsInt());
         int red = Math.max(yellow, ModConfigSpec.RESOURCE_RED_RADIUS.getAsInt());
         SurfaceClusterDistribution distribution = new SurfaceClusterDistribution(
-                level.getSeed() ^ level.dimension().location().hashCode(),
+                level.getSeed() ^ level.dimension().location().hashCode() ^ generationSalt(),
                 level.getSharedSpawnPos().getX(),
                 level.getSharedSpawnPos().getZ(),
                 blue,
@@ -543,14 +714,95 @@ public final class ResourceClusterManager extends SavedData {
         return UUID.nameUUIDFromBytes(value.getBytes(StandardCharsets.UTF_8));
     }
 
+    public synchronized Set<Long> knownChunkKeys() {
+        Set<Long> keys = new HashSet<>(clusters.keySet());
+        keys.addAll(removedChunks);
+        keys.addAll(staleClusters.keySet());
+        return keys;
+    }
+
+    public synchronized MaintenancePreview preview(Set<Long> keys) {
+        int touched = 0;
+        int timers = 0;
+        int exhausted = 0;
+        for (Map.Entry<Long, ResourceCluster> entry : clusters.entrySet()) {
+            if (keys != null && !keys.contains(entry.getKey())) {
+                continue;
+            }
+            touched++;
+            if (entry.getValue().firstExtractionMillis() != 0L) {
+                timers++;
+            }
+            if (entry.getValue().exhausted()) {
+                exhausted++;
+            }
+        }
+        int tombstones = 0;
+        for (Long key : removedChunks) {
+            if (keys == null || keys.contains(key)) {
+                tombstones++;
+            }
+        }
+        return new MaintenancePreview(touched, timers, exhausted, tombstones, boundDrill.size());
+    }
+
+    public synchronized void resetChunk(ServerLevel level, long chunkKey) {
+        removedChunks.remove(chunkKey);
+        runningTimers.remove(chunkKey);
+        ResourceCluster cluster = clusters.get(chunkKey);
+        if (cluster != null) {
+            refill(level, cluster);
+        }
+        ChunkPos chunkPos = new ChunkPos(chunkKey);
+        if (level.hasChunk(chunkPos.x, chunkPos.z)) {
+            clearStale(level, chunkKey);
+            ensureCluster(level, chunkPos);
+        }
+        setDirty();
+    }
+
+    public synchronized int beginRegeneration() {
+        generation++;
+        for (Map.Entry<Long, ResourceCluster> entry : clusters.entrySet()) {
+            staleClusters.computeIfAbsent(entry.getKey(), key -> new ArrayList<>()).add(entry.getValue());
+        }
+        int moved = clusters.size();
+        clusters.clear();
+        boundDrill.clear();
+        removedChunks.clear();
+        pendingChunks.clear();
+        runningTimers.clear();
+        activeChunks.clear();
+        setDirty();
+        return moved;
+    }
+
+    public synchronized int effectiveGeneration() {
+        return ModConfigSpec.CLUSTER_GENERATION.getAsInt() + generation;
+    }
+
+    private long generationSalt() {
+        return effectiveGeneration() * GENERATION_SALT;
+    }
+
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putInt(TAG_VERSION, DATA_VERSION);
+        tag.putInt(TAG_GENERATION, generation);
         ListTag list = new ListTag();
         for (ResourceCluster cluster : clusters.values()) {
             list.add(cluster.save());
         }
         tag.put(TAG_CLUSTERS, list);
+        ListTag stale = new ListTag();
+        for (Map.Entry<Long, List<ResourceCluster>> entry : staleClusters.entrySet()) {
+            for (ResourceCluster cluster : entry.getValue()) {
+                CompoundTag staleTag = cluster.save();
+                staleTag.putLong("chunk", entry.getKey());
+                stale.add(staleTag);
+            }
+        }
+        tag.put(TAG_STALE, stale);
         ListTag drillBindings = new ListTag();
         for (Map.Entry<Long, Long> binding : boundDrill.entrySet()) {
             CompoundTag bindingTag = new CompoundTag();
@@ -573,6 +825,7 @@ public final class ResourceClusterManager extends SavedData {
 
     static ResourceClusterManager load(CompoundTag tag, HolderLookup.Provider registries) {
         ResourceClusterManager manager = new ResourceClusterManager();
+        manager.generation = Math.max(0, tag.getInt(TAG_GENERATION));
         ListTag list = tag.getList(TAG_CLUSTERS, Tag.TAG_COMPOUND);
         for (int index = 0; index < list.size(); index++) {
             Optional<ResourceCluster> loaded = ResourceCluster.load(list.getCompound(index));
@@ -586,7 +839,18 @@ public final class ResourceClusterManager extends SavedData {
             if (manager.clusters.putIfAbsent(key, cluster) != null) {
                 LOGGER.warn("Skipped duplicate resource cluster in chunk {}", new ChunkPos(key));
                 manager.setDirty();
+                continue;
             }
+            if (cluster.firstExtractionMillis() != 0L) {
+                manager.runningTimers.add(key);
+            }
+        }
+        ListTag stale = tag.getList(TAG_STALE, Tag.TAG_COMPOUND);
+        for (int index = 0; index < stale.size(); index++) {
+            CompoundTag staleTag = stale.getCompound(index);
+            ResourceCluster.load(staleTag).ifPresent(cluster -> manager.staleClusters
+                    .computeIfAbsent(staleTag.getLong("chunk"), key -> new ArrayList<>())
+                    .add(cluster));
         }
         for (long key : tag.getLongArray(TAG_REMOVED)) {
             manager.removedChunks.add(key);
@@ -626,7 +890,26 @@ public final class ResourceClusterManager extends SavedData {
             BlockPos pos,
             ResourceClusterType type,
             int richness,
-            Long boundDrill
+            Long boundDrill,
+            ReserveView reserve
+    ) {
+    }
+
+    public record ReserveView(
+            int remaining,
+            int limit,
+            long restoreInMillis,
+            boolean timerRunning,
+            boolean exhausted
+    ) {
+    }
+
+    public record MaintenancePreview(
+            int clusters,
+            int runningTimers,
+            int exhausted,
+            int tombstones,
+            int drillBindings
     ) {
     }
 
@@ -661,6 +944,9 @@ public final class ResourceClusterManager extends SavedData {
         private static final String TAG_RICHNESS = "richness";
         private static final String TAG_ITEM_DISPLAY = "itemDisplay";
         private static final String TAG_TEXT_DISPLAY = "textDisplay";
+        private static final String TAG_SPENT = "spent";
+        private static final String TAG_FIRST_EXTRACTION = "firstExtraction";
+        private static final String TAG_EXHAUSTED = "exhausted";
 
         private final UUID id;
         private final BlockPos basePos;
@@ -668,6 +954,9 @@ public final class ResourceClusterManager extends SavedData {
         private final int richness;
         private UUID itemDisplayId;
         private UUID textDisplayId;
+        private int spent;
+        private long firstExtractionMillis;
+        private boolean exhausted;
 
         private ResourceCluster(
                 UUID id,
@@ -717,6 +1006,30 @@ public final class ResourceClusterManager extends SavedData {
             this.textDisplayId = textDisplayId;
         }
 
+        private int spent() {
+            return spent;
+        }
+
+        private void setSpent(int spent) {
+            this.spent = Math.max(0, spent);
+        }
+
+        private long firstExtractionMillis() {
+            return firstExtractionMillis;
+        }
+
+        private void setFirstExtractionMillis(long firstExtractionMillis) {
+            this.firstExtractionMillis = Math.max(0L, firstExtractionMillis);
+        }
+
+        private boolean exhausted() {
+            return exhausted;
+        }
+
+        private void setExhausted(boolean exhausted) {
+            this.exhausted = exhausted;
+        }
+
         private CompoundTag save() {
             CompoundTag tag = new CompoundTag();
             tag.putUUID(TAG_ID, id);
@@ -725,6 +1038,9 @@ public final class ResourceClusterManager extends SavedData {
             tag.putInt(TAG_RICHNESS, richness);
             tag.putUUID(TAG_ITEM_DISPLAY, itemDisplayId);
             tag.putUUID(TAG_TEXT_DISPLAY, textDisplayId);
+            tag.putInt(TAG_SPENT, spent);
+            tag.putLong(TAG_FIRST_EXTRACTION, firstExtractionMillis);
+            tag.putBoolean(TAG_EXHAUSTED, exhausted);
             return tag;
         }
 
@@ -740,14 +1056,18 @@ public final class ResourceClusterManager extends SavedData {
             if (basePos.isEmpty() || type.isEmpty() || richness < 1 || richness > 3) {
                 return Optional.empty();
             }
-            return Optional.of(new ResourceCluster(
+            ResourceCluster cluster = new ResourceCluster(
                     tag.getUUID(TAG_ID),
                     basePos.get(),
                     type.get(),
                     richness,
                     tag.getUUID(TAG_ITEM_DISPLAY),
                     tag.getUUID(TAG_TEXT_DISPLAY)
-            ));
+            );
+            cluster.setSpent(tag.getInt(TAG_SPENT));
+            cluster.setFirstExtractionMillis(tag.getLong(TAG_FIRST_EXTRACTION));
+            cluster.setExhausted(tag.getBoolean(TAG_EXHAUSTED));
+            return Optional.of(cluster);
         }
     }
 }
