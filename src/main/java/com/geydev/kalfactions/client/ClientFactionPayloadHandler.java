@@ -68,10 +68,13 @@ public final class ClientFactionPayloadHandler {
                 payload.inZone(),
                 payload.releaseSeconds()
         );
+<<<<<<< Updated upstream
     }
 
     public static void handleKolyvanSeize() {
         Minecraft.getInstance().execute(KolyvanJumpscare::trigger);
+=======
+>>>>>>> Stashed changes
     }
 
     public static void handleFactionList(FactionPayloads.S2CFactionList payload) {
