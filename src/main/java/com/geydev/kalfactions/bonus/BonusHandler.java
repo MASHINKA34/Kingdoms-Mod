@@ -5,6 +5,8 @@ import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.faith.FaithBonuses;
+import com.geydev.kalfactions.faith.FaithGod;
 import com.geydev.kalfactions.protection.FactionAccess;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -68,9 +70,11 @@ public final class BonusHandler {
             chance = ModConfigSpec.HARVEST_BONUS_CHANCE.get()
                     * FactionAccess.legacyMultiplier(player, FactionBonus.FARMERS);
         } else {
-            return;
+            chance = 0.0D;
         }
-        if (player.getRandom().nextDouble() >= chance) {
+        int faithOreUnits = isOre ? rollFaithOreUnits(player) : 0;
+        boolean rolledBonus = chance > 0.0D && player.getRandom().nextDouble() < chance;
+        if (!rolledBonus && faithOreUnits <= 0) {
             return;
         }
 
@@ -79,6 +83,9 @@ public final class BonusHandler {
             ItemStack bonusStack = drop.getItem().copy();
             if (bonusStack.isEmpty()) {
                 continue;
+            }
+            if (!rolledBonus) {
+                bonusStack.setCount(faithOreUnits);
             }
             ItemEntity bonus = new ItemEntity(
                     event.getLevel(),
@@ -94,6 +101,15 @@ public final class BonusHandler {
             bonusDrops.add(bonus);
         }
         event.getDrops().addAll(bonusDrops);
+    }
+
+    private static int rollFaithOreUnits(ServerPlayer player) {
+        double chance = FaithBonuses.economyDropChance(
+                FaithBonuses.activeLevel(player, FaithGod.ECONOMY));
+        if (chance <= 0.0D || player.getRandom().nextDouble() >= chance) {
+            return 0;
+        }
+        return 1 + player.getRandom().nextInt(2);
     }
 
     @SubscribeEvent
@@ -158,11 +174,9 @@ public final class BonusHandler {
                 .getFactionForMember(player.getUUID())
                 .map(faction -> faction.researchBonusCount("CRAFT_EXTRA"))
                 .orElse(0);
-        if (levels <= 0) {
-            return;
-        }
-        double chance = Math.min(0.5D, 0.1D * levels);
-        if (player.serverLevel().getRandom().nextDouble() >= chance) {
+        double chance = Math.min(1.0D, Math.min(0.5D, 0.1D * levels)
+                + FaithBonuses.scienceCraftChance(FaithBonuses.activeLevel(player, FaithGod.SCIENCE)));
+        if (chance <= 0.0D || player.serverLevel().getRandom().nextDouble() >= chance) {
             return;
         }
         ItemStack bonus = crafted.copy();

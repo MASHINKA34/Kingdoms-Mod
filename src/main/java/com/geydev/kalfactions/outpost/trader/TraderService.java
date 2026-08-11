@@ -726,17 +726,33 @@ public final class TraderService {
                 researchLevels(player, "BUY_RATE"),
                 FactionAccess.hasAnyBonus(player, FactionBonus.MERCHANTS),
                 ModConfigSpec.MERCHANT_SELL_BONUS_PERCENT.getAsDouble()
-                        * FactionAccess.legacyMultiplier(player, FactionBonus.MERCHANTS)
+                        * FactionAccess.legacyMultiplier(player, FactionBonus.MERCHANTS),
+                com.geydev.kalfactions.faith.FaithBonuses.economySellPercent(
+                        com.geydev.kalfactions.faith.FaithBonuses.activeLevel(
+                                player, com.geydev.kalfactions.faith.FaithGod.ECONOMY))
         );
     }
 
     static long sellUnitPrice(long basePrice, int levels, boolean merchantBonus, double merchantPercent) {
+        return sellUnitPrice(basePrice, levels, merchantBonus, merchantPercent, 0.0D);
+    }
+
+    static long sellUnitPrice(
+            long basePrice,
+            int levels,
+            boolean merchantBonus,
+            double merchantPercent,
+            double faithPercent
+    ) {
         long price = Math.max(0L, basePrice);
         if (levels > 0 && price > 0L) {
             price = PriceMath.increaseByPercentCeil(price, 0.10D * levels);
         }
         if (merchantBonus && price > 0L) {
             price = PriceMath.increaseByPercentCeil(price, Math.max(0.0D, merchantPercent));
+        }
+        if (faithPercent > 0.0D && price > 0L) {
+            price = PriceMath.increaseByPercentCeil(price, faithPercent);
         }
         return price;
     }
