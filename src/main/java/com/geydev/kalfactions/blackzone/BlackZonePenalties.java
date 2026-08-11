@@ -20,9 +20,6 @@ public final class BlackZonePenalties {
     public static final ResourceLocation HEALTH_MODIFIER_ID =
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "black_zone_toll");
 
-    private static final int EFFECT_DURATION_TICKS = 1200;
-    private static final int EFFECT_REFRESH_BELOW_TICKS = 400;
-
     private static final Map<UUID, Map<Holder<MobEffect>, Integer>> APPLIED = new HashMap<>();
 
     public static void apply(Player player, long accumulatedMillis, boolean inZone) {
@@ -51,6 +48,12 @@ public final class BlackZonePenalties {
         Map<Holder<MobEffect>, Integer> applied = APPLIED.remove(player.getUUID());
         if (applied != null) {
             for (Holder<MobEffect> effect : applied.keySet()) {
+                player.removeEffect(effect);
+            }
+        }
+        for (Holder<MobEffect> effect : managedEffects()) {
+            MobEffectInstance existing = player.getEffect(effect);
+            if (existing != null && existing.isInfiniteDuration()) {
                 player.removeEffect(effect);
             }
         }
@@ -87,14 +90,12 @@ public final class BlackZonePenalties {
 
     private static void refresh(Player player, Holder<MobEffect> effect, int amplifier) {
         MobEffectInstance existing = player.getEffect(effect);
-        if (existing != null
-                && existing.getAmplifier() >= amplifier
-                && existing.getDuration() > EFFECT_REFRESH_BELOW_TICKS) {
+        if (existing != null && existing.getAmplifier() >= amplifier && existing.isInfiniteDuration()) {
             return;
         }
         player.addEffect(new MobEffectInstance(
                 effect,
-                EFFECT_DURATION_TICKS,
+                MobEffectInstance.INFINITE_DURATION,
                 amplifier,
                 false,
                 false,

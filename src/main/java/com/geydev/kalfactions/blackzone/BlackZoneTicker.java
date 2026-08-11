@@ -47,6 +47,7 @@ public final class BlackZoneTicker {
     @SubscribeEvent
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         BlackZoneService.forget(event.getEntity().getUUID());
+        BlackZonePenalties.clear(event.getEntity());
     }
 
     @SubscribeEvent
