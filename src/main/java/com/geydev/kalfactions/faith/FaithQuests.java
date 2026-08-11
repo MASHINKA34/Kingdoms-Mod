@@ -42,6 +42,40 @@ public final class FaithQuests {
         return level == 3 || level == 6 || level == 9;
     }
 
+    public static boolean hasSpecialOffering(int level) {
+        return level == 5 || level == 7 || level == 9;
+    }
+
+    public static int warKills(int level) {
+        return switch (level) {
+            case 2 -> ModConfigSpec.FAITH_WAR_KILLS_LEVEL_2.getAsInt();
+            case 3 -> ModConfigSpec.FAITH_WAR_KILLS_LEVEL_3.getAsInt();
+            case 4 -> ModConfigSpec.FAITH_WAR_KILLS_LEVEL_4.getAsInt();
+            case 5 -> ModConfigSpec.FAITH_WAR_KILLS_LEVEL_5.getAsInt();
+            case 6 -> ModConfigSpec.FAITH_WAR_KILLS_LEVEL_6.getAsInt();
+            case 7 -> ModConfigSpec.FAITH_WAR_KILLS_LEVEL_7.getAsInt();
+            case 8 -> ModConfigSpec.FAITH_WAR_KILLS_LEVEL_8.getAsInt();
+            case 9 -> ModConfigSpec.FAITH_WAR_KILLS_LEVEL_9.getAsInt();
+            case 10 -> ModConfigSpec.FAITH_WAR_KILLS_LEVEL_10.getAsInt();
+            default -> 0;
+        };
+    }
+
+    public static long economySpurs(int level) {
+        return switch (level) {
+            case 2 -> ModConfigSpec.FAITH_ECONOMY_SPURS_LEVEL_2.get();
+            case 3 -> ModConfigSpec.FAITH_ECONOMY_SPURS_LEVEL_3.get();
+            case 4 -> ModConfigSpec.FAITH_ECONOMY_SPURS_LEVEL_4.get();
+            case 5 -> ModConfigSpec.FAITH_ECONOMY_SPURS_LEVEL_5.get();
+            case 6 -> ModConfigSpec.FAITH_ECONOMY_SPURS_LEVEL_6.get();
+            case 7 -> ModConfigSpec.FAITH_ECONOMY_SPURS_LEVEL_7.get();
+            case 8 -> ModConfigSpec.FAITH_ECONOMY_SPURS_LEVEL_8.get();
+            case 9 -> ModConfigSpec.FAITH_ECONOMY_SPURS_LEVEL_9.get();
+            case 10 -> ModConfigSpec.FAITH_ECONOMY_SPURS_LEVEL_10.get();
+            default -> 0L;
+        };
+    }
+
     public static FaithQuest build(UUID factionId, FaithGod god, int level, int nonce) {
         int target = Math.clamp(level, FaithGod.MIN_LEVEL + 1, FaithGod.MAX_LEVEL);
         Random random = new Random(seed(factionId, god, target, nonce));
@@ -59,15 +93,23 @@ public final class FaithQuests {
                 int entries = minEntries + random.nextInt(maxEntries - minEntries + 1);
                 int minCount = tierMinCount(tier);
                 int maxCount = Math.max(minCount, tierMaxCount(tier));
-                for (Item item : pick(FaithTags.scienceOfferings(tier), entries, random)) {
+                List<Item> rolled = pick(FaithTags.scienceOfferings(tier), entries, random);
+                for (Item item : rolled) {
                     requirements.add(FaithRequirement.ofItem(
                             item,
                             minCount + random.nextInt(maxCount - minCount + 1)
                     ));
                 }
+                int specialCount = ModConfigSpec.FAITH_SCIENCE_SPECIAL_COUNT.getAsInt();
+                if (hasSpecialOffering(target) && specialCount > 0) {
+                    int specialTier = Math.min(3, tier + 1);
+                    for (Item item : pick(FaithTags.scienceOfferings(specialTier), 1, random, rolled)) {
+                        requirements.add(FaithRequirement.ofItem(item, specialCount));
+                    }
+                }
             }
             case ECONOMY -> {
-                spurs = ModConfigSpec.FAITH_ECONOMY_SPURS_PER_LEVEL.get() * (target - FaithGod.MIN_LEVEL);
+                spurs = economySpurs(target);
                 int minCount = ModConfigSpec.FAITH_ECONOMY_GEM_MIN_COUNT.getAsInt();
                 int maxCount = Math.max(minCount, ModConfigSpec.FAITH_ECONOMY_GEM_MAX_COUNT.getAsInt());
                 int growth = ModConfigSpec.FAITH_ECONOMY_GEM_PER_LEVEL.getAsInt() * (target - FaithGod.MIN_LEVEL - 1);
@@ -80,8 +122,7 @@ public final class FaithQuests {
                 }
             }
             case WAR -> {
-                kills = ModConfigSpec.FAITH_WAR_KILLS_BASE.getAsInt()
-                        + ModConfigSpec.FAITH_WAR_KILLS_STEP.getAsInt() * (target - FaithGod.MIN_LEVEL - 1);
+                kills = warKills(target);
                 killsOrTrophy = !requiresKillsAndTrophy(target);
                 TagKey<Item> trophies = FaithTags.bossTrophies(trophyTier(target));
                 requirements.add(FaithRequirement.ofTag(trophies, FaithTags.tagLabelKey(trophies), 1));
@@ -107,7 +148,12 @@ public final class FaithQuests {
     }
 
     private static List<Item> pick(TagKey<Item> tag, int wanted, Random random) {
+        return pick(tag, wanted, random, List.of());
+    }
+
+    private static List<Item> pick(TagKey<Item> tag, int wanted, Random random, List<Item> exclude) {
         List<Item> pool = new ArrayList<>(FaithTags.sortedItems(tag));
+        pool.removeAll(exclude);
         if (pool.isEmpty()) {
             return List.of();
         }

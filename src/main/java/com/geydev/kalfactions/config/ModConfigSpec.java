@@ -218,9 +218,25 @@ public final class ModConfigSpec {
     public static final IntValue FAITH_SCIENCE_TIER2_MAX_COUNT;
     public static final IntValue FAITH_SCIENCE_TIER3_MIN_COUNT;
     public static final IntValue FAITH_SCIENCE_TIER3_MAX_COUNT;
-    public static final IntValue FAITH_WAR_KILLS_BASE;
-    public static final IntValue FAITH_WAR_KILLS_STEP;
-    public static final LongValue FAITH_ECONOMY_SPURS_PER_LEVEL;
+    public static final IntValue FAITH_SCIENCE_SPECIAL_COUNT;
+    public static final IntValue FAITH_WAR_KILLS_LEVEL_2;
+    public static final IntValue FAITH_WAR_KILLS_LEVEL_3;
+    public static final IntValue FAITH_WAR_KILLS_LEVEL_4;
+    public static final IntValue FAITH_WAR_KILLS_LEVEL_5;
+    public static final IntValue FAITH_WAR_KILLS_LEVEL_6;
+    public static final IntValue FAITH_WAR_KILLS_LEVEL_7;
+    public static final IntValue FAITH_WAR_KILLS_LEVEL_8;
+    public static final IntValue FAITH_WAR_KILLS_LEVEL_9;
+    public static final IntValue FAITH_WAR_KILLS_LEVEL_10;
+    public static final LongValue FAITH_ECONOMY_SPURS_LEVEL_2;
+    public static final LongValue FAITH_ECONOMY_SPURS_LEVEL_3;
+    public static final LongValue FAITH_ECONOMY_SPURS_LEVEL_4;
+    public static final LongValue FAITH_ECONOMY_SPURS_LEVEL_5;
+    public static final LongValue FAITH_ECONOMY_SPURS_LEVEL_6;
+    public static final LongValue FAITH_ECONOMY_SPURS_LEVEL_7;
+    public static final LongValue FAITH_ECONOMY_SPURS_LEVEL_8;
+    public static final LongValue FAITH_ECONOMY_SPURS_LEVEL_9;
+    public static final LongValue FAITH_ECONOMY_SPURS_LEVEL_10;
     public static final IntValue FAITH_ECONOMY_GEM_ENTRIES;
     public static final IntValue FAITH_ECONOMY_GEM_MIN_COUNT;
     public static final IntValue FAITH_ECONOMY_GEM_MAX_COUNT;
@@ -746,15 +762,31 @@ public final class ModConfigSpec {
             .comment("Amount range rolled per offering taken from kingdoms:science_offerings_tier3.")
             .defineInRange("scienceTier3MinCount", 1, 1, 10_000);
         FAITH_SCIENCE_TIER3_MAX_COUNT = builder.defineInRange("scienceTier3MaxCount", 1, 1, 10_000);
-        FAITH_WAR_KILLS_BASE = builder
-            .comment("Kills of players outside the faction the war quest asks for at faith level 2.")
-            .defineInRange("warKillsBase", 3, 0, 10_000);
-        FAITH_WAR_KILLS_STEP = builder
-            .comment("Extra kills the war quest adds for every faith level above 2.")
-            .defineInRange("warKillsStep", 2, 0, 10_000);
-        FAITH_ECONOMY_SPURS_PER_LEVEL = builder
-            .comment("Spurs taken from the faction treasury per faith level reached, so level N costs N-1 times this.")
-            .defineInRange("economySpursPerLevel", 2000L, 0L, 1_000_000_000L);
+        FAITH_SCIENCE_SPECIAL_COUNT = builder
+            .comment("Offerings of the next tier up the science quest adds at levels 5, 7 and 9.")
+            .defineInRange("scienceSpecialCount", 1, 0, 10_000);
+        FAITH_WAR_KILLS_LEVEL_2 = builder
+            .comment("Kills of players outside the faction the war quest asks for at each faith level.")
+            .defineInRange("warKillsLevel2", 2, 0, 10_000);
+        FAITH_WAR_KILLS_LEVEL_3 = builder.defineInRange("warKillsLevel3", 4, 0, 10_000);
+        FAITH_WAR_KILLS_LEVEL_4 = builder.defineInRange("warKillsLevel4", 6, 0, 10_000);
+        FAITH_WAR_KILLS_LEVEL_5 = builder.defineInRange("warKillsLevel5", 9, 0, 10_000);
+        FAITH_WAR_KILLS_LEVEL_6 = builder.defineInRange("warKillsLevel6", 12, 0, 10_000);
+        FAITH_WAR_KILLS_LEVEL_7 = builder.defineInRange("warKillsLevel7", 15, 0, 10_000);
+        FAITH_WAR_KILLS_LEVEL_8 = builder.defineInRange("warKillsLevel8", 19, 0, 10_000);
+        FAITH_WAR_KILLS_LEVEL_9 = builder.defineInRange("warKillsLevel9", 23, 0, 10_000);
+        FAITH_WAR_KILLS_LEVEL_10 = builder.defineInRange("warKillsLevel10", 27, 0, 10_000);
+        FAITH_ECONOMY_SPURS_LEVEL_2 = builder
+            .comment("Spurs taken from the faction treasury at each faith level.")
+            .defineInRange("economySpursLevel2", 4000L, 0L, 1_000_000_000L);
+        FAITH_ECONOMY_SPURS_LEVEL_3 = builder.defineInRange("economySpursLevel3", 8000L, 0L, 1_000_000_000L);
+        FAITH_ECONOMY_SPURS_LEVEL_4 = builder.defineInRange("economySpursLevel4", 12_000L, 0L, 1_000_000_000L);
+        FAITH_ECONOMY_SPURS_LEVEL_5 = builder.defineInRange("economySpursLevel5", 14_000L, 0L, 1_000_000_000L);
+        FAITH_ECONOMY_SPURS_LEVEL_6 = builder.defineInRange("economySpursLevel6", 18_000L, 0L, 1_000_000_000L);
+        FAITH_ECONOMY_SPURS_LEVEL_7 = builder.defineInRange("economySpursLevel7", 20_000L, 0L, 1_000_000_000L);
+        FAITH_ECONOMY_SPURS_LEVEL_8 = builder.defineInRange("economySpursLevel8", 24_000L, 0L, 1_000_000_000L);
+        FAITH_ECONOMY_SPURS_LEVEL_9 = builder.defineInRange("economySpursLevel9", 28_000L, 0L, 1_000_000_000L);
+        FAITH_ECONOMY_SPURS_LEVEL_10 = builder.defineInRange("economySpursLevel10", 30_000L, 0L, 1_000_000_000L);
         FAITH_ECONOMY_GEM_ENTRIES = builder
             .comment("Number of jewellery kinds the economy quest rolls from kingdoms:economy_offerings.")
             .defineInRange("economyGemEntries", 2, 1, 8);
@@ -785,10 +817,10 @@ public final class ModConfigSpec {
             .defineInRange("warDamagePerLevel", 0.5D, 0.0D, 100.0D);
         FAITH_WAR_HEALTH_PER_LEVEL = builder
             .comment("Extra maximum health in half hearts per faith level above warHealthMinLevel minus one.")
-            .defineInRange("warHealthPerLevel", 1.2D, 0.0D, 100.0D);
+            .defineInRange("warHealthPerLevel", 1.0D, 0.0D, 100.0D);
         FAITH_WAR_HEALTH_MIN_LEVEL = builder
             .comment("Faith level at which the war buff starts adding maximum health.")
-            .defineInRange("warHealthMinLevel", 6, 1, 10);
+            .defineInRange("warHealthMinLevel", 5, 1, 10);
         FAITH_ECONOMY_SELL_PERCENT_PER_LEVEL = builder
             .comment("Sell price bonus per faith level at every mod trader while the economy buff burns.")
             .defineInRange("economySellPercentPerLevel", 0.035D, 0.0D, 10.0D);

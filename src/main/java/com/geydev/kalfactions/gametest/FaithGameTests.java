@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.gametest;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.faith.FaithBonuses;
 import com.geydev.kalfactions.faith.FaithEffects;
 import com.geydev.kalfactions.faith.FaithGod;
 import com.geydev.kalfactions.faith.FaithManager;
@@ -8,6 +9,7 @@ import com.geydev.kalfactions.faith.FaithQuest;
 import com.geydev.kalfactions.faith.FaithQuests;
 import com.geydev.kalfactions.faith.FaithRequirement;
 import com.geydev.kalfactions.faith.FaithService;
+import com.geydev.kalfactions.faith.FaithTags;
 import java.util.UUID;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -196,6 +198,55 @@ public final class FaithGameTests {
                 "A reroll produced the very same demands"
         );
         helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void scienceAddsASpecialOfferingOnMilestones(GameTestHelper helper) {
+        UUID faction = UUID.randomUUID();
+        FaithQuest plain = FaithQuests.build(faction, FaithGod.SCIENCE, 4, 0);
+        helper.assertTrue(
+                plain.requirements().stream().noneMatch(requirement -> holdsTier(requirement, 2)
+                        || holdsTier(requirement, 3)),
+                "Level 4 asked for an offering above its own tier"
+        );
+        for (int level : new int[] {5, 7, 9}) {
+            FaithQuest quest = FaithQuests.build(faction, FaithGod.SCIENCE, level, 0);
+            helper.assertTrue(
+                    quest.requirements().stream().anyMatch(requirement -> holdsTier(requirement, 3)),
+                    "Level " + level + " is missing its special offering"
+            );
+        }
+        FaithQuest even = FaithQuests.build(faction, FaithGod.SCIENCE, 6, 0);
+        helper.assertTrue(
+                even.requirements().stream().noneMatch(requirement -> holdsTier(requirement, 3)),
+                "Level 6 gained a special offering it should not have"
+        );
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void levelTablesMatchTheTunedCurve(GameTestHelper helper) {
+        int[] kills = {2, 4, 6, 9, 12, 15, 19, 23, 27};
+        long[] spurs = {4000L, 8000L, 12_000L, 14_000L, 18_000L, 20_000L, 24_000L, 28_000L, 30_000L};
+        for (int level = 2; level <= FaithGod.MAX_LEVEL; level++) {
+            helper.assertTrue(
+                    FaithQuests.warKills(level) == kills[level - 2],
+                    "War kills at level " + level + " are " + FaithQuests.warKills(level)
+            );
+            helper.assertTrue(
+                    FaithQuests.economySpurs(level) == spurs[level - 2],
+                    "Economy spurs at level " + level + " are " + FaithQuests.economySpurs(level)
+            );
+        }
+        helper.assertTrue(FaithBonuses.warBonusHealth(4) == 0.0D, "War health started before level 5");
+        helper.assertTrue(FaithBonuses.warBonusHealth(5) == 1.0D, "War health at level 5 is wrong");
+        helper.assertTrue(FaithBonuses.warBonusHealth(10) == 6.0D, "War health at level 10 is not three hearts");
+        helper.succeed();
+    }
+
+    private static boolean holdsTier(FaithRequirement requirement, int tier) {
+        return requirement.item() != null
+                && requirement.item().builtInRegistryHolder().is(FaithTags.scienceOfferings(tier));
     }
 
     private FaithGameTests() {
