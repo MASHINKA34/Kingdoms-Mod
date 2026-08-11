@@ -34,7 +34,8 @@
     "ScorchedGunBenchResultSlotMixin",
     "ProtectionPixelZongMenuMixin",
     "ProtectionPixelArmorContainerFaceMixin",
-    "ProtectionPixelFlyDamageMixin"
+    "ProtectionPixelFlyDamageMixin",
+    "FireBlockMixin"
   ],
   "client": [
     "ProtectionPixelArmorRenderMixin",

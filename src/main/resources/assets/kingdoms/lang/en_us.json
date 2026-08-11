@@ -120,6 +120,7 @@
   "kingdoms.protection.no_interact": "You cannot interact with blocks in this faction claim.",
   "kingdoms.protection.no_container": "You cannot access this container.",
   "kingdoms.protection.no_edit_container": "You cannot edit this container.",
+  "kingdoms.protection.no_sanctuary_interact": "This block cannot be used at spawn.",
   "kingdoms.pvp.friendly_fire_disabled": "Friendly fire is disabled within your faction.",
   "kingdoms.permission.title": "Kingdoms: %s",
   "kingdoms.permission.command.faction": "Use the /f faction command.",
