@@ -1,10 +1,10 @@
 package com.geydev.kalfactions.client;
 
 import com.geydev.kalfactions.KalFactions;
-import com.geydev.kalfactions.blackzone.BlackZoneFormat;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModList;
@@ -34,13 +34,13 @@ public final class BlackZoneHud {
             return;
         }
         lastShownAt = now;
-        minecraft.player.displayClientMessage(
-                Component.translatable(
-                        "kingdoms.blackzone.display.timer",
-                        BlackZoneFormat.clock(ClientBlackZoneState.accumulatedMillis())
-                ),
-                true
-        );
+        MutableComponent message = null;
+        for (Component line : BlackZoneDisplay.lines()) {
+            message = message == null ? line.copy() : message.append(" · ").append(line);
+        }
+        if (message != null) {
+            minecraft.player.displayClientMessage(message, true);
+        }
     }
 
     private static long intervalMillis() {

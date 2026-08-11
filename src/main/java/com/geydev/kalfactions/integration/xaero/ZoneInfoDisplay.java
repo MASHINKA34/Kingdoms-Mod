@@ -1,8 +1,7 @@
 package com.geydev.kalfactions.integration.xaero;
 
 import com.geydev.kalfactions.KalFactions;
-import com.geydev.kalfactions.blackzone.BlackZoneFormat;
-import com.geydev.kalfactions.client.ClientBlackZoneState;
+import com.geydev.kalfactions.client.BlackZoneDisplay;
 import com.geydev.kalfactions.client.ClientZoneInfo;
 import com.geydev.kalfactions.outpost.cluster.distribution.ResourceZone;
 import net.minecraft.network.chat.Component;
@@ -54,11 +53,8 @@ final class ZoneInfoDisplay {
                         if (zone != null) {
                             compiler.addLine(Component.translatable(zoneKey(zone)));
                         }
-                        if (ClientBlackZoneState.active()) {
-                            compiler.addLine(Component.translatable(
-                                    "kingdoms.blackzone.display.timer",
-                                    BlackZoneFormat.clock(ClientBlackZoneState.accumulatedMillis())
-                            ));
+                        for (Component line : BlackZoneDisplay.lines()) {
+                            compiler.addLine(line);
                         }
                     })
                     .build());

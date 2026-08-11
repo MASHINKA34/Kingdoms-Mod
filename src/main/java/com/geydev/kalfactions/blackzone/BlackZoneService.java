@@ -119,7 +119,14 @@ public final class BlackZoneService {
                     && KolyvanSpawner.spawnFor(level, serverPlayer)) {
                 toll = toll.withKolyvanAt(now);
             }
-            sync(serverPlayer, stage, toll.accumulatedMillis(), inBlack, released || entered);
+            sync(
+                    serverPlayer,
+                    stage,
+                    toll.accumulatedMillis(),
+                    inBlack,
+                    releaseLeftMillis(toll, now),
+                    released || entered
+            );
         }
 
         data.put(playerId, toll);
@@ -141,7 +148,7 @@ public final class BlackZoneService {
             BlackZonePenalties.clear(player);
         }
         if (player instanceof ServerPlayer serverPlayer) {
-            sync(serverPlayer, null, 0L, false, true);
+            sync(serverPlayer, null, 0L, false, 0L, true);
         }
     }
 
@@ -151,7 +158,7 @@ public final class BlackZoneService {
         WARNED.remove(player.getUUID());
         BlackZonePenalties.clear(player);
         if (player instanceof ServerPlayer serverPlayer) {
-            sync(serverPlayer, null, 0L, false, true);
+            sync(serverPlayer, null, 0L, false, 0L, true);
         }
     }
 
@@ -170,7 +177,7 @@ public final class BlackZoneService {
         } else {
             BlackZonePenalties.apply(player, millis, inBlack);
         }
-        sync(player, stage, millis, inBlack, true);
+        sync(player, stage, millis, inBlack, releaseLeftMillis(toll, now), true);
     }
 
     public static long accumulatedMillis(MinecraftServer server, UUID playerId) {
@@ -181,11 +188,19 @@ public final class BlackZoneService {
         return ModConfigSpec.BLACK_ZONE_KOLYVAN_INTERVAL_MINUTES.getAsInt() * BlackZoneStage.MINUTE_MILLIS;
     }
 
+    private static long releaseLeftMillis(BlackZoneToll toll, long now) {
+        if (toll.isEmpty()) {
+            return 0L;
+        }
+        return Math.max(0L, toll.lastInZoneAt() + releaseMillis() - now);
+    }
+
     private static void sync(
             ServerPlayer player,
             BlackZoneStage stage,
             long accumulatedMillis,
             boolean inZone,
+            long releaseLeftMillis,
             boolean force
     ) {
         long now = BlackZoneClock.now();
@@ -204,7 +219,8 @@ public final class BlackZoneService {
         PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CBlackZoneState(
                 stage == null ? -1 : stage.ordinal(),
                 (int) Math.min(Integer.MAX_VALUE, accumulatedMillis / 1000L),
-                inZone
+                inZone,
+                (int) Math.min(Integer.MAX_VALUE, releaseLeftMillis / 1000L)
         ));
     }
 
