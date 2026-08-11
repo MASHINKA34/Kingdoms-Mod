@@ -201,6 +201,37 @@ public final class ModConfigSpec {
     public static final IntValue BLACK_ZONE_KOLYVAN_LIFETIME_SECONDS;
     public static final IntValue BLACK_ZONE_KOLYVAN_BLINDNESS_SECONDS;
     public static final DoubleValue BLACK_ZONE_KOLYVAN_REACH_DISTANCE;
+    public static final ConfigValue<java.util.List<? extends Integer>> FAITH_LEVEL_CRYSTAL_COSTS;
+    public static final IntValue FAITH_SCIENCE_MIN_ENTRIES;
+    public static final IntValue FAITH_SCIENCE_MAX_ENTRIES;
+    public static final IntValue FAITH_SCIENCE_TIER1_MIN_COUNT;
+    public static final IntValue FAITH_SCIENCE_TIER1_MAX_COUNT;
+    public static final IntValue FAITH_SCIENCE_TIER2_MIN_COUNT;
+    public static final IntValue FAITH_SCIENCE_TIER2_MAX_COUNT;
+    public static final IntValue FAITH_SCIENCE_TIER3_MIN_COUNT;
+    public static final IntValue FAITH_SCIENCE_TIER3_MAX_COUNT;
+    public static final IntValue FAITH_WAR_KILLS_BASE;
+    public static final IntValue FAITH_WAR_KILLS_STEP;
+    public static final LongValue FAITH_ECONOMY_SPURS_PER_LEVEL;
+    public static final IntValue FAITH_ECONOMY_GEM_ENTRIES;
+    public static final IntValue FAITH_ECONOMY_GEM_MIN_COUNT;
+    public static final IntValue FAITH_ECONOMY_GEM_MAX_COUNT;
+    public static final IntValue FAITH_ECONOMY_GEM_PER_LEVEL;
+    public static final IntValue FAITH_BUFF_CRYSTAL_COST;
+    public static final IntValue FAITH_BUFF_DURATION_MINUTES;
+    public static final DoubleValue FAITH_SCIENCE_CRAFT_CHANCE_PER_LEVEL;
+    public static final DoubleValue FAITH_SCIENCE_XP_PER_LEVEL;
+    public static final IntValue FAITH_SCIENCE_XP_MIN_LEVEL;
+    public static final DoubleValue FAITH_WAR_DAMAGE_PER_LEVEL;
+    public static final DoubleValue FAITH_WAR_HEALTH_PER_LEVEL;
+    public static final IntValue FAITH_WAR_HEALTH_MIN_LEVEL;
+    public static final DoubleValue FAITH_ECONOMY_SELL_PERCENT_PER_LEVEL;
+    public static final DoubleValue FAITH_ECONOMY_DROP_CHANCE_PER_LEVEL;
+    public static final IntValue FAITH_ECONOMY_DROP_MIN_LEVEL;
+    public static final IntValue FAITH_ECONOMY_HIGHLIGHT_LEVEL;
+    public static final IntValue FAITH_ECONOMY_HIGHLIGHT_RADIUS;
+    public static final IntValue FAITH_ECONOMY_HIGHLIGHT_MAX_BLOCKS;
+    public static final IntValue FAITH_ECONOMY_HIGHLIGHT_SCAN_TICKS;
 
     static {
         Builder builder = new Builder();
@@ -675,6 +706,98 @@ public final class ModConfigSpec {
         BLACK_ZONE_KOLYVAN_REACH_DISTANCE = builder
             .comment("Distance in blocks at which Kolyvan is considered to have caught the player.")
             .defineInRange("kolyvanReachDistance", 2.0D, 0.5D, 16.0D);
+        builder.pop();
+
+        builder.push("statues");
+        FAITH_LEVEL_CRYSTAL_COSTS = builder
+            .comment("Crystals of the god's own type needed for faith levels 2 through 10, in order.")
+            .defineList(
+                "levelCrystalCosts",
+                java.util.List.of(8, 16, 24, 32, 48, 64, 80, 96, 128),
+                value -> value instanceof Integer count && count >= 0 && count <= 10_000
+            );
+        FAITH_SCIENCE_MIN_ENTRIES = builder
+            .comment("Smallest number of natural offerings the science quest rolls for one level.")
+            .defineInRange("scienceMinEntries", 2, 1, 8);
+        FAITH_SCIENCE_MAX_ENTRIES = builder
+            .comment("Largest number of natural offerings the science quest rolls for one level.")
+            .defineInRange("scienceMaxEntries", 4, 1, 8);
+        FAITH_SCIENCE_TIER1_MIN_COUNT = builder
+            .comment("Amount range rolled per offering taken from kingdoms:science_offerings_tier1.")
+            .defineInRange("scienceTier1MinCount", 8, 1, 10_000);
+        FAITH_SCIENCE_TIER1_MAX_COUNT = builder.defineInRange("scienceTier1MaxCount", 24, 1, 10_000);
+        FAITH_SCIENCE_TIER2_MIN_COUNT = builder
+            .comment("Amount range rolled per offering taken from kingdoms:science_offerings_tier2.")
+            .defineInRange("scienceTier2MinCount", 2, 1, 10_000);
+        FAITH_SCIENCE_TIER2_MAX_COUNT = builder.defineInRange("scienceTier2MaxCount", 6, 1, 10_000);
+        FAITH_SCIENCE_TIER3_MIN_COUNT = builder
+            .comment("Amount range rolled per offering taken from kingdoms:science_offerings_tier3.")
+            .defineInRange("scienceTier3MinCount", 1, 1, 10_000);
+        FAITH_SCIENCE_TIER3_MAX_COUNT = builder.defineInRange("scienceTier3MaxCount", 1, 1, 10_000);
+        FAITH_WAR_KILLS_BASE = builder
+            .comment("Kills of players outside the faction the war quest asks for at faith level 2.")
+            .defineInRange("warKillsBase", 3, 0, 10_000);
+        FAITH_WAR_KILLS_STEP = builder
+            .comment("Extra kills the war quest adds for every faith level above 2.")
+            .defineInRange("warKillsStep", 2, 0, 10_000);
+        FAITH_ECONOMY_SPURS_PER_LEVEL = builder
+            .comment("Spurs taken from the faction treasury per faith level reached, so level N costs N-1 times this.")
+            .defineInRange("economySpursPerLevel", 2000L, 0L, 1_000_000_000L);
+        FAITH_ECONOMY_GEM_ENTRIES = builder
+            .comment("Number of jewellery kinds the economy quest rolls from kingdoms:economy_offerings.")
+            .defineInRange("economyGemEntries", 2, 1, 8);
+        FAITH_ECONOMY_GEM_MIN_COUNT = builder
+            .comment("Amount range rolled per jewellery kind before the per-level growth is added.")
+            .defineInRange("economyGemMinCount", 4, 1, 10_000);
+        FAITH_ECONOMY_GEM_MAX_COUNT = builder.defineInRange("economyGemMaxCount", 10, 1, 10_000);
+        FAITH_ECONOMY_GEM_PER_LEVEL = builder
+            .comment("Extra jewellery of each kind added for every faith level above 2.")
+            .defineInRange("economyGemPerLevel", 3, 0, 10_000);
+        FAITH_BUFF_CRYSTAL_COST = builder
+            .comment("Crystals of the god's own type a small statue takes to light the faction buff.")
+            .defineInRange("buffCrystalCost", 4, 0, 10_000);
+        FAITH_BUFF_DURATION_MINUTES = builder
+            .comment("Minutes a faction buff stays lit; the same span doubles as its cooldown.")
+            .defineInRange("buffDurationMinutes", 30, 1, 10_080);
+        FAITH_SCIENCE_CRAFT_CHANCE_PER_LEVEL = builder
+            .comment("Chance per faith level of a second copy of anything crafted while the science buff burns.")
+            .defineInRange("scienceCraftChancePerLevel", 0.05D, 0.0D, 1.0D);
+        FAITH_SCIENCE_XP_PER_LEVEL = builder
+            .comment("Extra mob experience per faith level above scienceXpMinLevel minus one.")
+            .defineInRange("scienceXpPerLevel", 0.05D, 0.0D, 10.0D);
+        FAITH_SCIENCE_XP_MIN_LEVEL = builder
+            .comment("Faith level at which the science buff starts paying extra mob experience.")
+            .defineInRange("scienceXpMinLevel", 5, 1, 10);
+        FAITH_WAR_DAMAGE_PER_LEVEL = builder
+            .comment("Flat damage in half hearts added per faith level to everything a believer hits.")
+            .defineInRange("warDamagePerLevel", 0.5D, 0.0D, 100.0D);
+        FAITH_WAR_HEALTH_PER_LEVEL = builder
+            .comment("Extra maximum health in half hearts per faith level above warHealthMinLevel minus one.")
+            .defineInRange("warHealthPerLevel", 1.2D, 0.0D, 100.0D);
+        FAITH_WAR_HEALTH_MIN_LEVEL = builder
+            .comment("Faith level at which the war buff starts adding maximum health.")
+            .defineInRange("warHealthMinLevel", 6, 1, 10);
+        FAITH_ECONOMY_SELL_PERCENT_PER_LEVEL = builder
+            .comment("Sell price bonus per faith level at every mod trader while the economy buff burns.")
+            .defineInRange("economySellPercentPerLevel", 0.035D, 0.0D, 10.0D);
+        FAITH_ECONOMY_DROP_CHANCE_PER_LEVEL = builder
+            .comment("Extra drop chance per faith level above economyDropMinLevel minus one.")
+            .defineInRange("economyDropChancePerLevel", 0.05D, 0.0D, 1.0D);
+        FAITH_ECONOMY_DROP_MIN_LEVEL = builder
+            .comment("Faith level at which the economy buff starts rolling extra ore, mob and fishing drops.")
+            .defineInRange("economyDropMinLevel", 5, 1, 10);
+        FAITH_ECONOMY_HIGHLIGHT_LEVEL = builder
+            .comment("Faith level at which the economy buff starts outlining nearby ores.")
+            .defineInRange("economyHighlightLevel", 10, 1, 10);
+        FAITH_ECONOMY_HIGHLIGHT_RADIUS = builder
+            .comment("Radius in blocks scanned for kingdoms:highlighted_ores while the outline is lit.")
+            .defineInRange("economyHighlightRadius", 12, 1, 64);
+        FAITH_ECONOMY_HIGHLIGHT_MAX_BLOCKS = builder
+            .comment("Hard cap on outlined ore blocks; the nearest ones win.")
+            .defineInRange("economyHighlightMaxBlocks", 256, 1, 4096);
+        FAITH_ECONOMY_HIGHLIGHT_SCAN_TICKS = builder
+            .comment("Client ticks between ore outline rescans.")
+            .defineInRange("economyHighlightScanTicks", 20, 1, 600);
         builder.pop();
         SPEC = builder.build();
     }
