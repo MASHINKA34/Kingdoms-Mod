@@ -85,7 +85,7 @@ public final class StoneGodStatueRenderer implements BlockEntityRenderer<StoneGo
         pose.pushPose();
         pose.translate(0.5D, 0.0D, 0.5D);
         pose.mulPose(Axis.YP.rotationDegrees(facingRotation));
-        pose.translate(-model.centerX(), -model.minY(), -model.centerZ());
+        pose.translate(-variant.worldCenterX(model), -model.minY(), -variant.worldCenterZ(model));
         renderGeometry(model, pose, buffer, packedLight, packedOverlay);
         pose.popPose();
     }
@@ -390,13 +390,31 @@ public final class StoneGodStatueRenderer implements BlockEntityRenderer<StoneGo
 
     private enum Variant {
         RESEARCH("research_god_stone_8blocks"),
-        WAR("war_god_stone_8blocks"),
+        // The war statue is intentionally anchored to the center of its symmetric pedestal.
+        // Centering its full bounds would let the asymmetric weapons shift the pedestal off-grid.
+        WAR("war_god_stone_8blocks", 0.0F, 0.0F),
         ECONOMY("economy_god_stone_8blocks");
 
         private final String fileName;
+        private final Float worldCenterX;
+        private final Float worldCenterZ;
 
         Variant(String fileName) {
+            this(fileName, null, null);
+        }
+
+        Variant(String fileName, Float worldCenterX, Float worldCenterZ) {
             this.fileName = fileName;
+            this.worldCenterX = worldCenterX;
+            this.worldCenterZ = worldCenterZ;
+        }
+
+        private float worldCenterX(ModelData model) {
+            return worldCenterX != null ? worldCenterX : model.centerX();
+        }
+
+        private float worldCenterZ(ModelData model) {
+            return worldCenterZ != null ? worldCenterZ : model.centerZ();
         }
     }
 

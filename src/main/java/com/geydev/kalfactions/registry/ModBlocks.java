@@ -179,8 +179,8 @@ public final class ModBlocks {
             "war_god_stone_8blocks",
             () -> new StoneGodStatueBlock(
                     stoneGodStatueProperties(),
-                    Block.box(-40.0D, 0.0D, -20.0D, 56.0D, 16.0D, 36.0D),
-                    Block.box(-20.0D, 0.0D, -40.0D, 36.0D, 16.0D, 56.0D)
+                    Block.box(-44.0D, 0.0D, -24.0D, 52.0D, 16.0D, 40.0D),
+                    Block.box(-24.0D, 0.0D, -44.0D, 40.0D, 16.0D, 52.0D)
             )
     );
 
