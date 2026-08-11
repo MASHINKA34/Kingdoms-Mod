@@ -40,11 +40,11 @@ public record FaithQuest(
         if (god != FaithGod.WAR) {
             return true;
         }
-        boolean killsDone2 = killsDone >= kills;
+        boolean enoughKills = killsDone >= kills;
         if (!killsOrTrophy) {
-            return killsDone2;
+            return enoughKills;
         }
-        return killsDone2 || trophyIndex >= 0
+        return enoughKills || trophyIndex >= 0
                 && deliveredAt(delivered, trophyIndex) >= requirements.get(trophyIndex).count();
     }
 

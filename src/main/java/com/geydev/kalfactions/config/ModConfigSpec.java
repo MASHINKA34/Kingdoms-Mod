@@ -201,7 +201,15 @@ public final class ModConfigSpec {
     public static final IntValue BLACK_ZONE_KOLYVAN_LIFETIME_SECONDS;
     public static final IntValue BLACK_ZONE_KOLYVAN_BLINDNESS_SECONDS;
     public static final DoubleValue BLACK_ZONE_KOLYVAN_REACH_DISTANCE;
-    public static final ConfigValue<java.util.List<? extends Integer>> FAITH_LEVEL_CRYSTAL_COSTS;
+    public static final IntValue FAITH_CRYSTAL_COST_LEVEL_2;
+    public static final IntValue FAITH_CRYSTAL_COST_LEVEL_3;
+    public static final IntValue FAITH_CRYSTAL_COST_LEVEL_4;
+    public static final IntValue FAITH_CRYSTAL_COST_LEVEL_5;
+    public static final IntValue FAITH_CRYSTAL_COST_LEVEL_6;
+    public static final IntValue FAITH_CRYSTAL_COST_LEVEL_7;
+    public static final IntValue FAITH_CRYSTAL_COST_LEVEL_8;
+    public static final IntValue FAITH_CRYSTAL_COST_LEVEL_9;
+    public static final IntValue FAITH_CRYSTAL_COST_LEVEL_10;
     public static final IntValue FAITH_SCIENCE_MIN_ENTRIES;
     public static final IntValue FAITH_SCIENCE_MAX_ENTRIES;
     public static final IntValue FAITH_SCIENCE_TIER1_MIN_COUNT;
@@ -709,13 +717,17 @@ public final class ModConfigSpec {
         builder.pop();
 
         builder.push("statues");
-        FAITH_LEVEL_CRYSTAL_COSTS = builder
-            .comment("Crystals of the god's own type needed for faith levels 2 through 10, in order.")
-            .defineList(
-                "levelCrystalCosts",
-                java.util.List.of(8, 16, 24, 32, 48, 64, 80, 96, 128),
-                value -> value instanceof Integer count && count >= 0 && count <= 10_000
-            );
+        FAITH_CRYSTAL_COST_LEVEL_2 = builder
+            .comment("Crystals of the god's own type each faith level costs.")
+            .defineInRange("crystalCostLevel2", 8, 0, 10_000);
+        FAITH_CRYSTAL_COST_LEVEL_3 = builder.defineInRange("crystalCostLevel3", 16, 0, 10_000);
+        FAITH_CRYSTAL_COST_LEVEL_4 = builder.defineInRange("crystalCostLevel4", 24, 0, 10_000);
+        FAITH_CRYSTAL_COST_LEVEL_5 = builder.defineInRange("crystalCostLevel5", 32, 0, 10_000);
+        FAITH_CRYSTAL_COST_LEVEL_6 = builder.defineInRange("crystalCostLevel6", 48, 0, 10_000);
+        FAITH_CRYSTAL_COST_LEVEL_7 = builder.defineInRange("crystalCostLevel7", 64, 0, 10_000);
+        FAITH_CRYSTAL_COST_LEVEL_8 = builder.defineInRange("crystalCostLevel8", 80, 0, 10_000);
+        FAITH_CRYSTAL_COST_LEVEL_9 = builder.defineInRange("crystalCostLevel9", 96, 0, 10_000);
+        FAITH_CRYSTAL_COST_LEVEL_10 = builder.defineInRange("crystalCostLevel10", 128, 0, 10_000);
         FAITH_SCIENCE_MIN_ENTRIES = builder
             .comment("Smallest number of natural offerings the science quest rolls for one level.")
             .defineInRange("scienceMinEntries", 2, 1, 8);

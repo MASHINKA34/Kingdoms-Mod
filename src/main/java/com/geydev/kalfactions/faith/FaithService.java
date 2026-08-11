@@ -346,6 +346,10 @@ public final class FaithService {
         FaithManager.get(killer.serverLevel()).addKills(killerFaction, FaithGod.WAR, 1);
     }
 
+    public static void forgetPlayer(UUID playerId) {
+        LAST_ACTION_TICK.remove(playerId);
+    }
+
     public static void forfeitBuffs(ServerPlayer player) {
         MinecraftServer server = player.getServer();
         if (server == null) {

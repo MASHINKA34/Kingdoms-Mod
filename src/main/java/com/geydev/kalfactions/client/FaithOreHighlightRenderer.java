@@ -29,6 +29,7 @@ public final class FaithOreHighlightRenderer {
     private static final float LINE_GREEN = 0.82F;
     private static final float LINE_BLUE = 0.34F;
     private static final float LINE_ALPHA = 0.85F;
+    private static final int MIN_SCAN_TICKS = 5;
 
     private static final List<BlockPos> CACHED = new ArrayList<>();
     private static int tickCounter;
@@ -57,8 +58,12 @@ public final class FaithOreHighlightRenderer {
             return;
         }
         BlockPos origin = player.blockPosition();
-        boolean moved = lastScanOrigin == null || lastScanOrigin.distSqr(origin) > 4.0D;
-        if (++tickCounter < ClientFaithHighlightState.scanTicks() && !moved) {
+        int radius = ClientFaithHighlightState.radius();
+        boolean walkedOut = lastScanOrigin == null
+                || lastScanOrigin.distSqr(origin) > (double) radius * radius / 4.0D;
+        tickCounter++;
+        if (tickCounter < ClientFaithHighlightState.scanTicks()
+                && !(walkedOut && tickCounter >= MIN_SCAN_TICKS)) {
             return;
         }
         tickCounter = 0;

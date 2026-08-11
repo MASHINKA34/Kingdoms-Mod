@@ -10,12 +10,18 @@ import net.minecraft.world.item.Item;
 
 public final class FaithQuests {
     public static int crystalCost(int level) {
-        List<? extends Integer> costs = ModConfigSpec.FAITH_LEVEL_CRYSTAL_COSTS.get();
-        int index = level - FaithGod.MIN_LEVEL - 1;
-        if (index < 0 || costs.isEmpty()) {
-            return 0;
-        }
-        return Math.max(0, costs.get(Math.min(index, costs.size() - 1)));
+        return switch (level) {
+            case 2 -> ModConfigSpec.FAITH_CRYSTAL_COST_LEVEL_2.getAsInt();
+            case 3 -> ModConfigSpec.FAITH_CRYSTAL_COST_LEVEL_3.getAsInt();
+            case 4 -> ModConfigSpec.FAITH_CRYSTAL_COST_LEVEL_4.getAsInt();
+            case 5 -> ModConfigSpec.FAITH_CRYSTAL_COST_LEVEL_5.getAsInt();
+            case 6 -> ModConfigSpec.FAITH_CRYSTAL_COST_LEVEL_6.getAsInt();
+            case 7 -> ModConfigSpec.FAITH_CRYSTAL_COST_LEVEL_7.getAsInt();
+            case 8 -> ModConfigSpec.FAITH_CRYSTAL_COST_LEVEL_8.getAsInt();
+            case 9 -> ModConfigSpec.FAITH_CRYSTAL_COST_LEVEL_9.getAsInt();
+            case 10 -> ModConfigSpec.FAITH_CRYSTAL_COST_LEVEL_10.getAsInt();
+            default -> 0;
+        };
     }
 
     public static int offeringTier(int level) {

@@ -46,7 +46,11 @@ public final class FaithEffects {
             refresh(player);
         }
         if (server.getTickCount() % (REFRESH_INTERVAL_TICKS * 60) == 0) {
-            FaithManager.get(server).pruneForfeits(System.currentTimeMillis());
+            FaithManager manager = FaithManager.get(server);
+            manager.pruneForfeits(System.currentTimeMillis());
+            manager.pruneMissing(com.geydev.kalfactions.faction.FactionManager.get(server).factions().stream()
+                    .map(com.geydev.kalfactions.faction.Faction::id)
+                    .toList());
         }
     }
 
@@ -189,6 +193,7 @@ public final class FaithEffects {
             return;
         }
         HIGHLIGHT_STATE.remove(player.getUUID());
+        FaithService.forgetPlayer(player.getUUID());
         AttributeInstance attribute = player.getAttribute(Attributes.MAX_HEALTH);
         if (attribute != null) {
             attribute.removeModifier(WAR_HEALTH_MODIFIER_ID);
