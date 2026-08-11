@@ -59,6 +59,7 @@ public final class KingdomsAdminCommands {
         dispatcher.register(Commands.literal("kingdoms")
                 .requires(source -> source.hasPermission(2))
                 .then(com.geydev.kalfactions.market.MarketPlotCommands.build())
+                .then(com.geydev.kalfactions.faith.FaithCommands.build())
                 .then(Commands.literal("spawntrader")
                         .executes(KingdomsAdminCommands::spawnTrader))
                 .then(Commands.literal("trader")

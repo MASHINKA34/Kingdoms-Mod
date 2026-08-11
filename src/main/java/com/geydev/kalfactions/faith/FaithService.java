@@ -21,6 +21,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
@@ -139,18 +140,9 @@ public final class FaithService {
             return;
         }
         FaithQuest quest = quest(manager, faction.id(), statue.god(), level);
-        int taken = 0;
-        for (int index = 0; index < quest.requirements().size(); index++) {
-            FaithRequirement requirement = quest.requirements().get(index);
-            int missing = requirement.count() - manager.deliveredAt(faction.id(), statue.god(), index);
-            if (missing <= 0) {
-                continue;
-            }
-            int removed = removeFromInventory(player, requirement, missing);
-            if (removed > 0) {
-                manager.addDelivered(faction.id(), statue.god(), index, removed);
-                taken += removed;
-            }
+        int taken = applyOffering(manager, faction.id(), statue.god(), quest, player.getInventory());
+        if (taken > 0) {
+            player.inventoryMenu.broadcastChanges();
         }
         long spursTaken = 0L;
         long missingSpurs = quest.spurs() - manager.spursDelivered(faction.id(), statue.god());
@@ -408,6 +400,29 @@ public final class FaithService {
         }
     }
 
+    public static int applyOffering(
+            FaithManager manager,
+            UUID factionId,
+            FaithGod god,
+            FaithQuest quest,
+            Inventory inventory
+    ) {
+        int taken = 0;
+        for (int index = 0; index < quest.requirements().size(); index++) {
+            FaithRequirement requirement = quest.requirements().get(index);
+            int missing = requirement.count() - manager.deliveredAt(factionId, god, index);
+            if (missing <= 0) {
+                continue;
+            }
+            int removed = takeFromInventory(inventory, requirement, missing);
+            if (removed > 0) {
+                manager.addDelivered(factionId, god, index, removed);
+                taken += removed;
+            }
+        }
+        return taken;
+    }
+
     public static int countInInventory(ServerPlayer player, FaithRequirement requirement) {
         int total = 0;
         for (ItemStack stack : player.getInventory().items) {
@@ -418,9 +433,9 @@ public final class FaithService {
         return total;
     }
 
-    private static int removeFromInventory(ServerPlayer player, FaithRequirement requirement, int wanted) {
+    public static int takeFromInventory(Inventory inventory, FaithRequirement requirement, int wanted) {
         int remaining = wanted;
-        for (ItemStack stack : player.getInventory().items) {
+        for (ItemStack stack : inventory.items) {
             if (remaining <= 0) {
                 break;
             }
@@ -432,10 +447,17 @@ public final class FaithService {
             remaining -= taken;
         }
         if (remaining != wanted) {
-            player.getInventory().setChanged();
-            player.inventoryMenu.broadcastChanges();
+            inventory.setChanged();
         }
         return wanted - remaining;
+    }
+
+    private static int removeFromInventory(ServerPlayer player, FaithRequirement requirement, int wanted) {
+        int removed = takeFromInventory(player.getInventory(), requirement, wanted);
+        if (removed > 0) {
+            player.inventoryMenu.broadcastChanges();
+        }
+        return removed;
     }
 
     private static Faction factionOf(ServerPlayer player) {

@@ -65,7 +65,7 @@ public final class FaithEffects {
         }
     }
 
-    private static void applyWarHealth(ServerPlayer player, double bonus) {
+    public static void applyWarHealth(LivingEntity player, double bonus) {
         AttributeInstance attribute = player.getAttribute(Attributes.MAX_HEALTH);
         if (attribute == null) {
             return;
@@ -88,7 +88,7 @@ public final class FaithEffects {
         ));
     }
 
-    private static void clampHealth(ServerPlayer player) {
+    private static void clampHealth(LivingEntity player) {
         if (player.getHealth() > player.getMaxHealth()) {
             player.setHealth(player.getMaxHealth());
         }
