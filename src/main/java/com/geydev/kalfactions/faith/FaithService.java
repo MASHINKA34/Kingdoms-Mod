@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.faith;
 
+import com.geydev.kalfactions.block.SmallStatueBlockEntity;
 import com.geydev.kalfactions.block.StoneGodStatueBlock;
 import com.geydev.kalfactions.block.StoneGodStatueCollisionBlock;
 import com.geydev.kalfactions.config.ModConfigSpec;
@@ -57,6 +58,44 @@ public final class FaithService {
         return Optional.empty();
     }
 
+    public static void stampStatueOwner(
+            net.minecraft.world.level.Level level,
+            BlockPos anchor,
+            @javax.annotation.Nullable net.minecraft.world.entity.LivingEntity placer
+    ) {
+        if (level.isClientSide() || !(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        UUID factionId = placer instanceof ServerPlayer player
+                ? FactionManager.get(serverLevel).getFactionIdForMember(player.getUUID()).orElse(null)
+                : null;
+        smallStatueEntity(serverLevel, anchor).ifPresent(entity -> entity.setOwnerFactionId(factionId));
+    }
+
+    public static Optional<SmallStatueBlockEntity> smallStatueEntity(ServerLevel level, BlockPos anchor) {
+        for (BlockPos candidate : new BlockPos[] {anchor, anchor.above()}) {
+            if (level.getBlockEntity(candidate) instanceof SmallStatueBlockEntity entity) {
+                return Optional.of(entity);
+            }
+        }
+        return Optional.empty();
+    }
+
+    public static Optional<UUID> statueOwner(ServerLevel level, StatueRef statue) {
+        if (statue.great()) {
+            return Optional.empty();
+        }
+        return smallStatueEntity(level, statue.anchor()).flatMap(SmallStatueBlockEntity::ownerFactionId);
+    }
+
+    private static boolean canUseStatue(ServerLevel level, StatueRef statue, Faction faction, ServerPlayer player) {
+        if (statue.great() || player.hasPermissions(2)) {
+            return true;
+        }
+        UUID owner = statueOwner(level, statue).orElse(null);
+        return owner == null || owner.equals(faction.id());
+    }
+
     public static net.minecraft.world.InteractionResult openFromBlock(
             net.minecraft.world.level.Level level,
             BlockPos pos,
@@ -77,9 +116,15 @@ public final class FaithService {
         if (statue == null) {
             return;
         }
-        if (factionOf(player) == null) {
+        Faction faction = factionOf(player);
+        if (faction == null) {
             FactionServerHooks.sendNotice(
                     player, Component.translatable("kingdoms.faith.notice.no_faction"), false);
+            return;
+        }
+        if (!canUseStatue(level, statue, faction, player)) {
+            FactionServerHooks.sendNotice(
+                    player, Component.translatable("kingdoms.faith.notice.not_your_statue"), false);
             return;
         }
         sendState(player, statue, pos, Optional.empty(), true);
@@ -108,6 +153,11 @@ public final class FaithService {
         if (faction == null) {
             FactionServerHooks.sendNotice(
                     player, Component.translatable("kingdoms.faith.notice.no_faction"), false);
+            return;
+        }
+        if (!canUseStatue(level, statue, faction, player)) {
+            FactionServerHooks.sendNotice(
+                    player, Component.translatable("kingdoms.faith.notice.not_your_statue"), false);
             return;
         }
         switch (action) {

@@ -1287,5 +1287,9 @@
   "screen.kingdoms.faith.effect.war.health": "Maximum health: +%1$s hearts",
   "screen.kingdoms.faith.effect.economy.sell": "Trader sell price: +%1$s%%",
   "screen.kingdoms.faith.effect.economy.drops": "Extra ore, mob and fishing drops: %1$s%%",
-  "screen.kingdoms.faith.effect.economy.highlight": "Ores outlined within %1$s blocks"
+  "screen.kingdoms.faith.effect.economy.highlight": "Ores outlined within %1$s blocks",
+  "effect.kingdoms.faith_science": "Blessing of Science",
+  "effect.kingdoms.faith_war": "Blessing of War",
+  "effect.kingdoms.faith_economy": "Blessing of Economy",
+  "kingdoms.faith.notice.not_your_statue": "This statue answers to another faction."
 }

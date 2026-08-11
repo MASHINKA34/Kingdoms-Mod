@@ -12,7 +12,6 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -111,7 +110,7 @@ public final class FaithOreHighlightRenderer {
         Vec3 cameraPos = event.getCamera().getPosition();
         PoseStack poseStack = event.getPoseStack();
         MultiBufferSource.BufferSource bufferSource = minecraft.renderBuffers().bufferSource();
-        VertexConsumer lines = bufferSource.getBuffer(RenderType.lines());
+        VertexConsumer lines = bufferSource.getBuffer(FaithRenderTypes.SEE_THROUGH_LINES);
         for (BlockPos pos : CACHED) {
             LevelRenderer.renderLineBox(
                     poseStack,
@@ -128,7 +127,7 @@ public final class FaithOreHighlightRenderer {
                     LINE_ALPHA
             );
         }
-        bufferSource.endBatch(RenderType.lines());
+        bufferSource.endBatch(FaithRenderTypes.SEE_THROUGH_LINES);
     }
 
     private FaithOreHighlightRenderer() {

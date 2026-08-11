@@ -1287,5 +1287,9 @@
   "screen.kingdoms.faith.effect.war.health": "Максимум здоровья: +%1$s сердца",
   "screen.kingdoms.faith.effect.economy.sell": "Цена продажи у скупщиков: +%1$s%%",
   "screen.kingdoms.faith.effect.economy.drops": "Доп. дроп с руды, мобов и рыбалки: %1$s%%",
-  "screen.kingdoms.faith.effect.economy.highlight": "Подсветка руды в радиусе %1$s блоков"
+  "screen.kingdoms.faith.effect.economy.highlight": "Подсветка руды в радиусе %1$s блоков",
+  "effect.kingdoms.faith_science": "Благословение науки",
+  "effect.kingdoms.faith_war": "Благословение войны",
+  "effect.kingdoms.faith_economy": "Благословение экономики",
+  "kingdoms.faith.notice.not_your_statue": "Эта статуя служит другой фракции."
 }

@@ -10,7 +10,10 @@ import com.geydev.kalfactions.faith.FaithQuests;
 import com.geydev.kalfactions.faith.FaithRequirement;
 import com.geydev.kalfactions.faith.FaithService;
 import com.geydev.kalfactions.faith.FaithTags;
+import com.geydev.kalfactions.registry.ModBlocks;
+import java.util.List;
 import java.util.UUID;
+import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -18,6 +21,8 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
@@ -241,6 +246,50 @@ public final class FaithGameTests {
         helper.assertTrue(FaithBonuses.warBonusHealth(4) == 0.0D, "War health started before level 5");
         helper.assertTrue(FaithBonuses.warBonusHealth(5) == 1.0D, "War health at level 5 is wrong");
         helper.assertTrue(FaithBonuses.warBonusHealth(10) == 6.0D, "War health at level 10 is not three hearts");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void smallStatuesRememberTheirOwningFaction(GameTestHelper helper) {
+        List<Block> statues = List.of(
+                ModBlocks.STATUE_SCIENCE.get(),
+                ModBlocks.WAR_GOD_STATUE.get(),
+                ModBlocks.ECONOMY_GOD_STATUE.get()
+        );
+        int offset = 0;
+        for (Block block : statues) {
+            BlockPos anchor = helper.absolutePos(new BlockPos(2 + offset * 3, 1, 2));
+            offset++;
+            BlockState state = block.defaultBlockState();
+            helper.getLevel().setBlock(anchor, state, Block.UPDATE_ALL);
+            block.setPlacedBy(helper.getLevel(), anchor, state, null, ItemStack.EMPTY);
+
+            FaithService.StatueRef statue = FaithService.resolveStatue(helper.getLevel(), anchor).orElse(null);
+            helper.assertTrue(statue != null, "Small statue did not resolve at its anchor");
+            helper.assertTrue(!statue.great(), "Small statue was treated as a great one");
+            helper.assertTrue(
+                    FaithService.statueOwner(helper.getLevel(), statue).isEmpty(),
+                    "A statue placed by nobody already had an owner"
+            );
+
+            UUID owner = UUID.randomUUID();
+            FaithService.smallStatueEntity(helper.getLevel(), anchor)
+                    .orElseThrow(() -> new IllegalStateException("Small statue has no block entity"))
+                    .setOwnerFactionId(owner);
+            helper.assertTrue(
+                    FaithService.statueOwner(helper.getLevel(), statue).filter(owner::equals).isPresent(),
+                    "Owner was not readable from the statue anchor"
+            );
+
+            BlockPos upper = anchor.above();
+            FaithService.StatueRef fromUpper =
+                    FaithService.resolveStatue(helper.getLevel(), upper).orElse(null);
+            helper.assertTrue(fromUpper != null, "Upper half of the statue did not resolve");
+            helper.assertTrue(
+                    FaithService.statueOwner(helper.getLevel(), fromUpper).filter(owner::equals).isPresent(),
+                    "Owner was lost when the upper half was clicked"
+            );
+        }
         helper.succeed();
     }
 

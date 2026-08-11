@@ -32,6 +32,7 @@ public final class KalFactions {
         ModEntities.register(modBus);
         ModFeatures.register(modBus);
         ModSounds.register(modBus);
+        com.geydev.kalfactions.registry.ModEffects.register(modBus);
         ModCreativeTabs.register(modBus);
         modBus.addListener(DisabledRaidFlares::removeFromCreativeTabs);
         NetherReturnIntegration.install(ModItems.NETHER_RETURN::get, com.geydev.kalfactions.registry.ModDataComponents.NETHER_RETURN_BINDING::get);

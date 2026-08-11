@@ -2,14 +2,18 @@ package com.geydev.kalfactions.faith;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.registry.ModEffects;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -55,8 +59,14 @@ public final class FaithEffects {
     }
 
     public static void refresh(ServerPlayer player) {
-        applyWarHealth(player, FaithBonuses.warBonusHealth(FaithBonuses.activeLevel(player, FaithGod.WAR)));
-        boolean highlight = FaithBonuses.economyHighlight(FaithBonuses.activeLevel(player, FaithGod.ECONOMY));
+        FaithBonuses.Active war = FaithBonuses.active(player, FaithGod.WAR);
+        FaithBonuses.Active science = FaithBonuses.active(player, FaithGod.SCIENCE);
+        FaithBonuses.Active economy = FaithBonuses.active(player, FaithGod.ECONOMY);
+        applyBlessingIcon(player, FaithGod.SCIENCE, science);
+        applyBlessingIcon(player, FaithGod.WAR, war);
+        applyBlessingIcon(player, FaithGod.ECONOMY, economy);
+        applyWarHealth(player, FaithBonuses.warBonusHealth(war.level()));
+        boolean highlight = FaithBonuses.economyHighlight(economy.level());
         Boolean previous = HIGHLIGHT_STATE.get(player.getUUID());
         if (previous == null || previous != highlight) {
             HIGHLIGHT_STATE.put(player.getUUID(), highlight);
@@ -67,6 +77,25 @@ public final class FaithEffects {
                     Math.max(1, ModConfigSpec.FAITH_ECONOMY_HIGHLIGHT_SCAN_TICKS.getAsInt())
             ));
         }
+    }
+
+    private static void applyBlessingIcon(ServerPlayer player, FaithGod god, FaithBonuses.Active active) {
+        Holder<MobEffect> effect = ModEffects.forGod(god);
+        if (active.level() <= 0) {
+            if (player.hasEffect(effect)) {
+                player.removeEffect(effect);
+            }
+            return;
+        }
+        int ticks = (int) Math.min(Integer.MAX_VALUE, Math.max(1L, active.remainingMillis() / 50L));
+        MobEffectInstance current = player.getEffect(effect);
+        int amplifier = active.level() - 1;
+        if (current != null
+                && current.getAmplifier() == amplifier
+                && Math.abs(current.getDuration() - ticks) <= REFRESH_INTERVAL_TICKS) {
+            return;
+        }
+        player.addEffect(new MobEffectInstance(effect, ticks, amplifier, true, false, true));
     }
 
     public static void applyWarHealth(LivingEntity player, double bonus) {

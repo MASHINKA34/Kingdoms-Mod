@@ -6,22 +6,31 @@ import java.util.UUID;
 import net.minecraft.server.level.ServerPlayer;
 
 public final class FaithBonuses {
+    public record Active(int level, long remainingMillis) {
+        public static final Active NONE = new Active(0, 0L);
+    }
+
     public static int activeLevel(ServerPlayer player, FaithGod god) {
+        return active(player, god).level();
+    }
+
+    public static Active active(ServerPlayer player, FaithGod god) {
         if (player == null || god == null || player.getServer() == null) {
-            return 0;
+            return Active.NONE;
         }
         UUID factionId = FactionManager.get(player.serverLevel())
                 .getFactionIdForMember(player.getUUID())
                 .orElse(null);
         if (factionId == null) {
-            return 0;
+            return Active.NONE;
         }
         FaithManager manager = FaithManager.get(player.serverLevel());
         long buffEnd = manager.buffEndMillis(factionId, god);
-        if (buffEnd <= System.currentTimeMillis() || manager.hasForfeited(player.getUUID(), god, buffEnd)) {
-            return 0;
+        long now = System.currentTimeMillis();
+        if (buffEnd <= now || manager.hasForfeited(player.getUUID(), god, buffEnd)) {
+            return Active.NONE;
         }
-        return manager.level(factionId, god);
+        return new Active(manager.level(factionId, god), buffEnd - now);
     }
 
     public static double scienceCraftChance(int level) {

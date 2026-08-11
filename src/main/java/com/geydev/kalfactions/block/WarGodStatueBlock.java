@@ -86,6 +86,7 @@ public final class WarGodStatueBlock extends Block implements EntityBlock {
         super.setPlacedBy(level, pos, state, placer, stack);
         if (!level.isClientSide() && state.getValue(HALF) == DoubleBlockHalf.LOWER) {
             level.setBlock(pos.above(), state.setValue(HALF, DoubleBlockHalf.UPPER), UPDATE_ALL);
+            FaithService.stampStatueOwner(level, pos, placer);
         }
     }
 

@@ -104,35 +104,35 @@ public final class FaithOfferingScreen extends Screen {
                     TEXT_MUTED, false);
         }
 
-        int belowEffects = top + 96 + effects.size() * 12;
-        Component cost = Component.translatable(
+        int y = top + 106 + effects.size() * 12;
+        y = drawWrapped(graphics, Component.translatable(
                 "screen.kingdoms.faith.offering.cost",
                 state.buffCrystalCost(),
                 god().crystal().getDescription()
-        );
-        graphics.drawString(font, cost, left + CONTENT_LEFT, belowEffects + 10, TEXT_DARK, false);
-        Component duration = Component.translatable(
-                "screen.kingdoms.faith.offering.duration", state.buffMinutes());
-        graphics.drawString(font, duration, left + CONTENT_LEFT, belowEffects + 22, TEXT_MUTED, false);
+        ), y, TEXT_DARK);
+        y = drawWrapped(graphics, Component.translatable(
+                "screen.kingdoms.faith.offering.duration", state.buffMinutes()), y, TEXT_MUTED);
 
-        Component status = state.buffRemainingMillis() > 0L
+        y += 6;
+        boolean burning = state.buffRemainingMillis() > 0L;
+        y = drawWrapped(graphics, burning
                 ? Component.translatable(
                         "screen.kingdoms.faith.offering.remaining",
                         formatDuration(state.buffRemainingMillis()))
-                : Component.translatable("screen.kingdoms.faith.offering.idle");
-        graphics.drawString(
-                font,
-                status,
-                left + CONTENT_RIGHT - font.width(status),
-                belowEffects + 10,
-                state.buffRemainingMillis() > 0L ? TEXT_DONE : TEXT_MUTED,
-                false
-        );
-        if (state.buffRemainingMillis() > 0L && !state.buffOwnedByViewer()) {
-            Component lost = Component.translatable("screen.kingdoms.faith.offering.forfeited");
-            graphics.drawString(font, lost, left + CONTENT_RIGHT - font.width(lost), belowEffects + 22,
-                    TEXT_MUTED, false);
+                : Component.translatable("screen.kingdoms.faith.offering.idle"),
+                y, burning ? TEXT_DONE : TEXT_MUTED);
+        if (burning && !state.buffOwnedByViewer()) {
+            drawWrapped(graphics, Component.translatable("screen.kingdoms.faith.offering.forfeited"), y, TEXT_MUTED);
         }
+    }
+
+    private int drawWrapped(GuiGraphics graphics, Component text, int y, int color) {
+        int width = CONTENT_RIGHT - CONTENT_LEFT;
+        for (var line : font.split(text, width)) {
+            graphics.drawString(font, line, left + CONTENT_LEFT, y, color, false);
+            y += 12;
+        }
+        return y;
     }
 
     private List<Component> effectLines() {
