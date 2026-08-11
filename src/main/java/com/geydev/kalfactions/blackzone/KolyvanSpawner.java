@@ -90,9 +90,6 @@ public final class KolyvanSpawner {
                 continue;
             }
             BlockPos candidate = groundAt(level, x, z, player.getBlockY());
-            if (candidate == null) {
-                continue;
-            }
             if (requireSight && !hasLineOfSight(level, player, candidate)) {
                 continue;
             }
@@ -103,29 +100,10 @@ public final class KolyvanSpawner {
 
     private static BlockPos groundAt(ServerLevel level, int x, int z, int aroundY) {
         BlockPos surface = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, new BlockPos(x, 0, z));
-        if (Math.abs(surface.getY() - aroundY) <= MAX_VERTICAL_OFFSET && standable(level, surface)) {
+        if (Math.abs(surface.getY() - aroundY) <= MAX_VERTICAL_OFFSET) {
             return surface;
         }
-        for (int offset = 0; offset <= MAX_VERTICAL_OFFSET; offset++) {
-            BlockPos up = new BlockPos(x, aroundY + offset, z);
-            if (standable(level, up)) {
-                return up;
-            }
-            BlockPos down = new BlockPos(x, aroundY - offset, z);
-            if (standable(level, down)) {
-                return down;
-            }
-        }
-        return null;
-    }
-
-    private static boolean standable(ServerLevel level, BlockPos pos) {
-        if (level.isOutsideBuildHeight(pos) || level.isOutsideBuildHeight(pos.above())) {
-            return false;
-        }
-        return level.getBlockState(pos.below()).isSolidRender(level, pos.below())
-                && level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()
-                && level.getBlockState(pos.above()).getCollisionShape(level, pos.above()).isEmpty();
+        return new BlockPos(x, aroundY, z);
     }
 
     private static boolean hasLineOfSight(ServerLevel level, ServerPlayer player, BlockPos spot) {

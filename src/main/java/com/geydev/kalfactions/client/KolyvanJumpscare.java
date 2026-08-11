@@ -30,7 +30,7 @@ public final class KolyvanJumpscare {
         remainingTicks = DURATION_TICKS;
         minecraft.getSoundManager().play(new SimpleSoundInstance(
                 ModSounds.KOLYVAN_SEIZE.get().getLocation(),
-                SoundSource.HOSTILE,
+                SoundSource.MASTER,
                 1.0F,
                 1.0F,
                 SoundInstance.createUnseededRandom(),

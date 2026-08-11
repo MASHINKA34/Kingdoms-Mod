@@ -16,13 +16,13 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class KolyvanEntity extends PathfinderMob {
-    private static final double CHASE_SPEED = 1.0D;
-    private static final int REPATH_INTERVAL_TICKS = 10;
+    private static final double CHASE_SPEED = 0.34D;
     private static final int ZONE_CHECK_INTERVAL_TICKS = 20;
 
     private UUID targetPlayerId;
@@ -31,6 +31,8 @@ public final class KolyvanEntity extends PathfinderMob {
     public KolyvanEntity(EntityType<? extends KolyvanEntity> type, Level level) {
         super(type, level);
         setSilent(true);
+        setNoGravity(true);
+        this.noPhysics = true;
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -72,13 +74,22 @@ public final class KolyvanEntity extends PathfinderMob {
             return;
         }
         getLookControl().setLookAt(target, 30.0F, 30.0F);
-        if (tickCount % REPATH_INTERVAL_TICKS == 0) {
-            getNavigation().moveTo(target, CHASE_SPEED);
-        }
+        drift(target);
         double reach = ModConfigSpec.BLACK_ZONE_KOLYVAN_REACH_DISTANCE.get();
         if (distanceToSqr(target) <= reach * reach) {
             seize(serverLevel, target);
         }
+    }
+
+    private void drift(Player target) {
+        setDeltaMovement(Vec3.ZERO);
+        Vec3 to = target.position().subtract(position());
+        double distance = to.length();
+        if (distance < 1.0E-4D) {
+            return;
+        }
+        Vec3 step = to.scale(Math.min(CHASE_SPEED, distance) / distance);
+        setPos(getX() + step.x, getY() + step.y, getZ() + step.z);
     }
 
     private void seize(ServerLevel level, Player target) {

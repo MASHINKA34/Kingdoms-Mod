@@ -20,7 +20,7 @@ public final class KingdomsKolyvanRenderer extends EntityRenderer<KolyvanEntity>
     public static final ResourceLocation TEXTURE =
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/entity/kolyvan.png");
 
-    private static final float HEIGHT = 3.2F;
+    private static final float HEIGHT = 2.6F;
     private static final float WIDTH = HEIGHT * 559.0F / 592.0F;
 
     public KingdomsKolyvanRenderer(EntityRendererProvider.Context context) {
