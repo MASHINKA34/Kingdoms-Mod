@@ -62,7 +62,16 @@ public final class ClientFactionPayloadHandler {
     }
 
     public static void handleBlackZoneState(FactionPayloads.S2CBlackZoneState payload) {
-        ClientBlackZoneState.accept(payload.stage(), payload.accumulatedSeconds(), payload.inZone());
+        ClientBlackZoneState.accept(
+                payload.stage(),
+                payload.accumulatedSeconds(),
+                payload.inZone(),
+                payload.releaseSeconds()
+        );
+    }
+
+    public static void handleKolyvanSeize() {
+        Minecraft.getInstance().execute(KolyvanJumpscare::trigger);
     }
 
     public static void handleFactionList(FactionPayloads.S2CFactionList payload) {

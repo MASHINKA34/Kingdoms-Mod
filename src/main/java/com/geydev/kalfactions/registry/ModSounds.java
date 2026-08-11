@@ -17,6 +17,11 @@ public final class ModSounds {
                     ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "kolyvan")
             ));
 
+    public static final DeferredHolder<SoundEvent, SoundEvent> KOLYVAN_SEIZE =
+            SOUNDS.register("kolyvan_seize", () -> SoundEvent.createVariableRangeEvent(
+                    ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "kolyvan_seize")
+            ));
+
     public static void register(IEventBus bus) {
         SOUNDS.register(bus);
     }

@@ -1598,25 +1598,40 @@ public final class FactionPayloads {
     public record TrainView(String name, float x, float z) {
     }
 
-    public record S2CBlackZoneState(int stage, int accumulatedSeconds, boolean inZone) implements CustomPacketPayload {
+    public record S2CBlackZoneState(int stage, int accumulatedSeconds, boolean inZone, int releaseSeconds)
+            implements CustomPacketPayload {
         public static final Type<S2CBlackZoneState> TYPE = FactionPayloads.payloadType("black_zone_state");
         public static final StreamCodec<RegistryFriendlyByteBuf, S2CBlackZoneState> STREAM_CODEC = StreamCodec.of(
                 (buffer, payload) -> {
                     buffer.writeVarInt(payload.stage + 1);
                     buffer.writeVarInt(payload.accumulatedSeconds);
                     buffer.writeBoolean(payload.inZone);
+                    buffer.writeVarInt(payload.releaseSeconds);
                 },
                 buffer -> new S2CBlackZoneState(
                         buffer.readVarInt() - 1,
                         buffer.readVarInt(),
-                        buffer.readBoolean()
+                        buffer.readBoolean(),
+                        buffer.readVarInt()
                 )
         );
 
         public S2CBlackZoneState {
             stage = Math.max(-1, stage);
             accumulatedSeconds = Math.max(0, accumulatedSeconds);
+            releaseSeconds = Math.max(0, releaseSeconds);
         }
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record S2CKolyvanSeize() implements CustomPacketPayload {
+        public static final Type<S2CKolyvanSeize> TYPE = FactionPayloads.payloadType("kolyvan_seize");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CKolyvanSeize> STREAM_CODEC =
+                StreamCodec.unit(new S2CKolyvanSeize());
 
         @Override
         public Type<? extends CustomPacketPayload> type() {

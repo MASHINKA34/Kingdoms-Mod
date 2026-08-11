@@ -3,8 +3,10 @@ package com.geydev.kalfactions.blackzone;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.entity.KolyvanEntity;
 import com.geydev.kalfactions.registry.ModEntities;
+import com.geydev.kalfactions.registry.ModSounds;
 import java.util.List;
 import net.minecraft.core.BlockPos;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -43,7 +45,20 @@ public final class KolyvanSpawner {
         kolyvan.moveTo(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D, player.getYRot() + 180.0F, 0.0F);
         kolyvan.finalizeSpawn(level, level.getCurrentDifficultyAt(spot), MobSpawnType.EVENT, null);
         kolyvan.hunt(player, ModConfigSpec.BLACK_ZONE_KOLYVAN_LIFETIME_SECONDS.getAsInt());
-        return level.addFreshEntity(kolyvan);
+        if (!level.addFreshEntity(kolyvan)) {
+            return false;
+        }
+        level.playSound(
+                null,
+                spot.getX() + 0.5D,
+                spot.getY(),
+                spot.getZ() + 0.5D,
+                ModSounds.KOLYVAN.get(),
+                SoundSource.HOSTILE,
+                1.0F,
+                1.0F
+        );
+        return true;
     }
 
     private static boolean alreadyHunting(ServerLevel level, ServerPlayer player) {

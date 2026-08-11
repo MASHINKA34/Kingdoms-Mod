@@ -8,5 +8,15 @@
         "stream": false
       }
     ]
+  },
+  "kolyvan_seize": {
+    "category": "hostile",
+    "subtitle": "subtitles.kingdoms.kolyvan_seize",
+    "sounds": [
+      {
+        "name": "kingdoms:kolyvan_seize",
+        "stream": false
+      }
+    ]
   }
 }

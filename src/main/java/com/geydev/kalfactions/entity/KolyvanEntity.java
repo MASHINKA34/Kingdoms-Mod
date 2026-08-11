@@ -1,10 +1,9 @@
 package com.geydev.kalfactions.entity;
 
 import com.geydev.kalfactions.config.ModConfigSpec;
-import com.geydev.kalfactions.registry.ModSounds;
+import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.territory.WorldZonePolicy;
 import java.util.UUID;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -19,6 +18,7 @@ import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class KolyvanEntity extends PathfinderMob {
     private static final double CHASE_SPEED = 1.0D;
@@ -82,16 +82,6 @@ public final class KolyvanEntity extends PathfinderMob {
     }
 
     private void seize(ServerLevel level, Player target) {
-        level.playSound(
-                null,
-                getX(),
-                getY(),
-                getZ(),
-                ModSounds.KOLYVAN.get(),
-                SoundSource.HOSTILE,
-                1.0F,
-                1.0F
-        );
         target.addEffect(new MobEffectInstance(
                 MobEffects.BLINDNESS,
                 Math.max(1, ModConfigSpec.BLACK_ZONE_KOLYVAN_BLINDNESS_SECONDS.getAsInt()) * 20,
@@ -100,6 +90,9 @@ public final class KolyvanEntity extends PathfinderMob {
                 true,
                 true
         ));
+        if (target instanceof ServerPlayer serverTarget) {
+            PacketDistributor.sendToPlayer(serverTarget, new FactionPayloads.S2CKolyvanSeize());
+        }
         discard();
     }
 
