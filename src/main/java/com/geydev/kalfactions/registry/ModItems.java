@@ -180,6 +180,30 @@ public final class ModItems {
             () -> new Item(new Item.Properties())
     );
 
+    public static final DeferredItem<Item> BOSS_TROPHY_LESSER = ITEMS.register(
+            "boss_trophy_lesser",
+            () -> new com.geydev.kalfactions.item.BossTrophyItem(
+                    new Item.Properties().rarity(net.minecraft.world.item.Rarity.RARE),
+                    "item.kingdoms.boss_trophy_lesser.tooltip"
+            )
+    );
+
+    public static final DeferredItem<Item> BOSS_TROPHY_GREATER = ITEMS.register(
+            "boss_trophy_greater",
+            () -> new com.geydev.kalfactions.item.BossTrophyItem(
+                    new Item.Properties().rarity(net.minecraft.world.item.Rarity.RARE),
+                    "item.kingdoms.boss_trophy_greater.tooltip"
+            )
+    );
+
+    public static final DeferredItem<Item> BOSS_TROPHY_LEGENDARY = ITEMS.register(
+            "boss_trophy_legendary",
+            () -> new com.geydev.kalfactions.item.BossTrophyItem(
+                    new Item.Properties().rarity(net.minecraft.world.item.Rarity.EPIC),
+                    "item.kingdoms.boss_trophy_legendary.tooltip"
+            )
+    );
+
     public static Item crystalFor(InfluenceType type) {
         return switch (type) {
             case SCIENCE -> CRYSTAL_SCIENCE.get();

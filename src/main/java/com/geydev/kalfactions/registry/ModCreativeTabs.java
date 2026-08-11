@@ -71,7 +71,10 @@ public final class ModCreativeTabs {
                 ModItems.WAR_TROPHY.get(),
                 ModItems.CRYSTAL_SCIENCE.get(),
                 ModItems.CRYSTAL_ECONOMIC.get(),
-                ModItems.CRYSTAL_MILITARY.get()
+                ModItems.CRYSTAL_MILITARY.get(),
+                ModItems.BOSS_TROPHY_LESSER.get(),
+                ModItems.BOSS_TROPHY_GREATER.get(),
+                ModItems.BOSS_TROPHY_LEGENDARY.get()
         );
     }
 

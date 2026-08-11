@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:heart_of_the_sea",
+    "minecraft:nether_star",
+    "minecraft:echo_shard",
+    "minecraft:totem_of_undying",
+    "minecraft:dragon_breath",
+    "minecraft:dragon_egg",
+    "minecraft:elytra"
+  ]
+}
