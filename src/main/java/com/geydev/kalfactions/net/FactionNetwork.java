@@ -16,7 +16,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class FactionNetwork {
-    private static final String PROTOCOL_VERSION = "11";
+    private static final String PROTOCOL_VERSION = "12";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -275,6 +275,11 @@ public final class FactionNetwork {
                 FactionPayloads.S2CWorldMapTrains.TYPE,
                 FactionPayloads.S2CWorldMapTrains.STREAM_CODEC,
                 FactionNetwork::handleWorldMapTrains
+        );
+        registrar.playToClient(
+                FactionPayloads.S2CBlackZoneState.TYPE,
+                FactionPayloads.S2CBlackZoneState.STREAM_CODEC,
+                FactionNetwork::handleBlackZoneState
         );
     }
 
@@ -559,6 +564,12 @@ public final class FactionNetwork {
     private static void handleMiningBonus(FactionPayloads.S2CMiningBonus payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientFactionPayloadHandler.handleMiningBonus(payload);
+        }
+    }
+
+    private static void handleBlackZoneState(FactionPayloads.S2CBlackZoneState payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientFactionPayloadHandler.handleBlackZoneState(payload);
         }
     }
 

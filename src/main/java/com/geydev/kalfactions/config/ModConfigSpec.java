@@ -175,6 +175,32 @@ public final class ModConfigSpec {
     public static final IntValue LEGACY_CRYSTAL_COST_LEVEL_5;
     public static final BooleanValue SCORCHED_DISABLE_MOB_GUNS_IN_YELLOW_ZONE;
     public static final ConfigValue<java.util.List<? extends String>> SCORCHED_MOB_GUN_FREE_ZONES;
+    public static final BooleanValue BLACK_ZONE_ENABLED;
+    public static final BooleanValue BLACK_ZONE_EXEMPT_OPERATORS;
+    public static final IntValue BLACK_ZONE_RELEASE_MINUTES;
+    public static final IntValue BLACK_ZONE_ACTIONBAR_INTERVAL_SECONDS;
+    public static final IntValue BLACK_ZONE_STAGE_ENTRY_MINUTES;
+    public static final IntValue BLACK_ZONE_STAGE_HUNGER_1_MINUTES;
+    public static final IntValue BLACK_ZONE_STAGE_HEALTH_2_MINUTES;
+    public static final IntValue BLACK_ZONE_STAGE_HEALTH_4_MINUTES;
+    public static final IntValue BLACK_ZONE_STAGE_WEAKNESS_MINUTES;
+    public static final IntValue BLACK_ZONE_STAGE_HEALTH_6_MINUTES;
+    public static final IntValue BLACK_ZONE_STAGE_SLOWNESS_MINUTES;
+    public static final IntValue BLACK_ZONE_STAGE_HUNGER_2_MINUTES;
+    public static final IntValue BLACK_ZONE_STAGE_MINING_FATIGUE_MINUTES;
+    public static final IntValue BLACK_ZONE_STAGE_KOLYVAN_MINUTES;
+    public static final IntValue BLACK_ZONE_STAGE_POISON_MINUTES;
+    public static final IntValue BLACK_ZONE_STAGE_WITHER_MINUTES;
+    public static final IntValue BLACK_ZONE_HEALTH_PENALTY_ENTRY;
+    public static final IntValue BLACK_ZONE_HEALTH_PENALTY_SECOND;
+    public static final IntValue BLACK_ZONE_HEALTH_PENALTY_THIRD;
+    public static final IntValue BLACK_ZONE_HEALTH_PENALTY_FOURTH;
+    public static final IntValue BLACK_ZONE_KOLYVAN_INTERVAL_MINUTES;
+    public static final IntValue BLACK_ZONE_KOLYVAN_MIN_DISTANCE;
+    public static final IntValue BLACK_ZONE_KOLYVAN_MAX_DISTANCE;
+    public static final IntValue BLACK_ZONE_KOLYVAN_LIFETIME_SECONDS;
+    public static final IntValue BLACK_ZONE_KOLYVAN_BLINDNESS_SECONDS;
+    public static final DoubleValue BLACK_ZONE_KOLYVAN_REACH_DISTANCE;
 
     static {
         Builder builder = new Builder();
@@ -598,6 +624,57 @@ public final class ModConfigSpec {
             .comment("Overworld resource zones cleared of mob firearms: BLUE, YELLOW, RED, BLACK.")
             .defineList("mobGunFreeZones", java.util.List.of("YELLOW"),
                 value -> value instanceof String text && !text.isBlank());
+        builder.pop();
+
+        builder.push("blackZone");
+        BLACK_ZONE_ENABLED = builder
+            .comment("Make the black zone slowly kill players who stay in it.")
+            .define("enabled", true);
+        BLACK_ZONE_EXEMPT_OPERATORS = builder
+            .comment("Players with permission level 2 or higher never accumulate the black zone toll.")
+            .define("exemptOperators", true);
+        BLACK_ZONE_RELEASE_MINUTES = builder
+            .comment("Real-time minutes outside the black zone after which the toll and every penalty are dropped.")
+            .defineInRange("releaseMinutes", 10, 1, 1440);
+        BLACK_ZONE_ACTIONBAR_INTERVAL_SECONDS = builder
+            .comment("Seconds between action bar reminders of the accumulated toll when Xaero's minimap is absent.")
+            .defineInRange("actionBarIntervalSeconds", 30, 1, 3600);
+        BLACK_ZONE_STAGE_ENTRY_MINUTES = builder
+            .comment("Minutes of accumulated black zone time at which each stage starts.")
+            .defineInRange("stageEntryMinutes", 0, 0, 10080);
+        BLACK_ZONE_STAGE_HUNGER_1_MINUTES = builder.defineInRange("stageHunger1Minutes", 20, 0, 10080);
+        BLACK_ZONE_STAGE_HEALTH_2_MINUTES = builder.defineInRange("stageHealth2Minutes", 40, 0, 10080);
+        BLACK_ZONE_STAGE_HEALTH_4_MINUTES = builder.defineInRange("stageHealth4Minutes", 60, 0, 10080);
+        BLACK_ZONE_STAGE_WEAKNESS_MINUTES = builder.defineInRange("stageWeaknessMinutes", 80, 0, 10080);
+        BLACK_ZONE_STAGE_HEALTH_6_MINUTES = builder.defineInRange("stageHealth6Minutes", 100, 0, 10080);
+        BLACK_ZONE_STAGE_SLOWNESS_MINUTES = builder.defineInRange("stageSlownessMinutes", 120, 0, 10080);
+        BLACK_ZONE_STAGE_HUNGER_2_MINUTES = builder.defineInRange("stageHunger2Minutes", 140, 0, 10080);
+        BLACK_ZONE_STAGE_MINING_FATIGUE_MINUTES = builder.defineInRange("stageMiningFatigueMinutes", 150, 0, 10080);
+        BLACK_ZONE_STAGE_KOLYVAN_MINUTES = builder.defineInRange("stageKolyvanMinutes", 160, 0, 10080);
+        BLACK_ZONE_STAGE_POISON_MINUTES = builder.defineInRange("stagePoisonMinutes", 180, 0, 10080);
+        BLACK_ZONE_STAGE_WITHER_MINUTES = builder.defineInRange("stageWitherMinutes", 240, 0, 10080);
+        BLACK_ZONE_HEALTH_PENALTY_ENTRY = builder
+            .comment("Maximum health taken away at each health stage, in half hearts (a full bar is 20).")
+            .defineInRange("healthPenaltyEntry", 1, 0, 19);
+        BLACK_ZONE_HEALTH_PENALTY_SECOND = builder.defineInRange("healthPenaltySecond", 2, 0, 19);
+        BLACK_ZONE_HEALTH_PENALTY_THIRD = builder.defineInRange("healthPenaltyThird", 4, 0, 19);
+        BLACK_ZONE_HEALTH_PENALTY_FOURTH = builder.defineInRange("healthPenaltyFourth", 6, 0, 19);
+        BLACK_ZONE_KOLYVAN_INTERVAL_MINUTES = builder
+            .comment("Real-time minutes between Kolyvan visits while the player stays in the black zone.")
+            .defineInRange("kolyvanIntervalMinutes", 5, 1, 1440);
+        BLACK_ZONE_KOLYVAN_MIN_DISTANCE = builder
+            .comment("Blocks from the player within which Kolyvan appears.")
+            .defineInRange("kolyvanMinDistance", 20, 1, 128);
+        BLACK_ZONE_KOLYVAN_MAX_DISTANCE = builder.defineInRange("kolyvanMaxDistance", 30, 1, 128);
+        BLACK_ZONE_KOLYVAN_LIFETIME_SECONDS = builder
+            .comment("Seconds Kolyvan chases the player before he vanishes silently.")
+            .defineInRange("kolyvanLifetimeSeconds", 30, 1, 600);
+        BLACK_ZONE_KOLYVAN_BLINDNESS_SECONDS = builder
+            .comment("Seconds of blindness Kolyvan leaves behind when he reaches the player.")
+            .defineInRange("kolyvanBlindnessSeconds", 10, 1, 600);
+        BLACK_ZONE_KOLYVAN_REACH_DISTANCE = builder
+            .comment("Distance in blocks at which Kolyvan is considered to have caught the player.")
+            .defineInRange("kolyvanReachDistance", 2.0D, 0.5D, 16.0D);
         builder.pop();
         SPEC = builder.build();
     }

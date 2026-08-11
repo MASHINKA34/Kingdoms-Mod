@@ -10,6 +10,7 @@ import com.geydev.kalfactions.registry.ModEntities;
 import com.geydev.kalfactions.registry.ModFeatures;
 import com.geydev.kalfactions.registry.ModItems;
 import com.geydev.kalfactions.registry.ModLootModifiers;
+import com.geydev.kalfactions.registry.ModSounds;
 import com.geydev.kalfactions.scorched.DisabledRaidFlares;
 import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
@@ -30,6 +31,7 @@ public final class KalFactions {
         ModLootModifiers.register(modBus);
         ModEntities.register(modBus);
         ModFeatures.register(modBus);
+        ModSounds.register(modBus);
         ModCreativeTabs.register(modBus);
         modBus.addListener(DisabledRaidFlares::removeFromCreativeTabs);
         NetherReturnIntegration.install(ModItems.NETHER_RETURN::get, com.geydev.kalfactions.registry.ModDataComponents.NETHER_RETURN_BINDING::get);
