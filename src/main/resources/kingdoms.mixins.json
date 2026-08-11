@@ -35,7 +35,8 @@
     "ProtectionPixelZongMenuMixin",
     "ProtectionPixelArmorContainerFaceMixin",
     "ProtectionPixelFlyDamageMixin",
-    "FireBlockMixin"
+    "FireBlockMixin",
+    "ScorchedGunnerMobSpawnerMixin"
   ],
   "client": [
     "ProtectionPixelArmorRenderMixin",

@@ -1,17 +1,27 @@
 package com.geydev.kalfactions.scorched;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.outpost.cluster.distribution.ResourceZone;
+import com.geydev.kalfactions.territory.WorldZonePolicy;
+import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.ContainerLevelAccess;
@@ -25,6 +35,8 @@ import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import top.ribs.scguns.client.screen.GunBenchMenu;
 import top.ribs.scguns.client.screen.GunBenchRecipe;
+import top.ribs.scguns.config.GunMobValues;
+import top.ribs.scguns.config.GunnerMobSpawner;
 import top.ribs.scguns.util.BlueprintRecipeData;
 
 @GameTestHolder(KalFactions.MOD_ID)
@@ -32,6 +44,7 @@ import top.ribs.scguns.util.BlueprintRecipeData;
 public final class ScorchedIntegrationGameTests {
     private static final ResourceLocation DEEP_DARK_RECIPE = scguns("guns/echoes_2_from_gun_bench");
     private static final ResourceLocation IRON_RECIPE = scguns("guns/auvtomag_from_gun_bench");
+    private static final String GUNNER_MOB_KEY = "scguns:GunnerMob";
 
     @GameTest(template = "empty")
     public static void raidFlareRegistryAndRecipesAreDisabled(GameTestHelper helper) {
@@ -202,6 +215,136 @@ public final class ScorchedIntegrationGameTests {
         helper.assertTrue(pages.get(0).value().getResultItem(helper.getLevel().registryAccess()).isEmpty() == false,
                 "Switching pages must not clear the previous real recipe data");
         helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void gunnerMobsSpawnArmedOutsideTheYellowZoneOnly(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        boolean enabled = GunMobValues.enabled;
+        boolean scaled = GunMobValues.scaleToDifficulty;
+        double chance = GunMobValues.gunnerSpawnChance;
+        List<Entity> spawned = new ArrayList<>();
+        try {
+            GunMobValues.enabled = true;
+            GunMobValues.scaleToDifficulty = false;
+            GunMobValues.gunnerSpawnChance = 100.0D;
+            EntityType<?> alwaysGunner = entityType(helper, scguns("hornlin"));
+            BlockPos red = zoneCenter(level, ResourceZone.RED);
+            BlockPos yellow = zoneCenter(level, ResourceZone.YELLOW);
+
+            PathfinderMob armed = null;
+            for (int attempt = 0; attempt < 64 && armed == null; attempt++) {
+                PathfinderMob candidate = spawnGunner(helper, spawned, alwaysGunner, red);
+                helper.assertTrue(candidate.getPersistentData().getBoolean(GUNNER_MOB_KEY),
+                        "Red zone gunner must run through the Scorched Guns equipment routine");
+                if (DisabledMobGuns.holdsScorchedGun(candidate)) {
+                    armed = candidate;
+                }
+            }
+            helper.assertTrue(armed != null, "Red zone gunner must spawn with a Scorched Guns firearm");
+            helper.assertTrue(GunnerMobSpawner.hasGunAttackGoal(armed),
+                    "Red zone gunner must receive a gun attack goal");
+
+            for (int attempt = 0; attempt < 16; attempt++) {
+                PathfinderMob unarmed = spawnGunner(helper, spawned, alwaysGunner, yellow);
+                helper.assertFalse(unarmed.getPersistentData().getBoolean(GUNNER_MOB_KEY),
+                        "Yellow zone gunner must never reach the Scorched Guns equipment routine");
+                helper.assertFalse(DisabledMobGuns.holdsScorchedGun(unarmed),
+                        "Yellow zone gunner must spawn without a firearm");
+                helper.assertFalse(GunnerMobSpawner.hasGunAttackGoal(unarmed),
+                        "Yellow zone gunner must not receive a gun attack goal");
+            }
+            for (int attempt = 0; attempt < 24; attempt++) {
+                PathfinderMob vanilla = spawnGunner(helper, spawned, EntityType.PILLAGER, yellow);
+                helper.assertFalse(DisabledMobGuns.holdsScorchedGun(vanilla),
+                        "Yellow zone pillager must spawn without a firearm");
+            }
+        } finally {
+            spawned.forEach(Entity::discard);
+            GunMobValues.enabled = enabled;
+            GunMobValues.scaleToDifficulty = scaled;
+            GunMobValues.gunnerSpawnChance = chance;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void yellowZoneSweepStripsMobGunsWithoutDropping(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        List<Entity> spawned = new ArrayList<>();
+        try {
+            Zombie keeper = spawnArmedZombie(helper, spawned, zoneCenter(level, ResourceZone.RED));
+            helper.assertFalse(DisabledMobGuns.sweep(keeper), "Red zone mob must not be swept");
+            helper.assertTrue(DisabledMobGuns.holdsScorchedGun(keeper), "Red zone mob must keep its firearm");
+            helper.assertTrue(GunnerMobSpawner.hasGunAttackGoal(keeper), "Red zone mob must keep its gun attack goal");
+
+            Zombie stripped = spawnArmedZombie(helper, spawned, zoneCenter(level, ResourceZone.YELLOW));
+            helper.assertTrue(DisabledMobGuns.sweep(stripped), "Yellow zone mob must be swept");
+            helper.assertFalse(DisabledMobGuns.holdsScorchedGun(stripped), "Yellow zone mob must lose its firearm");
+            helper.assertFalse(GunnerMobSpawner.hasGunAttackGoal(stripped),
+                    "Yellow zone mob must lose its gun attack goal");
+            helper.assertTrue(level.getEntitiesOfClass(ItemEntity.class, stripped.getBoundingBox().inflate(16.0D))
+                            .isEmpty(),
+                    "Confiscated firearms must never drop on the ground");
+            helper.assertFalse(DisabledMobGuns.sweep(stripped), "A disarmed mob must not be swept again");
+        } finally {
+            spawned.forEach(Entity::discard);
+        }
+        helper.succeed();
+    }
+
+    private static EntityType<?> entityType(GameTestHelper helper, ResourceLocation id) {
+        helper.assertTrue(BuiltInRegistries.ENTITY_TYPE.containsKey(id), "Missing registered entity " + id);
+        return BuiltInRegistries.ENTITY_TYPE.get(id);
+    }
+
+    private static PathfinderMob spawnGunner(
+            GameTestHelper helper,
+            List<Entity> spawned,
+            EntityType<?> type,
+            BlockPos pos
+    ) {
+        Entity entity = type.create(helper.getLevel());
+        helper.assertTrue(entity instanceof PathfinderMob, "Gunner test entity must be a pathfinder mob: " + type);
+        return join(helper, spawned, (PathfinderMob) entity, pos);
+    }
+
+    private static Zombie spawnArmedZombie(GameTestHelper helper, List<Entity> spawned, BlockPos pos) {
+        Zombie zombie = EntityType.ZOMBIE.create(helper.getLevel());
+        helper.assertTrue(zombie != null, "Zombie entity type must be available");
+        ItemStack gun = stack(scguns("pax"));
+        helper.assertFalse(gun.isEmpty(), "Scorched Guns test firearm must be registered");
+        zombie.setItemSlot(EquipmentSlot.MAINHAND, gun);
+        join(helper, spawned, zombie, pos);
+        GunnerMobSpawner.reassessWeaponGoal(zombie);
+        helper.assertTrue(DisabledMobGuns.holdsScorchedGun(zombie), "Test mob must start armed");
+        helper.assertTrue(GunnerMobSpawner.hasGunAttackGoal(zombie), "Test mob must start with a gun attack goal");
+        return zombie;
+    }
+
+    private static <T extends Mob> T join(GameTestHelper helper, List<Entity> spawned, T mob, BlockPos pos) {
+        mob.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, 0.0F, 0.0F);
+        spawned.add(mob);
+        helper.assertTrue(helper.getLevel().addFreshEntity(mob), "Test mob must join the level");
+        return mob;
+    }
+
+    private static BlockPos zoneCenter(ServerLevel level, ResourceZone zone) {
+        BlockPos spawn = level.getSharedSpawnPos();
+        int blue = ModConfigSpec.RESOURCE_BLUE_RADIUS.getAsInt();
+        int yellow = Math.max(blue, ModConfigSpec.RESOURCE_YELLOW_RADIUS.getAsInt());
+        int red = Math.max(yellow, ModConfigSpec.RESOURCE_RED_RADIUS.getAsInt());
+        int offset = switch (zone) {
+            case BLUE -> blue / 2;
+            case YELLOW -> (blue + yellow) / 2;
+            case RED -> (yellow + red) / 2;
+            case BLACK -> red + 1000;
+        };
+        BlockPos pos = spawn.offset(offset, 0, 0);
+        if (WorldZonePolicy.zoneAt(level, pos) != zone) {
+            throw new IllegalStateException("Expected " + zone + " at " + pos);
+        }
+        return pos;
     }
 
     private static BenchHarness bench(GameTestHelper helper, ResourceLocation recipeId) {
