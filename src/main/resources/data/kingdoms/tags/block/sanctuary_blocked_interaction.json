@@ -7,6 +7,10 @@
     {
       "id": "create:framed_glass_door",
       "required": false
+    },
+    {
+      "id": "scguns:gun_shelf",
+      "required": false
     }
   ]
 }

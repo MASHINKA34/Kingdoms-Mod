@@ -5,6 +5,7 @@ import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.market.MarketPlot;
 import com.geydev.kalfactions.market.MarketPlotManager;
 import com.mojang.authlib.GameProfile;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
@@ -198,11 +199,11 @@ public final class SanctuaryGameTests {
     public static void taggedBlocksAreLockedForSanctuaryVisitors(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         SanctuaryManager manager = SanctuaryManager.get(level);
-        Block locked = BuiltInRegistries.BLOCK.getTag(BLOCKED_INTERACTION)
-                .filter(holders -> holders.size() > 0)
-                .map(holders -> holders.get(0).value())
-                .orElse(null);
-        helper.assertTrue(locked != null, "kingdoms:sanctuary_blocked_interaction resolves to at least one block");
+        List<Block> lockedBlocks = BuiltInRegistries.BLOCK.getTag(BLOCKED_INTERACTION)
+                .map(holders -> holders.stream().map(net.minecraft.core.Holder::value).toList())
+                .orElse(List.of());
+        helper.assertTrue(!lockedBlocks.isEmpty(), "kingdoms:sanctuary_blocked_interaction resolves to at least one block");
+        Block locked = lockedBlocks.get(0);
 
         BlockPos anchor = level.getSharedSpawnPos().offset(4_096, 0, -4_096);
         ChunkPos sanctuaryChunk = new ChunkPos(anchor);
@@ -257,6 +258,14 @@ public final class SanctuaryGameTests {
                     "plain trapdoors stay usable at spawn"
             );
             helper.assertFalse(rightClick(visitor, plainDoor).isCanceled(), "plain doors stay usable at spawn");
+
+            for (Block tagged : lockedBlocks) {
+                level.setBlockAndUpdate(openGround, tagged.defaultBlockState());
+                helper.assertTrue(
+                        rightClick(visitor, openGround).isCanceled(),
+                        "visitor cannot use " + BuiltInRegistries.BLOCK.getKey(tagged)
+                );
+            }
         } finally {
             NOTICE_SINK.set(null);
             manager.setClaim(sanctuaryKey, false);
