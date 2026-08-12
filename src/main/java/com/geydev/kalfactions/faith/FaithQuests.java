@@ -24,13 +24,6 @@ public final class FaithQuests {
         };
     }
 
-    public static int offeringTier(int level) {
-        if (level >= 8) {
-            return 3;
-        }
-        return level >= 5 ? 2 : 1;
-    }
-
     public static int trophyTier(int level) {
         if (level >= 9) {
             return 3;
@@ -87,13 +80,12 @@ public final class FaithQuests {
         boolean killsOrTrophy = false;
         switch (god) {
             case SCIENCE -> {
-                int tier = offeringTier(target);
                 int minEntries = ModConfigSpec.FAITH_SCIENCE_MIN_ENTRIES.getAsInt();
                 int maxEntries = Math.max(minEntries, ModConfigSpec.FAITH_SCIENCE_MAX_ENTRIES.getAsInt());
                 int entries = minEntries + random.nextInt(maxEntries - minEntries + 1);
-                int minCount = tierMinCount(tier);
-                int maxCount = Math.max(minCount, tierMaxCount(tier));
-                List<Item> rolled = pick(FaithTags.scienceOfferings(tier), entries, random);
+                int minCount = scienceMinCount(target);
+                int maxCount = Math.max(minCount, scienceMaxCount(target));
+                List<Item> rolled = pick(FaithTags.scienceOfferings(target), entries, random);
                 for (Item item : rolled) {
                     requirements.add(FaithRequirement.ofItem(
                             item,
@@ -102,22 +94,24 @@ public final class FaithQuests {
                 }
                 int specialCount = ModConfigSpec.FAITH_SCIENCE_SPECIAL_COUNT.getAsInt();
                 if (hasSpecialOffering(target) && specialCount > 0) {
-                    int specialTier = Math.min(3, tier + 1);
-                    for (Item item : pick(FaithTags.scienceOfferings(specialTier), 1, random, rolled)) {
+                    int specialLevel = Math.min(FaithGod.MAX_LEVEL, target + 1);
+                    for (Item item : pick(FaithTags.scienceOfferings(specialLevel), 1, random, rolled)) {
                         requirements.add(FaithRequirement.ofItem(item, specialCount));
                     }
                 }
             }
             case ECONOMY -> {
                 spurs = economySpurs(target);
-                int minCount = ModConfigSpec.FAITH_ECONOMY_GEM_MIN_COUNT.getAsInt();
-                int maxCount = Math.max(minCount, ModConfigSpec.FAITH_ECONOMY_GEM_MAX_COUNT.getAsInt());
-                int growth = ModConfigSpec.FAITH_ECONOMY_GEM_PER_LEVEL.getAsInt() * (target - FaithGod.MIN_LEVEL - 1);
+                int minCount = economyMinCount(target);
+                int maxCount = Math.max(minCount, economyMaxCount(target));
                 int entries = ModConfigSpec.FAITH_ECONOMY_GEM_ENTRIES.getAsInt();
-                for (Item item : pick(FaithTags.ECONOMY_OFFERINGS, entries, random)) {
+                List<Item> banned = target < ModConfigSpec.FAITH_ECONOMY_LATE_MIN_LEVEL.getAsInt()
+                        ? FaithTags.sortedItems(FaithTags.ECONOMY_OFFERINGS_LATE)
+                        : List.of();
+                for (Item item : pick(FaithTags.ECONOMY_OFFERINGS, entries, random, banned)) {
                     requirements.add(FaithRequirement.ofItem(
                             item,
-                            minCount + random.nextInt(maxCount - minCount + 1) + growth
+                            minCount + random.nextInt(maxCount - minCount + 1)
                     ));
                 }
             }
@@ -131,20 +125,24 @@ public final class FaithQuests {
         return new FaithQuest(god, target, requirements, spurs, kills, killsOrTrophy);
     }
 
-    private static int tierMinCount(int tier) {
-        return switch (tier) {
-            case 3 -> ModConfigSpec.FAITH_SCIENCE_TIER3_MIN_COUNT.getAsInt();
-            case 2 -> ModConfigSpec.FAITH_SCIENCE_TIER2_MIN_COUNT.getAsInt();
-            default -> ModConfigSpec.FAITH_SCIENCE_TIER1_MIN_COUNT.getAsInt();
-        };
+    public static int scienceMinCount(int level) {
+        return ModConfigSpec.FAITH_SCIENCE_COUNT_MIN[levelIndex(level)].getAsInt();
     }
 
-    private static int tierMaxCount(int tier) {
-        return switch (tier) {
-            case 3 -> ModConfigSpec.FAITH_SCIENCE_TIER3_MAX_COUNT.getAsInt();
-            case 2 -> ModConfigSpec.FAITH_SCIENCE_TIER2_MAX_COUNT.getAsInt();
-            default -> ModConfigSpec.FAITH_SCIENCE_TIER1_MAX_COUNT.getAsInt();
-        };
+    public static int scienceMaxCount(int level) {
+        return ModConfigSpec.FAITH_SCIENCE_COUNT_MAX[levelIndex(level)].getAsInt();
+    }
+
+    public static int economyMinCount(int level) {
+        return ModConfigSpec.FAITH_ECONOMY_COUNT_MIN[levelIndex(level)].getAsInt();
+    }
+
+    public static int economyMaxCount(int level) {
+        return ModConfigSpec.FAITH_ECONOMY_COUNT_MAX[levelIndex(level)].getAsInt();
+    }
+
+    private static int levelIndex(int level) {
+        return Math.clamp(level, FaithGod.MIN_LEVEL + 1, FaithGod.MAX_LEVEL) - FaithGod.MIN_LEVEL - 1;
     }
 
     private static List<Item> pick(TagKey<Item> tag, int wanted, Random random) {

@@ -1,0 +1,32 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:prismarine_crystals",
+    "minecraft:blaze_rod",
+    "minecraft:torchflower_seeds",
+    "minecraft:turtle_egg",
+    "minecraft:obsidian",
+    "minecraft:ghast_tear",
+    "minecraft:phantom_membrane",
+    "minecraft:pitcher_pod",
+    "minecraft:sniffer_egg",
+    "minecraft:blaze_powder",
+    "minecraft:heart_of_the_sea",
+    {
+      "id": "ars_nouveau:fire_essence",
+      "required": false
+    },
+    {
+      "id": "ars_nouveau:air_essence",
+      "required": false
+    },
+    {
+      "id": "ars_nouveau:blaze_fiber",
+      "required": false
+    },
+    {
+      "id": "ars_nouveau:frostaya_pod",
+      "required": false
+    }
+  ]
+}

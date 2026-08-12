@@ -17,7 +17,6 @@ public final class FaithRenderTypes {
                     .setLineState(new RenderStateShard.LineStateShard(OptionalDouble.of(2.0D)))
                     .setLayeringState(RenderStateShard.VIEW_OFFSET_Z_LAYERING)
                     .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
-                    .setOutputState(RenderStateShard.ITEM_ENTITY_TARGET)
                     .setWriteMaskState(RenderStateShard.COLOR_WRITE)
                     .setCullState(RenderStateShard.NO_CULL)
                     .setDepthTestState(RenderStateShard.NO_DEPTH_TEST)

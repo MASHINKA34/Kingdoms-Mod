@@ -1,0 +1,23 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:ender_pearl",
+    "minecraft:ender_eye",
+    "minecraft:end_crystal",
+    "minecraft:totem_of_undying",
+    "minecraft:netherite_ingot",
+    "minecraft:dragon_breath",
+    "minecraft:echo_shard",
+    "minecraft:nether_star",
+    "minecraft:elytra",
+    "minecraft:shulker_shell",
+    {
+      "id": "create:chromatic_compound",
+      "required": false
+    },
+    {
+      "id": "ars_nouveau:wilden_tribute",
+      "required": false
+    }
+  ]
+}

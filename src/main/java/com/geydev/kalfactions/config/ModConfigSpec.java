@@ -212,12 +212,11 @@ public final class ModConfigSpec {
     public static final IntValue FAITH_CRYSTAL_COST_LEVEL_10;
     public static final IntValue FAITH_SCIENCE_MIN_ENTRIES;
     public static final IntValue FAITH_SCIENCE_MAX_ENTRIES;
-    public static final IntValue FAITH_SCIENCE_TIER1_MIN_COUNT;
-    public static final IntValue FAITH_SCIENCE_TIER1_MAX_COUNT;
-    public static final IntValue FAITH_SCIENCE_TIER2_MIN_COUNT;
-    public static final IntValue FAITH_SCIENCE_TIER2_MAX_COUNT;
-    public static final IntValue FAITH_SCIENCE_TIER3_MIN_COUNT;
-    public static final IntValue FAITH_SCIENCE_TIER3_MAX_COUNT;
+    public static final IntValue[] FAITH_SCIENCE_COUNT_MIN = new IntValue[9];
+    public static final IntValue[] FAITH_SCIENCE_COUNT_MAX = new IntValue[9];
+    public static final IntValue[] FAITH_ECONOMY_COUNT_MIN = new IntValue[9];
+    public static final IntValue[] FAITH_ECONOMY_COUNT_MAX = new IntValue[9];
+    public static final IntValue FAITH_ECONOMY_LATE_MIN_LEVEL;
     public static final IntValue FAITH_SCIENCE_SPECIAL_COUNT;
     public static final IntValue FAITH_WAR_KILLS_LEVEL_2;
     public static final IntValue FAITH_WAR_KILLS_LEVEL_3;
@@ -238,9 +237,6 @@ public final class ModConfigSpec {
     public static final LongValue FAITH_ECONOMY_SPURS_LEVEL_9;
     public static final LongValue FAITH_ECONOMY_SPURS_LEVEL_10;
     public static final IntValue FAITH_ECONOMY_GEM_ENTRIES;
-    public static final IntValue FAITH_ECONOMY_GEM_MIN_COUNT;
-    public static final IntValue FAITH_ECONOMY_GEM_MAX_COUNT;
-    public static final IntValue FAITH_ECONOMY_GEM_PER_LEVEL;
     public static final IntValue FAITH_BUFF_CRYSTAL_COST;
     public static final IntValue FAITH_BUFF_DURATION_MINUTES;
     public static final DoubleValue FAITH_SCIENCE_CRAFT_CHANCE_PER_LEVEL;
@@ -749,19 +745,16 @@ public final class ModConfigSpec {
             .defineInRange("scienceMinEntries", 2, 1, 8);
         FAITH_SCIENCE_MAX_ENTRIES = builder
             .comment("Largest number of natural offerings the science quest rolls for one level.")
-            .defineInRange("scienceMaxEntries", 4, 1, 8);
-        FAITH_SCIENCE_TIER1_MIN_COUNT = builder
-            .comment("Amount range rolled per offering taken from kingdoms:science_offerings_tier1.")
-            .defineInRange("scienceTier1MinCount", 8, 1, 10_000);
-        FAITH_SCIENCE_TIER1_MAX_COUNT = builder.defineInRange("scienceTier1MaxCount", 24, 1, 10_000);
-        FAITH_SCIENCE_TIER2_MIN_COUNT = builder
-            .comment("Amount range rolled per offering taken from kingdoms:science_offerings_tier2.")
-            .defineInRange("scienceTier2MinCount", 2, 1, 10_000);
-        FAITH_SCIENCE_TIER2_MAX_COUNT = builder.defineInRange("scienceTier2MaxCount", 6, 1, 10_000);
-        FAITH_SCIENCE_TIER3_MIN_COUNT = builder
-            .comment("Amount range rolled per offering taken from kingdoms:science_offerings_tier3.")
-            .defineInRange("scienceTier3MinCount", 1, 1, 10_000);
-        FAITH_SCIENCE_TIER3_MAX_COUNT = builder.defineInRange("scienceTier3MaxCount", 1, 1, 10_000);
+            .defineInRange("scienceMaxEntries", 5, 1, 8);
+        int[] scienceMin = {32, 32, 32, 32, 64, 64, 8, 8, 50};
+        int[] scienceMax = {128, 128, 128, 128, 320, 320, 16, 16, 100};
+        builder.comment("Amount range rolled per science offering, one pair per faith level.");
+        for (int level = 2; level <= 10; level++) {
+            FAITH_SCIENCE_COUNT_MIN[level - 2] =
+                builder.defineInRange("scienceMinCountLevel" + level, scienceMin[level - 2], 1, 10_000);
+            FAITH_SCIENCE_COUNT_MAX[level - 2] =
+                builder.defineInRange("scienceMaxCountLevel" + level, scienceMax[level - 2], 1, 10_000);
+        }
         FAITH_SCIENCE_SPECIAL_COUNT = builder
             .comment("Offerings of the next tier up the science quest adds at levels 5, 7 and 9.")
             .defineInRange("scienceSpecialCount", 1, 0, 10_000);
@@ -790,13 +783,18 @@ public final class ModConfigSpec {
         FAITH_ECONOMY_GEM_ENTRIES = builder
             .comment("Number of jewellery kinds the economy quest rolls from kingdoms:economy_offerings.")
             .defineInRange("economyGemEntries", 2, 1, 8);
-        FAITH_ECONOMY_GEM_MIN_COUNT = builder
-            .comment("Amount range rolled per jewellery kind before the per-level growth is added.")
-            .defineInRange("economyGemMinCount", 4, 1, 10_000);
-        FAITH_ECONOMY_GEM_MAX_COUNT = builder.defineInRange("economyGemMaxCount", 10, 1, 10_000);
-        FAITH_ECONOMY_GEM_PER_LEVEL = builder
-            .comment("Extra jewellery of each kind added for every faith level above 2.")
-            .defineInRange("economyGemPerLevel", 3, 0, 10_000);
+        FAITH_ECONOMY_LATE_MIN_LEVEL = builder
+            .comment("Faith level from which kingdoms:economy_offerings_late may be rolled at all.")
+            .defineInRange("economyLateMinLevel", 6, 1, 10);
+        int[] economyMin = {16, 32, 64, 80, 96, 112, 128, 144, 160};
+        int[] economyMax = {32, 64, 80, 96, 112, 128, 144, 160, 176};
+        builder.comment("Amount range rolled per jewellery kind, one pair per faith level.");
+        for (int level = 2; level <= 10; level++) {
+            FAITH_ECONOMY_COUNT_MIN[level - 2] =
+                builder.defineInRange("economyMinCountLevel" + level, economyMin[level - 2], 1, 10_000);
+            FAITH_ECONOMY_COUNT_MAX[level - 2] =
+                builder.defineInRange("economyMaxCountLevel" + level, economyMax[level - 2], 1, 10_000);
+        }
         FAITH_BUFF_CRYSTAL_COST = builder
             .comment("Crystals of the god's own type a small statue takes to light the faction buff.")
             .defineInRange("buffCrystalCost", 4, 0, 10_000);

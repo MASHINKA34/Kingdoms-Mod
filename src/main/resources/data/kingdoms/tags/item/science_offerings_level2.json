@@ -1,0 +1,66 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:dandelion",
+    "minecraft:poppy",
+    "minecraft:blue_orchid",
+    "minecraft:allium",
+    "minecraft:cornflower",
+    "minecraft:lily_of_the_valley",
+    "minecraft:oxeye_daisy",
+    "minecraft:pink_tulip",
+    "minecraft:red_tulip",
+    "minecraft:orange_tulip",
+    "minecraft:white_tulip",
+    "minecraft:azure_bluet",
+    "minecraft:wheat_seeds",
+    "minecraft:beetroot_seeds",
+    "minecraft:sweet_berries",
+    "minecraft:brown_mushroom",
+    "minecraft:red_mushroom",
+    "minecraft:sunflower",
+    "minecraft:lilac",
+    "minecraft:rose_bush",
+    "minecraft:peony",
+    {
+      "id": "croptopia:tomato_seed",
+      "required": false
+    },
+    {
+      "id": "croptopia:corn_seed",
+      "required": false
+    },
+    {
+      "id": "croptopia:cucumber_seed",
+      "required": false
+    },
+    {
+      "id": "croptopia:strawberry_seed",
+      "required": false
+    },
+    {
+      "id": "croptopia:blueberry_seed",
+      "required": false
+    },
+    {
+      "id": "croptopia:grape_seed",
+      "required": false
+    },
+    {
+      "id": "farmersdelight:cabbage_seeds",
+      "required": false
+    },
+    {
+      "id": "farmersdelight:tomato_seeds",
+      "required": false
+    },
+    {
+      "id": "farmersdelight:onion",
+      "required": false
+    },
+    {
+      "id": "farmersdelight:rice",
+      "required": false
+    }
+  ]
+}

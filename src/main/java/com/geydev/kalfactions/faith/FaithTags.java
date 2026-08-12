@@ -13,10 +13,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 
 public final class FaithTags {
-    public static final TagKey<Item> SCIENCE_OFFERINGS_TIER1 = itemTag("science_offerings_tier1");
-    public static final TagKey<Item> SCIENCE_OFFERINGS_TIER2 = itemTag("science_offerings_tier2");
-    public static final TagKey<Item> SCIENCE_OFFERINGS_TIER3 = itemTag("science_offerings_tier3");
     public static final TagKey<Item> ECONOMY_OFFERINGS = itemTag("economy_offerings");
+    public static final TagKey<Item> ECONOMY_OFFERINGS_LATE = itemTag("economy_offerings_late");
     public static final TagKey<Item> BOSS_TROPHIES_TIER1 = itemTag("boss_trophies_tier1");
     public static final TagKey<Item> BOSS_TROPHIES_TIER2 = itemTag("boss_trophies_tier2");
     public static final TagKey<Item> BOSS_TROPHIES_TIER3 = itemTag("boss_trophies_tier3");
@@ -25,12 +23,8 @@ public final class FaithTags {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "highlighted_ores")
     );
 
-    public static TagKey<Item> scienceOfferings(int tier) {
-        return switch (Math.clamp(tier, 1, 3)) {
-            case 3 -> SCIENCE_OFFERINGS_TIER3;
-            case 2 -> SCIENCE_OFFERINGS_TIER2;
-            default -> SCIENCE_OFFERINGS_TIER1;
-        };
+    public static TagKey<Item> scienceOfferings(int level) {
+        return itemTag("science_offerings_level" + Math.clamp(level, 2, 10));
     }
 
     public static TagKey<Item> bossTrophies(int tier) {

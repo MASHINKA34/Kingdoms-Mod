@@ -1,0 +1,32 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:honeycomb",
+    "minecraft:glow_berries",
+    "minecraft:magma_block",
+    "minecraft:magma_cream",
+    "minecraft:glow_ink_sac",
+    "minecraft:nautilus_shell",
+    "minecraft:turtle_scute",
+    "minecraft:amethyst_shard",
+    "minecraft:dead_bush",
+    "minecraft:glow_lichen",
+    "minecraft:sea_pickle",
+    "minecraft:prismarine_shard",
+    "minecraft:ink_sac",
+    "minecraft:slime_ball",
+    "minecraft:honey_bottle",
+    {
+      "id": "ars_nouveau:magebloom_fiber",
+      "required": false
+    },
+    {
+      "id": "ars_nouveau:earth_essence",
+      "required": false
+    },
+    {
+      "id": "ars_nouveau:water_essence",
+      "required": false
+    }
+  ]
+}

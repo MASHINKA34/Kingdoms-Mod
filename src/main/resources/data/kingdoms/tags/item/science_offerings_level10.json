@@ -1,0 +1,26 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:end_stone",
+    "minecraft:netherrack",
+    "minecraft:raw_iron_block",
+    "minecraft:raw_gold_block",
+    "minecraft:raw_copper_block",
+    "minecraft:diamond_block",
+    "minecraft:lapis_block",
+    "minecraft:emerald_block",
+    "minecraft:obsidian",
+    "minecraft:blackstone",
+    "minecraft:deepslate",
+    "minecraft:oak_log",
+    "minecraft:spruce_log",
+    "minecraft:birch_log",
+    "minecraft:jungle_log",
+    "minecraft:acacia_log",
+    "minecraft:dark_oak_log",
+    "minecraft:mangrove_log",
+    "minecraft:cherry_log",
+    "minecraft:crimson_stem",
+    "minecraft:warped_stem"
+  ]
+}

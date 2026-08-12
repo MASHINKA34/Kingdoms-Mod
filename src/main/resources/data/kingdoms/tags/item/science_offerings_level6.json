@@ -1,0 +1,28 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:coal",
+    "minecraft:raw_iron",
+    "minecraft:raw_gold",
+    "minecraft:lapis_lazuli",
+    "minecraft:leather",
+    "minecraft:clay_ball",
+    "minecraft:feather",
+    "minecraft:redstone",
+    "minecraft:flint",
+    "minecraft:string",
+    "minecraft:bone",
+    "minecraft:gunpowder",
+    "minecraft:charcoal",
+    "minecraft:iron_nugget",
+    "minecraft:gold_nugget",
+    {
+      "id": "create:zinc_ingot",
+      "required": false
+    },
+    {
+      "id": "create:andesite_alloy",
+      "required": false
+    }
+  ]
+}

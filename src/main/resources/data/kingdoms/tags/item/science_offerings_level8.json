@@ -1,0 +1,25 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:netherite_ingot",
+    "minecraft:emerald",
+    "minecraft:crying_obsidian",
+    "minecraft:totem_of_undying",
+    "minecraft:heart_of_the_sea",
+    "minecraft:ancient_debris",
+    "minecraft:shulker_shell",
+    "minecraft:echo_shard",
+    {
+      "id": "create:blaze_burner",
+      "required": false
+    },
+    {
+      "id": "create:precision_mechanism",
+      "required": false
+    },
+    {
+      "id": "ars_nouveau:source_gem_block",
+      "required": false
+    }
+  ]
+}

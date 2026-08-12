@@ -206,26 +206,70 @@ public final class FaithGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void scienceOfferingsComeFromTheLevelPool(GameTestHelper helper) {
+        UUID faction = UUID.randomUUID();
+        for (int level = 2; level <= FaithGod.MAX_LEVEL; level++) {
+            FaithQuest quest = FaithQuests.build(faction, FaithGod.SCIENCE, level, 0);
+            int min = FaithQuests.scienceMinCount(level);
+            int max = FaithQuests.scienceMaxCount(level);
+            int special = FaithQuests.hasSpecialOffering(level) ? level + 1 : level;
+            for (int index = 1; index < quest.requirements().size(); index++) {
+                FaithRequirement requirement = quest.requirements().get(index);
+                boolean ownPool = holdsLevelPool(requirement, level);
+                boolean specialPool = holdsLevelPool(requirement, Math.min(FaithGod.MAX_LEVEL, special));
+                helper.assertTrue(
+                        ownPool || specialPool,
+                        "Level " + level + " asked for an item outside its pool"
+                );
+                if (ownPool && requirement.count() != FaithQuests.scienceMinCount(level)) {
+                    helper.assertTrue(
+                            requirement.count() >= min && requirement.count() <= max,
+                            "Level " + level + " rolled " + requirement.count()
+                                    + " outside " + min + ".." + max
+                    );
+                }
+            }
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void scienceAddsASpecialOfferingOnMilestones(GameTestHelper helper) {
         UUID faction = UUID.randomUUID();
-        FaithQuest plain = FaithQuests.build(faction, FaithGod.SCIENCE, 4, 0);
-        helper.assertTrue(
-                plain.requirements().stream().noneMatch(requirement -> holdsTier(requirement, 2)
-                        || holdsTier(requirement, 3)),
-                "Level 4 asked for an offering above its own tier"
-        );
         for (int level : new int[] {5, 7, 9}) {
             FaithQuest quest = FaithQuests.build(faction, FaithGod.SCIENCE, level, 0);
             helper.assertTrue(
-                    quest.requirements().stream().anyMatch(requirement -> holdsTier(requirement, 3)),
-                    "Level " + level + " is missing its special offering"
+                    quest.requirements().stream().anyMatch(requirement -> holdsLevelPool(requirement, level + 1)),
+                    "Level " + level + " is missing its special offering from the next pool"
             );
         }
-        FaithQuest even = FaithQuests.build(faction, FaithGod.SCIENCE, 6, 0);
-        helper.assertTrue(
-                even.requirements().stream().noneMatch(requirement -> holdsTier(requirement, 3)),
-                "Level 6 gained a special offering it should not have"
-        );
+        helper.assertTrue(!FaithQuests.hasSpecialOffering(6), "Level 6 gained a special offering");
+        helper.assertTrue(!FaithQuests.hasSpecialOffering(10), "Level 10 gained a special offering");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void economyKeepsNetheriteForLateLevels(GameTestHelper helper) {
+        UUID faction = UUID.randomUUID();
+        for (int level = 2; level <= FaithGod.MAX_LEVEL; level++) {
+            FaithQuest quest = FaithQuests.build(faction, FaithGod.ECONOMY, level, 0);
+            int min = FaithQuests.economyMinCount(level);
+            int max = FaithQuests.economyMaxCount(level);
+            for (int index = 1; index < quest.requirements().size(); index++) {
+                FaithRequirement requirement = quest.requirements().get(index);
+                helper.assertTrue(
+                        requirement.count() >= min && requirement.count() <= max,
+                        "Economy level " + level + " rolled " + requirement.count()
+                                + " outside " + min + ".." + max
+                );
+                boolean late = requirement.item() != null
+                        && requirement.item().builtInRegistryHolder().is(FaithTags.ECONOMY_OFFERINGS_LATE);
+                helper.assertTrue(
+                        !late || level >= 6,
+                        "Netherite showed up at economy level " + level
+                );
+            }
+        }
         helper.succeed();
     }
 
@@ -293,9 +337,9 @@ public final class FaithGameTests {
         helper.succeed();
     }
 
-    private static boolean holdsTier(FaithRequirement requirement, int tier) {
+    private static boolean holdsLevelPool(FaithRequirement requirement, int level) {
         return requirement.item() != null
-                && requirement.item().builtInRegistryHolder().is(FaithTags.scienceOfferings(tier));
+                && requirement.item().builtInRegistryHolder().is(FaithTags.scienceOfferings(level));
     }
 
     private FaithGameTests() {
