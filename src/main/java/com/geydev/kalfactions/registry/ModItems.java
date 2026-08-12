@@ -180,6 +180,31 @@ public final class ModItems {
             () -> new Item(new Item.Properties())
     );
 
+    public static final DeferredItem<Item> MINIBOSS_TOKEN_GHOST = ITEMS.register(
+            "miniboss_token_ghost",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static final DeferredItem<Item> MINIBOSS_TOKEN_SCULK = ITEMS.register(
+            "miniboss_token_sculk",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static final DeferredItem<Item> MINIBOSS_TOKEN_NETHER = ITEMS.register(
+            "miniboss_token_nether",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static final DeferredItem<Item> MINIBOSS_TOKEN_LUSH_CAVES = ITEMS.register(
+            "miniboss_token_lush_caves",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static final DeferredItem<Item> MINIBOSS_TOKEN_END = ITEMS.register(
+            "miniboss_token_end",
+            () -> new Item(new Item.Properties())
+    );
+
     public static final DeferredItem<Item> BOSS_TROPHY_LESSER = ITEMS.register(
             "boss_trophy_lesser",
             () -> new com.geydev.kalfactions.item.BossTrophyItem(

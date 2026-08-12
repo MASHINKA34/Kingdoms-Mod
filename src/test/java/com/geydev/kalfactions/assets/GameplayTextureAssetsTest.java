@@ -8,6 +8,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 
@@ -19,6 +20,26 @@ final class GameplayTextureAssetsTest {
         assertSquare(image, 32);
         assertTrue(image.getColorModel().hasAlpha());
         assertEquals(0, image.getRGB(0, 0) >>> 24);
+    }
+
+    @Test
+    void minibossTokensAreGameReadyItemTextures() throws IOException {
+        for (String token : List.of(
+                "miniboss_token_ghost",
+                "miniboss_token_sculk",
+                "miniboss_token_nether",
+                "miniboss_token_lush_caves",
+                "miniboss_token_end"
+        )) {
+            BufferedImage image = read("/assets/kingdoms/textures/item/" + token + ".png");
+
+            assertSquare(image, 32);
+            assertTrue(image.getColorModel().hasAlpha());
+            assertEquals(0, image.getRGB(0, 0) >>> 24);
+            assertTrue(hasOpaquePixels(image));
+            assertTrue(readText("/assets/kingdoms/models/item/" + token + ".json")
+                    .contains("\"layer0\": \"kingdoms:item/" + token + "\""));
+        }
     }
 
     @Test
