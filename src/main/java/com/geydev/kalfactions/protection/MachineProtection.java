@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.protection;
 
 import com.geydev.kalfactions.claim.ClaimKey;
+import com.geydev.kalfactions.dungeon.DungeonProtection;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.quarry.QuarryManager;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
@@ -50,6 +51,9 @@ public final class MachineProtection {
         if (QuarryManager.get(serverLevel).isQuarry(serverLevel, target)) {
             return false;
         }
+        if (DungeonProtection.isDungeon(serverLevel, target)) {
+            return false;
+        }
         FactionManager factions = FactionManager.get(serverLevel);
         UUID owner = factions.getFactionIdAt(ClaimKey.of(level, target)).orElse(null);
         if (owner == null) {
@@ -86,7 +90,8 @@ public final class MachineProtection {
             return true;
         }
         return !SanctuaryManager.get(serverLevel).isSanctuary(serverLevel, target)
-                && !QuarryManager.get(serverLevel).isQuarry(serverLevel, target);
+                && !QuarryManager.get(serverLevel).isQuarry(serverLevel, target)
+                && !DungeonProtection.isDungeon(serverLevel, target);
     }
 
     public static boolean canPlayerMine(Level level, BlockPos target, ServerPlayer player) {
@@ -97,6 +102,9 @@ public final class MachineProtection {
             return player.hasPermissions(2);
         }
         if (QuarryManager.get(serverLevel).isQuarry(serverLevel, target)) {
+            return player.hasPermissions(2);
+        }
+        if (DungeonProtection.isDungeon(serverLevel, target)) {
             return player.hasPermissions(2);
         }
         return FactionAccess.canBuild(player, serverLevel, target);

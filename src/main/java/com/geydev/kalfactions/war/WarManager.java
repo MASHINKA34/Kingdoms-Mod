@@ -153,6 +153,9 @@ public final class WarManager extends SavedData {
         if (SanctuaryManager.get(level).isSanctuary(ClaimKey.of(level, pos))) {
             return false;
         }
+        if (com.geydev.kalfactions.dungeon.DungeonProtection.isDungeon(level, pos)) {
+            return false;
+        }
         FactionManager factions = FactionManager.get(level);
         UUID owner = factions.getFactionIdAt(ClaimKey.of(level, pos)).orElse(null);
         if (owner == null) {

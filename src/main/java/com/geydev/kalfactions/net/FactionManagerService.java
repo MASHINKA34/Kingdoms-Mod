@@ -439,6 +439,12 @@ public final class FactionManagerService implements FactionServerHooks.Service {
                     view(player, tablePos)
             );
         }
+        if (claimed && com.geydev.kalfactions.dungeon.DungeonManager.get(player.serverLevel()).isDungeon(key)) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.dungeon.no_claim"),
+                    view(player, tablePos)
+            );
+        }
         FactionManager.OperationResult result = claimed
                 ? manager.claim(faction.id(), key, player.getUUID())
                 : manager.unclaim(faction.id(), key);
@@ -1349,10 +1355,15 @@ public final class FactionManagerService implements FactionServerHooks.Service {
         int radius = ModConfigSpec.CLAIM_SYNC_RADIUS_CHUNKS.get();
         ChunkPos center = player.chunkPosition();
         SanctuaryManager sanctuary = SanctuaryManager.get(player.serverLevel());
+        com.geydev.kalfactions.dungeon.DungeonManager dungeons =
+                com.geydev.kalfactions.dungeon.DungeonManager.get(player.serverLevel());
         Set<ChunkPos> pending = new LinkedHashSet<>();
         for (Long packed : packedChunks) {
             ChunkPos pos = new ChunkPos(packed);
             if (claimed && sanctuary.isSanctuary(ClaimKey.of(player.serverLevel(), pos))) {
+                continue;
+            }
+            if (claimed && dungeons.isDungeon(ClaimKey.of(player.serverLevel(), pos))) {
                 continue;
             }
             if (Math.abs(pos.x - center.x) <= radius && Math.abs(pos.z - center.z) <= radius) {

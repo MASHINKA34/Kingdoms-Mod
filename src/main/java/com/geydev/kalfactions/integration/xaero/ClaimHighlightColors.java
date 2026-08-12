@@ -12,6 +12,8 @@ final class ClaimHighlightColors {
     private static final int BLACK_BORDER_ALPHA = 0xF0;
     private static final int QUARRY_FILL_ALPHA = 0x78;
     private static final int QUARRY_BORDER_ALPHA = 0xD8;
+    private static final int DUNGEON_FILL_ALPHA = 0x88;
+    private static final int DUNGEON_BORDER_ALPHA = 0xE8;
 
     static void fill(ResourceKey<Level> dimension, int chunkX, int chunkZ, ClaimInfo self, int[] result) {
         ColorProfile profile = profile(self);
@@ -49,6 +51,9 @@ final class ClaimHighlightColors {
     static ColorProfile profile(ClaimInfo claim) {
         if (claim.factionId().equals(ClientClaimStore.BLACK_ZONE_ID)) {
             return new ColorProfile(0x080808, BLACK_FILL_ALPHA, BLACK_BORDER_ALPHA);
+        }
+        if (claim.dungeon()) {
+            return new ColorProfile(claim.color(), DUNGEON_FILL_ALPHA, DUNGEON_BORDER_ALPHA);
         }
         if (claim.quarry()) {
             return new ColorProfile(claim.color(), QUARRY_FILL_ALPHA, QUARRY_BORDER_ALPHA);

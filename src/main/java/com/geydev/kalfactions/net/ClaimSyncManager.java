@@ -52,6 +52,7 @@ public final class ClaimSyncManager {
         FactionServerHooks.clearRateLimit(event.getEntity().getUUID());
         com.geydev.kalfactions.outpost.cluster.DrillService.clearRateLimit(event.getEntity().getUUID());
         com.geydev.kalfactions.quarry.QuarryService.clearRateLimit(event.getEntity().getUUID());
+        com.geydev.kalfactions.dungeon.DungeonService.clearRateLimit(event.getEntity().getUUID());
     }
 
     @SubscribeEvent
@@ -71,6 +72,7 @@ public final class ClaimSyncManager {
         long revision = IntegrationManager.revision();
         long sanctuaryRevision = SanctuaryManager.get(player.serverLevel()).revision();
         long quarryRevision = com.geydev.kalfactions.quarry.QuarryManager.get(player.serverLevel()).mapRevision();
+        long dungeonRevision = com.geydev.kalfactions.dungeon.DungeonManager.get(player.serverLevel()).revision();
         ViewerMembership membership = viewerMembership(player);
         SyncState previous = STATES.get(player.getUUID());
         if (previous != null
@@ -78,6 +80,7 @@ public final class ClaimSyncManager {
                 && previous.revision == revision
                 && previous.sanctuaryRevision == sanctuaryRevision
                 && previous.quarryRevision == quarryRevision
+                && previous.dungeonRevision == dungeonRevision
                 && previous.viewerFactionId.equals(membership.factionId())
                 && previous.viewerMemberIds.equals(membership.memberIds())
                 && within(previous.chunkPos, chunkPos)) {
@@ -101,6 +104,7 @@ public final class ClaimSyncManager {
         long revision = IntegrationManager.revision();
         long sanctuaryRevision = SanctuaryManager.get(player.serverLevel()).revision();
         long quarryRevision = com.geydev.kalfactions.quarry.QuarryManager.get(player.serverLevel()).mapRevision();
+        long dungeonRevision = com.geydev.kalfactions.dungeon.DungeonManager.get(player.serverLevel()).revision();
         List<FactionPayloads.ClaimEntry> entries = new ArrayList<>();
         java.util.Set<UUID> frozenFactions =
                 com.geydev.kalfactions.tax.LagTaxManager.get(player.getServer()).frozenFactionIds();
@@ -130,6 +134,33 @@ public final class ClaimSyncManager {
                         false,
                         false,
                         false,
+                        true,
+                        false
+                ));
+            }
+        }
+
+        dungeon:
+        for (com.geydev.kalfactions.dungeon.DungeonManager.DungeonView view
+                : com.geydev.kalfactions.dungeon.DungeonManager.get(player.serverLevel()).all()) {
+            if (!view.dimension().equals(dimension)) {
+                continue;
+            }
+            for (ClaimKey chunk : view.chunks()) {
+                if (entries.size() >= FactionPayloads.S2CSyncClaims.MAX_ENTRIES) {
+                    break dungeon;
+                }
+                entries.add(new FactionPayloads.ClaimEntry(
+                        chunk.x(),
+                        chunk.z(),
+                        com.geydev.kalfactions.config.ModConfigSpec.DUNGEON_COLOR.getAsInt(),
+                        view.name(),
+                        com.geydev.kalfactions.dungeon.DungeonManager.mapId(view.id()),
+                        false,
+                        false,
+                        false,
+                        false,
+                        false,
                         true
                 ));
             }
@@ -150,6 +181,7 @@ public final class ClaimSyncManager {
                     false,
                     false,
                     true,
+                    false,
                     false,
                     false
             ));
@@ -172,6 +204,7 @@ public final class ClaimSyncManager {
                         faction.isForceLoaded(claim),
                         false,
                         frozen,
+                        false,
                         false
                 ));
                 if (entries.size() >= FactionPayloads.S2CSyncClaims.MAX_ENTRIES) {
@@ -195,6 +228,7 @@ public final class ClaimSyncManager {
                         ROGUE_COLOR,
                         ROGUE_NAME,
                         RogueOutpostManager.ROGUE_FACTION_ID,
+                        false,
                         false,
                         false,
                         false,
@@ -226,6 +260,7 @@ public final class ClaimSyncManager {
                 revision,
                 sanctuaryRevision,
                 quarryRevision,
+                dungeonRevision,
                 membership.factionId(),
                 membership.memberIds()
         ));
@@ -266,6 +301,7 @@ public final class ClaimSyncManager {
             long revision,
             long sanctuaryRevision,
             long quarryRevision,
+            long dungeonRevision,
             UUID viewerFactionId,
             List<UUID> viewerMemberIds
     ) {

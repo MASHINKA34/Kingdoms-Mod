@@ -30,7 +30,8 @@ public abstract class FireBlockMixin {
             RandomSource random,
             CallbackInfo ci
     ) {
-        if (SanctuaryFire.blocksFire(level, pos)) {
+        if (SanctuaryFire.blocksFire(level, pos)
+                || com.geydev.kalfactions.dungeon.DungeonProtection.blocksFire(level, pos)) {
             level.removeBlock(pos, false);
             ci.cancel();
         }
@@ -48,7 +49,8 @@ public abstract class FireBlockMixin {
             BlockPos pos,
             CallbackInfoReturnable<Boolean> cir
     ) {
-        if (SanctuaryFire.blocksFire(level, pos)) {
+        if (SanctuaryFire.blocksFire(level, pos)
+                || com.geydev.kalfactions.dungeon.DungeonProtection.blocksFire(level, pos)) {
             cir.setReturnValue(false);
         }
     }
@@ -68,7 +70,8 @@ public abstract class FireBlockMixin {
             Direction face,
             CallbackInfo ci
     ) {
-        if (SanctuaryFire.blocksFire(level, pos)) {
+        if (SanctuaryFire.blocksFire(level, pos)
+                || com.geydev.kalfactions.dungeon.DungeonProtection.blocksFire(level, pos)) {
             ci.cancel();
         }
     }
@@ -83,7 +86,8 @@ public abstract class FireBlockMixin {
             BlockPos pos,
             CallbackInfoReturnable<Integer> cir
     ) {
-        if (SanctuaryFire.blocksFire(level, pos)) {
+        if (SanctuaryFire.blocksFire(level, pos)
+                || com.geydev.kalfactions.dungeon.DungeonProtection.blocksFire(level, pos)) {
             cir.setReturnValue(0);
         }
     }

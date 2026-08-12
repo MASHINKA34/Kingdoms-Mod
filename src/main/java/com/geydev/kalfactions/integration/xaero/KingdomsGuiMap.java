@@ -127,6 +127,7 @@ final class KingdomsGuiMap extends GuiMap {
         if (scoutMode) {
             com.geydev.kalfactions.client.ScoutAreaSelection.clear();
         }
+        com.geydev.kalfactions.client.ClientDungeonSelection.clear();
         super.onClose();
     }
 
@@ -354,6 +355,34 @@ final class KingdomsGuiMap extends GuiMap {
                         options.size(), "kingdoms.xaero_map.sanctuary_mark", toMark, true, sameDimension && withinLimit));
                 options.add(sanctuaryOption(
                         options.size(), "kingdoms.xaero_map.sanctuary_unmark", toUnmark, false, sameDimension && withinLimit));
+
+                if (com.geydev.kalfactions.client.ClientDungeonSelection.isActive()) {
+                    List<Long> toMarkDungeon = new ArrayList<>();
+                    List<Long> toUnmarkDungeon = new ArrayList<>();
+                    for (Long packed : selected) {
+                        ChunkPos pos = new ChunkPos(packed);
+                        ClaimInfo claim = ClientClaimStore.get(clickedDimension, pos.x, pos.z);
+                        if (claim != null && claim.dungeon()) {
+                            toUnmarkDungeon.add(packed);
+                        } else if (claim == null || claim.factionId().equals(ClientClaimStore.BLACK_ZONE_ID)) {
+                            toMarkDungeon.add(packed);
+                        }
+                    }
+                    options.add(dungeonOption(
+                            options.size(),
+                            "kingdoms.xaero_map.dungeon_mark",
+                            toMarkDungeon,
+                            true,
+                            sameDimension && withinLimit
+                    ));
+                    options.add(dungeonOption(
+                            options.size(),
+                            "kingdoms.xaero_map.dungeon_unmark",
+                            toUnmarkDungeon,
+                            false,
+                            sameDimension && withinLimit
+                    ));
+                }
             }
 
             ViewerInfo viewer = ClientClaimStore.viewer();
@@ -417,6 +446,33 @@ final class KingdomsGuiMap extends GuiMap {
             public void onAction(Screen screen) {
                 if (!chunks.isEmpty()) {
                     PacketDistributor.sendToServer(new FactionPayloads.C2SSanctuaryMapSet(claimed, chunks));
+                }
+            }
+        };
+        option.setNameFormatArgs(chunks.size());
+        option.setActive(usable && !chunks.isEmpty());
+        return option;
+    }
+
+    private RightClickOption dungeonOption(
+            int index,
+            String key,
+            List<Long> chunks,
+            boolean marked,
+            boolean usable
+    ) {
+        int dungeonId = com.geydev.kalfactions.client.ClientDungeonSelection.dungeonId();
+        RightClickOption option = new RightClickOption(key, index, this) {
+            @Override
+            public void onAction(Screen screen) {
+                if (!chunks.isEmpty()) {
+                    PacketDistributor.sendToServer(
+                            new com.geydev.kalfactions.dungeon.DungeonPayloads.C2SDungeonMapSet(
+                                    dungeonId,
+                                    marked,
+                                    chunks
+                            )
+                    );
                 }
             }
         };

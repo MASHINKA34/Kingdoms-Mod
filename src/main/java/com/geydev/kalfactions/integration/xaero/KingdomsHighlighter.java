@@ -59,6 +59,13 @@ final class KingdomsHighlighter extends ChunkHighlighter {
             lines.accept(Component.translatable("kingdoms.xaero.black_zone_restriction"));
             return;
         }
+        if (claim.dungeon()) {
+            lines.accept(Component.translatable("kingdoms.xaero.dungeon_title"));
+            if (!claim.name().isBlank()) {
+                lines.accept(Component.literal(claim.name()));
+            }
+            return;
+        }
         if (claim.quarry()) {
             if (claim.name().isBlank()) {
                 lines.accept(Component.translatable("kingdoms.xaero.quarry_neutral_label"));
@@ -84,6 +91,11 @@ final class KingdomsHighlighter extends ChunkHighlighter {
     static Component claimLabel(ClaimInfo claim) {
         if (claim.factionId().equals(ClientClaimStore.BLACK_ZONE_ID)) {
             return Component.translatable("kingdoms.xaero.black_zone_title");
+        }
+        if (claim.dungeon()) {
+            return claim.name().isBlank()
+                    ? Component.translatable("kingdoms.xaero.dungeon_title")
+                    : Component.translatable("kingdoms.xaero.dungeon_label", claim.name());
         }
         if (claim.quarry()) {
             return claim.name().isBlank()

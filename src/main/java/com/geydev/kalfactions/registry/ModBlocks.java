@@ -2,6 +2,7 @@ package com.geydev.kalfactions.registry;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.DrillBlock;
+import com.geydev.kalfactions.block.DungeonCoreBlock;
 import com.geydev.kalfactions.block.EconomyGodStatueBlock;
 import com.geydev.kalfactions.block.FactionTableBlock;
 import com.geydev.kalfactions.block.GuideBoardBlock;
@@ -203,6 +204,15 @@ public final class ModBlocks {
                     .noOcclusion()
                     .dynamicShape()
                     .noLootTable())
+    );
+
+    public static final DeferredBlock<DungeonCoreBlock> DUNGEON_CORE = BLOCKS.register(
+            "dungeon_core",
+            () -> new DungeonCoreBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_PURPLE)
+                    .strength(4.0F, 1200.0F)
+                    .sound(SoundType.DEEPSLATE_TILES)
+                    .pushReaction(PushReaction.BLOCK))
     );
 
     public static void register(IEventBus bus) {

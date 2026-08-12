@@ -25,6 +25,7 @@ public final class ClientClaimStore {
             false,
             false,
             false,
+            false,
             false
     );
 
@@ -36,7 +37,8 @@ public final class ClientClaimStore {
             boolean forceLoaded,
             boolean sanctuary,
             boolean frozen,
-            boolean quarry
+            boolean quarry,
+            boolean dungeon
     ) {
     }
 
@@ -118,7 +120,8 @@ public final class ClientClaimStore {
                         forceLoaded,
                         claim.sanctuary(),
                         claim.frozen(),
-                        claim.quarry())
+                        claim.quarry(),
+                        claim.dungeon())
         );
         BY_DIMENSION.put(dimension, Map.copyOf(updated));
         REGION_HASHES.put(dimension, regionHashes(updated));
@@ -178,6 +181,7 @@ public final class ClientClaimStore {
             claimHash = claimHash * 31 + (claim.sanctuary() ? 1 : 0);
             claimHash = claimHash * 31 + (claim.frozen() ? 1 : 0);
             claimHash = claimHash * 31 + (claim.quarry() ? 1 : 0);
+            claimHash = claimHash * 31 + (claim.dungeon() ? 1 : 0);
             claimHash = claimHash * 31 + claim.name().hashCode();
             touchedRegions.clear();
             for (int dx = -1; dx <= 1; dx++) {
@@ -218,6 +222,9 @@ public final class ClientClaimStore {
     }
 
     static int priority(ClaimInfo claim) {
+        if (claim.dungeon()) {
+            return 4;
+        }
         if (claim.quarry()) {
             return 3;
         }

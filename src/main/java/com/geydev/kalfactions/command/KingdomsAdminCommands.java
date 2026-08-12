@@ -160,7 +160,8 @@ public final class KingdomsAdminCommands {
                         .then(Commands.literal("status")
                                 .executes(KingdomsAdminCommands::mapStatus)))
                 .then(ClusterCommands.build())
-                .then(BlackZoneCommands.build()));
+                .then(BlackZoneCommands.build())
+                .then(com.geydev.kalfactions.dungeon.DungeonCommands.build()));
     }
 
     private static int scoutSpawn(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {

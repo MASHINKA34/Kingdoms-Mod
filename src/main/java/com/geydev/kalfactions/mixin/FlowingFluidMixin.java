@@ -37,6 +37,10 @@ public abstract class FlowingFluidMixin {
             ci.cancel();
             return;
         }
+        if (com.geydev.kalfactions.dungeon.DungeonProtection.isDungeon(serverLevel, pos)) {
+            ci.cancel();
+            return;
+        }
         if (!SanctuaryManager.get(serverLevel).isSanctuary(serverLevel, source)) {
             return;
         }

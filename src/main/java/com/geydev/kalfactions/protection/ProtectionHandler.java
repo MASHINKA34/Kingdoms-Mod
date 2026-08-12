@@ -65,6 +65,12 @@ public final class ProtectionHandler {
             deny(player, "kingdoms.protection.no_break");
             return;
         }
+        if (!player.hasPermissions(2)
+                && com.geydev.kalfactions.dungeon.DungeonProtection.isDungeon(level, breakPos)) {
+            event.setCanceled(true);
+            deny(player, "kingdoms.dungeon.protected");
+            return;
+        }
         WarManager wars = WarManager.get(level);
         boolean warBreak = isWarBreak(player, level, breakPos, wars);
         boolean canBuild = !warBreak && FactionAccess.canBuild(player, level, breakPos);

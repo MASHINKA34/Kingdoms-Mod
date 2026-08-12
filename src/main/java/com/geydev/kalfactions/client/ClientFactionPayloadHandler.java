@@ -189,7 +189,8 @@ public final class ClientFactionPayloadHandler {
                 entry.forceLoaded(),
                 entry.sanctuary(),
                 entry.frozen(),
-                entry.quarry()
+                entry.quarry(),
+                entry.dungeon()
         );
         claims.merge(
                 chunk,

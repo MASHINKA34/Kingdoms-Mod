@@ -252,6 +252,8 @@ public final class ModConfigSpec {
     public static final IntValue FAITH_ECONOMY_HIGHLIGHT_RADIUS;
     public static final IntValue FAITH_ECONOMY_HIGHLIGHT_MAX_BLOCKS;
     public static final IntValue FAITH_ECONOMY_HIGHLIGHT_SCAN_TICKS;
+    public static final IntValue DUNGEON_COLOR;
+    public static final IntValue DUNGEON_LOOT_COOLDOWN_HOURS;
 
     static {
         Builder builder = new Builder();
@@ -840,6 +842,15 @@ public final class ModConfigSpec {
         FAITH_ECONOMY_HIGHLIGHT_SCAN_TICKS = builder
             .comment("Client ticks between ore outline rescans.")
             .defineInRange("economyHighlightScanTicks", 20, 1, 600);
+        builder.pop();
+
+        builder.push("dungeon");
+        DUNGEON_COLOR = builder
+            .comment("RRGGBB colour used for dungeon chunks on the Xaero map.")
+            .defineInRange("mapColor", 0x9B30FF, 0x000000, 0xFFFFFF);
+        DUNGEON_LOOT_COOLDOWN_HOURS = builder
+            .comment("Real-time hours between loot refills of a registered dungeon container.")
+            .defineInRange("lootCooldownHours", 4, 0, 8760);
         builder.pop();
         SPEC = builder.build();
     }

@@ -57,7 +57,10 @@ public abstract class BucketItemMixin extends Item {
         Direction direction = hit.getDirection();
         QuarryManager manager = QuarryManager.get(serverLevel);
         if (manager.isQuarry(serverLevel, pos)
-                || manager.isQuarry(serverLevel, pos.relative(direction))) {
+                || manager.isQuarry(serverLevel, pos.relative(direction))
+                || com.geydev.kalfactions.dungeon.DungeonProtection.isDungeon(serverLevel, pos)
+                || com.geydev.kalfactions.dungeon.DungeonProtection.isDungeon(
+                        serverLevel, pos.relative(direction))) {
             cir.setReturnValue(InteractionResultHolder.fail(player.getItemInHand(hand)));
         }
     }
@@ -74,7 +77,8 @@ public abstract class BucketItemMixin extends Item {
                 || entity instanceof ServerPlayer player && player.hasPermissions(2)) {
             return;
         }
-        if (QuarryManager.get(serverLevel).isQuarry(serverLevel, pos)) {
+        if (QuarryManager.get(serverLevel).isQuarry(serverLevel, pos)
+                || com.geydev.kalfactions.dungeon.DungeonProtection.isDungeon(serverLevel, pos)) {
             cir.setReturnValue(false);
         }
     }
