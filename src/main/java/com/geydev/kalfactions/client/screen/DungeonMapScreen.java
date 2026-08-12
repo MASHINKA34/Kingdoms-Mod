@@ -134,9 +134,9 @@ public final class DungeonMapScreen extends Screen {
         }
         graphics.drawString(
                 font,
-                font.plainSubstrByWidth(statusMessage, PANEL_WIDTH - 24),
-                panelLeft + 18,
-                panelTop + PANEL_HEIGHT - 42,
+                font.plainSubstrByWidth(statusMessage, PANEL_WIDTH - 190 - 16),
+                panelLeft + 190,
+                panelTop + PANEL_HEIGHT - 60,
                 statusSuccessful ? 0xFF91D69B : 0xFFE29388,
                 true
         );

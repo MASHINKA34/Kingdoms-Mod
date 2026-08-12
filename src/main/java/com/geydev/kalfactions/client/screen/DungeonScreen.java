@@ -13,7 +13,8 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class DungeonScreen extends Screen {
     private static final int PANEL_WIDTH = 260;
-    private static final int PANEL_HEIGHT = 196;
+    private static final int PANEL_HEIGHT = 214;
+    private static final int STATUS_WIDTH = 160;
     private static final int GOLD = 0xFFF3D58B;
     private static final int TEXT = 0xFFE8DFCB;
     private static final int MUTED = 0xFF9A8F7A;
@@ -62,7 +63,7 @@ public final class DungeonScreen extends Screen {
         nameBox = new EditBox(
                 font,
                 panelLeft + 12,
-                panelTop + 34,
+                panelTop + 30,
                 PANEL_WIDTH - 24,
                 18,
                 Component.translatable("screen.kingdoms.dungeon.name_hint")
@@ -77,7 +78,7 @@ public final class DungeonScreen extends Screen {
                 Component.translatable("screen.kingdoms.dungeon.save_name"),
                 button -> submitName(),
                 panelLeft + 12,
-                panelTop + 56,
+                panelTop + 52,
                 PANEL_WIDTH - 24,
                 20
         ));
@@ -86,7 +87,7 @@ public final class DungeonScreen extends Screen {
                 Component.translatable("screen.kingdoms.dungeon.select_area"),
                 button -> openMap(),
                 panelLeft + 12,
-                panelTop + 122,
+                panelTop + 132,
                 PANEL_WIDTH - 24,
                 20
         ));
@@ -105,7 +106,7 @@ public final class DungeonScreen extends Screen {
                         }
                 )),
                 panelLeft + 12,
-                panelTop + 146,
+                panelTop + 156,
                 PANEL_WIDTH - 24,
                 20
         ));
@@ -153,10 +154,10 @@ public final class DungeonScreen extends Screen {
         BlockPos core = state.corePos();
         graphics.drawString(font,
                 Component.translatable("screen.kingdoms.dungeon.chunks", state.chunkCount()),
-                panelLeft + 12, panelTop + 84, TEXT, true);
+                panelLeft + 12, panelTop + 80, TEXT, true);
         graphics.drawString(font,
                 Component.translatable("screen.kingdoms.dungeon.dimension", state.dimension().toString()),
-                panelLeft + 12, panelTop + 96, MUTED, true);
+                panelLeft + 12, panelTop + 92, MUTED, true);
         graphics.drawString(font,
                 Component.translatable(
                         "screen.kingdoms.dungeon.core",
@@ -164,11 +165,10 @@ public final class DungeonScreen extends Screen {
                         core.getY(),
                         core.getZ()
                 ),
-                panelLeft + 12, panelTop + 108, MUTED, true);
-
+                panelLeft + 12, panelTop + 104, MUTED, true);
         graphics.drawString(font,
                 Component.translatable("screen.kingdoms.dungeon.containers", state.containerCount()),
-                panelLeft + 12, panelTop + PANEL_HEIGHT - 40, MUTED, true);
+                panelLeft + 12, panelTop + 116, MUTED, true);
         renderStatus(graphics);
     }
 
@@ -178,9 +178,9 @@ public final class DungeonScreen extends Screen {
         }
         graphics.drawString(
                 font,
-                font.plainSubstrByWidth(statusMessage, PANEL_WIDTH - 24),
+                font.plainSubstrByWidth(statusMessage, STATUS_WIDTH),
                 panelLeft + 12,
-                panelTop + PANEL_HEIGHT - 52,
+                panelTop + PANEL_HEIGHT - 32,
                 statusSuccessful ? 0xFF91D69B : 0xFFE29388,
                 true
         );
