@@ -52,6 +52,7 @@ class ClientClaimStoreTest {
                 false,
                 false,
                 false,
+                false,
                 false
         );
         replace(Map.of(packed, faction));
@@ -108,7 +109,8 @@ class ClientClaimStoreTest {
                 false,
                 sanctuary,
                 false,
-                quarry
+                quarry,
+                false
         );
     }
 

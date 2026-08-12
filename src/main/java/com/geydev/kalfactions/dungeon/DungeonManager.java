@@ -165,6 +165,16 @@ public final class DungeonManager extends SavedData {
         return new CreateResult(Reason.OK, dungeon.view());
     }
 
+    public synchronized boolean bindCore(int id, BlockPos corePos) {
+        Dungeon dungeon = dungeons.get(id);
+        if (dungeon == null || dungeon.corePos.equals(corePos)) {
+            return false;
+        }
+        dungeon.corePos = corePos.immutable();
+        setDirty();
+        return true;
+    }
+
     public synchronized boolean remove(int id) {
         Dungeon dungeon = dungeons.remove(id);
         if (dungeon == null) {
@@ -407,10 +417,10 @@ public final class DungeonManager extends SavedData {
     private static final class Dungeon {
         private final int id;
         private final ResourceKey<Level> dimension;
-        private final BlockPos corePos;
         private final long createdAt;
         private final Set<ClaimKey> chunks = new LinkedHashSet<>();
         private final Map<Long, LootEntry> containers = new LinkedHashMap<>();
+        private BlockPos corePos;
         private String name;
 
         private Dungeon(int id, String name, ResourceKey<Level> dimension, BlockPos corePos, long createdAt) {

@@ -83,11 +83,17 @@ public final class DungeonCommands {
             source.sendFailure(failure(result.reason()));
             return 0;
         }
-        ClaimSyncManager.resyncAll(level.getServer());
         DungeonManager.DungeonView dungeon = result.dungeon();
+        DungeonManager.get(level).setClaims(
+                level,
+                dungeon.id(),
+                List.of(ClaimKey.of(level, player.blockPosition())),
+                true
+        );
+        ClaimSyncManager.resyncAll(level.getServer());
         source.sendSuccess(() -> Component.literal(
-                "Данж «" + dungeon.name() + "» создан (#" + dungeon.id() + "). "
-                        + "Отметьте чанки на карте через краеугольный камень данжа."), true);
+                "Данж «" + dungeon.name() + "» создан (#" + dungeon.id() + "), текущий чанк отмечен. "
+                        + "Остальные чанки — через краеугольный камень данжа."), true);
         return 1;
     }
 

@@ -164,6 +164,11 @@ public final class DungeonService {
         if (existing != null) {
             return existing;
         }
+        DungeonManager.DungeonView here = manager.dungeonAt(ClaimKey.of(level, corePos)).orElse(null);
+        if (here != null) {
+            manager.bindCore(here.id(), corePos);
+            return manager.byId(here.id()).orElse(here);
+        }
         DungeonManager.CreateResult result = manager.create(level, corePos, manager.suggestName());
         if (!result.successful()) {
             return null;

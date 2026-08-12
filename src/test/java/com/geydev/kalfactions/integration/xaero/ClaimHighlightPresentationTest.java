@@ -81,7 +81,8 @@ class ClaimHighlightPresentationTest {
                 false,
                 false,
                 false,
-                quarry
+                quarry,
+                false
         );
     }
 
