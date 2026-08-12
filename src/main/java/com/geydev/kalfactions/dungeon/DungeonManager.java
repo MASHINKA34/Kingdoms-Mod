@@ -6,7 +6,6 @@ import com.geydev.kalfactions.outpost.RogueOutpostManager;
 import com.geydev.kalfactions.quarry.QuarryManager;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import com.geydev.kalfactions.territory.WorldZonePolicy;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -500,17 +499,4 @@ public final class DungeonManager extends SavedData {
         }
     }
 
-    private List<ClaimKey> chunkList(ResourceKey<Level> dimension) {
-        List<ClaimKey> keys = new ArrayList<>();
-        for (ClaimKey key : chunkIndex.keySet()) {
-            if (key.dimension().equals(dimension)) {
-                keys.add(key);
-            }
-        }
-        return keys;
-    }
-
-    public synchronized List<ClaimKey> claimsIn(ResourceKey<Level> dimension) {
-        return List.copyOf(chunkList(dimension));
-    }
 }
