@@ -20,6 +20,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 public final class DungeonService {
     private static final double MAX_CORE_DISTANCE_SQR = 64.0D;
     private static final long ACTION_COOLDOWN_TICKS = 2L;
+    private static final long EDIT_COOLDOWN_TICKS = 1L;
     private static final ConcurrentHashMap<UUID, Long> LAST_ACTION_TICK = new ConcurrentHashMap<>();
 
     public static void clearRateLimit(UUID playerId) {
@@ -193,7 +194,7 @@ public final class DungeonService {
     }
 
     public static void chestEntry(ServerPlayer player, DungeonPayloads.C2SDungeonChestEntry payload) {
-        if (!validateChest(player, payload.pos()) || !rateLimit(player)) {
+        if (!validateChest(player, payload.pos()) || !rateLimit(player, EDIT_COOLDOWN_TICKS)) {
             return;
         }
         DungeonChestBlockEntity chest =
@@ -202,11 +203,13 @@ public final class DungeonService {
             chest.setEntry(payload.slot(), payload.chance(), payload.min(), payload.max());
         }
         chest.setCooldownHours(payload.cooldownHours());
-        FactionServerHooks.sendNotice(
-                player,
-                Component.translatable("kingdoms.dungeon.chest_saved"),
-                true
-        );
+        if (payload.announce()) {
+            FactionServerHooks.sendNotice(
+                    player,
+                    Component.translatable("kingdoms.dungeon.chest_saved"),
+                    true
+            );
+        }
     }
 
     public static void chestRefill(ServerPlayer player, BlockPos pos) {
@@ -333,9 +336,13 @@ public final class DungeonService {
     }
 
     private static boolean rateLimit(ServerPlayer player) {
+        return rateLimit(player, ACTION_COOLDOWN_TICKS);
+    }
+
+    private static boolean rateLimit(ServerPlayer player, long cooldownTicks) {
         long now = player.level().getGameTime();
         Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
-        if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
+        if (previous != null && now - previous < cooldownTicks) {
             FactionServerHooks.sendNotice(
                     player,
                     Component.translatable("kingdoms.error.action_rate_limited"),

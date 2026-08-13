@@ -54,7 +54,7 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
 
         addRenderableWidget(KingdomsButton.create(
                 Component.translatable("screen.kingdoms.dungeon_chest.apply"),
-                button -> save(),
+                button -> save(true),
                 leftPos + MARGIN,
                 topPos + 147,
                 85,
@@ -73,15 +73,35 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
         syncSelection();
     }
 
-    private void save() {
+    private void save(boolean announce) {
         PacketDistributor.sendToServer(new DungeonPayloads.C2SDungeonChestEntry(
                 menu.pos(),
                 selected,
                 parse(chanceBox, DungeonChestBlockEntity.DEFAULT_CHANCE, 0, 100),
                 parse(minBox, 1, 1, DungeonChestBlockEntity.MAX_COUNT),
                 parse(maxBox, 1, 1, DungeonChestBlockEntity.MAX_COUNT),
-                parse(cooldownBox, -1, -1, DungeonChestBlockEntity.MAX_COOLDOWN_HOURS)
+                parse(cooldownBox, -1, -1, DungeonChestBlockEntity.MAX_COOLDOWN_HOURS),
+                announce
         ));
+    }
+
+    private void autoSave() {
+        DungeonChestBlockEntity chest = chest();
+        if (chest == null) {
+            return;
+        }
+        int chance = parse(chanceBox, DungeonChestBlockEntity.DEFAULT_CHANCE, 0, 100);
+        int min = parse(minBox, 1, 1, DungeonChestBlockEntity.MAX_COUNT);
+        int max = parse(maxBox, 1, 1, DungeonChestBlockEntity.MAX_COUNT);
+        int cooldown = parse(cooldownBox, -1, -1, DungeonChestBlockEntity.MAX_COOLDOWN_HOURS);
+        boolean entryChanged = selected >= 0
+                && (chest.chanceAt(selected) != chance
+                        || chest.minAt(selected) != Math.min(min, max)
+                        || chest.maxAt(selected) != Math.max(min, max));
+        if (!entryChanged && chest.configuredCooldownHours() == cooldown) {
+            return;
+        }
+        save(false);
     }
 
     private EditBox numberBox(int x, int y, int width, int maxLength) {
@@ -130,6 +150,9 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         int slot = hoveredPlanSlot(mouseX, mouseY);
+        if (slot >= 0 && slot != selected) {
+            autoSave();
+        }
         if (slot >= 0 && getMenu().getCarried().isEmpty() && button == 0) {
             selected = slot;
             syncSelection();
@@ -141,6 +164,12 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
             syncSelection();
         }
         return handled;
+    }
+
+    @Override
+    public void removed() {
+        autoSave();
+        super.removed();
     }
 
     private int hoveredPlanSlot(double mouseX, double mouseY) {

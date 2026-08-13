@@ -208,7 +208,8 @@ public final class DungeonPayloads {
             int chance,
             int min,
             int max,
-            int cooldownHours
+            int cooldownHours,
+            boolean announce
     ) implements CustomPacketPayload {
         public static final int NO_SLOT = -1;
         public static final Type<C2SDungeonChestEntry> TYPE = payloadType("dungeon_chest_entry");
@@ -221,6 +222,7 @@ public final class DungeonPayloads {
                             buffer.writeVarInt(payload.min);
                             buffer.writeVarInt(payload.max);
                             buffer.writeVarInt(payload.cooldownHours + 1);
+                            buffer.writeBoolean(payload.announce);
                         },
                         buffer -> new C2SDungeonChestEntry(
                                 buffer.readBlockPos(),
@@ -232,7 +234,8 @@ public final class DungeonPayloads {
                                         buffer.readVarInt() - 1,
                                         -1,
                                         DungeonChestBlockEntity.MAX_COOLDOWN_HOURS
-                                )
+                                ),
+                                buffer.readBoolean()
                         )
                 );
 
