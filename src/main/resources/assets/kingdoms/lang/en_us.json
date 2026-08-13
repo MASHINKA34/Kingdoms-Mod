@@ -1277,7 +1277,7 @@
   "screen.kingdoms.faith.quest.offer": "Offer",
   "screen.kingdoms.faith.quest.level_up": "Raise faith",
   "screen.kingdoms.faith.quest.maxed": "The highest faith is already reached.",
-  "screen.kingdoms.faith.quest.kills": "Kills outside the faction",
+  "screen.kingdoms.faith.quest.kills": "Player kills",
   "screen.kingdoms.faith.quest.spurs": "Spurs from the treasury",
   "screen.kingdoms.faith.offering.effects": "The blessing grants",
   "screen.kingdoms.faith.offering.cost": "Cost: %1$s of %2$s",
