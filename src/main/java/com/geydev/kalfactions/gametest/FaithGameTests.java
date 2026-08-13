@@ -275,9 +275,14 @@ public final class FaithGameTests {
 
     @GameTest(template = "empty")
     public static void levelTablesMatchTheTunedCurve(GameTestHelper helper) {
+        int[] crystals = {32, 96, 192, 384, 768, 960, 1152, 1344, 1536};
         int[] kills = {2, 4, 6, 9, 12, 15, 19, 23, 27};
         long[] spurs = {4000L, 8000L, 12_000L, 14_000L, 18_000L, 20_000L, 24_000L, 28_000L, 30_000L};
         for (int level = 2; level <= FaithGod.MAX_LEVEL; level++) {
+            helper.assertTrue(
+                    FaithQuests.crystalCost(level) == crystals[level - 2],
+                    "Crystal cost at level " + level + " is " + FaithQuests.crystalCost(level)
+            );
             helper.assertTrue(
                     FaithQuests.warKills(level) == kills[level - 2],
                     "War kills at level " + level + " are " + FaithQuests.warKills(level)

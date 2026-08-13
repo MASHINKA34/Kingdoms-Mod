@@ -735,15 +735,15 @@ public final class ModConfigSpec {
         builder.push("statues");
         FAITH_CRYSTAL_COST_LEVEL_2 = builder
             .comment("Crystals of the god's own type each faith level costs.")
-            .defineInRange("crystalCostLevel2", 8, 0, 10_000);
-        FAITH_CRYSTAL_COST_LEVEL_3 = builder.defineInRange("crystalCostLevel3", 16, 0, 10_000);
-        FAITH_CRYSTAL_COST_LEVEL_4 = builder.defineInRange("crystalCostLevel4", 24, 0, 10_000);
-        FAITH_CRYSTAL_COST_LEVEL_5 = builder.defineInRange("crystalCostLevel5", 32, 0, 10_000);
-        FAITH_CRYSTAL_COST_LEVEL_6 = builder.defineInRange("crystalCostLevel6", 48, 0, 10_000);
-        FAITH_CRYSTAL_COST_LEVEL_7 = builder.defineInRange("crystalCostLevel7", 64, 0, 10_000);
-        FAITH_CRYSTAL_COST_LEVEL_8 = builder.defineInRange("crystalCostLevel8", 80, 0, 10_000);
-        FAITH_CRYSTAL_COST_LEVEL_9 = builder.defineInRange("crystalCostLevel9", 96, 0, 10_000);
-        FAITH_CRYSTAL_COST_LEVEL_10 = builder.defineInRange("crystalCostLevel10", 128, 0, 10_000);
+            .defineInRange("crystalCostLevel2", 32, 0, 100_000);
+        FAITH_CRYSTAL_COST_LEVEL_3 = builder.defineInRange("crystalCostLevel3", 96, 0, 100_000);
+        FAITH_CRYSTAL_COST_LEVEL_4 = builder.defineInRange("crystalCostLevel4", 192, 0, 100_000);
+        FAITH_CRYSTAL_COST_LEVEL_5 = builder.defineInRange("crystalCostLevel5", 384, 0, 100_000);
+        FAITH_CRYSTAL_COST_LEVEL_6 = builder.defineInRange("crystalCostLevel6", 768, 0, 100_000);
+        FAITH_CRYSTAL_COST_LEVEL_7 = builder.defineInRange("crystalCostLevel7", 960, 0, 100_000);
+        FAITH_CRYSTAL_COST_LEVEL_8 = builder.defineInRange("crystalCostLevel8", 1152, 0, 100_000);
+        FAITH_CRYSTAL_COST_LEVEL_9 = builder.defineInRange("crystalCostLevel9", 1344, 0, 100_000);
+        FAITH_CRYSTAL_COST_LEVEL_10 = builder.defineInRange("crystalCostLevel10", 1536, 0, 100_000);
         FAITH_SCIENCE_MIN_ENTRIES = builder
             .comment("Smallest number of natural offerings the science quest rolls for one level.")
             .defineInRange("scienceMinEntries", 2, 1, 8);
