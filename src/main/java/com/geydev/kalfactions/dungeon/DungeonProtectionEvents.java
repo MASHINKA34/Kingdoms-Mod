@@ -31,7 +31,8 @@ public final class DungeonProtectionEvents {
                 || player.hasPermissions(2)) {
             return;
         }
-        if (level.getBlockState(event.getPos()).is(ModBlocks.DUNGEON_CORE.get())) {
+        if (level.getBlockState(event.getPos()).is(ModBlocks.DUNGEON_CORE.get())
+                || level.getBlockState(event.getPos()).is(ModBlocks.DUNGEON_CHEST.get())) {
             event.setCanceled(true);
             deny(player, "kingdoms.dungeon.not_operator");
             return;
@@ -61,6 +62,14 @@ public final class DungeonProtectionEvents {
                 return;
             }
             DungeonService.ensure(level, event.getPos().immutable());
+            return;
+        }
+
+        if (event.getPlacedBlock().is(ModBlocks.DUNGEON_CHEST.get()) && !operator) {
+            event.setCanceled(true);
+            if (player != null) {
+                deny(player, "kingdoms.dungeon.not_operator");
+            }
             return;
         }
 

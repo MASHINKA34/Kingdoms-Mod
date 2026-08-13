@@ -2,6 +2,7 @@ package com.geydev.kalfactions.registry;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.DrillBlock;
+import com.geydev.kalfactions.block.DungeonChestBlock;
 import com.geydev.kalfactions.block.DungeonCoreBlock;
 import com.geydev.kalfactions.block.EconomyGodStatueBlock;
 import com.geydev.kalfactions.block.FactionTableBlock;
@@ -212,6 +213,15 @@ public final class ModBlocks {
                     .mapColor(MapColor.COLOR_PURPLE)
                     .strength(4.0F, 1200.0F)
                     .sound(SoundType.DEEPSLATE_TILES)
+                    .pushReaction(PushReaction.BLOCK))
+    );
+
+    public static final DeferredBlock<DungeonChestBlock> DUNGEON_CHEST = BLOCKS.register(
+            "dungeon_chest",
+            () -> new DungeonChestBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_PURPLE)
+                    .strength(4.0F, 1200.0F)
+                    .sound(SoundType.WOOD)
                     .pushReaction(PushReaction.BLOCK))
     );
 

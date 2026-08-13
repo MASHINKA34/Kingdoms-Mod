@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.dungeon;
 
+import com.geydev.kalfactions.block.DungeonChestBlockEntity;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.net.ClaimSyncManager;
 import com.geydev.kalfactions.net.FactionServerHooks;
@@ -175,6 +176,90 @@ public final class DungeonService {
         }
         ClaimSyncManager.resyncAll(level.getServer());
         return result.dungeon();
+    }
+
+    public static void openChest(ServerPlayer player, BlockPos pos) {
+        if (!validateChest(player, pos)) {
+            return;
+        }
+        sendChestState(player, pos, Component.empty(), true);
+    }
+
+    public static void chestAction(ServerPlayer player, DungeonPayloads.C2SDungeonChestAction payload) {
+        if (!validateChest(player, payload.pos()) || !rateLimit(player)) {
+            return;
+        }
+        DungeonChestBlockEntity chest =
+                (DungeonChestBlockEntity) player.serverLevel().getBlockEntity(payload.pos());
+        switch (payload.action()) {
+            case DungeonPayloads.C2SDungeonChestAction.ACTION_SAVE_TEMPLATE -> {
+                chest.saveTemplate();
+                sendChestState(
+                        player,
+                        payload.pos(),
+                        Component.translatable("kingdoms.dungeon.chest_template_saved", chest.templateCount()),
+                        true
+                );
+            }
+            case DungeonPayloads.C2SDungeonChestAction.ACTION_REFRESH -> {
+                chest.refill();
+                sendChestState(player, payload.pos(), Component.translatable("kingdoms.dungeon.chest_refreshed"), true);
+            }
+            default -> {
+                boolean applied = chest.configure(payload.mode(), payload.lootTable(), payload.cooldownHours());
+                sendChestState(
+                        player,
+                        payload.pos(),
+                        Component.translatable(applied
+                                ? "kingdoms.dungeon.chest_saved"
+                                : "kingdoms.dungeon.chest_bad_table"),
+                        applied
+                );
+            }
+        }
+    }
+
+    public static void sendChestState(
+            ServerPlayer player,
+            BlockPos pos,
+            Component message,
+            boolean successful
+    ) {
+        if (!(player.serverLevel().getBlockEntity(pos) instanceof DungeonChestBlockEntity chest)) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player, new DungeonPayloads.S2CDungeonChestState(
+                pos,
+                chest.mode(),
+                chest.lootTableId(),
+                chest.configuredCooldownHours(),
+                (int) (chest.cooldownMillis() / 3_600_000L),
+                chest.templateCount(),
+                chest.remainingMillis(),
+                chest.configured(),
+                message,
+                successful
+        ));
+    }
+
+    private static boolean validateChest(ServerPlayer player, BlockPos pos) {
+        if (!validatePlayer(player)) {
+            return false;
+        }
+        if (!player.level().isLoaded(pos)) {
+            FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.error.table_not_loaded"), false);
+            return false;
+        }
+        if (player.distanceToSqr(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D)
+                > MAX_CORE_DISTANCE_SQR) {
+            FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.error.table_too_far"), false);
+            return false;
+        }
+        if (!(player.serverLevel().getBlockEntity(pos) instanceof DungeonChestBlockEntity)) {
+            FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.dungeon.not_chest"), false);
+            return false;
+        }
+        return true;
     }
 
     public static boolean canPlaceCore(ServerPlayer player, ServerLevel level, BlockPos pos) {

@@ -232,6 +232,9 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> DUNGEON_CORE =
             ITEMS.registerSimpleBlockItem(ModBlocks.DUNGEON_CORE);
 
+    public static final DeferredItem<BlockItem> DUNGEON_CHEST =
+            ITEMS.registerSimpleBlockItem(ModBlocks.DUNGEON_CHEST);
+
     public static Item crystalFor(InfluenceType type) {
         return switch (type) {
             case SCIENCE -> CRYSTAL_SCIENCE.get();

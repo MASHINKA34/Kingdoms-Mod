@@ -13,7 +13,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class DungeonNetwork {
-    private static final String PROTOCOL_VERSION = "1";
+    private static final String PROTOCOL_VERSION = "2";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -38,11 +38,33 @@ public final class DungeonNetwork {
                 DungeonPayloads.C2SDungeonMapSet.STREAM_CODEC,
                 DungeonNetwork::handleMapSet
         );
+        registrar.playToServer(
+                DungeonPayloads.C2SDungeonChestAction.TYPE,
+                DungeonPayloads.C2SDungeonChestAction.STREAM_CODEC,
+                DungeonNetwork::handleChestAction
+        );
         registrar.playToClient(
                 DungeonPayloads.S2COpenDungeon.TYPE,
                 DungeonPayloads.S2COpenDungeon.STREAM_CODEC,
                 DungeonNetwork::handleOpen
         );
+        registrar.playToClient(
+                DungeonPayloads.S2CDungeonChestState.TYPE,
+                DungeonPayloads.S2CDungeonChestState.STREAM_CODEC,
+                DungeonNetwork::handleChestState
+        );
+    }
+
+    private static void handleChestAction(DungeonPayloads.C2SDungeonChestAction payload, IPayloadContext context) {
+        if (context.player() instanceof ServerPlayer player) {
+            DungeonService.chestAction(player, payload);
+        }
+    }
+
+    private static void handleChestState(DungeonPayloads.S2CDungeonChestState payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientDungeonState.acceptChest(payload);
+        }
     }
 
     private static void handleRename(DungeonPayloads.C2SRenameDungeon payload, IPayloadContext context) {

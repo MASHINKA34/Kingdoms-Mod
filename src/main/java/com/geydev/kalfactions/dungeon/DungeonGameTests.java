@@ -1,10 +1,11 @@
 package com.geydev.kalfactions.dungeon;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.block.DungeonChestBlockEntity;
 import com.geydev.kalfactions.claim.ClaimKey;
-import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.protection.MachineProtection;
+import com.geydev.kalfactions.registry.ModBlocks;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import com.mojang.authlib.GameProfile;
 import java.util.List;
@@ -21,6 +22,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.world.RandomizableContainer;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
@@ -28,7 +32,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.living.FinalizeSpawnEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -262,6 +268,111 @@ public final class DungeonGameTests {
             manager.remove(dungeon.id());
         }
         helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "dungeon_loot", timeoutTicks = 600)
+    public static void dungeonChestRefillsFromTheSavedTemplate(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        DungeonManager manager = DungeonManager.get(level);
+        BlockPos anchor = blackZoneAnchor(level, 6);
+        DungeonManager.DungeonView dungeon = createDungeon(helper, level, manager, anchor, "Тест сундука");
+        BlockPos chestPos = anchor.above();
+        AtomicLong clock = new AtomicLong(5_000_000L);
+        DungeonClock.override(clock::get);
+        try {
+            level.setBlockAndUpdate(chestPos, ModBlocks.DUNGEON_CHEST.get().defaultBlockState());
+            helper.assertTrue(
+                    level.getBlockEntity(chestPos) instanceof DungeonChestBlockEntity,
+                    "the dungeon chest has its block entity"
+            );
+            DungeonChestBlockEntity chest = (DungeonChestBlockEntity) level.getBlockEntity(chestPos);
+
+            helper.assertFalse(chest.configured(), "a fresh dungeon chest is unconfigured");
+            helper.assertFalse(chest.refillIfDue(), "an unconfigured chest never refills");
+
+            chest.setItem(0, new ItemStack(Items.DIAMOND, 2));
+            chest.saveTemplate();
+            helper.assertTrue(chest.configured(), "saving the template configures the chest");
+            helper.assertTrue(chest.templateCount() == 1, "the template kept one stack");
+
+            chest.setItem(0, new ItemStack(Items.DIRT, 1));
+            helper.assertFalse(chest.refillIfDue(), "the chest keeps its contents during the cooldown");
+            helper.assertTrue(chest.getItem(0).is(Items.DIRT), "player items survive during the cooldown");
+
+            clock.addAndGet(chest.cooldownMillis());
+            helper.assertTrue(chest.refillIfDue(), "the chest refills once the cooldown expired");
+            helper.assertTrue(chest.getItem(0).is(Items.DIAMOND), "the template came back");
+            helper.assertTrue(chest.getItem(0).getCount() == 2, "the template stack size came back");
+            helper.assertFalse(chest.refillIfDue(), "the cooldown restarts after a refill");
+
+            chest.resetCooldown();
+            helper.assertTrue(chest.refillIfDue(), "resetCooldown makes the chest refill at once");
+
+            helper.assertTrue(
+                    DungeonLoot.containerAt(level, chestPos) == null,
+                    "the structure-chest registry ignores dungeon chests"
+            );
+        } finally {
+            DungeonClock.reset();
+            level.setBlockAndUpdate(chestPos, Blocks.AIR.defaultBlockState());
+            manager.remove(dungeon.id());
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "dungeon_claims", timeoutTicks = 600)
+    public static void naturalSpawnsAreBlockedButCommandSpawnsAreNot(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        DungeonManager manager = DungeonManager.get(level);
+        BlockPos anchor = blackZoneAnchor(level, 7);
+        DungeonManager.DungeonView dungeon = createDungeon(helper, level, manager, anchor, "Тест спавна");
+        BlockPos inside = anchor.above();
+        BlockPos outside = anchor.offset(64, 1, 0);
+        try {
+            level.getChunk(new ChunkPos(outside).x, new ChunkPos(outside).z);
+            helper.assertTrue(spawnCancelled(level, inside, MobSpawnType.NATURAL), "natural spawns are blocked");
+            helper.assertTrue(
+                    spawnCancelled(level, inside, MobSpawnType.CHUNK_GENERATION),
+                    "passive chunk-generation spawns are blocked too"
+            );
+            helper.assertFalse(
+                    spawnCancelled(level, inside, MobSpawnType.COMMAND),
+                    "command blocks keep spawning mobs"
+            );
+            helper.assertFalse(
+                    spawnCancelled(level, inside, MobSpawnType.SPAWN_EGG),
+                    "spawn eggs keep working"
+            );
+            helper.assertFalse(
+                    spawnCancelled(level, outside, MobSpawnType.NATURAL),
+                    "mobs still spawn outside the dungeon"
+            );
+        } finally {
+            manager.remove(dungeon.id());
+        }
+        helper.succeed();
+    }
+
+    private static boolean spawnCancelled(ServerLevel level, BlockPos pos, MobSpawnType type) {
+        Zombie zombie = EntityType.ZOMBIE.create(level);
+        if (zombie == null) {
+            throw new IllegalStateException("Zombie could not be created");
+        }
+        zombie.moveTo(Vec3.atBottomCenterOf(pos));
+        FinalizeSpawnEvent event = new FinalizeSpawnEvent(
+                zombie,
+                level,
+                pos.getX() + 0.5D,
+                pos.getY(),
+                pos.getZ() + 0.5D,
+                level.getCurrentDifficultyAt(pos),
+                type,
+                null,
+                null
+        );
+        NeoForge.EVENT_BUS.post(event);
+        zombie.discard();
+        return event.isSpawnCancelled();
     }
 
     private static DungeonManager.DungeonView createDungeon(

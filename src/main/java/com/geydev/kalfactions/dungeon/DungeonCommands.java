@@ -255,6 +255,13 @@ public final class DungeonCommands {
         ServerPlayer player = source.getPlayerOrException();
         ServerLevel level = player.serverLevel();
         BlockPos pos = lookingAt(player);
+        if (pos != null
+                && level.getBlockEntity(pos) instanceof com.geydev.kalfactions.block.DungeonChestBlockEntity chest) {
+            chest.resetCooldown();
+            chest.refillIfDue();
+            source.sendSuccess(() -> Component.literal("Сундук данжа перезаполнен."), true);
+            return 1;
+        }
         if (pos == null || !DungeonManager.get(level).touchLoot(level, pos, 0L)) {
             source.sendFailure(Component.literal("Смотрите на зарегистрированный контейнер данжа."));
             return 0;

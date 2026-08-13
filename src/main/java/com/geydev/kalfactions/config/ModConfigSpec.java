@@ -254,6 +254,8 @@ public final class ModConfigSpec {
     public static final IntValue FAITH_ECONOMY_HIGHLIGHT_SCAN_TICKS;
     public static final IntValue DUNGEON_COLOR;
     public static final IntValue DUNGEON_LOOT_COOLDOWN_HOURS;
+    public static final BooleanValue DUNGEON_DISABLE_MOB_SPAWNS;
+    public static final BooleanValue DUNGEON_ALLOW_SPAWNER_MOBS;
 
     static {
         Builder builder = new Builder();
@@ -851,6 +853,12 @@ public final class ModConfigSpec {
         DUNGEON_LOOT_COOLDOWN_HOURS = builder
             .comment("Real-time hours between loot refills of a registered dungeon container.")
             .defineInRange("lootCooldownHours", 4, 0, 8760);
+        DUNGEON_DISABLE_MOB_SPAWNS = builder
+            .comment("Prevent every natural mob spawn (hostile and passive alike) inside dungeon chunks.")
+            .define("disableMobSpawns", true);
+        DUNGEON_ALLOW_SPAWNER_MOBS = builder
+            .comment("Let vanilla spawner blocks keep working inside dungeon chunks while natural spawning is off.")
+            .define("allowSpawnerMobs", true);
         builder.pop();
         SPEC = builder.build();
     }

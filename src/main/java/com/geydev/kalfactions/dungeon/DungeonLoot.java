@@ -17,6 +17,9 @@ import net.minecraft.world.level.storage.loot.LootTable;
 public final class DungeonLoot {
     public static RandomizableContainer containerAt(ServerLevel level, BlockPos pos) {
         BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity instanceof com.geydev.kalfactions.block.DungeonChestBlockEntity) {
+            return null;
+        }
         return blockEntity instanceof RandomizableContainer container ? container : null;
     }
 

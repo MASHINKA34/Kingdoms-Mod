@@ -6,6 +6,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 import java.util.List;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -23,6 +24,7 @@ public final class ModCreativeTabs {
                     .icon(() -> ModItems.ACCESS_TOOL.get().getDefaultInstance())
                     .displayItems((parameters, output) -> {
                         creativeItems().forEach(output::accept);
+                        vanillaTools().forEach(output::accept);
                     })
                     .build()
     );
@@ -53,6 +55,8 @@ public final class ModCreativeTabs {
                 ModItems.DRILL.get(),
                 ModItems.WORLD_MAP.get(),
                 ModItems.XAERO_MAP_ARCHIVE.get(),
+                ModItems.DUNGEON_CORE.get(),
+                ModItems.DUNGEON_CHEST.get(),
                 ModItems.ACCESS_TOOL.get(),
                 ModItems.OUTPOST_CHARTER.get(),
                 ModItems.QUARRY_ACTIVATOR.get(),
@@ -79,8 +83,15 @@ public final class ModCreativeTabs {
                 ModItems.MINIBOSS_TOKEN_END.get(),
                 ModItems.BOSS_TROPHY_LESSER.get(),
                 ModItems.BOSS_TROPHY_GREATER.get(),
-                ModItems.BOSS_TROPHY_LEGENDARY.get(),
-                ModItems.DUNGEON_CORE.get()
+                ModItems.BOSS_TROPHY_LEGENDARY.get()
+        );
+    }
+
+    public static List<Item> vanillaTools() {
+        return List.of(
+                Items.COMMAND_BLOCK,
+                Items.CHAIN_COMMAND_BLOCK,
+                Items.REPEATING_COMMAND_BLOCK
         );
     }
 

@@ -201,6 +201,89 @@ public final class DungeonPayloads {
         }
     }
 
+    public record C2SDungeonChestAction(
+            BlockPos pos,
+            int action,
+            int mode,
+            String lootTable,
+            int cooldownHours
+    ) implements CustomPacketPayload {
+        public static final int ACTION_APPLY = 0;
+        public static final int ACTION_SAVE_TEMPLATE = 1;
+        public static final int ACTION_REFRESH = 2;
+        public static final int MAX_TABLE_LENGTH = 128;
+        public static final Type<C2SDungeonChestAction> TYPE = payloadType("dungeon_chest_action");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SDungeonChestAction> STREAM_CODEC =
+                StreamCodec.of(
+                        (buffer, payload) -> {
+                            buffer.writeBlockPos(payload.pos);
+                            buffer.writeVarInt(payload.action);
+                            buffer.writeVarInt(payload.mode);
+                            buffer.writeUtf(payload.lootTable, MAX_TABLE_LENGTH);
+                            buffer.writeVarInt(payload.cooldownHours + 1);
+                        },
+                        buffer -> new C2SDungeonChestAction(
+                                buffer.readBlockPos(),
+                                Math.clamp(buffer.readVarInt(), ACTION_APPLY, ACTION_REFRESH),
+                                Math.clamp(buffer.readVarInt(), 0, 1),
+                                buffer.readUtf(MAX_TABLE_LENGTH),
+                                Math.clamp(buffer.readVarInt() - 1, -1, 8760)
+                        )
+                );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record S2CDungeonChestState(
+            BlockPos pos,
+            int mode,
+            String lootTable,
+            int cooldownHours,
+            int effectiveCooldownHours,
+            int templateCount,
+            long remainingMillis,
+            boolean configured,
+            Component message,
+            boolean successful
+    ) implements CustomPacketPayload {
+        public static final Type<S2CDungeonChestState> TYPE = payloadType("dungeon_chest_state");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CDungeonChestState> STREAM_CODEC =
+                StreamCodec.of(
+                        (buffer, payload) -> {
+                            buffer.writeBlockPos(payload.pos);
+                            buffer.writeVarInt(payload.mode);
+                            buffer.writeUtf(payload.lootTable, C2SDungeonChestAction.MAX_TABLE_LENGTH);
+                            buffer.writeVarInt(payload.cooldownHours + 1);
+                            buffer.writeVarInt(payload.effectiveCooldownHours);
+                            buffer.writeVarInt(payload.templateCount);
+                            buffer.writeLong(payload.remainingMillis);
+                            buffer.writeBoolean(payload.configured);
+                            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buffer, payload.message);
+                            buffer.writeBoolean(payload.successful);
+                        },
+                        buffer -> new S2CDungeonChestState(
+                                buffer.readBlockPos(),
+                                Math.clamp(buffer.readVarInt(), 0, 1),
+                                buffer.readUtf(C2SDungeonChestAction.MAX_TABLE_LENGTH),
+                                Math.clamp(buffer.readVarInt() - 1, -1, 8760),
+                                Math.clamp(buffer.readVarInt(), 0, 8760),
+                                Math.max(0, buffer.readVarInt()),
+                                Math.max(0L, buffer.readLong()),
+                                buffer.readBoolean(),
+                                ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer),
+                                buffer.readBoolean()
+                        )
+                );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> payloadType(String path) {
         return new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, path));
     }

@@ -2,6 +2,7 @@ package com.geydev.kalfactions.registry;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.DrillBlockEntity;
+import com.geydev.kalfactions.block.DungeonChestBlockEntity;
 import com.geydev.kalfactions.block.EconomyGodStatueBlockEntity;
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
 import com.geydev.kalfactions.block.GuideBoardBlockEntity;
@@ -54,6 +55,10 @@ public final class ModBlockEntities {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "stone_god_statue");
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<StoneGodStatueBlockEntity>> STONE_GOD_STATUE =
             DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, STONE_GOD_STATUE_ID);
+    public static final ResourceLocation DUNGEON_CHEST_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "dungeon_chest");
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DungeonChestBlockEntity>> DUNGEON_CHEST =
+            DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, DUNGEON_CHEST_ID);
     @SubscribeEvent
     public static void register(RegisterEvent event) {
         event.register(Registries.BLOCK_ENTITY_TYPE, FACTION_TABLE_ID, () -> {
@@ -133,6 +138,15 @@ public final class ModBlockEntities {
                 throw new IllegalStateException("Stone god statues must be registered before their block entity type");
             }
             return BlockEntityType.Builder.of(StoneGodStatueBlockEntity::new, research, war, economy).build(null);
+        });
+        event.register(Registries.BLOCK_ENTITY_TYPE, DUNGEON_CHEST_ID, () -> {
+            Block block = BuiltInRegistries.BLOCK.get(DUNGEON_CHEST_ID);
+            if (block == Blocks.AIR) {
+                throw new IllegalStateException(
+                        "kingdoms:dungeon_chest must be registered before its block entity type"
+                );
+            }
+            return BlockEntityType.Builder.of(DungeonChestBlockEntity::new, block).build(null);
         });
     }
 
