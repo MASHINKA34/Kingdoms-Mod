@@ -50,3 +50,6 @@ repo/
 
 ### Local generated artifacts ###
 /outputs/
+
+__pycache__/
+*.pyc
