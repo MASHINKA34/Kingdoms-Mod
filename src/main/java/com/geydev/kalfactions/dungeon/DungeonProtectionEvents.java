@@ -65,11 +65,15 @@ public final class DungeonProtectionEvents {
             return;
         }
 
-        if (event.getPlacedBlock().is(ModBlocks.DUNGEON_CHEST.get()) && !operator) {
-            event.setCanceled(true);
-            if (player != null) {
-                deny(player, "kingdoms.dungeon.not_operator");
+        if (event.getPlacedBlock().is(ModBlocks.DUNGEON_CHEST.get())) {
+            if (!operator) {
+                event.setCanceled(true);
+                if (player != null) {
+                    deny(player, "kingdoms.dungeon.not_operator");
+                }
+                return;
             }
+            DungeonManager.get(level).trackChest(level, event.getPos().immutable());
             return;
         }
 

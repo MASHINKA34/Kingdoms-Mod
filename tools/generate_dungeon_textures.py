@@ -233,8 +233,61 @@ def chest_bottom():
     return canvas
 
 
+def wood_panel(canvas, x0, y0, width, height):
+    for y in range(y0, y0 + height):
+        for x in range(x0, x0 + width):
+            shade = noise(x, y)
+            if shade == 0:
+                canvas.put(x, y, WOOD_DARK)
+            elif shade >= 6:
+                canvas.put(x, y, WOOD_LIGHT)
+            else:
+                canvas.put(x, y, WOOD)
+    for y in range(y0 + 3, y0 + height, 4):
+        for x in range(x0, x0 + width):
+            canvas.put(x, y, WOOD_DARK)
+
+
+def metal_strip(canvas, x0, y0, width, height):
+    canvas.rect(x0, y0, x0 + width - 1, y0 + height - 1, IRON)
+    for y in range(y0, y0 + height):
+        canvas.put(x0, y, IRON_LIGHT)
+        canvas.put(x0 + width - 1, y, IRON_DARK)
+
+
+def chest_entity():
+    """Vanilla single-chest UV layout: lid at texOffs(0,0), body at texOffs(0,19), lock at texOffs(0,0)."""
+    canvas = Canvas(64)
+    lid_faces = ((0, 14, 14, 5), (14, 0, 14, 14), (28, 0, 14, 14),
+                 (14, 14, 14, 5), (28, 14, 14, 5), (42, 14, 14, 5))
+    body_faces = ((0, 33, 14, 10), (14, 19, 14, 14), (28, 19, 14, 14),
+                  (14, 33, 14, 10), (28, 33, 14, 10), (42, 33, 14, 10))
+    for x0, y0, width, height in lid_faces + body_faces:
+        wood_panel(canvas, x0, y0, width, height)
+    for x0, y0, width, height in lid_faces + body_faces:
+        metal_strip(canvas, x0 + width // 2 - 1, y0, 2, height)
+    for x0, y0, width, height in body_faces:
+        metal_strip(canvas, x0, y0, width, 1)
+        metal_strip(canvas, x0, y0 + height - 1, width, 1)
+
+    canvas.rect(0, 0, 5, 4, IRON)
+    canvas.rect(1, 1, 2, 4, IRON_LIGHT)
+    canvas.put(1, 2, PURPLE)
+    canvas.put(2, 2, PURPLE_LIGHT)
+    canvas.put(1, 3, PURPLE_DEEP)
+    canvas.put(2, 3, PURPLE)
+    canvas.put(0, 1, IRON_DARK)
+    canvas.put(3, 1, IRON_DARK)
+    return canvas
+
+
 def main():
     os.makedirs(ROOT, exist_ok=True)
+    entity_root = os.path.join(os.path.dirname(__file__), '..', 'src', 'main', 'resources',
+                               'assets', 'kingdoms', 'textures', 'entity', 'chest')
+    os.makedirs(entity_root, exist_ok=True)
+    chest_entity().save(os.path.join(entity_root, 'dungeon_chest.png'))
+    print('wrote entity/chest/dungeon_chest.png')
     textures = {
         'dungeon_core_top': core_top(),
         'dungeon_core_side': core_side(),

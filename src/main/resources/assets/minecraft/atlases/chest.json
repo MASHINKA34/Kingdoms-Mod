@@ -1,0 +1,8 @@
+{
+  "sources": [
+    {
+      "type": "minecraft:single",
+      "resource": "kingdoms:entity/chest/dungeon_chest"
+    }
+  ]
+}

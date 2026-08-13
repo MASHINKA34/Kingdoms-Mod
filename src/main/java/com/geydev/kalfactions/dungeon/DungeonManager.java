@@ -50,6 +50,7 @@ public final class DungeonManager extends SavedData {
     private static final String TAG_POS = "pos";
     private static final String TAG_LOOT_TABLE = "lootTable";
     private static final String TAG_LAST_FILLED = "lastFilled";
+    private static final String TAG_CHESTS = "chests";
 
     private final Map<Integer, Dungeon> dungeons = new LinkedHashMap<>();
     private final Map<ClaimKey, Integer> chunkIndex = new LinkedHashMap<>();
@@ -270,6 +271,7 @@ public final class DungeonManager extends SavedData {
             } else if (dungeon.chunks.remove(key)) {
                 chunkIndex.remove(key);
                 dungeon.containers.keySet().removeIf(packed -> key.contains(BlockPos.of(packed)));
+                dungeon.chests.removeIf(packed -> key.contains(BlockPos.of(packed)));
                 changed++;
             }
         }
@@ -324,6 +326,24 @@ public final class DungeonManager extends SavedData {
         dungeon.containers.replaceAll((packed, entry) -> new LootEntry(entry.lootTable(), 0L));
         setDirty();
         return dungeon.containers.size();
+    }
+
+    public synchronized boolean trackChest(Level level, BlockPos pos) {
+        Dungeon dungeon = dungeonFor(level, pos);
+        if (dungeon == null || !dungeon.chests.add(pos.asLong())) {
+            return false;
+        }
+        setDirty();
+        return true;
+    }
+
+    public synchronized boolean untrackChest(Level level, BlockPos pos) {
+        Dungeon dungeon = dungeonFor(level, pos);
+        if (dungeon == null || !dungeon.chests.remove(pos.asLong())) {
+            return false;
+        }
+        setDirty();
+        return true;
     }
 
     public synchronized int lootCount(int dungeonId) {
@@ -419,6 +439,7 @@ public final class DungeonManager extends SavedData {
         private final long createdAt;
         private final Set<ClaimKey> chunks = new LinkedHashSet<>();
         private final Map<Long, LootEntry> containers = new LinkedHashMap<>();
+        private final Set<Long> chests = new LinkedHashSet<>();
         private BlockPos corePos;
         private String name;
 
@@ -438,7 +459,7 @@ public final class DungeonManager extends SavedData {
                     corePos,
                     Set.copyOf(chunks),
                     createdAt,
-                    containers.size()
+                    containers.size() + chests.size()
             );
         }
 
@@ -461,6 +482,7 @@ public final class DungeonManager extends SavedData {
                 containerList.add(containerTag);
             }
             tag.put(TAG_CONTAINERS, containerList);
+            tag.putLongArray(TAG_CHESTS, chests.stream().mapToLong(Long::longValue).toArray());
             return tag;
         }
 
@@ -494,6 +516,9 @@ public final class DungeonManager extends SavedData {
                         containerTag.getLong(TAG_POS),
                         new LootEntry(lootTable, containerTag.getLong(TAG_LAST_FILLED))
                 );
+            }
+            for (long packed : tag.getLongArray(TAG_CHESTS)) {
+                dungeon.chests.add(packed);
             }
             return dungeon;
         }

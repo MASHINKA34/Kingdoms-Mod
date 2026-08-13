@@ -88,6 +88,10 @@ public final class DungeonLootEvents {
                 continue;
             }
             for (BlockPos pos : Set.copyOf(loaded.getBlockEntitiesPos())) {
+                if (level.getBlockEntity(pos) instanceof com.geydev.kalfactions.block.DungeonChestBlockEntity) {
+                    DungeonManager.get(level).trackChest(level, pos);
+                    continue;
+                }
                 DungeonLoot.registerAutomatically(level, pos);
             }
         }

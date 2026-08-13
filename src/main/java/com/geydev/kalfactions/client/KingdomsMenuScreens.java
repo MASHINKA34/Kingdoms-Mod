@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.client;
 
 import com.geydev.kalfactions.client.screen.DrillScreen;
+import com.geydev.kalfactions.client.screen.DungeonLootScreen;
 import com.geydev.kalfactions.client.screen.QuarryScreen;
 import com.geydev.kalfactions.registry.ModMenuTypes;
 import net.neoforged.bus.api.IEventBus;
@@ -14,6 +15,7 @@ public final class KingdomsMenuScreens {
     public static void onRegisterMenuScreens(RegisterMenuScreensEvent event) {
         event.register(ModMenuTypes.DRILL.get(), DrillScreen::new);
         event.register(ModMenuTypes.QUARRY.get(), QuarryScreen::new);
+        event.register(ModMenuTypes.DUNGEON_LOOT.get(), DungeonLootScreen::new);
     }
 
     private KingdomsMenuScreens() {

@@ -38,9 +38,24 @@ public final class KingdomsClientRenderers {
                 ModBlockEntities.STONE_GOD_STATUE.get(),
                 StoneGodStatueRenderer::new
         );
+        event.registerBlockEntityRenderer(
+                ModBlockEntities.DUNGEON_CHEST.get(),
+                DungeonChestRenderer::new
+        );
     }
 
     private static void onRegisterClientExtensions(RegisterClientExtensionsEvent event) {
+        event.registerItem(new IClientItemExtensions() {
+            private BlockEntityWithoutLevelRenderer renderer;
+
+            @Override
+            public BlockEntityWithoutLevelRenderer getCustomRenderer() {
+                if (renderer == null) {
+                    renderer = new DungeonChestItemRenderer();
+                }
+                return renderer;
+            }
+        }, ModItems.DUNGEON_CHEST.get());
         event.registerItem(new IClientItemExtensions() {
             private BlockEntityWithoutLevelRenderer renderer;
 

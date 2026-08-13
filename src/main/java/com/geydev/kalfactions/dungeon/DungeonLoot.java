@@ -70,14 +70,9 @@ public final class DungeonLoot {
             notice(player, Component.translatable("kingdoms.dungeon.loot_refreshed"));
             return;
         }
-        if (isEmpty(container)) {
-            notice(player, Component.translatable(
-                    "kingdoms.dungeon.loot_cooldown",
-                    formatRemaining(cooldown - elapsed)
-            ));
-            return;
+        if (!isEmpty(container)) {
+            notice(player, Component.translatable("kingdoms.dungeon.loot_warning"));
         }
-        notice(player, Component.translatable("kingdoms.dungeon.loot_warning"));
     }
 
     public static boolean refreshIfDue(ServerLevel level, BlockPos pos) {

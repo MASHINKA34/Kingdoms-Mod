@@ -2,6 +2,7 @@ package com.geydev.kalfactions.registry;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.menu.DrillMenu;
+import com.geydev.kalfactions.menu.DungeonLootMenu;
 import com.geydev.kalfactions.menu.QuarryMenu;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
@@ -23,8 +24,17 @@ public final class ModMenuTypes {
     public static final DeferredHolder<MenuType<?>, MenuType<QuarryMenu>> QUARRY =
             DeferredHolder.create(Registries.MENU, QUARRY_ID);
 
+    public static final ResourceLocation DUNGEON_LOOT_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "dungeon_loot");
+    public static final DeferredHolder<MenuType<?>, MenuType<DungeonLootMenu>> DUNGEON_LOOT =
+            DeferredHolder.create(Registries.MENU, DUNGEON_LOOT_ID);
+
     @SubscribeEvent
     public static void register(RegisterEvent event) {
+        event.register(Registries.MENU, DUNGEON_LOOT_ID, () -> IMenuTypeExtension.create(
+                (containerId, playerInventory, extraData) ->
+                        new DungeonLootMenu(containerId, playerInventory, extraData.readBlockPos())
+        ));
         event.register(Registries.MENU, DRILL_ID, () -> IMenuTypeExtension.create(
                 (containerId, playerInventory, extraData) -> new DrillMenu(containerId, playerInventory)
         ));

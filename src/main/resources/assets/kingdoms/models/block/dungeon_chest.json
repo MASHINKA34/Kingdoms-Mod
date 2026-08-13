@@ -1,9 +1,6 @@
 {
-  "parent": "minecraft:block/cube_bottom_top",
+  "parent": "builtin/entity",
   "textures": {
-    "particle": "kingdoms:block/dungeon_chest_side",
-    "top": "kingdoms:block/dungeon_chest_top",
-    "side": "kingdoms:block/dungeon_chest_side",
-    "bottom": "kingdoms:block/dungeon_chest_bottom"
+    "particle": "kingdoms:block/dungeon_chest_side"
   }
 }

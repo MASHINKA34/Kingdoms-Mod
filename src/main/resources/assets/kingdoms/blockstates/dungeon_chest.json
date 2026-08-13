@@ -1,6 +1,15 @@
 {
   "variants": {
-    "": {
+    "facing=north": {
+      "model": "kingdoms:block/dungeon_chest"
+    },
+    "facing=south": {
+      "model": "kingdoms:block/dungeon_chest"
+    },
+    "facing=west": {
+      "model": "kingdoms:block/dungeon_chest"
+    },
+    "facing=east": {
       "model": "kingdoms:block/dungeon_chest"
     }
   }

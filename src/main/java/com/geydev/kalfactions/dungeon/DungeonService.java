@@ -178,11 +178,27 @@ public final class DungeonService {
         return result.dungeon();
     }
 
-    public static void openChest(ServerPlayer player, BlockPos pos) {
+    public static void openChestEditor(ServerPlayer player, BlockPos pos) {
         if (!validateChest(player, pos)) {
             return;
         }
-        sendChestState(player, pos, Component.empty(), true);
+        player.openMenu(
+                new net.minecraft.world.SimpleMenuProvider(
+                        (containerId, inventory, opener) ->
+                                new com.geydev.kalfactions.menu.DungeonLootMenu(containerId, inventory, pos),
+                        Component.translatable("screen.kingdoms.dungeon_chest.title")
+                ),
+                buffer -> buffer.writeBlockPos(pos)
+        );
+    }
+
+    public static void chestEntry(ServerPlayer player, DungeonPayloads.C2SDungeonChestEntry payload) {
+        if (!validateChest(player, payload.pos()) || !rateLimit(player)) {
+            return;
+        }
+        DungeonChestBlockEntity chest =
+                (DungeonChestBlockEntity) player.serverLevel().getBlockEntity(payload.pos());
+        chest.setEntry(payload.slot(), payload.chance(), payload.min(), payload.max());
     }
 
     public static void chestAction(ServerPlayer player, DungeonPayloads.C2SDungeonChestAction payload) {
@@ -191,55 +207,22 @@ public final class DungeonService {
         }
         DungeonChestBlockEntity chest =
                 (DungeonChestBlockEntity) player.serverLevel().getBlockEntity(payload.pos());
-        switch (payload.action()) {
-            case DungeonPayloads.C2SDungeonChestAction.ACTION_SAVE_TEMPLATE -> {
-                chest.saveTemplate();
-                sendChestState(
-                        player,
-                        payload.pos(),
-                        Component.translatable("kingdoms.dungeon.chest_template_saved", chest.templateCount()),
-                        true
-                );
-            }
-            case DungeonPayloads.C2SDungeonChestAction.ACTION_REFRESH -> {
-                chest.refill();
-                sendChestState(player, payload.pos(), Component.translatable("kingdoms.dungeon.chest_refreshed"), true);
-            }
-            default -> {
-                boolean applied = chest.configure(payload.mode(), payload.lootTable(), payload.cooldownHours());
-                sendChestState(
-                        player,
-                        payload.pos(),
-                        Component.translatable(applied
-                                ? "kingdoms.dungeon.chest_saved"
-                                : "kingdoms.dungeon.chest_bad_table"),
-                        applied
-                );
-            }
-        }
-    }
-
-    public static void sendChestState(
-            ServerPlayer player,
-            BlockPos pos,
-            Component message,
-            boolean successful
-    ) {
-        if (!(player.serverLevel().getBlockEntity(pos) instanceof DungeonChestBlockEntity chest)) {
+        if (payload.action() == DungeonPayloads.C2SDungeonChestAction.ACTION_REFRESH) {
+            chest.resetCooldown();
+            chest.refill();
+            FactionServerHooks.sendNotice(
+                    player,
+                    Component.translatable("kingdoms.dungeon.chest_refreshed"),
+                    true
+            );
             return;
         }
-        PacketDistributor.sendToPlayer(player, new DungeonPayloads.S2CDungeonChestState(
-                pos,
-                chest.mode(),
-                chest.lootTableId(),
-                chest.configuredCooldownHours(),
-                (int) (chest.cooldownMillis() / 3_600_000L),
-                chest.templateCount(),
-                chest.remainingMillis(),
-                chest.configured(),
-                message,
-                successful
-        ));
+        chest.setCooldownHours(payload.cooldownHours());
+        FactionServerHooks.sendNotice(
+                player,
+                Component.translatable("kingdoms.dungeon.chest_saved"),
+                true
+        );
     }
 
     private static boolean validateChest(ServerPlayer player, BlockPos pos) {

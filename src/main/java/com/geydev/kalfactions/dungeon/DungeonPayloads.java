@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.dungeon;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.block.DungeonChestBlockEntity;
 import io.netty.handler.codec.DecoderException;
 import java.util.ArrayList;
 import java.util.List;
@@ -201,33 +202,29 @@ public final class DungeonPayloads {
         }
     }
 
-    public record C2SDungeonChestAction(
+    public record C2SDungeonChestEntry(
             BlockPos pos,
-            int action,
-            int mode,
-            String lootTable,
-            int cooldownHours
+            int slot,
+            int chance,
+            int min,
+            int max
     ) implements CustomPacketPayload {
-        public static final int ACTION_APPLY = 0;
-        public static final int ACTION_SAVE_TEMPLATE = 1;
-        public static final int ACTION_REFRESH = 2;
-        public static final int MAX_TABLE_LENGTH = 128;
-        public static final Type<C2SDungeonChestAction> TYPE = payloadType("dungeon_chest_action");
-        public static final StreamCodec<RegistryFriendlyByteBuf, C2SDungeonChestAction> STREAM_CODEC =
+        public static final Type<C2SDungeonChestEntry> TYPE = payloadType("dungeon_chest_entry");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SDungeonChestEntry> STREAM_CODEC =
                 StreamCodec.of(
                         (buffer, payload) -> {
                             buffer.writeBlockPos(payload.pos);
-                            buffer.writeVarInt(payload.action);
-                            buffer.writeVarInt(payload.mode);
-                            buffer.writeUtf(payload.lootTable, MAX_TABLE_LENGTH);
-                            buffer.writeVarInt(payload.cooldownHours + 1);
+                            buffer.writeVarInt(payload.slot);
+                            buffer.writeVarInt(payload.chance);
+                            buffer.writeVarInt(payload.min);
+                            buffer.writeVarInt(payload.max);
                         },
-                        buffer -> new C2SDungeonChestAction(
+                        buffer -> new C2SDungeonChestEntry(
                                 buffer.readBlockPos(),
-                                Math.clamp(buffer.readVarInt(), ACTION_APPLY, ACTION_REFRESH),
-                                Math.clamp(buffer.readVarInt(), 0, 1),
-                                buffer.readUtf(MAX_TABLE_LENGTH),
-                                Math.clamp(buffer.readVarInt() - 1, -1, 8760)
+                                Math.clamp(buffer.readVarInt(), 0, DungeonChestBlockEntity.SIZE - 1),
+                                Math.clamp(buffer.readVarInt(), 0, 100),
+                                Math.clamp(buffer.readVarInt(), 1, DungeonChestBlockEntity.MAX_COUNT),
+                                Math.clamp(buffer.readVarInt(), 1, DungeonChestBlockEntity.MAX_COUNT)
                         )
                 );
 
@@ -237,44 +234,29 @@ public final class DungeonPayloads {
         }
     }
 
-    public record S2CDungeonChestState(
+    public record C2SDungeonChestAction(
             BlockPos pos,
-            int mode,
-            String lootTable,
-            int cooldownHours,
-            int effectiveCooldownHours,
-            int templateCount,
-            long remainingMillis,
-            boolean configured,
-            Component message,
-            boolean successful
+            int action,
+            int cooldownHours
     ) implements CustomPacketPayload {
-        public static final Type<S2CDungeonChestState> TYPE = payloadType("dungeon_chest_state");
-        public static final StreamCodec<RegistryFriendlyByteBuf, S2CDungeonChestState> STREAM_CODEC =
+        public static final int ACTION_COOLDOWN = 0;
+        public static final int ACTION_REFRESH = 1;
+        public static final Type<C2SDungeonChestAction> TYPE = payloadType("dungeon_chest_action");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SDungeonChestAction> STREAM_CODEC =
                 StreamCodec.of(
                         (buffer, payload) -> {
                             buffer.writeBlockPos(payload.pos);
-                            buffer.writeVarInt(payload.mode);
-                            buffer.writeUtf(payload.lootTable, C2SDungeonChestAction.MAX_TABLE_LENGTH);
+                            buffer.writeVarInt(payload.action);
                             buffer.writeVarInt(payload.cooldownHours + 1);
-                            buffer.writeVarInt(payload.effectiveCooldownHours);
-                            buffer.writeVarInt(payload.templateCount);
-                            buffer.writeLong(payload.remainingMillis);
-                            buffer.writeBoolean(payload.configured);
-                            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buffer, payload.message);
-                            buffer.writeBoolean(payload.successful);
                         },
-                        buffer -> new S2CDungeonChestState(
+                        buffer -> new C2SDungeonChestAction(
                                 buffer.readBlockPos(),
-                                Math.clamp(buffer.readVarInt(), 0, 1),
-                                buffer.readUtf(C2SDungeonChestAction.MAX_TABLE_LENGTH),
-                                Math.clamp(buffer.readVarInt() - 1, -1, 8760),
-                                Math.clamp(buffer.readVarInt(), 0, 8760),
-                                Math.max(0, buffer.readVarInt()),
-                                Math.max(0L, buffer.readLong()),
-                                buffer.readBoolean(),
-                                ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer),
-                                buffer.readBoolean()
+                                Math.clamp(buffer.readVarInt(), ACTION_COOLDOWN, ACTION_REFRESH),
+                                Math.clamp(
+                                        buffer.readVarInt() - 1,
+                                        -1,
+                                        DungeonChestBlockEntity.MAX_COOLDOWN_HOURS
+                                )
                         )
                 );
 

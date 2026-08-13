@@ -13,7 +13,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class DungeonNetwork {
-    private static final String PROTOCOL_VERSION = "2";
+    private static final String PROTOCOL_VERSION = "3";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -39,6 +39,11 @@ public final class DungeonNetwork {
                 DungeonNetwork::handleMapSet
         );
         registrar.playToServer(
+                DungeonPayloads.C2SDungeonChestEntry.TYPE,
+                DungeonPayloads.C2SDungeonChestEntry.STREAM_CODEC,
+                DungeonNetwork::handleChestEntry
+        );
+        registrar.playToServer(
                 DungeonPayloads.C2SDungeonChestAction.TYPE,
                 DungeonPayloads.C2SDungeonChestAction.STREAM_CODEC,
                 DungeonNetwork::handleChestAction
@@ -48,11 +53,6 @@ public final class DungeonNetwork {
                 DungeonPayloads.S2COpenDungeon.STREAM_CODEC,
                 DungeonNetwork::handleOpen
         );
-        registrar.playToClient(
-                DungeonPayloads.S2CDungeonChestState.TYPE,
-                DungeonPayloads.S2CDungeonChestState.STREAM_CODEC,
-                DungeonNetwork::handleChestState
-        );
     }
 
     private static void handleChestAction(DungeonPayloads.C2SDungeonChestAction payload, IPayloadContext context) {
@@ -61,9 +61,9 @@ public final class DungeonNetwork {
         }
     }
 
-    private static void handleChestState(DungeonPayloads.S2CDungeonChestState payload, IPayloadContext context) {
-        if (FMLEnvironment.dist == Dist.CLIENT) {
-            ClientDungeonState.acceptChest(payload);
+    private static void handleChestEntry(DungeonPayloads.C2SDungeonChestEntry payload, IPayloadContext context) {
+        if (context.player() instanceof ServerPlayer player) {
+            DungeonService.chestEntry(player, payload);
         }
     }
 

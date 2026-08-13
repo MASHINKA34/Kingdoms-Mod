@@ -271,7 +271,7 @@ public final class DungeonGameTests {
     }
 
     @GameTest(template = "empty", batch = "dungeon_loot", timeoutTicks = 600)
-    public static void dungeonChestRefillsFromTheSavedTemplate(GameTestHelper helper) {
+    public static void dungeonChestRollsItsLootPlan(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         DungeonManager manager = DungeonManager.get(level);
         BlockPos anchor = blackZoneAnchor(level, 6);
@@ -290,23 +290,29 @@ public final class DungeonGameTests {
             helper.assertFalse(chest.configured(), "a fresh dungeon chest is unconfigured");
             helper.assertFalse(chest.refillIfDue(), "an unconfigured chest never refills");
 
-            chest.setItem(0, new ItemStack(Items.DIAMOND, 2));
-            chest.saveTemplate();
-            helper.assertTrue(chest.configured(), "saving the template configures the chest");
-            helper.assertTrue(chest.templateCount() == 1, "the template kept one stack");
+            chest.planContainer().setItem(0, new ItemStack(Items.DIAMOND));
+            chest.setEntry(0, 100, 3, 3);
+            chest.planContainer().setItem(1, new ItemStack(Items.DIRT));
+            chest.setEntry(1, 0, 1, 1);
+            helper.assertTrue(chest.configured(), "a chest with a plan entry counts as configured");
+            helper.assertTrue(chest.planCount() == 2, "the plan kept both entries");
 
-            chest.setItem(0, new ItemStack(Items.DIRT, 1));
+            chest.setItem(0, new ItemStack(Items.STONE, 1));
             helper.assertFalse(chest.refillIfDue(), "the chest keeps its contents during the cooldown");
-            helper.assertTrue(chest.getItem(0).is(Items.DIRT), "player items survive during the cooldown");
+            helper.assertTrue(chest.getItem(0).is(Items.STONE), "player items survive during the cooldown");
 
             clock.addAndGet(chest.cooldownMillis());
             helper.assertTrue(chest.refillIfDue(), "the chest refills once the cooldown expired");
-            helper.assertTrue(chest.getItem(0).is(Items.DIAMOND), "the template came back");
-            helper.assertTrue(chest.getItem(0).getCount() == 2, "the template stack size came back");
+            helper.assertTrue(countOf(chest, Items.DIAMOND) == 3, "a 100% entry always rolls its fixed count");
+            helper.assertTrue(countOf(chest, Items.DIRT) == 0, "a 0% entry never rolls");
+            helper.assertTrue(countOf(chest, Items.STONE) == 0, "the previous contents were wiped");
             helper.assertFalse(chest.refillIfDue(), "the cooldown restarts after a refill");
 
+            chest.setEntry(0, 100, 2, 5);
             chest.resetCooldown();
             helper.assertTrue(chest.refillIfDue(), "resetCooldown makes the chest refill at once");
+            int rolled = countOf(chest, Items.DIAMOND);
+            helper.assertTrue(rolled >= 2 && rolled <= 5, "the rolled count stays inside the range, got " + rolled);
 
             helper.assertTrue(
                     DungeonLoot.containerAt(level, chestPos) == null,
@@ -318,6 +324,17 @@ public final class DungeonGameTests {
             manager.remove(dungeon.id());
         }
         helper.succeed();
+    }
+
+    private static int countOf(DungeonChestBlockEntity chest, net.minecraft.world.item.Item item) {
+        int total = 0;
+        for (int slot = 0; slot < DungeonChestBlockEntity.SIZE; slot++) {
+            ItemStack stack = chest.getItem(slot);
+            if (stack.is(item)) {
+                total += stack.getCount();
+            }
+        }
+        return total;
     }
 
     @GameTest(template = "empty", batch = "dungeon_claims", timeoutTicks = 600)

@@ -1,6 +1,5 @@
 package com.geydev.kalfactions.client;
 
-import com.geydev.kalfactions.client.screen.DungeonChestScreen;
 import com.geydev.kalfactions.client.screen.DungeonMapScreen;
 import com.geydev.kalfactions.client.screen.DungeonScreen;
 import com.geydev.kalfactions.dungeon.DungeonPayloads;
@@ -19,17 +18,6 @@ public final class ClientDungeonState {
                 return;
             }
             minecraft.setScreen(new DungeonScreen(payload));
-        });
-    }
-
-    public static void acceptChest(DungeonPayloads.S2CDungeonChestState payload) {
-        Minecraft minecraft = Minecraft.getInstance();
-        minecraft.execute(() -> {
-            if (minecraft.screen instanceof DungeonChestScreen screen && screen.pos().equals(payload.pos())) {
-                screen.acceptState(payload);
-                return;
-            }
-            minecraft.setScreen(new DungeonChestScreen(payload));
         });
     }
 
