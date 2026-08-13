@@ -1341,14 +1341,15 @@
   "kingdoms.dungeon.chest_saved": "Dungeon chest settings saved.",
   "kingdoms.dungeon.chest_refreshed": "Dungeon chest refilled.",
   "screen.kingdoms.dungeon_chest.title": "Dungeon Chest Loot",
-  "screen.kingdoms.dungeon_chest.cooldown_label": "hours (empty = global, now %s)",
+  "screen.kingdoms.dungeon_chest.cooldown_label": "Interval, h",
   "screen.kingdoms.dungeon_chest.refresh": "Refill now",
-  "screen.kingdoms.dungeon_chest.hint": "Drop items in, click a slot, set the odds.",
+  "screen.kingdoms.dungeon_chest.hint": "Drop items in, click a slot to select it, right click to clear it.",
   "screen.kingdoms.dungeon_chest.pick_slot": "Pick a slot to edit",
   "screen.kingdoms.dungeon_chest.chance": "Chance",
   "screen.kingdoms.dungeon_chest.from": "from",
   "screen.kingdoms.dungeon_chest.to": "to",
   "screen.kingdoms.dungeon_chest.apply": "Apply",
   "screen.kingdoms.dungeon_chest.save_cooldown": "Save the refill interval",
-  "screen.kingdoms.dungeon_chest.tooltip": "%s%% chance, %s-%s pcs"
+  "screen.kingdoms.dungeon_chest.tooltip": "%s%% chance, %s-%s pcs",
+  "screen.kingdoms.dungeon_chest.cooldown_global": "(global: %s)"
 }

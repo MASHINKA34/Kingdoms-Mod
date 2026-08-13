@@ -9,6 +9,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -20,60 +21,65 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
     private static final int GOLD = 0xFFF3D58B;
     private static final int TEXT = 0xFFE8DFCB;
     private static final int MUTED = 0xFF9A8F7A;
-    private static final int CHANCE_BAR = 0xFF9B30FF;
+    private static final int MARGIN = 12;
 
     private EditBox chanceBox;
     private EditBox minBox;
     private EditBox maxBox;
     private EditBox cooldownBox;
+    private List<FormattedCharSequence> hintLines = List.of();
     private int selected = -1;
 
     public DungeonLootScreen(DungeonLootMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
-        imageWidth = 186;
-        imageHeight = 244;
+        imageWidth = 200;
+        imageHeight = 265;
         inventoryLabelY = DungeonLootMenu.INVENTORY_TOP - 10;
-        titleLabelX = 12;
-        titleLabelY = 8;
+        titleLabelX = MARGIN;
+        titleLabelY = 7;
     }
 
     @Override
     protected void init() {
         super.init();
-        chanceBox = numberBox(leftPos + 44, topPos + 98, 28, 3);
-        minBox = numberBox(leftPos + 106, topPos + 98, 24, 2);
-        maxBox = numberBox(leftPos + 150, topPos + 98, 24, 2);
-        cooldownBox = numberBox(leftPos + 12, topPos + 117, 28, 4);
+        hintLines = font.split(
+                Component.translatable("screen.kingdoms.dungeon_chest.hint"),
+                imageWidth - MARGIN * 2
+        );
+        chanceBox = numberBox(leftPos + 46, topPos + 109, 28, 3);
+        minBox = numberBox(leftPos + 98, topPos + 109, 24, 2);
+        maxBox = numberBox(leftPos + 146, topPos + 109, 24, 2);
+        cooldownBox = numberBox(leftPos + 84, topPos + 128, 28, 4);
         cooldownBox.setValue(cooldownValue());
 
         addRenderableWidget(KingdomsButton.create(
                 Component.translatable("screen.kingdoms.dungeon_chest.apply"),
                 button -> save(),
-                leftPos + 12,
-                topPos + 136,
-                84,
+                leftPos + MARGIN,
+                topPos + 147,
+                85,
                 20
         ));
         addRenderableWidget(KingdomsButton.create(
                 Component.translatable("screen.kingdoms.dungeon_chest.refresh"),
-                button -> PacketDistributor.sendToServer(new DungeonPayloads.C2SDungeonChestAction(
-                        menu.pos(),
-                        DungeonPayloads.C2SDungeonChestAction.ACTION_REFRESH,
-                        -1
-                )),
-                leftPos + 100,
-                topPos + 136,
-                74,
+                button -> PacketDistributor.sendToServer(
+                        new DungeonPayloads.C2SDungeonChestRefill(menu.pos())
+                ),
+                leftPos + 103,
+                topPos + 147,
+                85,
                 20
         ));
         syncSelection();
     }
 
     private void save() {
-        applyEntry();
-        PacketDistributor.sendToServer(new DungeonPayloads.C2SDungeonChestAction(
+        PacketDistributor.sendToServer(new DungeonPayloads.C2SDungeonChestEntry(
                 menu.pos(),
-                DungeonPayloads.C2SDungeonChestAction.ACTION_COOLDOWN,
+                selected,
+                parse(chanceBox, DungeonChestBlockEntity.DEFAULT_CHANCE, 0, 100),
+                parse(minBox, 1, 1, DungeonChestBlockEntity.MAX_COUNT),
+                parse(maxBox, 1, 1, DungeonChestBlockEntity.MAX_COUNT),
                 parse(cooldownBox, -1, -1, DungeonChestBlockEntity.MAX_COOLDOWN_HOURS)
         ));
     }
@@ -98,19 +104,6 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
                 && minecraft.level.getBlockEntity(menu.pos()) instanceof DungeonChestBlockEntity chest
                 ? chest
                 : null;
-    }
-
-    private void applyEntry() {
-        if (selected < 0) {
-            return;
-        }
-        PacketDistributor.sendToServer(new DungeonPayloads.C2SDungeonChestEntry(
-                menu.pos(),
-                selected,
-                parse(chanceBox, DungeonChestBlockEntity.DEFAULT_CHANCE, 0, 100),
-                parse(minBox, 1, 1, DungeonChestBlockEntity.MAX_COUNT),
-                parse(maxBox, 1, 1, DungeonChestBlockEntity.MAX_COUNT)
-        ));
     }
 
     private static int parse(EditBox box, int fallback, int low, int high) {
@@ -183,45 +176,38 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
         graphics.drawString(font, title, titleLabelX, titleLabelY, GOLD, false);
-        graphics.drawString(font, playerInventoryTitle, 12, inventoryLabelY, MUTED, false);
-        graphics.drawString(font,
-                Component.translatable("screen.kingdoms.dungeon_chest.hint"),
-                12, 21, MUTED, false);
-
-        DungeonChestBlockEntity chest = chest();
-        for (int slot = 0; slot < DungeonLootMenu.PLAN_SIZE; slot++) {
-            int x = DungeonLootMenu.GRID_LEFT + (slot % 9) * 18;
-            int y = DungeonLootMenu.GRID_TOP + (slot / 9) * 18;
-            if (slot == selected) {
-                graphics.renderOutline(x, y, 18, 18, SELECTED_BORDER);
-            }
-            if (chest == null || menu.planItem(slot).isEmpty()) {
-                continue;
-            }
-            int height = Math.max(1, chest.chanceAt(slot) * 16 / 100);
-            graphics.fill(x + 1, y + 17 - height, x + 2, y + 17, CHANCE_BAR);
-            String range = chest.minAt(slot) == chest.maxAt(slot)
-                    ? String.valueOf(chest.minAt(slot))
-                    : chest.minAt(slot) + "-" + chest.maxAt(slot);
-            graphics.pose().pushPose();
-            graphics.pose().translate(0.0F, 0.0F, 250.0F);
-            graphics.drawString(font, range, x + 17 - font.width(range), y + 10, 0xFFFFFFFF, true);
-            graphics.pose().popPose();
+        graphics.drawString(font, playerInventoryTitle, MARGIN, inventoryLabelY, MUTED, false);
+        for (int line = 0; line < Math.min(2, hintLines.size()); line++) {
+            graphics.drawString(font, hintLines.get(line), MARGIN, 18 + line * 10, MUTED, false);
         }
 
-        Component label = selected < 0 || chest == null || menu.planItem(selected).isEmpty()
+        if (selected >= 0) {
+            graphics.renderOutline(
+                    DungeonLootMenu.GRID_LEFT + (selected % 9) * 18,
+                    DungeonLootMenu.GRID_TOP + (selected / 9) * 18,
+                    18,
+                    18,
+                    SELECTED_BORDER
+            );
+        }
+
+        DungeonChestBlockEntity chest = chest();
+        Component label = selected < 0 || menu.planItem(selected).isEmpty()
                 ? Component.translatable("screen.kingdoms.dungeon_chest.pick_slot")
                 : menu.planItem(selected).getHoverName();
-        graphics.drawString(font, label, 12, 88, TEXT, false);
-        graphics.drawString(font, Component.translatable("screen.kingdoms.dungeon_chest.chance"), 12, 101, MUTED, false);
-        graphics.drawString(font, Component.translatable("screen.kingdoms.dungeon_chest.from"), 88, 101, MUTED, false);
-        graphics.drawString(font, Component.translatable("screen.kingdoms.dungeon_chest.to"), 134, 101, MUTED, false);
+        graphics.drawString(font, label, MARGIN, 98, TEXT, false);
+        graphics.drawString(font, Component.translatable("screen.kingdoms.dungeon_chest.chance"), MARGIN, 112, MUTED, false);
+        graphics.drawString(font, Component.translatable("screen.kingdoms.dungeon_chest.from"), 80, 112, MUTED, false);
+        graphics.drawString(font, Component.translatable("screen.kingdoms.dungeon_chest.to"), 128, 112, MUTED, false);
+        graphics.drawString(font,
+                Component.translatable("screen.kingdoms.dungeon_chest.cooldown_label"),
+                MARGIN, 131, MUTED, false);
         graphics.drawString(font,
                 Component.translatable(
-                        "screen.kingdoms.dungeon_chest.cooldown_label",
+                        "screen.kingdoms.dungeon_chest.cooldown_global",
                         chest == null ? 0 : chest.effectiveCooldownHours()
                 ),
-                44, 120, MUTED, false);
+                116, 131, MUTED, false);
     }
 
     @Override

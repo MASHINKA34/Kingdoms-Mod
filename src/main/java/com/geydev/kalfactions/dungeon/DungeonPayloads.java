@@ -207,24 +207,32 @@ public final class DungeonPayloads {
             int slot,
             int chance,
             int min,
-            int max
+            int max,
+            int cooldownHours
     ) implements CustomPacketPayload {
+        public static final int NO_SLOT = -1;
         public static final Type<C2SDungeonChestEntry> TYPE = payloadType("dungeon_chest_entry");
         public static final StreamCodec<RegistryFriendlyByteBuf, C2SDungeonChestEntry> STREAM_CODEC =
                 StreamCodec.of(
                         (buffer, payload) -> {
                             buffer.writeBlockPos(payload.pos);
-                            buffer.writeVarInt(payload.slot);
+                            buffer.writeVarInt(payload.slot + 1);
                             buffer.writeVarInt(payload.chance);
                             buffer.writeVarInt(payload.min);
                             buffer.writeVarInt(payload.max);
+                            buffer.writeVarInt(payload.cooldownHours + 1);
                         },
                         buffer -> new C2SDungeonChestEntry(
                                 buffer.readBlockPos(),
-                                Math.clamp(buffer.readVarInt(), 0, DungeonChestBlockEntity.SIZE - 1),
+                                Math.clamp(buffer.readVarInt() - 1, NO_SLOT, DungeonChestBlockEntity.SIZE - 1),
                                 Math.clamp(buffer.readVarInt(), 0, 100),
                                 Math.clamp(buffer.readVarInt(), 1, DungeonChestBlockEntity.MAX_COUNT),
-                                Math.clamp(buffer.readVarInt(), 1, DungeonChestBlockEntity.MAX_COUNT)
+                                Math.clamp(buffer.readVarInt(), 1, DungeonChestBlockEntity.MAX_COUNT),
+                                Math.clamp(
+                                        buffer.readVarInt() - 1,
+                                        -1,
+                                        DungeonChestBlockEntity.MAX_COOLDOWN_HOURS
+                                )
                         )
                 );
 
@@ -234,30 +242,12 @@ public final class DungeonPayloads {
         }
     }
 
-    public record C2SDungeonChestAction(
-            BlockPos pos,
-            int action,
-            int cooldownHours
-    ) implements CustomPacketPayload {
-        public static final int ACTION_COOLDOWN = 0;
-        public static final int ACTION_REFRESH = 1;
-        public static final Type<C2SDungeonChestAction> TYPE = payloadType("dungeon_chest_action");
-        public static final StreamCodec<RegistryFriendlyByteBuf, C2SDungeonChestAction> STREAM_CODEC =
+    public record C2SDungeonChestRefill(BlockPos pos) implements CustomPacketPayload {
+        public static final Type<C2SDungeonChestRefill> TYPE = payloadType("dungeon_chest_refill");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SDungeonChestRefill> STREAM_CODEC =
                 StreamCodec.of(
-                        (buffer, payload) -> {
-                            buffer.writeBlockPos(payload.pos);
-                            buffer.writeVarInt(payload.action);
-                            buffer.writeVarInt(payload.cooldownHours + 1);
-                        },
-                        buffer -> new C2SDungeonChestAction(
-                                buffer.readBlockPos(),
-                                Math.clamp(buffer.readVarInt(), ACTION_COOLDOWN, ACTION_REFRESH),
-                                Math.clamp(
-                                        buffer.readVarInt() - 1,
-                                        -1,
-                                        DungeonChestBlockEntity.MAX_COOLDOWN_HOURS
-                                )
-                        )
+                        (buffer, payload) -> buffer.writeBlockPos(payload.pos),
+                        buffer -> new C2SDungeonChestRefill(buffer.readBlockPos())
                 );
 
         @Override

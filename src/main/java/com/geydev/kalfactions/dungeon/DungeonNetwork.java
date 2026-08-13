@@ -13,7 +13,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class DungeonNetwork {
-    private static final String PROTOCOL_VERSION = "3";
+    private static final String PROTOCOL_VERSION = "4";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -44,9 +44,9 @@ public final class DungeonNetwork {
                 DungeonNetwork::handleChestEntry
         );
         registrar.playToServer(
-                DungeonPayloads.C2SDungeonChestAction.TYPE,
-                DungeonPayloads.C2SDungeonChestAction.STREAM_CODEC,
-                DungeonNetwork::handleChestAction
+                DungeonPayloads.C2SDungeonChestRefill.TYPE,
+                DungeonPayloads.C2SDungeonChestRefill.STREAM_CODEC,
+                DungeonNetwork::handleChestRefill
         );
         registrar.playToClient(
                 DungeonPayloads.S2COpenDungeon.TYPE,
@@ -55,9 +55,9 @@ public final class DungeonNetwork {
         );
     }
 
-    private static void handleChestAction(DungeonPayloads.C2SDungeonChestAction payload, IPayloadContext context) {
+    private static void handleChestRefill(DungeonPayloads.C2SDungeonChestRefill payload, IPayloadContext context) {
         if (context.player() instanceof ServerPlayer player) {
-            DungeonService.chestAction(player, payload);
+            DungeonService.chestRefill(player, payload.pos());
         }
     }
 

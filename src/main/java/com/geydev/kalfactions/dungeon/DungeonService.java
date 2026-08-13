@@ -198,29 +198,27 @@ public final class DungeonService {
         }
         DungeonChestBlockEntity chest =
                 (DungeonChestBlockEntity) player.serverLevel().getBlockEntity(payload.pos());
-        chest.setEntry(payload.slot(), payload.chance(), payload.min(), payload.max());
-    }
-
-    public static void chestAction(ServerPlayer player, DungeonPayloads.C2SDungeonChestAction payload) {
-        if (!validateChest(player, payload.pos()) || !rateLimit(player)) {
-            return;
-        }
-        DungeonChestBlockEntity chest =
-                (DungeonChestBlockEntity) player.serverLevel().getBlockEntity(payload.pos());
-        if (payload.action() == DungeonPayloads.C2SDungeonChestAction.ACTION_REFRESH) {
-            chest.resetCooldown();
-            chest.refill();
-            FactionServerHooks.sendNotice(
-                    player,
-                    Component.translatable("kingdoms.dungeon.chest_refreshed"),
-                    true
-            );
-            return;
+        if (payload.slot() >= 0) {
+            chest.setEntry(payload.slot(), payload.chance(), payload.min(), payload.max());
         }
         chest.setCooldownHours(payload.cooldownHours());
         FactionServerHooks.sendNotice(
                 player,
                 Component.translatable("kingdoms.dungeon.chest_saved"),
+                true
+        );
+    }
+
+    public static void chestRefill(ServerPlayer player, BlockPos pos) {
+        if (!validateChest(player, pos) || !rateLimit(player)) {
+            return;
+        }
+        DungeonChestBlockEntity chest = (DungeonChestBlockEntity) player.serverLevel().getBlockEntity(pos);
+        chest.resetCooldown();
+        chest.refill();
+        FactionServerHooks.sendNotice(
+                player,
+                Component.translatable("kingdoms.dungeon.chest_refreshed"),
                 true
         );
     }

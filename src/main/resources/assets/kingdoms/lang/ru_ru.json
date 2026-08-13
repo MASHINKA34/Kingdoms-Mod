@@ -1341,14 +1341,15 @@
   "kingdoms.dungeon.chest_saved": "Настройки сундука данжа сохранены.",
   "kingdoms.dungeon.chest_refreshed": "Сундук данжа перезаполнен.",
   "screen.kingdoms.dungeon_chest.title": "Лут сундука данжа",
-  "screen.kingdoms.dungeon_chest.cooldown_label": "часов (пусто = общий, сейчас %s)",
-  "screen.kingdoms.dungeon_chest.refresh": "Обновить сейчас",
-  "screen.kingdoms.dungeon_chest.hint": "Положите предметы, кликните по слоту, задайте шанс.",
+  "screen.kingdoms.dungeon_chest.cooldown_label": "Интервал, ч.",
+  "screen.kingdoms.dungeon_chest.refresh": "Обновить",
+  "screen.kingdoms.dungeon_chest.hint": "Положите предметы, клик по слоту — выбрать, ПКМ — убрать.",
   "screen.kingdoms.dungeon_chest.pick_slot": "Выберите слот для настройки",
   "screen.kingdoms.dungeon_chest.chance": "Шанс",
   "screen.kingdoms.dungeon_chest.from": "от",
   "screen.kingdoms.dungeon_chest.to": "до",
   "screen.kingdoms.dungeon_chest.apply": "Применить",
   "screen.kingdoms.dungeon_chest.save_cooldown": "Сохранить интервал обновления",
-  "screen.kingdoms.dungeon_chest.tooltip": "Шанс %s%%, %s-%s шт."
+  "screen.kingdoms.dungeon_chest.tooltip": "Шанс %s%%, %s-%s шт.",
+  "screen.kingdoms.dungeon_chest.cooldown_global": "(общий: %s)"
 }

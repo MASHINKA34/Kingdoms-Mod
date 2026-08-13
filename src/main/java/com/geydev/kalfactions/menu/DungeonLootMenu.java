@@ -16,10 +16,10 @@ import net.minecraft.world.item.ItemStack;
 
 public final class DungeonLootMenu extends AbstractContainerMenu {
     public static final int PLAN_SIZE = DungeonChestBlockEntity.SIZE;
-    public static final int GRID_LEFT = 12;
-    public static final int GRID_TOP = 30;
-    public static final int INVENTORY_LEFT = 12;
-    public static final int INVENTORY_TOP = 162;
+    public static final int GRID_LEFT = 19;
+    public static final int GRID_TOP = 40;
+    public static final int INVENTORY_LEFT = 19;
+    public static final int INVENTORY_TOP = 183;
     private static final double MAX_DISTANCE_SQUARED = 64.0D;
 
     private final BlockPos pos;
