@@ -236,6 +236,9 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> DUNGEON_CHEST =
             ITEMS.registerSimpleBlockItem(ModBlocks.DUNGEON_CHEST);
 
+    public static final DeferredItem<BlockItem> GHOST_KEY_FORGE =
+            ITEMS.registerSimpleBlockItem(ModBlocks.GHOST_KEY_FORGE);
+
     public static final DeferredItem<BlackZoneAntidoteItem> BLACKZONE_ANTIDOTE = ITEMS.register(
             "blackzone_antidote",
             () -> new BlackZoneAntidoteItem(

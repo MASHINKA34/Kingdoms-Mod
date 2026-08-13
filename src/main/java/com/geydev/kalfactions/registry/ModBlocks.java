@@ -7,6 +7,7 @@ import com.geydev.kalfactions.block.DungeonCoreBlock;
 import com.geydev.kalfactions.block.EconomyGodStatueBlock;
 import com.geydev.kalfactions.block.FactionTableBlock;
 import com.geydev.kalfactions.block.GuideBoardBlock;
+import com.geydev.kalfactions.block.GhostKeyForgeBlock;
 import com.geydev.kalfactions.block.NewsBoardBlock;
 import com.geydev.kalfactions.block.OutpostCoreBlock;
 import com.geydev.kalfactions.block.QuarryCoreBlock;
@@ -223,6 +224,17 @@ public final class ModBlocks {
                     .strength(4.0F, 1200.0F)
                     .sound(SoundType.WOOD)
                     .pushReaction(PushReaction.BLOCK))
+    );
+
+    public static final DeferredBlock<GhostKeyForgeBlock> GHOST_KEY_FORGE = BLOCKS.register(
+            "ghost_key_forge",
+            () -> new GhostKeyForgeBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BLACK)
+                    .strength(4.0F, 12.0F)
+                    .sound(SoundType.POLISHED_DEEPSLATE)
+                    .lightLevel(state -> 12)
+                    .noOcclusion()
+                    .dynamicShape())
     );
 
     public static void register(IEventBus bus) {

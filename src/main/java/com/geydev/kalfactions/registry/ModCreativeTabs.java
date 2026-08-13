@@ -57,6 +57,7 @@ public final class ModCreativeTabs {
                 ModItems.XAERO_MAP_ARCHIVE.get(),
                 ModItems.DUNGEON_CORE.get(),
                 ModItems.DUNGEON_CHEST.get(),
+                ModItems.GHOST_KEY_FORGE.get(),
                 ModItems.ACCESS_TOOL.get(),
                 ModItems.OUTPOST_CHARTER.get(),
                 ModItems.QUARRY_ACTIVATOR.get(),

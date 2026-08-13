@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "kingdoms:drill"
+    "kingdoms:drill",
+    "kingdoms:ghost_key_forge"
   ]
 }

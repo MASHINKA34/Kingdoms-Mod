@@ -1356,5 +1356,6 @@
   "item.kingdoms.blackzone_antidote.tooltip": "Resets the black zone timer and removes every penalty it applied.",
   "item.kingdoms.blackzone_antidote.tooltip.usage": "Hold use to drink. Cannot be crafted.",
   "item.kingdoms.blackzone_antidote.used": "The antidote washed the black zone out of you.",
-  "item.kingdoms.blackzone_antidote.nothing": "The black zone has no hold on you."
+  "item.kingdoms.blackzone_antidote.nothing": "The black zone has no hold on you.",
+  "block.kingdoms.ghost_key_forge": "Ghost Key Forge"
 }
