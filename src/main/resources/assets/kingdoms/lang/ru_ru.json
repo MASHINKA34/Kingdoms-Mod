@@ -1351,5 +1351,10 @@
   "screen.kingdoms.dungeon_chest.apply": "Применить",
   "screen.kingdoms.dungeon_chest.save_cooldown": "Сохранить интервал обновления",
   "screen.kingdoms.dungeon_chest.tooltip": "Шанс %s%%, %s-%s шт.",
-  "screen.kingdoms.dungeon_chest.cooldown_global": "(общий: %s)"
+  "screen.kingdoms.dungeon_chest.cooldown_global": "(общий: %s)",
+  "item.kingdoms.blackzone_antidote": "Антидот чёрной зоны",
+  "item.kingdoms.blackzone_antidote.tooltip": "Обнуляет таймер чёрной зоны и снимает все её штрафы.",
+  "item.kingdoms.blackzone_antidote.tooltip.usage": "Удерживайте использование, чтобы выпить. Не крафтится.",
+  "item.kingdoms.blackzone_antidote.used": "Антидот вымыл чёрную зону из тебя.",
+  "item.kingdoms.blackzone_antidote.nothing": "Чёрная зона тебя не держит."
 }

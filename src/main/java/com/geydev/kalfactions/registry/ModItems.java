@@ -5,6 +5,7 @@ import com.geydev.kalfactions.chest.AccessTool;
 import com.geydev.kalfactions.faction.InfluenceType;
 import com.geydev.kalfactions.item.AdminAnalyzerItem;
 import com.geydev.kalfactions.item.BankerSpawnEggItem;
+import com.geydev.kalfactions.item.BlackZoneAntidoteItem;
 import com.geydev.kalfactions.item.DimensionKeyItem;
 import com.geydev.kalfactions.item.FactionMeterItem;
 import com.geydev.kalfactions.item.NetherReturnItem;
@@ -234,6 +235,13 @@ public final class ModItems {
 
     public static final DeferredItem<BlockItem> DUNGEON_CHEST =
             ITEMS.registerSimpleBlockItem(ModBlocks.DUNGEON_CHEST);
+
+    public static final DeferredItem<BlackZoneAntidoteItem> BLACKZONE_ANTIDOTE = ITEMS.register(
+            "blackzone_antidote",
+            () -> new BlackZoneAntidoteItem(
+                    new Item.Properties().stacksTo(16).rarity(net.minecraft.world.item.Rarity.RARE)
+            )
+    );
 
     public static Item crystalFor(InfluenceType type) {
         return switch (type) {

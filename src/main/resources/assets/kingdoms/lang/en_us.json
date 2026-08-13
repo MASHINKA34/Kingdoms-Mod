@@ -1351,5 +1351,10 @@
   "screen.kingdoms.dungeon_chest.apply": "Apply",
   "screen.kingdoms.dungeon_chest.save_cooldown": "Save the refill interval",
   "screen.kingdoms.dungeon_chest.tooltip": "%s%% chance, %s-%s pcs",
-  "screen.kingdoms.dungeon_chest.cooldown_global": "(global: %s)"
+  "screen.kingdoms.dungeon_chest.cooldown_global": "(global: %s)",
+  "item.kingdoms.blackzone_antidote": "Black Zone Antidote",
+  "item.kingdoms.blackzone_antidote.tooltip": "Resets the black zone timer and removes every penalty it applied.",
+  "item.kingdoms.blackzone_antidote.tooltip.usage": "Hold use to drink. Cannot be crafted.",
+  "item.kingdoms.blackzone_antidote.used": "The antidote washed the black zone out of you.",
+  "item.kingdoms.blackzone_antidote.nothing": "The black zone has no hold on you."
 }

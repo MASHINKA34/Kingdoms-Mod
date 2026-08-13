@@ -83,7 +83,8 @@ public final class ModCreativeTabs {
                 ModItems.MINIBOSS_TOKEN_END.get(),
                 ModItems.BOSS_TROPHY_LESSER.get(),
                 ModItems.BOSS_TROPHY_GREATER.get(),
-                ModItems.BOSS_TROPHY_LEGENDARY.get()
+                ModItems.BOSS_TROPHY_LEGENDARY.get(),
+                ModItems.BLACKZONE_ANTIDOTE.get()
         );
     }
 
