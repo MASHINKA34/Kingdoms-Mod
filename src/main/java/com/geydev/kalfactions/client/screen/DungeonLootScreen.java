@@ -31,15 +31,19 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
     private static final int ROW_SELECTED = 0x60C9A24C;
     private static final int ROW_HOVER = 0x30000000;
 
-    private static final int PLAN_WIDTH = 200;
-    private static final int TEMPLATE_WIDTH = 340;
-    private static final int LIST_LEFT = 12;
-    private static final int LIST_TOP = 28;
-    private static final int LIST_WIDTH = 148;
-    private static final int LIST_ROW_HEIGHT = 24;
-    private static final int LIST_ROWS = 7;
-    private static final int PREVIEW_LEFT = 166;
-    private static final int PREVIEW_TOP = 44;
+    static final int PLAN_WIDTH = 200;
+    static final int TEMPLATE_WIDTH = 340;
+    static final int TEMPLATE_HEIGHT = 265;
+    static final int LIST_LEFT = 12;
+    static final int LIST_TOP = 28;
+    static final int LIST_WIDTH = 148;
+    static final int LIST_ROW_HEIGHT = 24;
+    static final int LIST_ROWS = 7;
+    static final int PREVIEW_LEFT = 166;
+    static final int PREVIEW_TOP = 44;
+    static final int PREVIEW_WIDTH = 162;
+    static final int PREVIEW_HEIGHT = 54;
+    static final int LAST_ROW_BOTTOM = 242;
 
     private static final DateTimeFormatter DATE_FORMAT =
             DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZoneId.systemDefault());
@@ -68,7 +72,7 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
     public DungeonLootScreen(DungeonLootMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
         imageWidth = PLAN_WIDTH;
-        imageHeight = 265;
+        imageHeight = TEMPLATE_HEIGHT;
         inventoryLabelY = DungeonLootMenu.INVENTORY_TOP - 10;
         titleLabelX = MARGIN;
         titleLabelY = 7;
@@ -79,11 +83,12 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
         imageWidth = tab == Tab.PLAN ? PLAN_WIDTH : TEMPLATE_WIDTH;
         super.init();
         menu.setSlotsVisible(tab == Tab.PLAN);
+        int tabTop = Math.max(0, topPos - 21);
         addRenderableWidget(KingdomsButton.create(
                 Component.translatable("screen.kingdoms.dungeon_chest.tab_plan"),
                 button -> switchTab(Tab.PLAN),
                 width / 2 - 86,
-                topPos - 21,
+                tabTop,
                 84,
                 20
         )).active = tab != Tab.PLAN;
@@ -91,7 +96,7 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
                 Component.translatable("screen.kingdoms.dungeon_chest.tab_templates"),
                 button -> switchTab(Tab.TEMPLATES),
                 width / 2 + 2,
-                topPos - 21,
+                tabTop,
                 84,
                 20
         )).active = tab != Tab.TEMPLATES;
@@ -157,7 +162,7 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
                 Component.empty(),
                 button -> saveTemplate(),
                 leftPos + LIST_LEFT,
-                topPos + 222,
+                topPos + LAST_ROW_BOTTOM - 20,
                 LIST_WIDTH,
                 20
         ));
@@ -473,24 +478,40 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
     }
 
     private boolean overList(double mouseX, double mouseY) {
-        int left = leftPos + LIST_LEFT;
-        int top = topPos + LIST_TOP;
+        return insideList(leftPos + LIST_LEFT, topPos + LIST_TOP, mouseX, mouseY);
+    }
+
+    private int hoveredTemplateRow(double mouseX, double mouseY) {
+        return templateRowAt(
+                leftPos + LIST_LEFT,
+                topPos + LIST_TOP,
+                mouseX,
+                mouseY,
+                templateScroll,
+                templates().size()
+        );
+    }
+
+    private int hoveredPreviewSlot(double mouseX, double mouseY) {
+        return previewSlotAt(leftPos + PREVIEW_LEFT, topPos + PREVIEW_TOP, mouseX, mouseY);
+    }
+
+    static boolean insideList(int left, int top, double mouseX, double mouseY) {
         return mouseX >= left && mouseX < left + LIST_WIDTH
                 && mouseY >= top && mouseY < top + LIST_ROWS * LIST_ROW_HEIGHT;
     }
 
-    private int hoveredTemplateRow(double mouseX, double mouseY) {
-        if (!overList(mouseX, mouseY)) {
+    static int templateRowAt(int left, int top, double mouseX, double mouseY, int scroll, int size) {
+        if (!insideList(left, top, mouseX, mouseY)) {
             return -1;
         }
-        int row = (int) ((mouseY - topPos - LIST_TOP) / LIST_ROW_HEIGHT) + templateScroll;
-        return row >= 0 && row < templates().size() ? row : -1;
+        int row = (int) ((mouseY - top) / LIST_ROW_HEIGHT) + scroll;
+        return row >= 0 && row < size ? row : -1;
     }
 
-    private int hoveredPreviewSlot(double mouseX, double mouseY) {
-        int left = leftPos + PREVIEW_LEFT;
-        int top = topPos + PREVIEW_TOP;
-        if (mouseX < left || mouseY < top || mouseX >= left + 162 || mouseY >= top + 54) {
+    static int previewSlotAt(int left, int top, double mouseX, double mouseY) {
+        if (mouseX < left || mouseY < top
+                || mouseX >= left + PREVIEW_WIDTH || mouseY >= top + PREVIEW_HEIGHT) {
             return -1;
         }
         return (int) ((mouseY - top) / 18) * 9 + (int) ((mouseX - left) / 18);
