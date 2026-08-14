@@ -24,9 +24,20 @@ public final class ChestTemplateService {
     private static final int MAX_HANDLED_REQUESTS = 256;
     private static final ConcurrentHashMap<UUID, Long> LAST_ACTION_TICK = new ConcurrentHashMap<>();
     private static final Set<UUID> HANDLED_REQUESTS = new LinkedHashSet<>();
+    private static final NoticeSink CLIENT_NOTICES = FactionServerHooks::sendNotice;
+
+    private static volatile NoticeSink notices = CLIENT_NOTICES;
 
     public static void clearRateLimit(UUID playerId) {
         LAST_ACTION_TICK.remove(playerId);
+    }
+
+    public static void overrideNotices(NoticeSink replacement) {
+        notices = replacement == null ? CLIENT_NOTICES : replacement;
+    }
+
+    public static void resetNotices() {
+        notices = CLIENT_NOTICES;
     }
 
     public static void reset() {
@@ -37,6 +48,10 @@ public final class ChestTemplateService {
     }
 
     public static void handle(ServerPlayer player, DungeonPayloads.C2SChestTemplateAction payload) {
+        if (!player.hasPermissions(2)) {
+            notice(player, Component.translatable("kingdoms.dungeon.not_operator"), false);
+            return;
+        }
         if (!DungeonService.validateChest(player, payload.pos())) {
             return;
         }
@@ -247,7 +262,12 @@ public final class ChestTemplateService {
     }
 
     public static void notice(ServerPlayer player, Component message, boolean successful) {
-        FactionServerHooks.sendNotice(player, message, successful);
+        notices.accept(player, message, successful);
+    }
+
+    @FunctionalInterface
+    public interface NoticeSink {
+        void accept(ServerPlayer player, Component message, boolean successful);
     }
 
     private static boolean claimRequest(UUID requestId) {

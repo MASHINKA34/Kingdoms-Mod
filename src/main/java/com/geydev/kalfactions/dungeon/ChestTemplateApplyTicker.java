@@ -55,25 +55,10 @@ public final class ChestTemplateApplyTicker {
         return true;
     }
 
-    public static boolean busy(UUID playerId) {
+    public static void clear() {
         synchronized (JOBS) {
-            return JOBS.stream().anyMatch(job -> job.playerId.equals(playerId));
+            JOBS.clear();
         }
-    }
-
-    public static int applyNow(
-            ServerLevel level,
-            DungeonManager.DungeonView dungeon,
-            ChestTemplate template,
-            boolean applyCooldown
-    ) {
-        int updated = 0;
-        for (ClaimKey key : dungeon.chunks()) {
-            if (key.dimension().equals(level.dimension())) {
-                updated += applyToChunk(level, ChunkPos.asLong(key.x(), key.z()), template, applyCooldown);
-            }
-        }
-        return updated;
     }
 
     @SubscribeEvent
@@ -101,9 +86,8 @@ public final class ChestTemplateApplyTicker {
 
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
-        synchronized (JOBS) {
-            JOBS.clear();
-        }
+        clear();
+        ChestTemplateService.reset();
     }
 
     private static int applyToChunk(ServerLevel level, long packedChunk, ChestTemplate template, boolean cooldown) {
