@@ -90,6 +90,9 @@ public final class MusicRadius {
             if (!speaker.dimension().equals(level.dimension())) {
                 continue;
             }
+            if (manager.track(speaker.hash()).isEmpty()) {
+                continue;
+            }
             if (!isPresent(level, speaker.pos())) {
                 manager.removeSpeaker(speaker.dimension(), speaker.pos());
                 continue;

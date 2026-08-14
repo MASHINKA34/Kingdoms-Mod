@@ -10,7 +10,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -407,16 +406,6 @@ public final class MusicBlockScreen extends Screen {
         @Override
         protected void applyValue() {
             MusicClientSettings.setVolume((float) value);
-        }
-
-        @Override
-        public void onRelease(double mouseX, double mouseY) {
-            super.onRelease(mouseX, mouseY);
-            ClientMusicPlayer.refreshSpeaker(pos());
-        }
-
-        private BlockPos pos() {
-            return data.pos();
         }
     }
 }

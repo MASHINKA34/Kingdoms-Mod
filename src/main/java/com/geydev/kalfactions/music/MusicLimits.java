@@ -6,7 +6,7 @@ public final class MusicLimits {
     public static final String PROTOCOL_VERSION = "1";
     public static final int CHUNK_SIZE = 24 * 1024;
     public static final int MAX_NAME_LENGTH = 48;
-    public static final int MAX_TRACK_ENTRIES = 4096;
+    public static final int MAX_TRACK_ENTRIES = 512;
     public static final int MAX_SPEAKER_ENTRIES = 4096;
     public static final int MAX_ACTIVE_SPEAKERS_PER_CLIENT = 3;
     public static final long SESSION_TIMEOUT_MILLIS = 60_000L;

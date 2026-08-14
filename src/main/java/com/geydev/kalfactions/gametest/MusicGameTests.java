@@ -113,10 +113,13 @@ public final class MusicGameTests {
         ServerLevel level = helper.getLevel();
         MusicManager manager = MusicManager.get(level);
         BlockPos speakerPos = new BlockPos(1_500_000, 70, 1_500_000);
+        String hash = sampleHash();
         manager.removeSpeaker(level.dimension(), speakerPos);
+        manager.removeTrack(hash);
         try {
+            manager.addTrack(new MusicTrack(hash, "radius", 1024L, UUID.randomUUID(), "tester", 1L));
             MusicSpeaker speaker = new MusicSpeaker(
-                    level.dimension(), speakerPos, sampleHash(), "radius", 1.0F, 100, true, true, true);
+                    level.dimension(), speakerPos, hash, "radius", 1.0F, 100, true, true, true);
             manager.putSpeaker(speaker);
             List<MusicSpeaker> inside = audibleAt(level, speakerPos, 90.0D);
             helper.assertValueEqual(inside.size(), 1, "speakers audible at 90 blocks");
@@ -125,8 +128,13 @@ public final class MusicGameTests {
             manager.putSpeaker(speaker.withPlaying(false));
             helper.assertValueEqual(
                     audibleAt(level, speakerPos, 10.0D).size(), 0, "stopped speaker is silent");
+            manager.putSpeaker(speaker);
+            manager.removeTrack(hash);
+            helper.assertValueEqual(
+                    audibleAt(level, speakerPos, 10.0D).size(), 0, "speaker with a deleted track is silent");
         } finally {
             manager.removeSpeaker(level.dimension(), speakerPos);
+            manager.removeTrack(hash);
         }
         helper.succeed();
     }

@@ -877,7 +877,7 @@ public final class ModConfigSpec {
             .defineInRange("maxTrackBytes", 8 * 1024 * 1024, 1024, 64 * 1024 * 1024);
         MUSIC_MAX_TRACKS = builder
             .comment("Largest number of tracks the server keeps at once.")
-            .defineInRange("maxTracks", 64, 1, 4096);
+            .defineInRange("maxTracks", 64, 1, 512);
         MUSIC_MAX_STORAGE_MEGABYTES = builder
             .comment("Total megabytes of music the server stores; uploads past it are refused.")
             .defineInRange("maxStorageMegabytes", 128, 1, 65536);

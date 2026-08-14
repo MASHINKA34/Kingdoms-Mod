@@ -100,7 +100,7 @@ public final class MusicSoundInstance extends AbstractTickableSoundInstance {
     @Override
     public void tick() {
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null || minecraft.player == null || !Files.isReadable(file)) {
+        if (minecraft.level == null || minecraft.player == null) {
             stop();
             return;
         }
