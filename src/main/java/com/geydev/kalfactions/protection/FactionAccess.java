@@ -4,6 +4,8 @@ import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.faction.LegacyEffect;
+import com.geydev.kalfactions.faction.LegacyResearch;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
@@ -60,12 +62,19 @@ public final class FactionAccess {
         return Arrays.stream(bonuses).anyMatch(owned::contains);
     }
 
-    public static double legacyMultiplier(ServerPlayer player, FactionBonus bonus) {
+    public static int legacyLevel(ServerPlayer player, FactionBonus bonus) {
         if (player == null || bonus == null) {
-            return 1.0D;
+            return 0;
         }
-        double multiplier = backend.legacyMultiplier(player, bonus);
-        return Double.isFinite(multiplier) && multiplier > 0.0D ? multiplier : 1.0D;
+        return Math.clamp(backend.legacyLevel(player, bonus), 0, LegacyResearch.MAX_LEVEL);
+    }
+
+    public static double legacyValue(ServerPlayer player, LegacyEffect effect) {
+        return effect == null ? 0.0D : effect.value(legacyLevel(player, effect.bonus()));
+    }
+
+    public static boolean hasLegacyMastery(ServerPlayer player, FactionBonus bonus) {
+        return legacyLevel(player, bonus) >= LegacyResearch.MAX_LEVEL && hasAnyBonus(player, bonus);
     }
 
     public static boolean internalPvpEnabled(ServerPlayer player) {
@@ -97,8 +106,8 @@ public final class FactionAccess {
             return Set.of();
         }
 
-        default double legacyMultiplier(ServerPlayer player, FactionBonus bonus) {
-            return 1.0D;
+        default int legacyLevel(ServerPlayer player, FactionBonus bonus) {
+            return 0;
         }
 
         default boolean internalPvpEnabled(ServerPlayer player) {
@@ -142,11 +151,11 @@ public final class FactionAccess {
         }
 
         @Override
-        public double legacyMultiplier(ServerPlayer player, FactionBonus bonus) {
+        public int legacyLevel(ServerPlayer player, FactionBonus bonus) {
             return FactionManager.get(player.serverLevel())
                     .getFactionForMember(player.getUUID())
-                    .map(faction -> faction.legacyMultiplier(bonus))
-                    .orElse(1.0D);
+                    .map(faction -> faction.legacyLevel(bonus))
+                    .orElse(0);
         }
 
         @Override

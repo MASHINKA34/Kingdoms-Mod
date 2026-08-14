@@ -33,15 +33,7 @@ public final class LegacyResearch {
         return bonus == null ? -1 : slots(bonuses).indexOf(bonus);
     }
 
-    public static double multiplier(int level) {
-        return 1.0D + percentPerLevel() * Math.clamp(level, 0, MAX_LEVEL);
-    }
-
-    public static double percentPerLevel() {
-        return Math.max(0.0D, ModConfigSpec.LEGACY_BONUS_PERCENT_PER_LEVEL.getAsDouble());
-    }
-
-    public static long influenceCost(int level) {
+    public static long influenceCostPerType(int level) {
         return switch (Math.clamp(level, 1, MAX_LEVEL)) {
             case 1 -> Math.max(0L, ModConfigSpec.LEGACY_INFLUENCE_COST_LEVEL_1.get());
             case 2 -> Math.max(0L, ModConfigSpec.LEGACY_INFLUENCE_COST_LEVEL_2.get());
@@ -51,7 +43,11 @@ public final class LegacyResearch {
         };
     }
 
-    public static int crystalCost(int level) {
+    public static long influenceCost(int level) {
+        return influenceCostPerType(level) * InfluenceType.VALUES.length;
+    }
+
+    public static int crystalCostPerType(int level) {
         return switch (Math.clamp(level, 1, MAX_LEVEL)) {
             case 1 -> Math.max(0, ModConfigSpec.LEGACY_CRYSTAL_COST_LEVEL_1.getAsInt());
             case 2 -> Math.max(0, ModConfigSpec.LEGACY_CRYSTAL_COST_LEVEL_2.getAsInt());
@@ -59,6 +55,10 @@ public final class LegacyResearch {
             case 4 -> Math.max(0, ModConfigSpec.LEGACY_CRYSTAL_COST_LEVEL_4.getAsInt());
             default -> Math.max(0, ModConfigSpec.LEGACY_CRYSTAL_COST_LEVEL_5.getAsInt());
         };
+    }
+
+    public static int crystalCost(int level) {
+        return crystalCostPerType(level) * InfluenceType.VALUES.length;
     }
 
     public static long share(long total, int parts) {

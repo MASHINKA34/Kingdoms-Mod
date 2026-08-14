@@ -16,7 +16,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class FactionNetwork {
-    private static final String PROTOCOL_VERSION = "14";
+    private static final String PROTOCOL_VERSION = "15";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -60,6 +60,11 @@ public final class FactionNetwork {
                 FactionPayloads.C2SStartResearch.TYPE,
                 FactionPayloads.C2SStartResearch.STREAM_CODEC,
                 FactionNetwork::handleStartResearch
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SChooseExtraBonus.TYPE,
+                FactionPayloads.C2SChooseExtraBonus.STREAM_CODEC,
+                FactionNetwork::handleChooseExtraBonus
         );
         registrar.playToServer(
                 FactionPayloads.C2SWithdrawTreasury.TYPE,
@@ -190,6 +195,11 @@ public final class FactionNetwork {
                 FactionPayloads.C2SRespondInvite.TYPE,
                 FactionPayloads.C2SRespondInvite.STREAM_CODEC,
                 FactionNetwork::handleRespondInvite
+        );
+        registrar.playToServer(
+                FactionPayloads.C2SToggleMinerVision.TYPE,
+                FactionPayloads.C2SToggleMinerVision.STREAM_CODEC,
+                FactionNetwork::handleToggleMinerVision
         );
         registrar.playToServer(
                 FactionPayloads.C2SRespondAlliance.TYPE,
@@ -341,6 +351,13 @@ public final class FactionNetwork {
 
     private static void handleStartResearch(FactionPayloads.C2SStartResearch payload, IPayloadContext context) {
         FactionServerHooks.startResearch(serverPlayer(context), payload.tablePos(), payload.nodeName());
+    }
+
+    private static void handleChooseExtraBonus(
+            FactionPayloads.C2SChooseExtraBonus payload,
+            IPayloadContext context
+    ) {
+        FactionServerHooks.chooseExtraBonus(serverPlayer(context), payload.tablePos(), payload.bonus());
     }
 
     private static void handleWithdraw(FactionPayloads.C2SWithdrawTreasury payload, IPayloadContext context) {
@@ -512,6 +529,13 @@ public final class FactionNetwork {
 
     private static void handleRespondInvite(FactionPayloads.C2SRespondInvite payload, IPayloadContext context) {
         FactionServerHooks.respondInvite(serverPlayer(context), payload.factionId(), payload.accept());
+    }
+
+    private static void handleToggleMinerVision(
+            FactionPayloads.C2SToggleMinerVision payload,
+            IPayloadContext context
+    ) {
+        com.geydev.kalfactions.bonus.LegacyMasteryHandler.toggleMinerVision(serverPlayer(context));
     }
 
     private static void handleRespondAlliance(FactionPayloads.C2SRespondAlliance payload, IPayloadContext context) {

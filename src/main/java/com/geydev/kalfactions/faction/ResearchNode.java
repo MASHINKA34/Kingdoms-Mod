@@ -43,16 +43,16 @@ public enum ResearchNode {
     WAR_REWARD_2(InfluenceType.MILITARY, "WAR_TNT", 1200L, 15, ResearchBonus.RAID_REWARD, 260, -75),
     WAR_MOB_3(InfluenceType.MILITARY, "WAR_REWARD_2,WAR_WARN_2", 1600L, 22, ResearchBonus.WARRIOR_DAMAGE, 320, -5),
 
-    LEG_A_1(0, 1, null, 10, -232, -50),
-    LEG_A_2(0, 2, "LEG_A_1", 13, -116, -50),
-    LEG_A_3(0, 3, "LEG_A_2", 16, 0, -50),
-    LEG_A_4(0, 4, "LEG_A_3", 19, 116, -50),
-    LEG_A_5(0, 5, "LEG_A_4", 22, 232, -50),
-    LEG_B_1(1, 1, null, 10, -232, 50),
-    LEG_B_2(1, 2, "LEG_B_1", 13, -116, 50),
-    LEG_B_3(1, 3, "LEG_B_2", 16, 0, 50),
-    LEG_B_4(1, 4, "LEG_B_3", 19, 116, 50),
-    LEG_B_5(1, 5, "LEG_B_4", 22, 232, 50);
+    LEG_A_1(0, 1, null, 5, -232, -50),
+    LEG_A_2(0, 2, "LEG_A_1", 7, -116, -50),
+    LEG_A_3(0, 3, "LEG_A_2", 10, 0, -50),
+    LEG_A_4(0, 4, "LEG_A_3", 14, 116, -50),
+    LEG_A_5(0, 5, "LEG_A_4", 20, 232, -50),
+    LEG_B_1(1, 1, null, 5, -232, 50),
+    LEG_B_2(1, 2, "LEG_B_1", 7, -116, 50),
+    LEG_B_3(1, 3, "LEG_B_2", 10, 0, 50),
+    LEG_B_4(1, 4, "LEG_B_3", 14, 116, 50),
+    LEG_B_5(1, 5, "LEG_B_4", 20, 232, 50);
 
     public static final int MAX_NODES_PER_BRANCH = 13;
 

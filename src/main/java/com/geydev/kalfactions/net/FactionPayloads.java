@@ -275,6 +275,22 @@ public final class FactionPayloads {
         }
     }
 
+    public record C2SChooseExtraBonus(BlockPos tablePos, String bonus) implements CustomPacketPayload {
+        public static final Type<C2SChooseExtraBonus> TYPE = FactionPayloads.payloadType("choose_extra_bonus");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SChooseExtraBonus> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeBlockPos(payload.tablePos);
+                    buffer.writeUtf(payload.bonus, 24);
+                },
+                buffer -> new C2SChooseExtraBonus(buffer.readBlockPos(), buffer.readUtf(24))
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record C2SKickMember(BlockPos tablePos, UUID playerId) implements CustomPacketPayload {
         public static final Type<C2SKickMember> TYPE = FactionPayloads.payloadType("kick_member");
         public static final StreamCodec<RegistryFriendlyByteBuf, C2SKickMember> STREAM_CODEC = StreamCodec.of(
@@ -684,6 +700,18 @@ public final class FactionPayloads {
         public static final Type<C2SRequestFactionList> TYPE = FactionPayloads.payloadType("request_faction_list");
         public static final C2SRequestFactionList INSTANCE = new C2SRequestFactionList();
         public static final StreamCodec<RegistryFriendlyByteBuf, C2SRequestFactionList> STREAM_CODEC =
+                StreamCodec.unit(INSTANCE);
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record C2SToggleMinerVision() implements CustomPacketPayload {
+        public static final Type<C2SToggleMinerVision> TYPE = FactionPayloads.payloadType("toggle_miner_vision");
+        public static final C2SToggleMinerVision INSTANCE = new C2SToggleMinerVision();
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SToggleMinerVision> STREAM_CODEC =
                 StreamCodec.unit(INSTANCE);
 
         @Override

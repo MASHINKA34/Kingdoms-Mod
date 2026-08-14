@@ -33,6 +33,7 @@ public final class Faction {
     private static final String TAG_ICON = "icon";
     private static final String TAG_BONUS = "bonus";
     private static final String TAG_BONUSES = "bonuses";
+    private static final String TAG_EXTRA_BONUS = "extraBonus";
     private static final String TAG_EMBLEM = "emblem";
     private static final String TAG_EMBLEM_URL = "emblemUrl";
     private static final String TAG_INTERNAL_PVP = "internalPvp";
@@ -74,6 +75,7 @@ public final class Faction {
     private int color;
     private ResourceLocation iconId;
     private Set<FactionBonus> bonuses;
+    private FactionBonus extraBonus;
     private int[] emblem;
     private String emblemUrl;
     private boolean internalPvp;
@@ -190,17 +192,30 @@ public final class Faction {
     }
 
     public Set<FactionBonus> bonuses() {
+        if (extraBonus == null) {
+            return Set.copyOf(bonuses);
+        }
+        EnumSet<FactionBonus> all = EnumSet.copyOf(bonuses);
+        all.add(extraBonus);
+        return Set.copyOf(all);
+    }
+
+    public Set<FactionBonus> foundingBonuses() {
         return Set.copyOf(bonuses);
     }
 
+    public FactionBonus extraBonus() {
+        return extraBonus;
+    }
+
     public boolean hasBonus(FactionBonus bonus) {
-        return bonuses.contains(bonus);
+        return bonuses.contains(bonus) || (extraBonus != null && extraBonus == bonus);
     }
 
     public double claimDiscount() {
         double discount = 0.0D;
-        for (FactionBonus bonus : bonuses) {
-            discount = Math.max(discount, Math.min(0.90D, bonus.claimDiscount() * legacyMultiplier(bonus)));
+        if (hasBonus(FactionBonus.BUILDERS)) {
+            discount = Math.min(0.90D, legacyValue(LegacyEffect.CLAIM_DISCOUNT));
         }
         int researchLevels = researchBonusCount("CLAIM_DISCOUNT");
         if (researchLevels > 0) {
@@ -411,15 +426,18 @@ public final class Faction {
         return legacyLevel(LegacyResearch.slotOf(bonuses, bonus));
     }
 
-    public double legacyMultiplier(FactionBonus bonus) {
-        return LegacyResearch.multiplier(legacyLevel(bonus));
+    public double legacyValue(LegacyEffect effect) {
+        return effect == null ? 0.0D : effect.value(legacyLevel(effect.bonus()));
+    }
+
+    public boolean hasLegacyMastery(FactionBonus bonus) {
+        return hasBonus(bonus) && legacyLevel(bonus) >= LegacyResearch.MAX_LEVEL;
     }
 
     public double miningSpeedMultiplier() {
         double multiplier = 1.0D + 0.05D * researchBonusCount("MINING_SPEED");
         if (hasBonus(FactionBonus.MINERS)) {
-            multiplier += ModConfigSpec.MINER_MINING_SPEED_BONUS.getAsDouble()
-                * legacyMultiplier(FactionBonus.MINERS);
+            multiplier += legacyValue(LegacyEffect.MINING_SPEED);
         }
         return multiplier;
     }
@@ -429,8 +447,7 @@ public final class Faction {
         if (!hasBonus(FactionBonus.RESEARCHERS)) {
             return duration;
         }
-        double speed = 1.0D + ModConfigSpec.RESEARCHER_RESEARCH_SPEED_BONUS.getAsDouble()
-            * legacyMultiplier(FactionBonus.RESEARCHERS);
+        double speed = 1.0D + legacyValue(LegacyEffect.RESEARCH_SPEED);
         return Math.max(1L, (long) Math.ceil(duration / Math.max(0.0001D, speed)));
     }
 
@@ -526,6 +543,13 @@ public final class Faction {
 
     void setBonuses(Set<FactionBonus> newBonuses) {
         bonuses = sanitizeBonuses(newBonuses);
+        if (extraBonus != null && bonuses.contains(extraBonus)) {
+            extraBonus = null;
+        }
+    }
+
+    void setExtraBonus(FactionBonus bonus) {
+        extraBonus = bonus == null || bonuses.contains(bonus) ? null : bonus;
     }
 
     void setEmblem(int[] pixels, String url) {
@@ -666,6 +690,9 @@ public final class Faction {
             .sorted(Comparator.comparing(FactionBonus::name))
             .forEach(value -> bonusesTag.add(net.minecraft.nbt.StringTag.valueOf(value.name())));
         tag.put(TAG_BONUSES, bonusesTag);
+        if (extraBonus != null) {
+            tag.putString(TAG_EXTRA_BONUS, extraBonus.name());
+        }
         if (isValidEmblemLength(emblem.length)) {
             tag.putIntArray(TAG_EMBLEM, emblem.clone());
         }
@@ -790,6 +817,12 @@ public final class Faction {
             claims
         );
         faction.loadInfluence(tag);
+        if (tag.contains(TAG_EXTRA_BONUS, Tag.TAG_STRING)) {
+            try {
+                faction.setExtraBonus(FactionBonus.parse(tag.getString(TAG_EXTRA_BONUS)));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
         faction.setEmblem(
             tag.contains(TAG_EMBLEM, Tag.TAG_INT_ARRAY) ? tag.getIntArray(TAG_EMBLEM) : null,
             tag.getString(TAG_EMBLEM_URL)

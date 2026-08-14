@@ -4,6 +4,7 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.faction.LegacyEffect;
 import com.geydev.kalfactions.protection.FactionAccess;
 import com.geydev.kalfactions.sanctuary.SanctuaryExecutionManager;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
@@ -19,6 +20,7 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.player.CriticalHitEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
@@ -66,8 +68,7 @@ public final class PvpHandler {
         if (event.getEntity() instanceof LivingEntity victim
                 && FactionAccess.hasAnyBonus(attacker, FactionBonus.ASSASSINS)
                 && isBehind(attacker, victim)) {
-            double extra = Math.max(0.0D, ModConfigSpec.ASSASSIN_BACK_DAMAGE_MULTIPLIER.getAsDouble() - 1.0D)
-                    * FactionAccess.legacyMultiplier(attacker, FactionBonus.ASSASSINS);
+            double extra = FactionAccess.legacyValue(attacker, LegacyEffect.BACK_DAMAGE);
             event.setAmount(event.getAmount() * (float) (1.0D + extra));
         }
 
@@ -81,6 +82,19 @@ public final class PvpHandler {
                 .orElse(0);
         if (warriorLevels > 0) {
             event.setAmount(event.getAmount() * (1.0F + 0.05F * warriorLevels));
+        }
+    }
+
+    @SubscribeEvent
+    public static void onCriticalHit(CriticalHitEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer attacker)
+                || !event.isVanillaCritical()
+                || !FactionAccess.hasAnyBonus(attacker, FactionBonus.ASSASSINS)) {
+            return;
+        }
+        double extra = FactionAccess.legacyValue(attacker, LegacyEffect.CRIT_DAMAGE);
+        if (extra > 0.0D) {
+            event.setDamageMultiplier(event.getDamageMultiplier() * (float) (1.0D + extra));
         }
     }
 

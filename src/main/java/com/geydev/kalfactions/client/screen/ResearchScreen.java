@@ -4,8 +4,11 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.faction.InfluenceType;
+import com.geydev.kalfactions.faction.LegacyEffect;
 import com.geydev.kalfactions.faction.LegacyResearch;
+import com.geydev.kalfactions.faction.ResearchCosts;
 import com.geydev.kalfactions.faction.ResearchNode;
+import com.geydev.kalfactions.client.LegacyAbilityKeys;
 import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
 import com.geydev.kalfactions.registry.ModItems;
@@ -64,6 +67,7 @@ public final class ResearchScreen extends FactionScreen {
     private int selectedTab;
     private ResearchNode selectedNode = ResearchNode.SCI_SMELT;
     private Button startButton;
+    private Button extraBonusButton;
     private float panX;
     private float panY;
     private float zoom = 0.72F;
@@ -109,7 +113,57 @@ public final class ResearchScreen extends FactionScreen {
                 66,
                 20
         ));
+        extraBonusButton = addRenderableWidget(KingdomsButton.create(
+                text("screen.kingdoms.legacy_extra_bonus"),
+                button -> openExtraBonusPicker(),
+                left + 92,
+                top + WINDOW_HEIGHT - 25,
+                140,
+                20
+        ));
         updateStartButton();
+    }
+
+    private boolean canPickExtraBonus() {
+        return snapshot.extraBonus().isEmpty()
+                && snapshot.canManage()
+                && legacyLevelOf(FactionBonus.RESEARCHERS) >= LegacyResearch.MAX_LEVEL;
+    }
+
+    private void openExtraBonusPicker() {
+        if (minecraft == null || !canPickExtraBonus()) {
+            return;
+        }
+        List<FactionBonus> owned = parsedBonuses();
+        List<FactionBonus> order = new ArrayList<>();
+        List<SelectEntryScreen.Entry> entries = new ArrayList<>();
+        for (FactionBonus bonus : FactionBonus.SELECTABLE) {
+            if (owned.contains(bonus)) {
+                continue;
+            }
+            order.add(bonus);
+            entries.add(SelectEntryScreen.Entry.icon(
+                    net.minecraft.client.resources.language.I18n.get(bonus.translationKey()),
+                    Component.translatable(bonus.descriptionKey()),
+                    FactionCreateScreen.bonusIcon(bonus),
+                    true
+            ));
+        }
+        minecraft.setScreen(new SelectEntryScreen(
+                this,
+                text("screen.kingdoms.legacy_extra_bonus_pick"),
+                entries,
+                null,
+                entry -> {
+                    int index = entries.indexOf(entry);
+                    if (index >= 0) {
+                        PacketDistributor.sendToServer(new FactionPayloads.C2SChooseExtraBonus(
+                                snapshot.tablePos(),
+                                order.get(index).name()
+                        ));
+                    }
+                }
+        ));
     }
 
     @Override
@@ -197,7 +251,7 @@ public final class ResearchScreen extends FactionScreen {
         return List.copyOf(nodes);
     }
 
-    private List<FactionBonus> legacySlots() {
+    private List<FactionBonus> parsedBonuses() {
         List<FactionBonus> parsed = new ArrayList<>();
         for (String name : snapshot.bonuses()) {
             try {
@@ -206,7 +260,41 @@ public final class ResearchScreen extends FactionScreen {
                 continue;
             }
         }
-        return LegacyResearch.slots(parsed);
+        return parsed;
+    }
+
+    private FactionBonus extraBonus() {
+        if (snapshot.extraBonus().isEmpty()) {
+            return null;
+        }
+        try {
+            return FactionBonus.parse(snapshot.extraBonus());
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private List<FactionBonus> legacySlots() {
+        List<FactionBonus> founding = new ArrayList<>(parsedBonuses());
+        founding.remove(extraBonus());
+        return LegacyResearch.slots(founding);
+    }
+
+    private int legacyLevelOf(FactionBonus bonus) {
+        int slot = legacySlots().indexOf(bonus);
+        return slot < 0 ? 0 : legacyLevel(slot);
+    }
+
+    private double legacyValue(LegacyEffect effect) {
+        return parsedBonuses().contains(effect.bonus()) ? effect.value(legacyLevelOf(effect.bonus())) : 0.0D;
+    }
+
+    private double researchDiscount() {
+        return Math.min(0.90D, legacyValue(LegacyEffect.RESEARCH_DISCOUNT));
+    }
+
+    private long influenceCostPerType(ResearchNode node) {
+        return ResearchCosts.discounted(node.influenceCostPerType(), researchDiscount());
     }
 
     private FactionBonus legacyBonus(int slot) {
@@ -312,7 +400,7 @@ public final class ResearchScreen extends FactionScreen {
                 types.size() > 1
                         ? "screen.kingdoms.research_cost_each_short"
                         : "screen.kingdoms.research_cost_short",
-                selectedNode.influenceCostPerType(),
+                influenceCostPerType(selectedNode),
                 effectiveDurationHours(selectedNode)
         );
         int cost = crystalCostPerType(selectedNode);
@@ -419,7 +507,7 @@ public final class ResearchScreen extends FactionScreen {
                         types.size() > 1
                                 ? "screen.kingdoms.research_cost_each_short"
                                 : "screen.kingdoms.research_cost_short",
-                        node.influenceCostPerType(),
+                        influenceCostPerType(node),
                         effectiveDurationHours(node)
                 ),
                 cursor + 2,
@@ -489,107 +577,50 @@ public final class ResearchScreen extends FactionScreen {
         if (bonus == null) {
             return List.of(text("kingdoms.research.legacy.empty.desc"));
         }
-        double from = LegacyResearch.multiplier(node.legacyLevel() - 1);
-        double to = LegacyResearch.multiplier(node.legacyLevel());
+        int level = node.legacyLevel();
         List<Component> lines = new ArrayList<>();
-        switch (bonus) {
-            case MINERS -> {
-                lines.add(legacyPercent("ore_drop", ModConfigSpec.ORE_BONUS_CHANCE.getAsDouble(), from, to));
-                lines.add(legacySignedPercent(
-                        "mining_speed",
-                        ModConfigSpec.MINER_MINING_SPEED_BONUS.getAsDouble(),
-                        from,
-                        to
-                ));
+        for (LegacyEffect effect : LegacyEffect.values()) {
+            if (effect.bonus() != bonus || (!effect.unlockedAt(level) && !effect.unlockedAt(level - 1))) {
+                continue;
             }
-            case FARMERS -> {
-                lines.add(legacyPercent("harvest", ModConfigSpec.HARVEST_BONUS_CHANCE.getAsDouble(), from, to));
-                lines.add(legacyPercent("twins", ModConfigSpec.FARMER_BREEDING_TWIN_CHANCE.getAsDouble(), from, to));
-            }
-            case BUILDERS -> {
-                lines.add(legacyPercent("claim_discount", ModConfigSpec.BUILDER_DISCOUNT.getAsDouble(), from, to));
-                lines.add(legacyEffectLine(
-                        "outpost_size",
-                        outpostSizeText(from),
-                        outpostSizeText(to)
-                ));
-            }
-            case ASSASSINS -> lines.add(legacySignedPercent(
-                    "back_damage",
-                    ModConfigSpec.ASSASSIN_BACK_DAMAGE_MULTIPLIER.getAsDouble() - 1.0D,
-                    from,
-                    to
+            lines.add(legacyEffectLine(effect, level));
+        }
+        if (level >= LegacyResearch.MAX_LEVEL) {
+            lines.add(text(
+                    "kingdoms.research.legacy.mastery_line",
+                    text("kingdoms.research.legacy.mastery." + bonus.name().toLowerCase(Locale.ROOT))
             ));
-            case HOOKAH -> {
-                lines.add(legacyEffectLine(
-                        "hookah_armor",
-                        decimal(ModConfigSpec.HOOKAH_ARMOR_BONUS.getAsDouble() * from),
-                        decimal(ModConfigSpec.HOOKAH_ARMOR_BONUS.getAsDouble() * to)
-                ));
-                lines.add(legacySignedPercent("hookah_speed", ModConfigSpec.HOOKAH_SPEED_BONUS.getAsDouble(), from, to));
-                lines.add(legacySignedPercent(
-                        "hookah_damage",
-                        ModConfigSpec.HOOKAH_DAMAGE_MULTIPLIER.getAsDouble() - 1.0D,
-                        from,
-                        to
+            if (bonus == FactionBonus.MINERS) {
+                lines.add(text(
+                        "kingdoms.research.legacy.mastery.key",
+                        LegacyAbilityKeys.minerVisionKeyName()
                 ));
             }
-            case ENCHANTERS -> lines.add(legacyEffectLine(
-                    "anvil_discount",
-                    decimalPercent(1.0D - 1.0D / from),
-                    decimalPercent(1.0D - 1.0D / to)
-            ));
-            case MERCHANTS -> {
-                lines.add(legacySignedPercent(
-                        "sell_price",
-                        ModConfigSpec.MERCHANT_SELL_BONUS_PERCENT.getAsDouble(),
-                        from,
-                        to
-                ));
-                lines.add(legacyPercent(
-                        "treasury_income",
-                        ModConfigSpec.MERCHANT_TREASURY_INCOME_PERCENT.getAsDouble(),
-                        from,
-                        to
-                ));
-            }
-            case NOMADS -> lines.add(legacySignedPercent(
-                    "mount_speed",
-                    ModConfigSpec.NOMAD_MOUNT_SPEED_BONUS.getAsDouble(),
-                    from,
-                    to
-            ));
-            case RESEARCHERS -> lines.add(legacySignedPercent(
-                    "research_speed",
-                    ModConfigSpec.RESEARCHER_RESEARCH_SPEED_BONUS.getAsDouble(),
-                    from,
-                    to
-            ));
         }
         return List.copyOf(lines);
     }
 
-    private static Component legacyPercent(String name, double base, double from, double to) {
-        return legacyEffectLine(name, decimalPercent(base * from), decimalPercent(base * to));
-    }
-
-    private static Component legacySignedPercent(String name, double base, double from, double to) {
-        return legacyEffectLine(name, "+" + decimalPercent(base * from), "+" + decimalPercent(base * to));
-    }
-
-    private static Component legacyEffectLine(String name, String from, String to) {
+    private static Component legacyEffectLine(LegacyEffect effect, int level) {
         return text(
                 "kingdoms.research.legacy.effect_line",
-                text("kingdoms.research.legacy.effect." + name),
-                from,
-                to
+                text(effect.translationKey()),
+                legacyEffectValue(effect, level - 1),
+                legacyEffectValue(effect, level)
         );
     }
 
-    private static String outpostSizeText(double multiplier) {
-        int base = ModConfigSpec.BUILDER_OUTPOST_SIZE.getAsInt();
-        int size = Math.min(15, 2 + (int) Math.floor(Math.max(0, base - 2) * multiplier));
-        return size + "x" + size;
+    private static String legacyEffectValue(LegacyEffect effect, int level) {
+        double value = effect.value(level);
+        return switch (effect) {
+            case OUTPOST_SIZE -> {
+                int size = (int) Math.round(value);
+                yield size + "x" + size;
+            }
+            case HOOKAH_ARMOR -> decimal(value);
+            case MINING_SPEED, BACK_DAMAGE, CRIT_DAMAGE, HOOKAH_SPEED, HOOKAH_DAMAGE, SELL_PRICE, MOUNT_SPEED,
+                    RESEARCH_SPEED -> "+" + decimalPercent(value);
+            default -> decimalPercent(value);
+        };
     }
 
     private static String decimal(double value) {
@@ -749,10 +780,7 @@ public final class ResearchScreen extends FactionScreen {
 
     private long effectiveDurationMillis(ResearchNode node) {
         long duration = node.durationMillis();
-        if (!snapshot.bonuses().contains("RESEARCHERS")) {
-            return duration;
-        }
-        double speed = 1.0D + ModConfigSpec.RESEARCHER_RESEARCH_SPEED_BONUS.getAsDouble();
+        double speed = 1.0D + legacyValue(LegacyEffect.RESEARCH_SPEED);
         return Math.max(1L, (long) Math.ceil(duration / Math.max(0.0001D, speed)));
     }
 
@@ -832,7 +860,7 @@ public final class ResearchScreen extends FactionScreen {
     }
 
     private boolean hasInfluenceFor(ResearchNode node) {
-        long perType = node.influenceCostPerType();
+        long perType = influenceCostPerType(node);
         for (InfluenceType type : node.costTypes()) {
             if (influenceOf(type) < perType) {
                 return false;
@@ -859,6 +887,10 @@ public final class ResearchScreen extends FactionScreen {
     }
 
     private void updateStartButton() {
+        if (extraBonusButton != null) {
+            extraBonusButton.visible = selectedTab == LEGACY_TAB && canPickExtraBonus();
+            extraBonusButton.active = extraBonusButton.visible;
+        }
         if (startButton == null) {
             return;
         }
@@ -878,7 +910,7 @@ public final class ResearchScreen extends FactionScreen {
                 ? LegacyResearch.crystalCost(node.legacyLevel())
                 : snapshot.researchCrystalCosts()
                         .get(Math.clamp(node.tier(), 1, snapshot.researchCrystalCosts().size()) - 1);
-        return node.crystalCostPerType(total);
+        return (int) ResearchCosts.discounted(node.crystalCostPerType(total), researchDiscount());
     }
 
     private Component ownedCrystalsText(List<InfluenceType> types) {

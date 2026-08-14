@@ -6,6 +6,7 @@ import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.InfluenceType;
+import com.geydev.kalfactions.faction.LegacyEffect;
 import com.geydev.kalfactions.faction.LegacyResearch;
 import com.geydev.kalfactions.faction.ResearchCrystalPayment;
 import com.geydev.kalfactions.faction.ResearchNode;
@@ -92,14 +93,17 @@ public final class LegacyResearchGameTests {
             fixture.manager().grantResearch(fixture.faction().id(), node);
         }
 
-        double expected = 1.0D + LegacyResearch.percentPerLevel() * LegacyResearch.MAX_LEVEL;
-        double miners = fixture.faction().legacyMultiplier(FactionBonus.MINERS);
-        double nomads = fixture.faction().legacyMultiplier(FactionBonus.NOMADS);
+        double expected = LegacyEffect.ORE_DROP.value(LegacyResearch.MAX_LEVEL);
+        double miners = fixture.faction().legacyValue(LegacyEffect.ORE_DROP);
+        double nomads = fixture.faction().legacyValue(LegacyEffect.MOUNT_SPEED);
 
-        helper.assertTrue(Math.abs(miners - expected) < 1.0E-6D, "Miner legacy multiplier is " + miners);
-        helper.assertTrue(Math.abs(nomads - 1.0D) < 1.0E-6D, "Nomad legacy multiplier leaked: " + nomads);
+        helper.assertTrue(Math.abs(miners - expected) < 1.0E-6D, "Miner legacy value is " + miners);
         helper.assertTrue(
-                Math.abs(fixture.faction().legacyMultiplier(FactionBonus.BUILDERS) - 1.0D) < 1.0E-6D,
+                Math.abs(nomads - LegacyEffect.MOUNT_SPEED.value(0)) < 1.0E-6D,
+                "Nomad legacy level leaked: " + nomads
+        );
+        helper.assertTrue(
+                fixture.faction().legacyLevel(FactionBonus.BUILDERS) == 0,
                 "An unowned bonus was scaled"
         );
         helper.succeed();

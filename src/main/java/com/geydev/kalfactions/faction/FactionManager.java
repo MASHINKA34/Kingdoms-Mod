@@ -350,6 +350,33 @@ public final class FactionManager extends SavedData {
         return OperationResult.success(factionId, 0L);
     }
 
+    public synchronized ExtraBonusResult chooseExtraBonus(UUID factionId, FactionBonus bonus) {
+        Faction faction = factions.get(factionId);
+        if (faction == null) {
+            return ExtraBonusResult.FACTION_NOT_FOUND;
+        }
+        if (!faction.hasLegacyMastery(FactionBonus.RESEARCHERS)) {
+            return ExtraBonusResult.LOCKED;
+        }
+        if (faction.extraBonus() != null) {
+            return ExtraBonusResult.ALREADY_CHOSEN;
+        }
+        if (bonus == null || faction.foundingBonuses().contains(bonus)) {
+            return ExtraBonusResult.INVALID_BONUS;
+        }
+        faction.setExtraBonus(bonus);
+        setDirty();
+        return ExtraBonusResult.CHOSEN;
+    }
+
+    public enum ExtraBonusResult {
+        CHOSEN,
+        LOCKED,
+        ALREADY_CHOSEN,
+        INVALID_BONUS,
+        FACTION_NOT_FOUND
+    }
+
     public synchronized OperationResult setFactionEmblem(UUID factionId, int[] pixels, String url) {
         Faction faction = factions.get(factionId);
         if (faction == null) {
@@ -897,9 +924,7 @@ public final class FactionManager extends SavedData {
         if (!faction.hasBonus(FactionBonus.BUILDERS)) {
             return 2;
         }
-        int base = ModConfigSpec.BUILDER_OUTPOST_SIZE.getAsInt();
-        double scaledExtra = Math.max(0, base - 2) * faction.legacyMultiplier(FactionBonus.BUILDERS);
-        return Math.min(15, 2 + (int) Math.floor(scaledExtra));
+        return Math.clamp((int) Math.round(faction.legacyValue(LegacyEffect.OUTPOST_SIZE)), 2, 15);
     }
 
     public enum RelocateStatus {
@@ -1075,8 +1100,9 @@ public final class FactionManager extends SavedData {
             return StartResearchResult.UNAVAILABLE;
         }
         List<InfluenceType> costTypes = node.costTypes();
-        long influencePerType = node.influenceCostPerType();
-        int crystalsPerType = node.crystalCostPerType(crystalCost);
+        double discount = Math.min(0.90D, faction.legacyValue(LegacyEffect.RESEARCH_DISCOUNT));
+        long influencePerType = ResearchCosts.discounted(node.influenceCostPerType(), discount);
+        int crystalsPerType = (int) ResearchCosts.discounted(node.crystalCostPerType(crystalCost), discount);
         for (InfluenceType type : costTypes) {
             if (faction.influence(type) < influencePerType) {
                 return StartResearchResult.INSUFFICIENT_INFLUENCE;
@@ -1182,7 +1208,7 @@ public final class FactionManager extends SavedData {
             if (periods <= 0L) {
                 continue;
             }
-            double factionPercent = incomePercent * faction.legacyMultiplier(FactionBonus.MERCHANTS);
+            double factionPercent = faction.legacyValue(LegacyEffect.TREASURY_INCOME);
             for (long period = 0L; period < periods; period++) {
                 long balance = faction.treasuryBalance();
                 long income = PriceMath.percentageCeil(balance, factionPercent);

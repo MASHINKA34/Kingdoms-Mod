@@ -162,7 +162,6 @@ public final class ModConfigSpec {
     public static final IntValue CLUSTER_RESET_DAYS;
     public static final IntValue CLUSTER_GENERATION;
     public static final IntValue CLUSTER_MAINTENANCE_CHUNKS_PER_TICK;
-    public static final DoubleValue LEGACY_BONUS_PERCENT_PER_LEVEL;
     public static final LongValue LEGACY_INFLUENCE_COST_LEVEL_1;
     public static final LongValue LEGACY_INFLUENCE_COST_LEVEL_2;
     public static final LongValue LEGACY_INFLUENCE_COST_LEVEL_3;
@@ -295,19 +294,16 @@ public final class ModConfigSpec {
         RESEARCH_CRYSTAL_COST_TIER_5 = builder.defineInRange("crystalCostTier5", 640, 0, 4096);
         RESEARCH_CRYSTAL_COST_TIER_6_PLUS = builder.defineInRange("crystalCostTier6Plus", 960, 0, 4096);
         builder.push("legacy");
-        LEGACY_BONUS_PERCENT_PER_LEVEL = builder
-            .comment("Extra share of the base faction bonus effect granted by each legacy level.")
-            .defineInRange("bonusPercentPerLevel", 0.25D, 0D, 10D);
-        LEGACY_INFLUENCE_COST_LEVEL_1 = builder.defineInRange("influenceCostLevel1", 200L, 0L, Long.MAX_VALUE);
-        LEGACY_INFLUENCE_COST_LEVEL_2 = builder.defineInRange("influenceCostLevel2", 400L, 0L, Long.MAX_VALUE);
-        LEGACY_INFLUENCE_COST_LEVEL_3 = builder.defineInRange("influenceCostLevel3", 700L, 0L, Long.MAX_VALUE);
-        LEGACY_INFLUENCE_COST_LEVEL_4 = builder.defineInRange("influenceCostLevel4", 1100L, 0L, Long.MAX_VALUE);
-        LEGACY_INFLUENCE_COST_LEVEL_5 = builder.defineInRange("influenceCostLevel5", 1600L, 0L, Long.MAX_VALUE);
-        LEGACY_CRYSTAL_COST_LEVEL_1 = builder.defineInRange("crystalCostLevel1", 120, 0, 4096);
-        LEGACY_CRYSTAL_COST_LEVEL_2 = builder.defineInRange("crystalCostLevel2", 240, 0, 4096);
-        LEGACY_CRYSTAL_COST_LEVEL_3 = builder.defineInRange("crystalCostLevel3", 360, 0, 4096);
-        LEGACY_CRYSTAL_COST_LEVEL_4 = builder.defineInRange("crystalCostLevel4", 480, 0, 4096);
-        LEGACY_CRYSTAL_COST_LEVEL_5 = builder.defineInRange("crystalCostLevel5", 640, 0, 4096);
+        LEGACY_INFLUENCE_COST_LEVEL_1 = builder.defineInRange("influencePerTypeLevel1", 150L, 0L, Long.MAX_VALUE);
+        LEGACY_INFLUENCE_COST_LEVEL_2 = builder.defineInRange("influencePerTypeLevel2", 250L, 0L, Long.MAX_VALUE);
+        LEGACY_INFLUENCE_COST_LEVEL_3 = builder.defineInRange("influencePerTypeLevel3", 350L, 0L, Long.MAX_VALUE);
+        LEGACY_INFLUENCE_COST_LEVEL_4 = builder.defineInRange("influencePerTypeLevel4", 450L, 0L, Long.MAX_VALUE);
+        LEGACY_INFLUENCE_COST_LEVEL_5 = builder.defineInRange("influencePerTypeLevel5", 550L, 0L, Long.MAX_VALUE);
+        LEGACY_CRYSTAL_COST_LEVEL_1 = builder.defineInRange("crystalPerTypeLevel1", 64, 0, 4096);
+        LEGACY_CRYSTAL_COST_LEVEL_2 = builder.defineInRange("crystalPerTypeLevel2", 128, 0, 4096);
+        LEGACY_CRYSTAL_COST_LEVEL_3 = builder.defineInRange("crystalPerTypeLevel3", 256, 0, 4096);
+        LEGACY_CRYSTAL_COST_LEVEL_4 = builder.defineInRange("crystalPerTypeLevel4", 512, 0, 4096);
+        LEGACY_CRYSTAL_COST_LEVEL_5 = builder.defineInRange("crystalPerTypeLevel5", 1024, 0, 4096);
         builder.pop();
         builder.pop();
 

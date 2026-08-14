@@ -38,6 +38,7 @@ public record FactionSnapshot(
         List<FactionRef> joinableAllies,
         List<OnlinePlayer> onlinePlayers,
         List<String> bonuses,
+        String extraBonus,
         List<Integer> emblem,
         String emblemUrl,
         List<String> completedResearch,
@@ -95,6 +96,7 @@ public record FactionSnapshot(
         joinableAllies = joinableAllies == null ? List.of() : List.copyOf(joinableAllies);
         onlinePlayers = onlinePlayers == null ? List.of() : List.copyOf(onlinePlayers);
         bonuses = bonuses == null ? List.of() : List.copyOf(bonuses);
+        extraBonus = extraBonus == null ? "" : limit(extraBonus, 24);
         emblem = emblem == null || !isValidEmblemSize(emblem.size()) ? List.of() : List.copyOf(emblem);
         emblemUrl = limit(emblemUrl, MAX_EMBLEM_URL);
         completedResearch = completedResearch == null ? List.of() : List.copyOf(completedResearch);
@@ -116,7 +118,7 @@ public record FactionSnapshot(
                 tablePos, NO_FACTION, "", "", 0x4E7A42, false, false,
                 centerChunkX, centerChunkZ, 6, List.of(), List.of(),
                 0L, 0L, 0L, 0L, 0L, false, creationCost, NO_FACTION, false,
-                "", 0L, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), "",
+                "", 0L, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), "", List.of(), "",
                 List.of(), "", 0L, List.of(0, 0, 0, 0, 0, 0), 0, 0, 0, WarSpoils.EMPTY, 0, 0
         );
     }
@@ -179,6 +181,7 @@ public record FactionSnapshot(
                 MAX_BONUSES,
                 (target, value) -> target.writeUtf(value, 24)
         );
+        buffer.writeUtf(snapshot.extraBonus, 24);
         writeBoundedList(buffer, snapshot.emblem, MAX_EMBLEM_PIXELS, (target, value) -> target.writeInt(value));
         buffer.writeUtf(snapshot.emblemUrl, MAX_EMBLEM_URL);
         writeBoundedList(
@@ -233,6 +236,7 @@ public record FactionSnapshot(
         List<FactionRef> joinableAllies = readBoundedList(buffer, MAX_KNOWN_FACTIONS, FactionRef::decode);
         List<OnlinePlayer> onlinePlayers = readBoundedList(buffer, MAX_ONLINE_PLAYERS, OnlinePlayer::decode);
         List<String> bonuses = readBoundedList(buffer, MAX_BONUSES, target -> target.readUtf(24));
+        String extraBonus = buffer.readUtf(24);
         List<Integer> emblem = readBoundedList(buffer, MAX_EMBLEM_PIXELS, RegistryFriendlyByteBuf::readInt);
         String emblemUrl = buffer.readUtf(MAX_EMBLEM_URL);
         List<String> completedResearch = readBoundedList(buffer, MAX_RESEARCH_NODES, target -> target.readUtf(32));
@@ -255,7 +259,7 @@ public record FactionSnapshot(
                 treasury, influence, influenceScience, influenceEconomic, influenceMilitary,
                 internalPvp, creationCost, viewerId, isOfficer,
                 warWith, warDeclareCooldownSeconds, knownFactions, allianceCandidates, allies, joinableAllies,
-                onlinePlayers, bonuses, emblem, emblemUrl,
+                onlinePlayers, bonuses, extraBonus, emblem, emblemUrl,
                 completedResearch, activeResearchNode, activeResearchEndMillis,
                 researchCrystalCosts, crystalScience, crystalEconomic, crystalMilitary, pendingWarSpoils,
                 claimCount, forceLoadUsed

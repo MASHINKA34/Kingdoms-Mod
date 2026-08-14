@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.outpost.trader;
 
+import com.geydev.kalfactions.bonus.LegacyMasteryHandler;
 import com.geydev.kalfactions.command.NumismaticsEconomy;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.entity.BankerEntity;
@@ -725,8 +726,7 @@ public final class TraderService {
                 basePrice,
                 researchLevels(player, "BUY_RATE"),
                 FactionAccess.hasAnyBonus(player, FactionBonus.MERCHANTS),
-                ModConfigSpec.MERCHANT_SELL_BONUS_PERCENT.getAsDouble()
-                        * FactionAccess.legacyMultiplier(player, FactionBonus.MERCHANTS),
+                FactionAccess.legacyValue(player, com.geydev.kalfactions.faction.LegacyEffect.SELL_PRICE),
                 com.geydev.kalfactions.faith.FaithBonuses.economySellPercent(
                         com.geydev.kalfactions.faith.FaithBonuses.activeLevel(
                                 player, com.geydev.kalfactions.faith.FaithGod.ECONOMY))
@@ -770,9 +770,27 @@ public final class TraderService {
     }
 
     private static long buyUnitPrice(ServerPlayer player, TraderOffer offer) {
-        return offer.shop() == TraderOffer.Shop.KINGDOMS
+        long price = offer.shop() == TraderOffer.Shop.KINGDOMS
                 ? buyUnitPrice(player, offer.price())
                 : offer.price();
+        if (offer == TraderOffer.OUTPOST_CHARTER
+                && FactionAccess.hasLegacyMastery(player, FactionBonus.BUILDERS)) {
+            price = applyDiscount(price, LegacyMasteryHandler.BUILDER_OUTPOST_DISCOUNT);
+        }
+        return masteryDiscounted(player, price);
+    }
+
+    static long masteryDiscounted(ServerPlayer player, long price) {
+        return FactionAccess.hasLegacyMastery(player, FactionBonus.MERCHANTS)
+                ? applyDiscount(price, LegacyMasteryHandler.MERCHANT_BUY_DISCOUNT)
+                : price;
+    }
+
+    private static long applyDiscount(long price, double discount) {
+        if (price <= 0L || discount <= 0.0D) {
+            return Math.max(0L, price);
+        }
+        return Math.max(1L, (long) Math.ceil(price * (1.0D - Math.min(0.90D, discount))));
     }
 
     private static void sendBuyState(

@@ -1,8 +1,8 @@
 package com.geydev.kalfactions.integration.curios;
 
 import com.geydev.kalfactions.KalFactions;
-import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionBonus;
+import com.geydev.kalfactions.faction.LegacyEffect;
 import com.geydev.kalfactions.protection.FactionAccess;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import java.lang.reflect.Method;
@@ -114,8 +114,7 @@ public final class CuriosHookahIntegration {
         if (!hasActiveHookahBonus(player)) {
             return 1.0F;
         }
-        double extra = Math.max(0.0D, ModConfigSpec.HOOKAH_DAMAGE_MULTIPLIER.getAsDouble() - 1.0D)
-                * FactionAccess.legacyMultiplier(player, FactionBonus.HOOKAH);
+        double extra = FactionAccess.legacyValue(player, LegacyEffect.HOOKAH_DAMAGE);
         return (float) (1.0D + extra);
     }
 
@@ -168,8 +167,7 @@ public final class CuriosHookahIntegration {
             return;
         }
 
-        double legacy = FactionAccess.legacyMultiplier(player, FactionBonus.HOOKAH);
-        double armorAmount = Math.max(0.0D, ModConfigSpec.HOOKAH_ARMOR_BONUS.getAsDouble()) * legacy;
+        double armorAmount = FactionAccess.legacyValue(player, LegacyEffect.HOOKAH_ARMOR);
         if (armor != null && armorAmount > 0.0D) {
             armor.addOrUpdateTransientModifier(new AttributeModifier(
                     HOOKAH_ARMOR_MODIFIER_ID,
@@ -180,7 +178,7 @@ public final class CuriosHookahIntegration {
             removeModifier(armor, HOOKAH_ARMOR_MODIFIER_ID);
         }
 
-        double speedAmount = Math.max(0.0D, ModConfigSpec.HOOKAH_SPEED_BONUS.getAsDouble()) * legacy;
+        double speedAmount = FactionAccess.legacyValue(player, LegacyEffect.HOOKAH_SPEED);
         if (speed != null && speedAmount > 0.0D) {
             speed.addOrUpdateTransientModifier(new AttributeModifier(
                     HOOKAH_SPEED_MODIFIER_ID,

@@ -5,6 +5,7 @@ import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.faction.LegacyEffect;
 import com.geydev.kalfactions.faith.FaithBonuses;
 import com.geydev.kalfactions.faith.FaithGod;
 import com.geydev.kalfactions.protection.FactionAccess;
@@ -63,17 +64,18 @@ public final class BonusHandler {
         if (isOre
                 && (FactionAccess.hasAnyBonus(player, FactionBonus.MINERS)
                     || (faction != null && faction.researchBonusCount("ORE_DROP") > 0))) {
-            chance = ModConfigSpec.ORE_BONUS_CHANCE.get()
-                    * FactionAccess.legacyMultiplier(player, FactionBonus.MINERS);
+            chance = FactionAccess.hasAnyBonus(player, FactionBonus.MINERS)
+                    ? FactionAccess.legacyValue(player, LegacyEffect.ORE_DROP)
+                    : ModConfigSpec.ORE_BONUS_CHANCE.get();
         } else if (event.getState().is(BlockTags.CROPS)
                 && FactionAccess.hasAnyBonus(player, FactionBonus.FARMERS)) {
-            chance = ModConfigSpec.HARVEST_BONUS_CHANCE.get()
-                    * FactionAccess.legacyMultiplier(player, FactionBonus.FARMERS);
+            chance = FactionAccess.legacyValue(player, LegacyEffect.HARVEST);
         } else {
             chance = 0.0D;
         }
         int faithOreUnits = isOre ? rollFaithOreUnits(player) : 0;
         boolean rolledBonus = chance > 0.0D && player.getRandom().nextDouble() < chance;
+        int bonusUnits = isOre ? 1 + player.getRandom().nextInt(2) : 1;
         if (!rolledBonus && faithOreUnits <= 0) {
             return;
         }
@@ -84,9 +86,8 @@ public final class BonusHandler {
             if (bonusStack.isEmpty()) {
                 continue;
             }
-            if (!rolledBonus) {
-                bonusStack.setCount(faithOreUnits);
-            }
+            int count = rolledBonus ? bonusStack.getCount() * bonusUnits + faithOreUnits : faithOreUnits;
+            bonusStack.setCount(Math.min(bonusStack.getMaxStackSize(), count));
             ItemEntity bonus = new ItemEntity(
                     event.getLevel(),
                     drop.getX(),
@@ -134,8 +135,7 @@ public final class BonusHandler {
                 || !(event.getParentB() instanceof AgeableMob parentB)
                 || event.getChild() == null
                 || !FactionAccess.hasAnyBonus(player, FactionBonus.FARMERS)
-                || player.getRandom().nextDouble() >= ModConfigSpec.FARMER_BREEDING_TWIN_CHANCE.getAsDouble()
-                    * FactionAccess.legacyMultiplier(player, FactionBonus.FARMERS)) {
+                || player.getRandom().nextDouble() >= FactionAccess.legacyValue(player, LegacyEffect.TWINS)) {
             return;
         }
         AgeableMob extraChild = parentA.getBreedOffspring(player.serverLevel(), parentB);
@@ -327,8 +327,7 @@ public final class BonusHandler {
         }
         speed.addOrUpdateTransientModifier(new AttributeModifier(
                 NOMAD_MOUNT_SPEED_ID,
-                ModConfigSpec.NOMAD_MOUNT_SPEED_BONUS.getAsDouble()
-                        * FactionAccess.legacyMultiplier(player, FactionBonus.NOMADS),
+                FactionAccess.legacyValue(player, LegacyEffect.MOUNT_SPEED),
                 AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
         ));
     }

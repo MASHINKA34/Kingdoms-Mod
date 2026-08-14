@@ -445,6 +445,15 @@ public final class FactionServerHooks {
         perform(player, tablePos, () -> service.startResearch(player, tablePos, nodeName));
     }
 
+    public static void chooseExtraBonus(ServerPlayer player, BlockPos tablePos, String bonus) {
+        Validation validation = validateTable(player, tablePos, true);
+        if (!validation.allowed) {
+            reject(player, tablePos, validation.message);
+            return;
+        }
+        perform(player, tablePos, () -> service.chooseExtraBonus(player, tablePos, bonus));
+    }
+
     public static void kickMember(ServerPlayer player, BlockPos tablePos, UUID targetId) {
         Validation validation = validateTable(player, tablePos, true);
         if (!validation.allowed) {
@@ -1146,6 +1155,7 @@ public final class FactionServerHooks {
                 snapshot.joinableAllies(),
                 snapshot.onlinePlayers(),
                 snapshot.bonuses(),
+                snapshot.extraBonus(),
                 snapshot.emblem(),
                 snapshot.emblemUrl(),
                 snapshot.completedResearch(),
@@ -1209,6 +1219,8 @@ public final class FactionServerHooks {
         Result turnInCrystals(ServerPlayer player, BlockPos tablePos);
 
         Result startResearch(ServerPlayer player, BlockPos tablePos, String nodeName);
+
+        Result chooseExtraBonus(ServerPlayer player, BlockPos tablePos, String bonus);
 
         Result kickMember(ServerPlayer player, BlockPos tablePos, UUID targetId);
 
@@ -1316,6 +1328,11 @@ public final class FactionServerHooks {
 
         @Override
         public Result startResearch(ServerPlayer player, BlockPos tablePos, String nodeName) {
+            return managementUnavailable(player, tablePos);
+        }
+
+        @Override
+        public Result chooseExtraBonus(ServerPlayer player, BlockPos tablePos, String bonus) {
             return managementUnavailable(player, tablePos);
         }
 

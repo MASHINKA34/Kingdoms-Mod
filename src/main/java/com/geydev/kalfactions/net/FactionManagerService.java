@@ -87,6 +87,7 @@ public final class FactionManagerService implements FactionServerHooks.Service {
                 joinableAllyRefs(player, manager, faction),
                 onlinePlayers(player, manager),
                 bonusNames(faction),
+                faction.extraBonus() == null ? "" : faction.extraBonus().name(),
                 emblemPixels(faction),
                 faction.emblemUrl(),
                 researchNames(faction),
@@ -646,6 +647,64 @@ public final class FactionManagerService implements FactionServerHooks.Service {
                     view(player, tablePos)
             );
             case NO_FACTION -> FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.not_in_faction"),
+                    view(player, tablePos)
+            );
+        };
+    }
+
+    @Override
+    public FactionServerHooks.Result chooseExtraBonus(ServerPlayer player, BlockPos tablePos, String bonus) {
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
+        if (faction == null) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.not_in_faction"),
+                    view(player, tablePos)
+            );
+        }
+        FactionRole role = manager.getRole(player.getUUID()).orElse(FactionRole.MEMBER);
+        if (!role.isAtLeast(FactionRole.LEADER)) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.extra_bonus_leader_only"),
+                    view(player, tablePos)
+            );
+        }
+        if (!canUseBoundTable(player, tablePos, faction.id())) {
+            return FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.table_other_faction"),
+                    view(player, tablePos)
+            );
+        }
+        FactionBonus chosen;
+        try {
+            chosen = FactionBonus.parse(bonus);
+        } catch (IllegalArgumentException exception) {
+            chosen = null;
+        }
+        FactionManager.ExtraBonusResult result = manager.chooseExtraBonus(faction.id(), chosen);
+        return switch (result) {
+            case CHOSEN -> new FactionServerHooks.Result(
+                    true,
+                    Component.translatable(
+                            "kingdoms.research.legacy.extra_bonus.chosen",
+                            Component.translatable(chosen.translationKey())
+                    ),
+                    view(player, tablePos)
+            );
+            case ALREADY_CHOSEN -> FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.extra_bonus_already"),
+                    view(player, tablePos)
+            );
+            case LOCKED -> FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.extra_bonus_locked"),
+                    view(player, tablePos)
+            );
+            case INVALID_BONUS -> FactionServerHooks.Result.denied(
+                    Component.translatable("kingdoms.error.extra_bonus_invalid"),
+                    view(player, tablePos)
+            );
+            case FACTION_NOT_FOUND -> FactionServerHooks.Result.denied(
                     Component.translatable("kingdoms.error.not_in_faction"),
                     view(player, tablePos)
             );

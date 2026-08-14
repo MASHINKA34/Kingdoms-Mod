@@ -3,10 +3,14 @@ package com.geydev.kalfactions.bonus;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionBonus;
+import com.geydev.kalfactions.faction.LegacyEffect;
 import com.geydev.kalfactions.protection.FactionAccess;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import java.util.Objects;
+import java.util.Random;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -105,6 +109,9 @@ public final class EnchanterBonusHandler {
                     int currentLevel = mutable.getLevel(holder);
                     int rightLevel = entry.getIntValue();
                     int targetLevel = currentLevel == rightLevel ? rightLevel + 1 : Math.max(currentLevel, rightLevel);
+                    if (currentLevel == rightLevel && rollExtraLevel(player, left, holder, targetLevel)) {
+                        targetLevel++;
+                    }
                     mutable.set(holder, targetLevel);
                     int anvilCost = holder.value().getAnvilCost();
                     if (enchantedBook) {
@@ -150,11 +157,32 @@ public final class EnchanterBonusHandler {
             result.set(DataComponents.REPAIR_COST, AnvilMenu.calculateIncreasedRepairCost(repairCost));
         }
 
-        double legacy = FactionAccess.legacyMultiplier(player, FactionBonus.ENCHANTERS);
-        long discounted = (long) Math.ceil((baseCost + operationCost) / Math.max(0.0001D, legacy));
+        double discount = Math.min(0.95D, FactionAccess.legacyValue(player, LegacyEffect.ANVIL_DISCOUNT));
+        long discounted = (long) Math.ceil((baseCost + operationCost) * (1.0D - discount));
         event.setCost(Mth.clamp(discounted, 1L, ModConfigSpec.ENCHANTER_ANVIL_MAX_COST.getAsInt()));
         event.setMaterialCost(materialCost);
         return result;
+    }
+
+    private static boolean rollExtraLevel(
+            ServerPlayer player,
+            ItemStack left,
+            Holder<Enchantment> enchantment,
+            int targetLevel
+    ) {
+        double chance = FactionAccess.legacyValue(player, LegacyEffect.ANVIL_EXTRA_LEVEL);
+        if (chance <= 0.0D) {
+            return false;
+        }
+        long seed = player.getUUID().getLeastSignificantBits()
+                ^ Objects.hash(
+                        BuiltInRegistries.ITEM.getKey(left.getItem()),
+                        enchantment.getRegisteredName(),
+                        targetLevel,
+                        left.getDamageValue(),
+                        left.getOrDefault(DataComponents.REPAIR_COST, 0)
+                );
+        return new Random(seed).nextDouble() < chance;
     }
 
     private static AnvilOverride createRegularPlayerOutput(AnvilUpdateEvent event) {
