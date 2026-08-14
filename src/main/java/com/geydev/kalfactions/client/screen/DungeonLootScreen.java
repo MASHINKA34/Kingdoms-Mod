@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.UUID;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
@@ -189,6 +190,10 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
                 PREVIEW_WIDTH,
                 BUTTON_HEIGHT
         ));
+        cooldownToggle.setTooltip(Tooltip.create(
+                Component.translatable("screen.kingdoms.dungeon_chest.template_cooldown_tip")));
+        saveTemplateButton.setTooltip(Tooltip.create(
+                Component.translatable("screen.kingdoms.dungeon_chest.template_save_tip")));
         applyButton = addRenderableWidget(KingdomsButton.create(
                 Component.translatable("screen.kingdoms.dungeon_chest.template_apply"),
                 button -> sendTemplate(DungeonPayloads.C2SChestTemplateAction.APPLY, false),
@@ -205,6 +210,10 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
                 PREVIEW_WIDTH,
                 BUTTON_HEIGHT
         ));
+        applyButton.setTooltip(Tooltip.create(
+                Component.translatable("screen.kingdoms.dungeon_chest.template_apply_tip")));
+        applyAllButton.setTooltip(Tooltip.create(
+                Component.translatable("screen.kingdoms.dungeon_chest.template_apply_all_tip")));
         renameButton = addRenderableWidget(KingdomsButton.create(
                 Component.translatable("screen.kingdoms.dungeon_chest.template_rename"),
                 button -> sendTemplate(DungeonPayloads.C2SChestTemplateAction.RENAME, false),
@@ -329,6 +338,17 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
         ));
     }
 
+    private Component cooldownToggleMessage() {
+        if (!applyTemplateCooldown) {
+            return Component.translatable("screen.kingdoms.dungeon_chest.template_cooldown_off");
+        }
+        DungeonPayloads.ChestTemplateView view = selectedView();
+        return view == null || view.cooldownHours() < 0
+                ? Component.translatable("screen.kingdoms.dungeon_chest.template_cooldown_on_global")
+                : Component.translatable(
+                        "screen.kingdoms.dungeon_chest.template_cooldown_on", view.cooldownHours());
+    }
+
     private void refreshTemplateButtons() {
         boolean picked = selectedTemplate != null;
         if (saveTemplateButton != null) {
@@ -338,9 +358,7 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
             saveTemplateButton.active = templateNameBox != null && !templateNameBox.getValue().isBlank();
         }
         if (cooldownToggle != null) {
-            cooldownToggle.setMessage(Component.translatable(applyTemplateCooldown
-                    ? "screen.kingdoms.dungeon_chest.template_cooldown_on"
-                    : "screen.kingdoms.dungeon_chest.template_cooldown_off"));
+            cooldownToggle.setMessage(cooldownToggleMessage());
         }
         if (applyButton != null) {
             applyButton.active = picked;
