@@ -2,6 +2,7 @@ package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.block.DungeonChestBlockEntity;
 import com.geydev.kalfactions.client.ClientChestTemplates;
+import com.mojang.blaze3d.platform.InputConstants;
 import com.geydev.kalfactions.dungeon.ChestTemplate;
 import com.geydev.kalfactions.dungeon.DungeonPayloads;
 import com.geydev.kalfactions.menu.DungeonLootMenu;
@@ -466,6 +467,20 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
             }
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (tab != Tab.TEMPLATES || templateNameBox == null) {
+            return super.keyPressed(keyCode, scanCode, modifiers);
+        }
+        if (keyCode == InputConstants.KEY_ESCAPE) {
+            onClose();
+            return true;
+        }
+        return templateNameBox.keyPressed(keyCode, scanCode, modifiers)
+                || templateNameBox.canConsumeInput()
+                || super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override
