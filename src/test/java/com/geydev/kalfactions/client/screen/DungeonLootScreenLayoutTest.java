@@ -3,6 +3,7 @@ package com.geydev.kalfactions.client.screen;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.geydev.kalfactions.menu.DungeonLootMenu;
 import org.junit.jupiter.api.Test;
 
 final class DungeonLootScreenLayoutTest {
@@ -54,37 +55,36 @@ final class DungeonLootScreenLayoutTest {
                 + DungeonLootScreen.TAB_GAP
                 + DungeonLootScreen.TAB_TEMPLATES_WIDTH;
 
-        assertTrue(DungeonLootScreen.PLAN_WIDTH - 12 - strip >= 118);
-        assertTrue(DungeonLootScreen.TEMPLATE_WIDTH - 12 - strip >= 118);
+        assertTrue(DungeonLootScreen.PANEL_WIDTH - 12 - strip >= 118);
         assertTrue(DungeonLootScreen.TAB_TOP + DungeonLootScreen.TAB_HEIGHT <= DungeonLootScreen.HINT_TOP);
         assertTrue(DungeonLootScreen.HINT_TOP + 10 <= DungeonLootScreen.LIST_TOP);
+        assertTrue(DungeonLootScreen.HINT_TOP + 10 <= DungeonLootMenu.GRID_TOP);
     }
 
     @Test
-    void planContentStaysCenteredInTheWiderPanel() {
-        assertEquals(
-                DungeonLootScreen.PLAN_WIDTH,
-                com.geydev.kalfactions.menu.DungeonLootMenu.GRID_LEFT * 2 + 162
-        );
-        assertEquals(
-                com.geydev.kalfactions.menu.DungeonLootMenu.GRID_LEFT,
-                com.geydev.kalfactions.menu.DungeonLootMenu.INVENTORY_LEFT
-        );
-        assertEquals(19 + DungeonLootScreen.PLAN_SHIFT, com.geydev.kalfactions.menu.DungeonLootMenu.GRID_LEFT);
+    void planTabKeepsItsRowsApartAndFitsThePanel() {
+        assertEquals(DungeonLootScreen.PANEL_WIDTH, DungeonLootMenu.GRID_LEFT * 2 + 162);
+        assertEquals(DungeonLootMenu.GRID_LEFT, DungeonLootMenu.INVENTORY_LEFT);
+        assertTrue(DungeonLootMenu.GRID_TOP + 54 <= DungeonLootScreen.PLAN_ITEM_TOP);
+        assertTrue(DungeonLootScreen.PLAN_ITEM_TOP + 9 <= DungeonLootScreen.PLAN_FIELD_TOP);
+        assertTrue(DungeonLootScreen.PLAN_FIELD_TOP + 14 <= DungeonLootScreen.PLAN_BUTTON_TOP);
+        assertTrue(DungeonLootScreen.PLAN_BUTTON_TOP + DungeonLootScreen.BUTTON_HEIGHT
+                <= DungeonLootMenu.INVENTORY_TOP - 10);
+        assertTrue(DungeonLootMenu.INVENTORY_TOP + 58 + 18 <= DungeonLootScreen.PANEL_HEIGHT);
     }
 
     @Test
     void templateTabStaysInsideThePanel() {
         assertTrue(DungeonLootScreen.PREVIEW_LEFT + DungeonLootScreen.PREVIEW_WIDTH
-                <= DungeonLootScreen.TEMPLATE_WIDTH - DungeonLootScreen.LIST_LEFT);
+                <= DungeonLootScreen.PANEL_WIDTH - DungeonLootScreen.LIST_LEFT);
         assertTrue(DungeonLootScreen.LIST_LEFT + DungeonLootScreen.LIST_WIDTH
                 < DungeonLootScreen.PREVIEW_LEFT);
-        assertTrue(DungeonLootScreen.LAST_ROW_BOTTOM <= DungeonLootScreen.TEMPLATE_HEIGHT);
+        assertTrue(DungeonLootScreen.LAST_ROW_BOTTOM <= DungeonLootScreen.PANEL_HEIGHT);
         assertTrue(DungeonLootScreen.LIST_TOP + DungeonLootScreen.LIST_ROWS * DungeonLootScreen.LIST_ROW_HEIGHT + 10
                 <= DungeonLootScreen.NAME_BOX_TOP);
-        assertTrue(DungeonLootScreen.NAME_BOX_TOP + 16 <= DungeonLootScreen.LAST_ROW_BOTTOM - 20);
-        assertTrue(DungeonLootScreen.PREVIEW_TOP + DungeonLootScreen.PREVIEW_HEIGHT + 30 + 76
-                <= DungeonLootScreen.TEMPLATE_HEIGHT);
-        assertTrue(DungeonLootScreen.PLAN_WIDTH < DungeonLootScreen.TEMPLATE_WIDTH);
+        assertTrue(DungeonLootScreen.NAME_BOX_TOP + 16
+                <= DungeonLootScreen.LAST_ROW_BOTTOM - DungeonLootScreen.BUTTON_HEIGHT);
+        assertTrue(DungeonLootScreen.PREVIEW_TOP + DungeonLootScreen.PREVIEW_HEIGHT + 30 + 22
+                <= DungeonLootScreen.LAST_ROW_BOTTOM - DungeonLootScreen.BUTTON_HEIGHT);
     }
 }
