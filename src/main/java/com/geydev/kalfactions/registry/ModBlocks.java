@@ -8,6 +8,7 @@ import com.geydev.kalfactions.block.EconomyGodStatueBlock;
 import com.geydev.kalfactions.block.FactionTableBlock;
 import com.geydev.kalfactions.block.GuideBoardBlock;
 import com.geydev.kalfactions.block.GhostKeyForgeBlock;
+import com.geydev.kalfactions.block.MusicBlock;
 import com.geydev.kalfactions.block.NewsBoardBlock;
 import com.geydev.kalfactions.block.OutpostCoreBlock;
 import com.geydev.kalfactions.block.QuarryCoreBlock;
@@ -235,6 +236,14 @@ public final class ModBlocks {
                     .lightLevel(state -> 12)
                     .noOcclusion()
                     .dynamicShape())
+    );
+
+    public static final DeferredBlock<MusicBlock> MUSIC_BLOCK = BLOCKS.register(
+            "music_block",
+            () -> new MusicBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BLACK)
+                    .strength(3.0F, 12.0F)
+                    .sound(SoundType.METAL))
     );
 
     public static void register(IEventBus bus) {

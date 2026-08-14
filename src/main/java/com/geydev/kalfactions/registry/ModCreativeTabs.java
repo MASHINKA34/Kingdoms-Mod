@@ -85,7 +85,8 @@ public final class ModCreativeTabs {
                 ModItems.BOSS_TROPHY_LESSER.get(),
                 ModItems.BOSS_TROPHY_GREATER.get(),
                 ModItems.BOSS_TROPHY_LEGENDARY.get(),
-                ModItems.BLACKZONE_ANTIDOTE.get()
+                ModItems.BLACKZONE_ANTIDOTE.get(),
+                ModItems.MUSIC_BLOCK.get()
         );
     }
 

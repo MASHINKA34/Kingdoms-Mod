@@ -246,6 +246,9 @@ public final class ModItems {
             )
     );
 
+    public static final DeferredItem<BlockItem> MUSIC_BLOCK =
+            ITEMS.registerSimpleBlockItem(ModBlocks.MUSIC_BLOCK);
+
     public static Item crystalFor(InfluenceType type) {
         return switch (type) {
             case SCIENCE -> CRYSTAL_SCIENCE.get();

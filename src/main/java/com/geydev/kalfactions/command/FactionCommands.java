@@ -143,7 +143,8 @@ public final class FactionCommands {
                     .executes(FactionCommands::warSurrender))
                 .then(Commands.literal("status")
                     .requires(source -> CommandPermissions.has(source, CommandPermissions.INFO))
-                    .executes(FactionCommands::warStatus))));
+                    .executes(FactionCommands::warStatus)))
+            .then(com.geydev.kalfactions.music.MusicCommands.playerBranch()));
     }
 
     private static int help(CommandContext<CommandSourceStack> context) {

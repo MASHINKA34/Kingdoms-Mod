@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "top": "kingdoms:block/music_block_top",
+    "bottom": "kingdoms:block/music_block_bottom",
+    "side": "kingdoms:block/music_block_side"
+  }
+}

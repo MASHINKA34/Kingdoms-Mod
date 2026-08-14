@@ -6,6 +6,7 @@ import com.geydev.kalfactions.block.DungeonChestBlockEntity;
 import com.geydev.kalfactions.block.EconomyGodStatueBlockEntity;
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
 import com.geydev.kalfactions.block.GuideBoardBlockEntity;
+import com.geydev.kalfactions.block.MusicBlockEntity;
 import com.geydev.kalfactions.block.StatueScienceBlockEntity;
 import com.geydev.kalfactions.block.StoneGodStatueBlockEntity;
 import com.geydev.kalfactions.block.WarGodStatueBlockEntity;
@@ -59,6 +60,10 @@ public final class ModBlockEntities {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "dungeon_chest");
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DungeonChestBlockEntity>> DUNGEON_CHEST =
             DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, DUNGEON_CHEST_ID);
+    public static final ResourceLocation MUSIC_BLOCK_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "music_block");
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MusicBlockEntity>> MUSIC_BLOCK =
+            DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, MUSIC_BLOCK_ID);
     @SubscribeEvent
     public static void register(RegisterEvent event) {
         event.register(Registries.BLOCK_ENTITY_TYPE, FACTION_TABLE_ID, () -> {
@@ -147,6 +152,15 @@ public final class ModBlockEntities {
                 );
             }
             return BlockEntityType.Builder.of(DungeonChestBlockEntity::new, block).build(null);
+        });
+        event.register(Registries.BLOCK_ENTITY_TYPE, MUSIC_BLOCK_ID, () -> {
+            Block block = BuiltInRegistries.BLOCK.get(MUSIC_BLOCK_ID);
+            if (block == Blocks.AIR) {
+                throw new IllegalStateException(
+                        "kingdoms:music_block must be registered before its block entity type"
+                );
+            }
+            return BlockEntityType.Builder.of(MusicBlockEntity::new, block).build(null);
         });
     }
 
