@@ -1,10 +1,16 @@
 package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.block.DungeonChestBlockEntity;
+import com.geydev.kalfactions.client.ClientChestTemplates;
+import com.geydev.kalfactions.dungeon.ChestTemplate;
 import com.geydev.kalfactions.dungeon.DungeonPayloads;
 import com.geydev.kalfactions.menu.DungeonLootMenu;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -22,17 +28,46 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
     private static final int TEXT = 0xFFE8DFCB;
     private static final int MUTED = 0xFF9A8F7A;
     private static final int MARGIN = 12;
+    private static final int ROW_SELECTED = 0x60C9A24C;
+    private static final int ROW_HOVER = 0x30000000;
+
+    private static final int PLAN_WIDTH = 200;
+    private static final int TEMPLATE_WIDTH = 340;
+    private static final int LIST_LEFT = 12;
+    private static final int LIST_TOP = 28;
+    private static final int LIST_WIDTH = 148;
+    private static final int LIST_ROW_HEIGHT = 24;
+    private static final int LIST_ROWS = 7;
+    private static final int PREVIEW_LEFT = 166;
+    private static final int PREVIEW_TOP = 44;
+
+    private static final DateTimeFormatter DATE_FORMAT =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZoneId.systemDefault());
 
     private EditBox chanceBox;
     private EditBox minBox;
     private EditBox maxBox;
     private EditBox cooldownBox;
+    private EditBox templateNameBox;
+    private KingdomsButton saveTemplateButton;
+    private KingdomsButton applyButton;
+    private KingdomsButton applyAllButton;
+    private KingdomsButton renameButton;
+    private KingdomsButton deleteButton;
+    private KingdomsButton cooldownToggle;
     private List<FormattedCharSequence> hintLines = List.of();
     private int selected = -1;
+    private Tab tab = Tab.PLAN;
+    private UUID selectedTemplate;
+    private int templateScroll;
+    private boolean applyTemplateCooldown = true;
+    private boolean confirmSave;
+    private boolean confirmApplyAll;
+    private boolean confirmDelete;
 
     public DungeonLootScreen(DungeonLootMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
-        imageWidth = 200;
+        imageWidth = PLAN_WIDTH;
         imageHeight = 265;
         inventoryLabelY = DungeonLootMenu.INVENTORY_TOP - 10;
         titleLabelX = MARGIN;
@@ -41,7 +76,40 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
 
     @Override
     protected void init() {
+        imageWidth = tab == Tab.PLAN ? PLAN_WIDTH : TEMPLATE_WIDTH;
         super.init();
+        menu.setSlotsVisible(tab == Tab.PLAN);
+        addRenderableWidget(KingdomsButton.create(
+                Component.translatable("screen.kingdoms.dungeon_chest.tab_plan"),
+                button -> switchTab(Tab.PLAN),
+                width / 2 - 86,
+                topPos - 21,
+                84,
+                20
+        )).active = tab != Tab.PLAN;
+        addRenderableWidget(KingdomsButton.create(
+                Component.translatable("screen.kingdoms.dungeon_chest.tab_templates"),
+                button -> switchTab(Tab.TEMPLATES),
+                width / 2 + 2,
+                topPos - 21,
+                84,
+                20
+        )).active = tab != Tab.TEMPLATES;
+        if (tab == Tab.PLAN) {
+            initPlan();
+        } else {
+            initTemplates();
+        }
+    }
+
+    private void initPlan() {
+        templateNameBox = null;
+        saveTemplateButton = null;
+        applyButton = null;
+        applyAllButton = null;
+        renameButton = null;
+        deleteButton = null;
+        cooldownToggle = null;
         hintLines = font.split(
                 Component.translatable("screen.kingdoms.dungeon_chest.hint"),
                 imageWidth - MARGIN * 2
@@ -73,6 +141,207 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
         syncSelection();
     }
 
+    private void initTemplates() {
+        chanceBox = null;
+        minBox = null;
+        maxBox = null;
+        cooldownBox = null;
+        templateNameBox = new EditBox(font, leftPos + LIST_LEFT + 2, topPos + 202, LIST_WIDTH - 4, 16,
+                Component.translatable("screen.kingdoms.dungeon_chest.template_name"));
+        templateNameBox.setMaxLength(ChestTemplate.MAX_NAME_LENGTH);
+        templateNameBox.setHint(Component.translatable("screen.kingdoms.dungeon_chest.template_name"));
+        templateNameBox.setValue(selectedName());
+        addRenderableWidget(templateNameBox);
+
+        saveTemplateButton = addRenderableWidget(KingdomsButton.create(
+                Component.empty(),
+                button -> saveTemplate(),
+                leftPos + LIST_LEFT,
+                topPos + 222,
+                LIST_WIDTH,
+                20
+        ));
+        cooldownToggle = addRenderableWidget(KingdomsButton.create(
+                Component.empty(),
+                button -> applyTemplateCooldown = !applyTemplateCooldown,
+                leftPos + PREVIEW_LEFT,
+                topPos + 128,
+                162,
+                18
+        ));
+        applyButton = addRenderableWidget(KingdomsButton.create(
+                Component.translatable("screen.kingdoms.dungeon_chest.template_apply"),
+                button -> sendTemplate(DungeonPayloads.C2SChestTemplateAction.APPLY, false),
+                leftPos + PREVIEW_LEFT,
+                topPos + 150,
+                162,
+                20
+        ));
+        applyAllButton = addRenderableWidget(KingdomsButton.create(
+                Component.empty(),
+                button -> applyAll(),
+                leftPos + PREVIEW_LEFT,
+                topPos + 172,
+                162,
+                20
+        ));
+        renameButton = addRenderableWidget(KingdomsButton.create(
+                Component.translatable("screen.kingdoms.dungeon_chest.template_rename"),
+                button -> sendTemplate(DungeonPayloads.C2SChestTemplateAction.RENAME, false),
+                leftPos + PREVIEW_LEFT,
+                topPos + 194,
+                79,
+                20
+        ));
+        deleteButton = addRenderableWidget(KingdomsButton.create(
+                Component.empty(),
+                button -> deleteTemplate(),
+                leftPos + PREVIEW_LEFT + 83,
+                topPos + 194,
+                79,
+                20
+        ));
+        refreshTemplateButtons();
+    }
+
+    private void switchTab(Tab target) {
+        if (tab == target) {
+            return;
+        }
+        if (tab == Tab.PLAN) {
+            autoSave();
+        }
+        tab = target;
+        confirmSave = false;
+        confirmApplyAll = false;
+        confirmDelete = false;
+        rebuildWidgets();
+        if (tab == Tab.TEMPLATES) {
+            send(DungeonPayloads.C2SChestTemplateAction.SYNC, null, "", false, false);
+        }
+    }
+
+    public void acceptTemplates() {
+        confirmSave = false;
+        confirmApplyAll = false;
+        confirmDelete = false;
+        if (selectedTemplate != null && template(selectedTemplate) == null) {
+            selectedTemplate = null;
+        }
+        templateScroll = Math.clamp(templateScroll, 0, maxTemplateScroll());
+    }
+
+    private List<DungeonPayloads.ChestTemplateView> templates() {
+        return ClientChestTemplates.templates(menu.pos());
+    }
+
+    private DungeonPayloads.ChestTemplateView template(UUID id) {
+        return templates().stream()
+                .filter(view -> view.id().equals(id))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private DungeonPayloads.ChestTemplateView selectedView() {
+        return selectedTemplate == null ? null : template(selectedTemplate);
+    }
+
+    private String selectedName() {
+        DungeonPayloads.ChestTemplateView view = selectedView();
+        return view == null ? "" : view.name();
+    }
+
+    private void saveTemplate() {
+        String name = templateNameBox == null ? "" : templateNameBox.getValue().trim();
+        if (name.isEmpty()) {
+            return;
+        }
+        boolean taken = templates().stream().anyMatch(view -> view.name().equalsIgnoreCase(name));
+        if (taken && !confirmSave) {
+            confirmSave = true;
+            return;
+        }
+        confirmSave = false;
+        send(DungeonPayloads.C2SChestTemplateAction.SAVE, null, name, false, taken);
+    }
+
+    private void applyAll() {
+        if (selectedTemplate == null) {
+            return;
+        }
+        if (!confirmApplyAll) {
+            confirmApplyAll = true;
+            return;
+        }
+        confirmApplyAll = false;
+        sendTemplate(DungeonPayloads.C2SChestTemplateAction.APPLY_ALL, false);
+    }
+
+    private void deleteTemplate() {
+        if (selectedTemplate == null) {
+            return;
+        }
+        if (!confirmDelete) {
+            confirmDelete = true;
+            return;
+        }
+        confirmDelete = false;
+        sendTemplate(DungeonPayloads.C2SChestTemplateAction.DELETE, false);
+    }
+
+    private void sendTemplate(int action, boolean overwrite) {
+        if (selectedTemplate == null) {
+            return;
+        }
+        String name = templateNameBox == null ? "" : templateNameBox.getValue().trim();
+        send(action, selectedTemplate, name, applyTemplateCooldown, overwrite);
+    }
+
+    private void send(int action, UUID templateId, String name, boolean applyCooldown, boolean overwrite) {
+        PacketDistributor.sendToServer(new DungeonPayloads.C2SChestTemplateAction(
+                menu.pos(),
+                UUID.randomUUID(),
+                action,
+                templateId,
+                name,
+                applyCooldown,
+                overwrite
+        ));
+    }
+
+    private void refreshTemplateButtons() {
+        boolean picked = selectedTemplate != null;
+        if (saveTemplateButton != null) {
+            saveTemplateButton.setMessage(Component.translatable(confirmSave
+                    ? "screen.kingdoms.dungeon_chest.template_overwrite"
+                    : "screen.kingdoms.dungeon_chest.template_save"));
+            saveTemplateButton.active = templateNameBox != null && !templateNameBox.getValue().isBlank();
+        }
+        if (cooldownToggle != null) {
+            cooldownToggle.setMessage(Component.translatable(applyTemplateCooldown
+                    ? "screen.kingdoms.dungeon_chest.template_cooldown_on"
+                    : "screen.kingdoms.dungeon_chest.template_cooldown_off"));
+        }
+        if (applyButton != null) {
+            applyButton.active = picked;
+        }
+        if (applyAllButton != null) {
+            applyAllButton.setMessage(Component.translatable(confirmApplyAll
+                    ? "screen.kingdoms.dungeon_chest.template_apply_all_confirm"
+                    : "screen.kingdoms.dungeon_chest.template_apply_all"));
+            applyAllButton.active = picked;
+        }
+        if (renameButton != null) {
+            renameButton.active = picked && templateNameBox != null && !templateNameBox.getValue().isBlank();
+        }
+        if (deleteButton != null) {
+            deleteButton.setMessage(Component.translatable(confirmDelete
+                    ? "screen.kingdoms.dungeon_chest.template_delete_confirm"
+                    : "screen.kingdoms.dungeon_chest.template_delete"));
+            deleteButton.active = picked;
+        }
+    }
+
     private void save(boolean announce) {
         PacketDistributor.sendToServer(new DungeonPayloads.C2SDungeonChestEntry(
                 menu.pos(),
@@ -87,7 +356,7 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
 
     private void autoSave() {
         DungeonChestBlockEntity chest = chest();
-        if (chest == null) {
+        if (chest == null || chanceBox == null || minBox == null || maxBox == null || cooldownBox == null) {
             return;
         }
         int chance = parse(chanceBox, DungeonChestBlockEntity.DEFAULT_CHANCE, 0, 100);
@@ -139,7 +408,7 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
 
     private void syncSelection() {
         DungeonChestBlockEntity chest = chest();
-        if (chest == null || selected < 0) {
+        if (chest == null || selected < 0 || chanceBox == null) {
             return;
         }
         chanceBox.setValue(String.valueOf(chest.chanceAt(selected)));
@@ -149,6 +418,21 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (tab == Tab.TEMPLATES) {
+            int row = hoveredTemplateRow(mouseX, mouseY);
+            if (row >= 0) {
+                DungeonPayloads.ChestTemplateView view = templates().get(row);
+                selectedTemplate = view.id();
+                confirmSave = false;
+                confirmApplyAll = false;
+                confirmDelete = false;
+                if (templateNameBox != null) {
+                    templateNameBox.setValue(view.name());
+                }
+                return true;
+            }
+            return super.mouseClicked(mouseX, mouseY, button);
+        }
         int slot = hoveredPlanSlot(mouseX, mouseY);
         if (slot >= 0 && slot != selected) {
             autoSave();
@@ -167,9 +451,49 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
     }
 
     @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (tab == Tab.TEMPLATES && overList(mouseX, mouseY)) {
+            int updated = Math.clamp(templateScroll - (int) Math.signum(scrollY), 0, maxTemplateScroll());
+            if (updated != templateScroll) {
+                templateScroll = updated;
+                return true;
+            }
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    @Override
     public void removed() {
         autoSave();
         super.removed();
+    }
+
+    private int maxTemplateScroll() {
+        return Math.max(0, templates().size() - LIST_ROWS);
+    }
+
+    private boolean overList(double mouseX, double mouseY) {
+        int left = leftPos + LIST_LEFT;
+        int top = topPos + LIST_TOP;
+        return mouseX >= left && mouseX < left + LIST_WIDTH
+                && mouseY >= top && mouseY < top + LIST_ROWS * LIST_ROW_HEIGHT;
+    }
+
+    private int hoveredTemplateRow(double mouseX, double mouseY) {
+        if (!overList(mouseX, mouseY)) {
+            return -1;
+        }
+        int row = (int) ((mouseY - topPos - LIST_TOP) / LIST_ROW_HEIGHT) + templateScroll;
+        return row >= 0 && row < templates().size() ? row : -1;
+    }
+
+    private int hoveredPreviewSlot(double mouseX, double mouseY) {
+        int left = leftPos + PREVIEW_LEFT;
+        int top = topPos + PREVIEW_TOP;
+        if (mouseX < left || mouseY < top || mouseX >= left + 162 || mouseY >= top + 54) {
+            return -1;
+        }
+        return (int) ((mouseY - top) / 18) * 9 + (int) ((mouseX - left) / 18);
     }
 
     private int hoveredPlanSlot(double mouseX, double mouseY) {
@@ -186,9 +510,20 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
         KingdomsPanel.draw(graphics, leftPos, topPos, imageWidth, imageHeight);
-        drawSlots(graphics, leftPos + DungeonLootMenu.GRID_LEFT, topPos + DungeonLootMenu.GRID_TOP, 3);
-        drawSlots(graphics, leftPos + DungeonLootMenu.INVENTORY_LEFT, topPos + DungeonLootMenu.INVENTORY_TOP, 3);
-        drawSlots(graphics, leftPos + DungeonLootMenu.INVENTORY_LEFT, topPos + DungeonLootMenu.INVENTORY_TOP + 58, 1);
+        if (tab == Tab.PLAN) {
+            drawSlots(graphics, leftPos + DungeonLootMenu.GRID_LEFT, topPos + DungeonLootMenu.GRID_TOP, 3);
+            drawSlots(graphics, leftPos + DungeonLootMenu.INVENTORY_LEFT, topPos + DungeonLootMenu.INVENTORY_TOP, 3);
+            drawSlots(graphics, leftPos + DungeonLootMenu.INVENTORY_LEFT, topPos + DungeonLootMenu.INVENTORY_TOP + 58, 1);
+            return;
+        }
+        graphics.fill(
+                leftPos + LIST_LEFT,
+                topPos + LIST_TOP,
+                leftPos + LIST_LEFT + LIST_WIDTH,
+                topPos + LIST_TOP + LIST_ROWS * LIST_ROW_HEIGHT,
+                SLOT_BACKGROUND
+        );
+        drawSlots(graphics, leftPos + PREVIEW_LEFT, topPos + PREVIEW_TOP, 3);
     }
 
     private void drawSlots(GuiGraphics graphics, int left, int top, int rows) {
@@ -203,8 +538,124 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
     }
 
     @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        super.render(graphics, mouseX, mouseY, partialTick);
+        if (tab != Tab.TEMPLATES) {
+            return;
+        }
+        refreshTemplateButtons();
+        renderTemplateList(graphics, mouseX, mouseY);
+        renderPreview(graphics, mouseX, mouseY);
+    }
+
+    private void renderTemplateList(GuiGraphics graphics, int mouseX, int mouseY) {
+        List<DungeonPayloads.ChestTemplateView> templates = templates();
+        int left = leftPos + LIST_LEFT;
+        if (templates.isEmpty()) {
+            graphics.drawString(font,
+                    Component.translatable("screen.kingdoms.dungeon_chest.template_empty_list"),
+                    left + 4, topPos + LIST_TOP + 8, MUTED, false);
+            return;
+        }
+        int shown = Math.min(LIST_ROWS, templates.size() - templateScroll);
+        for (int index = 0; index < shown; index++) {
+            DungeonPayloads.ChestTemplateView view = templates.get(templateScroll + index);
+            int rowTop = topPos + LIST_TOP + index * LIST_ROW_HEIGHT;
+            boolean hovered = mouseX >= left && mouseX < left + LIST_WIDTH
+                    && mouseY >= rowTop && mouseY < rowTop + LIST_ROW_HEIGHT;
+            if (view.id().equals(selectedTemplate)) {
+                graphics.fill(left, rowTop, left + LIST_WIDTH, rowTop + LIST_ROW_HEIGHT, ROW_SELECTED);
+            } else if (hovered) {
+                graphics.fill(left, rowTop, left + LIST_WIDTH, rowTop + LIST_ROW_HEIGHT, ROW_HOVER);
+            }
+            graphics.drawString(font, trim(view.name(), LIST_WIDTH - 8), left + 4, rowTop + 3, TEXT, false);
+            graphics.drawString(font,
+                    trim(Component.translatable(
+                            "screen.kingdoms.dungeon_chest.template_row",
+                            view.slots().size(),
+                            view.author(),
+                            DATE_FORMAT.format(Instant.ofEpochMilli(view.createdAt()))
+                    ).getString(), LIST_WIDTH - 8),
+                    left + 4, rowTop + 13, MUTED, false);
+        }
+        if (templates.size() > LIST_ROWS) {
+            Component page = Component.translatable(
+                    "screen.kingdoms.dungeon_chest.template_page",
+                    templateScroll + shown,
+                    templates.size()
+            );
+            graphics.drawString(font, page,
+                    left + LIST_WIDTH - font.width(page),
+                    topPos + LIST_TOP + LIST_ROWS * LIST_ROW_HEIGHT + 2, MUTED, false);
+        }
+    }
+
+    private void renderPreview(GuiGraphics graphics, int mouseX, int mouseY) {
+        DungeonPayloads.ChestTemplateView view = selectedView();
+        int left = leftPos + PREVIEW_LEFT;
+        if (view == null) {
+            graphics.drawString(font,
+                    Component.translatable("screen.kingdoms.dungeon_chest.template_pick"),
+                    left, topPos + 30, MUTED, false);
+            return;
+        }
+        graphics.drawString(font, trim(view.name(), 162), left, topPos + 30, GOLD, false);
+        for (DungeonPayloads.ChestTemplateSlot slot : view.slots()) {
+            int x = left + (slot.slot() % 9) * 18 + 1;
+            int y = topPos + PREVIEW_TOP + (slot.slot() / 9) * 18 + 1;
+            graphics.renderItem(slot.stack(), x, y);
+            graphics.renderItemDecorations(font, slot.stack(), x, y,
+                    slot.max() > 1 ? String.valueOf(slot.max()) : "");
+        }
+        graphics.drawString(font,
+                Component.translatable("screen.kingdoms.dungeon_chest.template_author", view.author()),
+                left, topPos + 102, MUTED, false);
+        graphics.drawString(font,
+                Component.translatable(
+                        "screen.kingdoms.dungeon_chest.template_created",
+                        DATE_FORMAT.format(Instant.ofEpochMilli(view.createdAt()))
+                ),
+                left, topPos + 112, MUTED, false);
+        graphics.drawString(font,
+                view.cooldownHours() < 0
+                        ? Component.translatable("screen.kingdoms.dungeon_chest.template_cooldown_global")
+                        : Component.translatable(
+                                "screen.kingdoms.dungeon_chest.template_cooldown", view.cooldownHours()),
+                left, topPos + 122, MUTED, false);
+
+        int hovered = hoveredPreviewSlot(mouseX, mouseY);
+        if (hovered < 0) {
+            return;
+        }
+        for (DungeonPayloads.ChestTemplateSlot slot : view.slots()) {
+            if (slot.slot() != hovered) {
+                continue;
+            }
+            List<Component> lines = new ArrayList<>(getTooltipFromContainerItem(slot.stack()));
+            lines.add(Component.translatable(
+                    "screen.kingdoms.dungeon_chest.tooltip",
+                    slot.chance(),
+                    slot.min(),
+                    slot.max()
+            ));
+            graphics.renderComponentTooltip(font, lines, mouseX, mouseY);
+            return;
+        }
+    }
+
+    private String trim(String value, int width) {
+        return font.width(value) <= width ? value : font.plainSubstrByWidth(value, width - font.width("...")) + "...";
+    }
+
+    @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
         graphics.drawString(font, title, titleLabelX, titleLabelY, GOLD, false);
+        if (tab == Tab.TEMPLATES) {
+            graphics.drawString(font,
+                    Component.translatable("screen.kingdoms.dungeon_chest.template_hint"),
+                    MARGIN, 18, MUTED, false);
+            return;
+        }
         graphics.drawString(font, playerInventoryTitle, MARGIN, inventoryLabelY, MUTED, false);
         for (int line = 0; line < Math.min(2, hintLines.size()); line++) {
             graphics.drawString(font, hintLines.get(line), MARGIN, 18 + line * 10, MUTED, false);
@@ -243,7 +694,10 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
     public List<Component> getTooltipFromContainerItem(ItemStack stack) {
         List<Component> lines = new ArrayList<>(super.getTooltipFromContainerItem(stack));
         DungeonChestBlockEntity chest = chest();
-        if (chest != null && hoveredSlot != null && hoveredSlot.index < DungeonLootMenu.PLAN_SIZE) {
+        if (tab == Tab.PLAN
+                && chest != null
+                && hoveredSlot != null
+                && hoveredSlot.index < DungeonLootMenu.PLAN_SIZE) {
             lines.add(Component.translatable(
                     "screen.kingdoms.dungeon_chest.tooltip",
                     chest.chanceAt(hoveredSlot.index),
@@ -252,5 +706,10 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
             ));
         }
         return lines;
+    }
+
+    private enum Tab {
+        PLAN,
+        TEMPLATES
     }
 }

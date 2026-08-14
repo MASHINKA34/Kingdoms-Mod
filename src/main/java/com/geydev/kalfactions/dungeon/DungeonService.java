@@ -191,6 +191,7 @@ public final class DungeonService {
                 ),
                 buffer -> buffer.writeBlockPos(pos)
         );
+        ChestTemplateService.sync(player, pos);
     }
 
     public static void chestEntry(ServerPlayer player, DungeonPayloads.C2SDungeonChestEntry payload) {
@@ -226,7 +227,7 @@ public final class DungeonService {
         );
     }
 
-    private static boolean validateChest(ServerPlayer player, BlockPos pos) {
+    static boolean validateChest(ServerPlayer player, BlockPos pos) {
         if (!validatePlayer(player)) {
             return false;
         }

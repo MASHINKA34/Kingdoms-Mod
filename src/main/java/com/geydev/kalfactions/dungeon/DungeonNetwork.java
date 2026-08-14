@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.dungeon;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.client.ClientChestTemplates;
 import com.geydev.kalfactions.client.ClientDungeonState;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.api.distmarker.Dist;
@@ -13,7 +14,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class DungeonNetwork {
-    private static final String PROTOCOL_VERSION = "5";
+    private static final String PROTOCOL_VERSION = "6";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -48,11 +49,36 @@ public final class DungeonNetwork {
                 DungeonPayloads.C2SDungeonChestRefill.STREAM_CODEC,
                 DungeonNetwork::handleChestRefill
         );
+        registrar.playToServer(
+                DungeonPayloads.C2SChestTemplateAction.TYPE,
+                DungeonPayloads.C2SChestTemplateAction.STREAM_CODEC,
+                DungeonNetwork::handleChestTemplateAction
+        );
         registrar.playToClient(
                 DungeonPayloads.S2COpenDungeon.TYPE,
                 DungeonPayloads.S2COpenDungeon.STREAM_CODEC,
                 DungeonNetwork::handleOpen
         );
+        registrar.playToClient(
+                DungeonPayloads.S2CChestTemplates.TYPE,
+                DungeonPayloads.S2CChestTemplates.STREAM_CODEC,
+                DungeonNetwork::handleChestTemplates
+        );
+    }
+
+    private static void handleChestTemplateAction(
+            DungeonPayloads.C2SChestTemplateAction payload,
+            IPayloadContext context
+    ) {
+        if (context.player() instanceof ServerPlayer player) {
+            ChestTemplateService.handle(player, payload);
+        }
+    }
+
+    private static void handleChestTemplates(DungeonPayloads.S2CChestTemplates payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientChestTemplates.accept(payload);
+        }
     }
 
     private static void handleChestRefill(DungeonPayloads.C2SDungeonChestRefill payload, IPayloadContext context) {

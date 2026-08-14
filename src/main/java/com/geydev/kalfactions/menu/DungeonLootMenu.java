@@ -24,6 +24,7 @@ public final class DungeonLootMenu extends AbstractContainerMenu {
 
     private final BlockPos pos;
     private final Container plan;
+    private boolean slotsVisible = true;
 
     public DungeonLootMenu(int containerId, Inventory inventory, BlockPos pos) {
         this(containerId, inventory, pos, planContainer(inventory, pos));
@@ -35,7 +36,7 @@ public final class DungeonLootMenu extends AbstractContainerMenu {
         this.plan = plan;
         for (int row = 0; row < 3; row++) {
             for (int column = 0; column < 9; column++) {
-                addSlot(new Slot(
+                addSlot(new PlanSlot(
                         plan,
                         row * 9 + column,
                         GRID_LEFT + column * 18 + 1,
@@ -45,7 +46,7 @@ public final class DungeonLootMenu extends AbstractContainerMenu {
         }
         for (int row = 0; row < 3; row++) {
             for (int column = 0; column < 9; column++) {
-                addSlot(new Slot(
+                addSlot(new PlanSlot(
                         inventory,
                         column + row * 9 + 9,
                         INVENTORY_LEFT + column * 18 + 1,
@@ -54,8 +55,12 @@ public final class DungeonLootMenu extends AbstractContainerMenu {
             }
         }
         for (int column = 0; column < 9; column++) {
-            addSlot(new Slot(inventory, column, INVENTORY_LEFT + column * 18 + 1, INVENTORY_TOP + 59));
+            addSlot(new PlanSlot(inventory, column, INVENTORY_LEFT + column * 18 + 1, INVENTORY_TOP + 59));
         }
+    }
+
+    public void setSlotsVisible(boolean visible) {
+        slotsVisible = visible;
     }
 
     private static Container planContainer(Inventory inventory, BlockPos pos) {
@@ -100,6 +105,17 @@ public final class DungeonLootMenu extends AbstractContainerMenu {
             }
         }
         return ItemStack.EMPTY;
+    }
+
+    private final class PlanSlot extends Slot {
+        private PlanSlot(Container container, int slot, int x, int y) {
+            super(container, slot, x, y);
+        }
+
+        @Override
+        public boolean isActive() {
+            return slotsVisible;
+        }
     }
 
     @Override
