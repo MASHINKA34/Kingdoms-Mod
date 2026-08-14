@@ -124,6 +124,24 @@ public final class ResearchScreen extends FactionScreen {
         updateStartButton();
     }
 
+    private void renderExtraBonus(GuiGraphics graphics) {
+        FactionBonus bonus = extraBonus();
+        if (selectedTab != LEGACY_TAB || bonus == null) {
+            return;
+        }
+        int iconX = left + 92;
+        int iconY = top + WINDOW_HEIGHT - 23;
+        graphics.blit(FactionCreateScreen.bonusIcon(bonus), iconX, iconY, 16, 16, 0.0F, 0.0F, 64, 64, 64, 64);
+        graphics.drawString(
+                font,
+                text("screen.kingdoms.legacy_extra_bonus_current", text(bonus.translationKey())),
+                iconX + 20,
+                iconY + 5,
+                0xFFEFE0B4,
+                true
+        );
+    }
+
     private boolean canPickExtraBonus() {
         return snapshot.extraBonus().isEmpty()
                 && snapshot.canManage()
@@ -191,6 +209,7 @@ public final class ResearchScreen extends FactionScreen {
             renderSelectionLine(graphics);
         }
         renderResearchStatusNotice(graphics);
+        renderExtraBonus(graphics);
         if (hovered != null) {
             renderNodeTooltip(graphics, hovered, mouseX, mouseY);
         } else {
@@ -469,13 +488,35 @@ public final class ResearchScreen extends FactionScreen {
     }
 
     private void renderNodeTooltip(GuiGraphics graphics, ResearchNode node, int mouseX, int mouseY) {
-        int boxWidth = 232;
+        List<InfluenceType> types = node.costTypes();
+        Component costLine = text(
+                types.size() > 1
+                        ? "screen.kingdoms.research_cost_each_short"
+                        : "screen.kingdoms.research_cost_short",
+                influenceCostPerType(node),
+                effectiveDurationHours(node)
+        );
+        Component crystalLine = types.size() > 1
+                ? text(
+                        "screen.kingdoms.research_crystal_cost_each_short",
+                        crystalCostPerType(node),
+                        ownedCrystalsText(types)
+                )
+                : text(
+                        "screen.kingdoms.research_crystal_cost_short",
+                        crystalCostPerType(node),
+                        crystalName(types.getFirst()),
+                        crystalsOf(types.getFirst())
+                );
+        int boxWidth = Math.min(
+                Math.max(232, tooltipContentWidth(node, types, costLine, crystalLine)),
+                Math.max(232, width - 24)
+        );
         List<FormattedCharSequence> desc = font.split(nodeDescription(node), boxWidth - 20);
         List<FormattedCharSequence> effect = new ArrayList<>();
         for (Component line : effectLines(node)) {
             effect.addAll(font.split(line, boxWidth - 20));
         }
-        List<InfluenceType> types = node.costTypes();
         int descBlock = desc.size() * 11;
         int effectBlock = effect.size() * 11;
         boolean showCrystals = crystalCostPerType(node) > 0;
@@ -501,20 +542,7 @@ public final class ResearchScreen extends FactionScreen {
             graphics.blit(iconFor(type), cursor, lineY - 2, 12, 12, 0.0F, 0.0F, 16, 16, 16, 16);
             cursor += 14;
         }
-        graphics.drawString(
-                font,
-                text(
-                        types.size() > 1
-                                ? "screen.kingdoms.research_cost_each_short"
-                                : "screen.kingdoms.research_cost_short",
-                        influenceCostPerType(node),
-                        effectiveDurationHours(node)
-                ),
-                cursor + 2,
-                lineY,
-                0xFFE6CE7E,
-                true
-        );
+        graphics.drawString(font, costLine, cursor + 2, lineY, 0xFFE6CE7E, true);
         int statusY = lineY + 12;
         if (showCrystals) {
             int crystalCursor = x + 8;
@@ -522,31 +550,28 @@ public final class ResearchScreen extends FactionScreen {
                 graphics.renderItem(crystalStack(type), crystalCursor, lineY + 10);
                 crystalCursor += 18;
             }
-            graphics.drawString(
-                    font,
-                    types.size() > 1
-                            ? text(
-                                    "screen.kingdoms.research_crystal_cost_each_short",
-                                    crystalCostPerType(node),
-                                    ownedCrystalsText(types)
-                            )
-                            : text(
-                                    "screen.kingdoms.research_crystal_cost_short",
-                                    crystalCostPerType(node),
-                                    crystalName(types.getFirst()),
-                                    crystalsOf(types.getFirst())
-                            ),
-                    crystalCursor + 2,
-                    lineY + 14,
-                    0xFFB9CFF6,
-                    true
-            );
+            graphics.drawString(font, crystalLine, crystalCursor + 2, lineY + 14, 0xFFB9CFF6, true);
             statusY = lineY + 31;
         }
         graphics.drawString(font, statusText(node), x + 10, statusY, statusColor(node), true);
         for (int i = 0; i < effect.size(); i++) {
             graphics.drawString(font, effect.get(i), x + 10, statusY + 15 + i * 11, 0xFFCBD6F0, true);
         }
+    }
+
+    private int tooltipContentWidth(
+            ResearchNode node,
+            List<InfluenceType> types,
+            Component costLine,
+            Component crystalLine
+    ) {
+        int widest = font.width(nodeTitle(node));
+        widest = Math.max(widest, font.width(statusText(node)));
+        widest = Math.max(widest, types.size() * 14 + 2 + font.width(costLine));
+        if (crystalCostPerType(node) > 0) {
+            widest = Math.max(widest, types.size() * 18 + 4 + font.width(crystalLine));
+        }
+        return widest + 20;
     }
 
     private Component nodeTitle(ResearchNode node) {

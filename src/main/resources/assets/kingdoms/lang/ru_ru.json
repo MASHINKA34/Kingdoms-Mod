@@ -1212,6 +1212,7 @@
   "key.kingdoms.unbound": "не назначена",
   "screen.kingdoms.legacy_extra_bonus": "Третий бонус",
   "screen.kingdoms.legacy_extra_bonus_pick": "Выбор третьего бонуса",
+  "screen.kingdoms.legacy_extra_bonus_current": "Третий бонус: %s",
   "kingdoms.error.extra_bonus_leader_only": "Третий бонус выбирает только лидер фракции.",
   "kingdoms.error.extra_bonus_already": "Третий бонус уже выбран.",
   "kingdoms.error.extra_bonus_locked": "Нужен 5-й уровень наследия исследователей.",

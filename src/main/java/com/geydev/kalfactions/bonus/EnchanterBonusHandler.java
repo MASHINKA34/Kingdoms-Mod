@@ -11,6 +11,7 @@ import java.util.Random;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -23,9 +24,12 @@ import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.AnvilUpdateEvent;
+import net.neoforged.neoforge.event.entity.player.AnvilRepairEvent;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class EnchanterBonusHandler {
+    private static final String ANVIL_ROLL_KEY = "kingdoms:anvil_roll";
+
     private record AnvilOverride(ItemStack output, int cost, int materialCost, boolean cancelVanilla) {
         static AnvilOverride pass() {
             return new AnvilOverride(ItemStack.EMPTY, 0, 0, false);
@@ -180,9 +184,18 @@ public final class EnchanterBonusHandler {
                         enchantment.getRegisteredName(),
                         targetLevel,
                         left.getDamageValue(),
-                        left.getOrDefault(DataComponents.REPAIR_COST, 0)
+                        left.getOrDefault(DataComponents.REPAIR_COST, 0),
+                        player.getPersistentData().getInt(ANVIL_ROLL_KEY)
                 );
         return new Random(seed).nextDouble() < chance;
+    }
+
+    @SubscribeEvent
+    public static void onAnvilRepair(AnvilRepairEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            CompoundTag data = player.getPersistentData();
+            data.putInt(ANVIL_ROLL_KEY, data.getInt(ANVIL_ROLL_KEY) + 1);
+        }
     }
 
     private static AnvilOverride createRegularPlayerOutput(AnvilUpdateEvent event) {

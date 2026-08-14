@@ -58,6 +58,10 @@ public final class InfluenceTicker {
             .orElse(1.0D)
             .floatValue();
         PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CMiningBonus(multiplier));
+        boolean nomadRide = manager.getFactionForMember(player.getUUID())
+            .map(faction -> faction.hasLegacyMastery(FactionBonus.NOMADS))
+            .orElse(false);
+        PacketDistributor.sendToPlayer(player, new FactionPayloads.S2CNomadRide(nomadRide));
     }
 
     private InfluenceTicker() {

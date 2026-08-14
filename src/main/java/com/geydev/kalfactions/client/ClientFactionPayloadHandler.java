@@ -61,6 +61,18 @@ public final class ClientFactionPayloadHandler {
         ClientResearchBonuses.setMiningMultiplier(payload.multiplier());
     }
 
+    public static void handleNomadRide(FactionPayloads.S2CNomadRide payload) {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.execute(() -> {
+            if (minecraft.player != null) {
+                com.geydev.kalfactions.bonus.NomadRiding.setClientRider(
+                        minecraft.player.getUUID(),
+                        payload.allowed()
+                );
+            }
+        });
+    }
+
     public static void handleBlackZoneState(FactionPayloads.S2CBlackZoneState payload) {
         ClientBlackZoneState.accept(
                 payload.stage(),

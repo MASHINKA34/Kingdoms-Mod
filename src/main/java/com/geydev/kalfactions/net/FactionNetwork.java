@@ -252,6 +252,11 @@ public final class FactionNetwork {
                 FactionNetwork::handleMiningBonus
         );
         registrar.playToClient(
+                FactionPayloads.S2CNomadRide.TYPE,
+                FactionPayloads.S2CNomadRide.STREAM_CODEC,
+                FactionNetwork::handleNomadRide
+        );
+        registrar.playToClient(
                 FactionPayloads.S2COpenGuide.TYPE,
                 FactionPayloads.S2COpenGuide.STREAM_CODEC,
                 FactionNetwork::handleOpenGuide
@@ -593,6 +598,12 @@ public final class FactionNetwork {
     private static void handleMiningBonus(FactionPayloads.S2CMiningBonus payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientFactionPayloadHandler.handleMiningBonus(payload);
+        }
+    }
+
+    private static void handleNomadRide(FactionPayloads.S2CNomadRide payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientFactionPayloadHandler.handleNomadRide(payload);
         }
     }
 

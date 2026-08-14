@@ -1212,6 +1212,7 @@
   "key.kingdoms.unbound": "unbound",
   "screen.kingdoms.legacy_extra_bonus": "Third bonus",
   "screen.kingdoms.legacy_extra_bonus_pick": "Pick the third bonus",
+  "screen.kingdoms.legacy_extra_bonus_current": "Third bonus: %s",
   "kingdoms.error.extra_bonus_leader_only": "Only the faction leader picks the third bonus.",
   "kingdoms.error.extra_bonus_already": "The third bonus is already chosen.",
   "kingdoms.error.extra_bonus_locked": "Requires researcher legacy level 5.",

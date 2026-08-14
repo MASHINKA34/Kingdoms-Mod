@@ -1145,6 +1145,19 @@ public final class FactionPayloads {
         }
     }
 
+    public record S2CNomadRide(boolean allowed) implements CustomPacketPayload {
+        public static final Type<S2CNomadRide> TYPE = FactionPayloads.payloadType("nomad_ride");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CNomadRide> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> buffer.writeBoolean(payload.allowed),
+                buffer -> new S2CNomadRide(buffer.readBoolean())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record S2CMiningBonus(float multiplier) implements CustomPacketPayload {
         public static final Type<S2CMiningBonus> TYPE = FactionPayloads.payloadType("mining_bonus");
         public static final StreamCodec<RegistryFriendlyByteBuf, S2CMiningBonus> STREAM_CODEC = StreamCodec.of(
