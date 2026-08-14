@@ -37,7 +37,8 @@
     "ProtectionPixelFlyDamageMixin",
     "FireBlockMixin",
     "ScorchedGunnerMobSpawnerMixin",
-    "AbstractHorseMixin"
+    "AbstractHorseMixin",
+    "CrafterBlockMixin"
   ],
   "client": [
     "ProtectionPixelArmorRenderMixin",

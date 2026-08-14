@@ -1,0 +1,36 @@
+{
+  "type": "kingdoms:statue_crafting",
+  "category": "misc",
+  "pattern": [
+    "DED",
+    "BCB",
+    "SLS"
+  ],
+  "key": {
+    "D": {
+      "item": "minecraft:diamond",
+      "count": 4
+    },
+    "E": {
+      "item": "minecraft:enchanting_table"
+    },
+    "B": {
+      "item": "minecraft:bookshelf"
+    },
+    "C": {
+      "item": "kingdoms:crystal_science",
+      "count": 16
+    },
+    "S": {
+      "item": "minecraft:deepslate"
+    },
+    "L": {
+      "item": "minecraft:lapis_block",
+      "count": 16
+    }
+  },
+  "result": {
+    "id": "kingdoms:statue_science",
+    "count": 1
+  }
+}

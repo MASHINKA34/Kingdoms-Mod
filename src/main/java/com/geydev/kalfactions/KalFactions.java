@@ -34,6 +34,7 @@ public final class KalFactions {
         ModSounds.register(modBus);
         com.geydev.kalfactions.registry.ModEffects.register(modBus);
         ModCreativeTabs.register(modBus);
+        com.geydev.kalfactions.registry.ModRecipeSerializers.register(modBus);
         modBus.addListener(DisabledRaidFlares::removeFromCreativeTabs);
         NetherReturnIntegration.install(ModItems.NETHER_RETURN::get, com.geydev.kalfactions.registry.ModDataComponents.NETHER_RETURN_BINDING::get);
         XaeroArchiveAccess.installAnchorValidator(

@@ -1,0 +1,40 @@
+{
+  "type": "kingdoms:statue_crafting",
+  "category": "misc",
+  "pattern": [
+    "NBN",
+    "APR",
+    "EGD"
+  ],
+  "key": {
+    "N": {
+      "item": "numismatics:crown"
+    },
+    "B": {
+      "item": "minecraft:barrel"
+    },
+    "A": {
+      "item": "minecraft:golden_apple"
+    },
+    "P": {
+      "item": "kingdoms:crystal_economic",
+      "count": 16
+    },
+    "R": {
+      "item": "minecraft:golden_carrot"
+    },
+    "E": {
+      "item": "minecraft:emerald_block"
+    },
+    "G": {
+      "item": "minecraft:gold_block"
+    },
+    "D": {
+      "item": "minecraft:diamond_block"
+    }
+  },
+  "result": {
+    "id": "kingdoms:economy_god_statue",
+    "count": 1
+  }
+}

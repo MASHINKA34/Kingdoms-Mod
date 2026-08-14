@@ -1,0 +1,39 @@
+{
+  "type": "kingdoms:statue_crafting",
+  "category": "misc",
+  "pattern": [
+    "ITI",
+    "SCA",
+    "OMO"
+  ],
+  "key": {
+    "I": {
+      "item": "minecraft:iron_ingot",
+      "count": 64
+    },
+    "T": {
+      "item": "minecraft:smithing_table"
+    },
+    "S": {
+      "item": "minecraft:diamond_sword"
+    },
+    "C": {
+      "item": "kingdoms:crystal_military",
+      "count": 16
+    },
+    "A": {
+      "item": "minecraft:diamond_axe"
+    },
+    "O": {
+      "item": "minecraft:obsidian"
+    },
+    "M": {
+      "item": "minecraft:magma_block",
+      "count": 8
+    }
+  },
+  "result": {
+    "id": "kingdoms:war_god_statue",
+    "count": 1
+  }
+}
