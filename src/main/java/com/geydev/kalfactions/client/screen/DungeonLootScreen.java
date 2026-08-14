@@ -693,13 +693,17 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
         }
     }
 
+    private int titleRoom() {
+        return imageWidth - MARGIN - TAB_TEMPLATES_WIDTH - TAB_GAP - TAB_PLAN_WIDTH - TAB_GAP - titleLabelX;
+    }
+
     private String trim(String value, int width) {
         return font.width(value) <= width ? value : font.plainSubstrByWidth(value, width - font.width("...")) + "...";
     }
 
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
-        graphics.drawString(font, title, titleLabelX, titleLabelY, GOLD, false);
+        graphics.drawString(font, trim(title.getString(), titleRoom()), titleLabelX, titleLabelY, GOLD, false);
         for (int line = 0; line < Math.min(1, hintLines.size()); line++) {
             graphics.drawString(font, hintLines.get(line), MARGIN, HINT_TOP, MUTED, false);
         }
