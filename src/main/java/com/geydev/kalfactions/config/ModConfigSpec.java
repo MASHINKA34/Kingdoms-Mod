@@ -255,6 +255,14 @@ public final class ModConfigSpec {
     public static final IntValue DUNGEON_LOOT_COOLDOWN_HOURS;
     public static final BooleanValue DUNGEON_DISABLE_MOB_SPAWNS;
     public static final BooleanValue DUNGEON_ALLOW_SPAWNER_MOBS;
+    public static final IntValue MUSIC_DEFAULT_RADIUS;
+    public static final IntValue MUSIC_MAX_RADIUS;
+    public static final IntValue MUSIC_MAX_TRACK_BYTES;
+    public static final IntValue MUSIC_MAX_TRACKS;
+    public static final IntValue MUSIC_MAX_STORAGE_MEGABYTES;
+    public static final IntValue MUSIC_DOWNLOAD_KILOBYTES_PER_SECOND;
+    public static final BooleanValue MUSIC_ALLOW_FACTION_UPLOAD;
+    public static final BooleanValue MUSIC_REDSTONE_CONTROL;
 
     static {
         Builder builder = new Builder();
@@ -855,6 +863,33 @@ public final class ModConfigSpec {
         DUNGEON_ALLOW_SPAWNER_MOBS = builder
             .comment("Let vanilla spawner blocks keep working inside dungeon chunks while natural spawning is off.")
             .define("allowSpawnerMobs", true);
+        builder.pop();
+
+        builder.push("music");
+        MUSIC_DEFAULT_RADIUS = builder
+            .comment("Blocks a freshly placed music speaker is heard within.")
+            .defineInRange("defaultRadius", 500, 1, 2000);
+        MUSIC_MAX_RADIUS = builder
+            .comment("Hard cap on the radius slider of a music speaker.")
+            .defineInRange("maxRadius", 500, 1, 2000);
+        MUSIC_MAX_TRACK_BYTES = builder
+            .comment("Largest OGG file accepted by the music upload, in bytes.")
+            .defineInRange("maxTrackBytes", 8 * 1024 * 1024, 1024, 64 * 1024 * 1024);
+        MUSIC_MAX_TRACKS = builder
+            .comment("Largest number of tracks the server keeps at once.")
+            .defineInRange("maxTracks", 64, 1, 4096);
+        MUSIC_MAX_STORAGE_MEGABYTES = builder
+            .comment("Total megabytes of music the server stores; uploads past it are refused.")
+            .defineInRange("maxStorageMegabytes", 128, 1, 65536);
+        MUSIC_DOWNLOAD_KILOBYTES_PER_SECOND = builder
+            .comment("Per player kilobytes per second the server spends handing out music files.")
+            .defineInRange("downloadKilobytesPerSecond", 256, 8, 65536);
+        MUSIC_ALLOW_FACTION_UPLOAD = builder
+            .comment("Let faction members place speakers and upload music on their own claims; sanctuary stays operator only.")
+            .define("allowFactionUpload", false);
+        MUSIC_REDSTONE_CONTROL = builder
+            .comment("Let a redstone signal start and stop a music speaker.")
+            .define("redstoneControl", true);
         builder.pop();
         SPEC = builder.build();
     }
