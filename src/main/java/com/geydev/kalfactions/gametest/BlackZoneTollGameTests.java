@@ -2,6 +2,7 @@ package com.geydev.kalfactions.gametest;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.blackzone.BlackZoneClock;
+import com.geydev.kalfactions.blackzone.BlackZoneDamage;
 import com.geydev.kalfactions.blackzone.BlackZoneData;
 import com.geydev.kalfactions.blackzone.BlackZonePenalties;
 import com.geydev.kalfactions.blackzone.BlackZoneService;
@@ -11,6 +12,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -72,13 +74,16 @@ public final class BlackZoneTollGameTests {
             assertStageAt(helper, level, player, clock, 180, BlackZoneStage.POISON);
             assertEffect(helper, player, MobEffects.POISON, 0, "poison I at three hours");
 
-            assertStageAt(helper, level, player, clock, 240, BlackZoneStage.WITHER);
-            assertEffect(helper, player, MobEffects.WITHER, 0, "wither at four hours");
+            assertStageAt(helper, level, player, clock, 200, BlackZoneStage.WITHER);
+            assertEffect(helper, player, MobEffects.WITHER, 0, "wither at 3:20");
+
+            assertStageAt(helper, level, player, clock, 220, BlackZoneStage.POISON_2);
+            assertEffect(helper, player, MobEffects.POISON, 1, "poison II at 3:40");
 
             BlackZoneService.Sample left = BlackZoneService.tick(level, player, false);
-            helper.assertTrue(left.stage() == BlackZoneStage.WITHER, "the toll keeps its stage after leaving");
+            helper.assertTrue(left.stage() == BlackZoneStage.POISON_2, "the toll keeps its stage after leaving");
             helper.assertTrue(player.getEffect(MobEffects.WITHER) == null, "wither is dropped on leaving");
-            assertEffect(helper, player, MobEffects.POISON, 0, "poison survives leaving the zone");
+            assertEffect(helper, player, MobEffects.POISON, 1, "poison survives leaving the zone");
             assertEffect(helper, player, MobEffects.HUNGER, 1, "hunger survives leaving the zone");
             helper.assertValueEqual(
                     BlackZonePenalties.healthPenaltyOn(player),
@@ -124,6 +129,54 @@ public final class BlackZoneTollGameTests {
             BlackZoneService.Sample back = BlackZoneService.tick(level, player, true);
             helper.assertTrue(back.stage() == BlackZoneStage.ENTRY, "coming back starts from the entry stage");
             helper.assertTrue(back.entered(), "coming back warns the player again");
+        } finally {
+            cleanUp(level, player);
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "black_zone", timeoutTicks = 600)
+    public static void fourHoursInTheZoneKillThePlayer(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        AtomicLong clock = new AtomicLong(START_MILLIS);
+        BlackZoneClock.override(clock::get);
+        try {
+            helper.assertFalse(
+                    BlackZoneStage.lethal(BlackZoneStage.POISON_2.thresholdMillis()),
+                    "3:40 is not lethal yet"
+            );
+            helper.assertTrue(
+                    BlackZoneStage.lethal(BlackZoneStage.DEATH.thresholdMillis()),
+                    "four hours is lethal"
+            );
+            helper.assertTrue(
+                    BlackZoneStage.current(BlackZoneStage.DEATH.thresholdMillis()) == BlackZoneStage.DEATH,
+                    "four hours reaches the death stage"
+            );
+
+            DamageSource source = BlackZoneDamage.source(level);
+            helper.assertTrue(
+                    source.type().msgId().equals("kingdoms_black_zone"),
+                    "the black zone damage type carries its own death message"
+            );
+
+            BlackZoneData data = BlackZoneData.get(level.getServer());
+            data.put(
+                    player.getUUID(),
+                    data.toll(player.getUUID())
+                            .withAccumulated(BlackZoneStage.POISON_2.thresholdMillis(), clock.get())
+            );
+            BlackZoneService.tick(level, player, true);
+            helper.assertTrue(player.isAlive(), "3:40 in the zone leaves the player alive");
+
+            data.put(
+                    player.getUUID(),
+                    data.toll(player.getUUID())
+                            .withAccumulated(BlackZoneStage.DEATH.thresholdMillis(), clock.get())
+            );
+            BlackZoneService.tick(level, player, true);
+            helper.assertFalse(player.isAlive(), "four hours in the zone kills the player");
         } finally {
             cleanUp(level, player);
         }

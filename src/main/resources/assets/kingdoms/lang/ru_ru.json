@@ -1243,6 +1243,8 @@
   "kingdoms.blackzone.stage.kolyvan": "Кто-то идёт к тебе через чёрную зону.",
   "kingdoms.blackzone.stage.poison": "Остался час до смерти. Яд наполняет кровь.",
   "kingdoms.blackzone.stage.wither": "Иссушение. Уходи из чёрной зоны или умрёшь.",
+  "kingdoms.blackzone.stage.poison_2": "Яд густеет: отравление II. Осталось двадцать минут.",
+  "kingdoms.blackzone.stage.death": "Колыван получил свой поцелуй.",
   "kingdoms.blackzone.stage_name.none": "нет",
   "kingdoms.blackzone.stage_name.entry": "вход",
   "kingdoms.blackzone.stage_name.hunger_1": "Голод I",
@@ -1256,6 +1258,8 @@
   "kingdoms.blackzone.stage_name.kolyvan": "Колыван",
   "kingdoms.blackzone.stage_name.poison": "Отравление I",
   "kingdoms.blackzone.stage_name.wither": "Иссушение",
+  "kingdoms.blackzone.stage_name.poison_2": "Отравление II",
+  "kingdoms.blackzone.stage_name.death": "Смерть",
   "kingdoms.blackzone.display.timer": "Чёрная зона: %s",
   "kingdoms.blackzone.display.release": "Спадёт через %s",
   "kingdoms.blackzone.status.inside": "в зоне",
@@ -1489,5 +1493,6 @@
   "screen.kingdoms.music.status.starting": "Начинаем загрузку",
   "screen.kingdoms.music.status.too_large": "Файл слишком большой",
   "screen.kingdoms.music.status.not_ogg": "Работает только OGG Vorbis, сконвертируйте файл",
-  "screen.kingdoms.music.status.read_failed": "Не удалось прочитать файл"
+  "screen.kingdoms.music.status.read_failed": "Не удалось прочитать файл",
+  "death.attack.kingdoms_black_zone": "%1$s умер от поцелуя в жаркие уста"
 }

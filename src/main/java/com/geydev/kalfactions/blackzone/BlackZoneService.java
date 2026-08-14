@@ -130,7 +130,12 @@ public final class BlackZoneService {
         }
 
         data.put(playerId, toll);
-        return new Sample(stage, toll.accumulatedMillis(), inBlack, entered, released);
+        Sample sample = new Sample(stage, toll.accumulatedMillis(), inBlack, entered, released);
+        // The death handler wipes the toll, so the kill has to land after the store above.
+        if (inBlack && BlackZoneStage.lethal(toll.accumulatedMillis())) {
+            BlackZoneDamage.kill(level, player);
+        }
+        return sample;
     }
 
     public static void forget(UUID playerId) {

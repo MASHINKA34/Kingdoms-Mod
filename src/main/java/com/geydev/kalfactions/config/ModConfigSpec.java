@@ -190,6 +190,8 @@ public final class ModConfigSpec {
     public static final IntValue BLACK_ZONE_STAGE_KOLYVAN_MINUTES;
     public static final IntValue BLACK_ZONE_STAGE_POISON_MINUTES;
     public static final IntValue BLACK_ZONE_STAGE_WITHER_MINUTES;
+    public static final IntValue BLACK_ZONE_STAGE_POISON_2_MINUTES;
+    public static final IntValue BLACK_ZONE_STAGE_DEATH_MINUTES;
     public static final IntValue BLACK_ZONE_HEALTH_PENALTY_ENTRY;
     public static final IntValue BLACK_ZONE_HEALTH_PENALTY_SECOND;
     public static final IntValue BLACK_ZONE_HEALTH_PENALTY_THIRD;
@@ -713,7 +715,11 @@ public final class ModConfigSpec {
         BLACK_ZONE_STAGE_MINING_FATIGUE_MINUTES = builder.defineInRange("stageMiningFatigueMinutes", 150, 0, 10080);
         BLACK_ZONE_STAGE_KOLYVAN_MINUTES = builder.defineInRange("stageKolyvanMinutes", 160, 0, 10080);
         BLACK_ZONE_STAGE_POISON_MINUTES = builder.defineInRange("stagePoisonMinutes", 180, 0, 10080);
-        BLACK_ZONE_STAGE_WITHER_MINUTES = builder.defineInRange("stageWitherMinutes", 240, 0, 10080);
+        BLACK_ZONE_STAGE_WITHER_MINUTES = builder.defineInRange("stageWitherMinutes", 200, 0, 10080);
+        BLACK_ZONE_STAGE_POISON_2_MINUTES = builder.defineInRange("stagePoison2Minutes", 220, 0, 10080);
+        BLACK_ZONE_STAGE_DEATH_MINUTES = builder
+            .comment("Minutes of accumulated black zone time at which the zone kills the player outright.")
+            .defineInRange("stageDeathMinutes", 240, 0, 10080);
         BLACK_ZONE_HEALTH_PENALTY_ENTRY = builder
             .comment("Maximum health taken away at each health stage, in half hearts (a full bar is 20).")
             .defineInRange("healthPenaltyEntry", 1, 0, 19);

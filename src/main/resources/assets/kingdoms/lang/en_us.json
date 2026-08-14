@@ -1243,6 +1243,8 @@
   "kingdoms.blackzone.stage.kolyvan": "Someone is walking towards you through the black zone.",
   "kingdoms.blackzone.stage.poison": "One hour left before death. Poison fills your blood.",
   "kingdoms.blackzone.stage.wither": "Wither. Leave the black zone or die.",
+  "kingdoms.blackzone.stage.poison_2": "The poison thickens: Poison II. Twenty minutes left.",
+  "kingdoms.blackzone.stage.death": "Kolyvan got his kiss.",
   "kingdoms.blackzone.stage_name.none": "none",
   "kingdoms.blackzone.stage_name.entry": "entry",
   "kingdoms.blackzone.stage_name.hunger_1": "Hunger I",
@@ -1256,6 +1258,8 @@
   "kingdoms.blackzone.stage_name.kolyvan": "Kolyvan",
   "kingdoms.blackzone.stage_name.poison": "Poison I",
   "kingdoms.blackzone.stage_name.wither": "Wither",
+  "kingdoms.blackzone.stage_name.poison_2": "Poison II",
+  "kingdoms.blackzone.stage_name.death": "Death",
   "kingdoms.blackzone.display.timer": "Black zone: %s",
   "kingdoms.blackzone.display.release": "Wears off in %s",
   "kingdoms.blackzone.status.inside": "in the zone",
@@ -1489,5 +1493,6 @@
   "screen.kingdoms.music.status.starting": "Starting the upload",
   "screen.kingdoms.music.status.too_large": "The file is too large",
   "screen.kingdoms.music.status.not_ogg": "Only OGG Vorbis works; convert the file first",
-  "screen.kingdoms.music.status.read_failed": "The file could not be read"
+  "screen.kingdoms.music.status.read_failed": "The file could not be read",
+  "death.attack.kingdoms_black_zone": "%1$s died from a kiss on hot lips"
 }

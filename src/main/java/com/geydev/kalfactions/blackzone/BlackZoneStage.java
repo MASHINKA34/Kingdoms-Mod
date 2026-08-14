@@ -94,6 +94,20 @@ public enum BlackZoneStage {
             null,
             MobEffects.WITHER,
             0
+    ),
+    POISON_2(
+            "poison_2",
+            ModConfigSpec.BLACK_ZONE_STAGE_POISON_2_MINUTES::getAsInt,
+            null,
+            MobEffects.POISON,
+            1
+    ),
+    DEATH(
+            "death",
+            ModConfigSpec.BLACK_ZONE_STAGE_DEATH_MINUTES::getAsInt,
+            null,
+            null,
+            0
     );
 
     public static final long MINUTE_MILLIS = 60_000L;
@@ -190,5 +204,9 @@ public enum BlackZoneStage {
 
     public static boolean kolyvanActive(long accumulatedMillis) {
         return accumulatedMillis >= KOLYVAN.thresholdMillis();
+    }
+
+    public static boolean lethal(long accumulatedMillis) {
+        return accumulatedMillis >= DEATH.thresholdMillis();
     }
 }
