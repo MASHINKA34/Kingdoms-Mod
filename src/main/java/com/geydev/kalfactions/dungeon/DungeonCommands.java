@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.dungeon;
 
+import com.geydev.kalfactions.block.DungeonChestBlockEntity;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.net.ClaimSyncManager;
@@ -30,6 +31,20 @@ public final class DungeonCommands {
             SharedSuggestionProvider.suggest(
                     DungeonManager.get(context.getSource().getServer()).all().stream()
                             .map(dungeon -> StringArgumentType.escapeIfRequired(dungeon.name())),
+                    builder
+            );
+
+    private static final SuggestionProvider<CommandSourceStack> TEMPLATE_SUGGESTIONS = (context, builder) ->
+            SharedSuggestionProvider.suggest(
+                    ChestTemplateManager.get(context.getSource().getServer()).all().stream()
+                            .map(template -> StringArgumentType.escapeIfRequired(template.name())),
+                    builder
+            );
+
+    private static final SuggestionProvider<CommandSourceStack> TEMPLATE_FILE_SUGGESTIONS = (context, builder) ->
+            SharedSuggestionProvider.suggest(
+                    ChestTemplateStorage.list(context.getSource().getServer()).stream()
+                            .map(StringArgumentType::escapeIfRequired),
                     builder
             );
 
@@ -69,7 +84,233 @@ public final class DungeonCommands {
                                         .executes(DungeonCommands::resetLootDungeon)))
                         .then(Commands.literal("cooldown")
                                 .then(Commands.argument("hours", IntegerArgumentType.integer(0, 8760))
-                                        .executes(DungeonCommands::setCooldown))));
+                                        .executes(DungeonCommands::setCooldown))))
+                .then(Commands.literal("template")
+                        .then(Commands.literal("list").executes(DungeonCommands::templateList))
+                        .then(Commands.literal("save")
+                                .then(Commands.argument("name", StringArgumentType.greedyString())
+                                        .executes(DungeonCommands::templateSave)))
+                        .then(Commands.literal("apply")
+                                .then(Commands.argument("name", StringArgumentType.greedyString())
+                                        .suggests(TEMPLATE_SUGGESTIONS)
+                                        .executes(DungeonCommands::templateApply)))
+                        .then(Commands.literal("rename")
+                                .then(Commands.argument("name", StringArgumentType.string())
+                                        .suggests(TEMPLATE_SUGGESTIONS)
+                                        .then(Commands.argument("newName", StringArgumentType.greedyString())
+                                                .executes(DungeonCommands::templateRename))))
+                        .then(Commands.literal("delete")
+                                .then(Commands.argument("name", StringArgumentType.greedyString())
+                                        .suggests(TEMPLATE_SUGGESTIONS)
+                                        .executes(DungeonCommands::templateDelete)))
+                        .then(Commands.literal("export")
+                                .then(Commands.argument("name", StringArgumentType.greedyString())
+                                        .suggests(TEMPLATE_SUGGESTIONS)
+                                        .executes(DungeonCommands::templateExport)))
+                        .then(Commands.literal("import")
+                                .then(Commands.argument("file", StringArgumentType.greedyString())
+                                        .suggests(TEMPLATE_FILE_SUGGESTIONS)
+                                        .executes(DungeonCommands::templateImport))));
+    }
+
+    private static int templateList(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        ServerLevel level = source.getPlayerOrException().serverLevel();
+        ChestTemplateManager manager = ChestTemplateManager.get(level);
+        List<ChestTemplate> templates = manager.all();
+        if (templates.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("Шаблонов сундуков нет."), false);
+            return 0;
+        }
+        for (ChestTemplate template : templates) {
+            source.sendSuccess(() -> Component.literal(
+                    "«" + template.name() + "» — предметов: " + template.filledSlots()
+                            + ", автор: " + template.author()
+                            + ", интервал: " + (template.cooldownHours() < 0
+                                    ? "общий"
+                                    : template.cooldownHours() + " ч.")), false);
+        }
+        source.sendSuccess(() -> Component.literal(
+                "Всего: " + templates.size() + ", занято байт: "
+                        + manager.totalBytes(source.getServer().registryAccess())), false);
+        return templates.size();
+    }
+
+    private static int templateSave(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer player = source.getPlayerOrException();
+        DungeonChestBlockEntity chest = chestNear(player);
+        if (chest == null) {
+            source.sendFailure(Component.literal("Встаньте перед сундуком данжа или посмотрите на него."));
+            return 0;
+        }
+        String name = StringArgumentType.getString(context, "name");
+        ChestTemplateManager.SaveResult result = ChestTemplateService.store(
+                player,
+                ChestTemplate.capture(
+                        java.util.UUID.randomUUID(),
+                        name,
+                        player.getGameProfile().getName(),
+                        DungeonClock.now(),
+                        chest
+                ),
+                true
+        );
+        if (!result.successful()) {
+            source.sendFailure(ChestTemplateService.reasonMessage(result.reason()));
+            return 0;
+        }
+        ChestTemplateService.syncOpenScreens(source.getServer());
+        source.sendSuccess(() -> Component.literal(
+                "Шаблон «" + result.template().name() + "» сохранён: предметов "
+                        + result.template().filledSlots() + "."), true);
+        return 1;
+    }
+
+    private static int templateApply(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer player = source.getPlayerOrException();
+        DungeonChestBlockEntity chest = chestNear(player);
+        if (chest == null) {
+            source.sendFailure(Component.literal("Встаньте перед сундуком данжа или посмотрите на него."));
+            return 0;
+        }
+        ChestTemplate template = findTemplate(context, player.serverLevel());
+        if (template == null) {
+            source.sendFailure(Component.literal("Шаблон не найден."));
+            return 0;
+        }
+        template.applyTo(chest, true);
+        source.sendSuccess(() -> Component.literal(
+                "Шаблон «" + template.name() + "» применён к сундуку."), true);
+        return 1;
+    }
+
+    private static int templateRename(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        ServerLevel level = source.getPlayerOrException().serverLevel();
+        ChestTemplateManager manager = ChestTemplateManager.get(level);
+        ChestTemplate template = manager
+                .byName(StringArgumentType.getString(context, "name"))
+                .orElse(null);
+        if (template == null) {
+            source.sendFailure(Component.literal("Шаблон не найден."));
+            return 0;
+        }
+        String newName = StringArgumentType.getString(context, "newName");
+        ChestTemplateManager.Reason reason = manager.rename(template.id(), newName);
+        if (reason != ChestTemplateManager.Reason.OK) {
+            source.sendFailure(ChestTemplateService.reasonMessage(reason));
+            return 0;
+        }
+        ChestTemplateService.syncOpenScreens(source.getServer());
+        String applied = manager.byId(template.id()).map(ChestTemplate::name).orElse(newName);
+        source.sendSuccess(() -> Component.literal(
+                "Шаблон «" + template.name() + "» переименован в «" + applied + "»."), true);
+        return 1;
+    }
+
+    private static int templateDelete(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        ServerLevel level = source.getPlayerOrException().serverLevel();
+        ChestTemplateManager manager = ChestTemplateManager.get(level);
+        ChestTemplate template = findTemplate(context, level);
+        if (template == null || !manager.delete(template.id())) {
+            source.sendFailure(Component.literal("Шаблон не найден."));
+            return 0;
+        }
+        ChestTemplateService.syncOpenScreens(source.getServer());
+        source.sendSuccess(() -> Component.literal("Шаблон «" + template.name() + "» удалён."), true);
+        return 1;
+    }
+
+    private static int templateExport(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        ServerLevel level = source.getPlayerOrException().serverLevel();
+        ChestTemplate template = findTemplate(context, level);
+        if (template == null) {
+            source.sendFailure(Component.literal("Шаблон не найден."));
+            return 0;
+        }
+        try {
+            java.nio.file.Path written = ChestTemplateStorage.write(
+                    source.getServer(),
+                    template,
+                    source.getServer().registryAccess()
+            );
+            source.sendSuccess(() -> Component.literal(
+                    "Шаблон «" + template.name() + "» выгружен в "
+                            + written.getFileName() + " (kingdoms/chest_templates)."), true);
+            return 1;
+        } catch (java.io.IOException exception) {
+            source.sendFailure(Component.literal("Не удалось записать файл шаблона."));
+            return 0;
+        }
+    }
+
+    private static int templateImport(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer player = source.getPlayerOrException();
+        String requested = StringArgumentType.getString(context, "file");
+        java.nio.file.Path file = ChestTemplateStorage
+                .resolve(source.getServer(), requested)
+                .orElse(null);
+        if (file == null) {
+            source.sendFailure(Component.literal("Недопустимое имя файла."));
+            return 0;
+        }
+        ChestTemplate imported;
+        try {
+            imported = ChestTemplateStorage
+                    .read(file, source.getServer().registryAccess())
+                    .orElse(null);
+        } catch (java.io.IOException exception) {
+            source.sendFailure(Component.literal("Не удалось прочитать файл шаблона."));
+            return 0;
+        }
+        if (imported == null) {
+            source.sendFailure(Component.literal("Файл шаблона не найден или повреждён."));
+            return 0;
+        }
+        ChestTemplateManager.SaveResult result =
+                ChestTemplateService.store(player, imported.withId(java.util.UUID.randomUUID()), false);
+        if (!result.successful()) {
+            source.sendFailure(ChestTemplateService.reasonMessage(result.reason()));
+            return 0;
+        }
+        ChestTemplateService.syncOpenScreens(source.getServer());
+        source.sendSuccess(() -> Component.literal(
+                "Шаблон «" + result.template().name() + "» загружен из файла: предметов "
+                        + result.template().filledSlots() + "."), true);
+        return 1;
+    }
+
+    private static ChestTemplate findTemplate(CommandContext<CommandSourceStack> context, ServerLevel level) {
+        return ChestTemplateManager.get(level)
+                .byName(StringArgumentType.getString(context, "name"))
+                .orElse(null);
+    }
+
+    private static DungeonChestBlockEntity chestNear(ServerPlayer player) {
+        BlockPos looking = lookingAt(player);
+        if (looking != null
+                && player.serverLevel().getBlockEntity(looking) instanceof DungeonChestBlockEntity chest) {
+            return chest;
+        }
+        BlockPos origin = player.blockPosition();
+        DungeonChestBlockEntity closest = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (BlockPos pos : BlockPos.betweenClosed(origin.offset(-2, -2, -2), origin.offset(2, 2, 2))) {
+            if (!(player.serverLevel().getBlockEntity(pos) instanceof DungeonChestBlockEntity chest)) {
+                continue;
+            }
+            double distance = player.distanceToSqr(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                closest = chest;
+            }
+        }
+        return closest;
     }
 
     private static int create(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
