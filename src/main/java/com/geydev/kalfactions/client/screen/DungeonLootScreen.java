@@ -38,7 +38,8 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
     static final int LIST_TOP = 28;
     static final int LIST_WIDTH = 148;
     static final int LIST_ROW_HEIGHT = 24;
-    static final int LIST_ROWS = 7;
+    static final int LIST_ROWS = 6;
+    static final int NAME_BOX_TOP = 202;
     static final int PREVIEW_LEFT = 166;
     static final int PREVIEW_TOP = 44;
     static final int PREVIEW_WIDTH = 162;
@@ -151,7 +152,7 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
         minBox = null;
         maxBox = null;
         cooldownBox = null;
-        templateNameBox = new EditBox(font, leftPos + LIST_LEFT + 2, topPos + 202, LIST_WIDTH - 4, 16,
+        templateNameBox = new EditBox(font, leftPos + LIST_LEFT + 2, topPos + NAME_BOX_TOP, LIST_WIDTH - 4, 16,
                 Component.translatable("screen.kingdoms.dungeon_chest.template_name"));
         templateNameBox.setMaxLength(ChestTemplate.MAX_NAME_LENGTH);
         templateNameBox.setHint(Component.translatable("screen.kingdoms.dungeon_chest.template_name"));
@@ -470,6 +471,7 @@ public final class DungeonLootScreen extends AbstractContainerScreen<DungeonLoot
     @Override
     public void removed() {
         autoSave();
+        ClientChestTemplates.clear();
         super.removed();
     }
 

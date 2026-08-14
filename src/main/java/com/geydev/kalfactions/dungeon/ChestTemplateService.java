@@ -56,10 +56,12 @@ public final class ChestTemplateService {
             return;
         }
         if (payload.action() == DungeonPayloads.C2SChestTemplateAction.SYNC) {
-            sync(player, payload.pos());
+            if (rateLimit(player, false)) {
+                sync(player, payload.pos());
+            }
             return;
         }
-        if (!rateLimit(player) || !claimRequest(payload.requestId())) {
+        if (!rateLimit(player, true) || !claimRequest(payload.requestId())) {
             return;
         }
         switch (payload.action()) {
@@ -287,11 +289,13 @@ public final class ChestTemplateService {
         return true;
     }
 
-    private static boolean rateLimit(ServerPlayer player) {
+    private static boolean rateLimit(ServerPlayer player, boolean announce) {
         long now = player.level().getGameTime();
         Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
         if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
-            notice(player, Component.translatable("kingdoms.error.action_rate_limited"), false);
+            if (announce) {
+                notice(player, Component.translatable("kingdoms.error.action_rate_limited"), false);
+            }
             return false;
         }
         return true;

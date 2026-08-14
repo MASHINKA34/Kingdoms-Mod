@@ -55,8 +55,9 @@ final class DungeonLootScreenLayoutTest {
         assertTrue(DungeonLootScreen.LIST_LEFT + DungeonLootScreen.LIST_WIDTH
                 < DungeonLootScreen.PREVIEW_LEFT);
         assertTrue(DungeonLootScreen.LAST_ROW_BOTTOM <= DungeonLootScreen.TEMPLATE_HEIGHT);
-        assertTrue(DungeonLootScreen.LIST_TOP + DungeonLootScreen.LIST_ROWS * DungeonLootScreen.LIST_ROW_HEIGHT
-                < DungeonLootScreen.LAST_ROW_BOTTOM - 40);
+        assertTrue(DungeonLootScreen.LIST_TOP + DungeonLootScreen.LIST_ROWS * DungeonLootScreen.LIST_ROW_HEIGHT + 10
+                <= DungeonLootScreen.NAME_BOX_TOP);
+        assertTrue(DungeonLootScreen.NAME_BOX_TOP + 16 <= DungeonLootScreen.LAST_ROW_BOTTOM - 20);
         assertTrue(DungeonLootScreen.PREVIEW_TOP + DungeonLootScreen.PREVIEW_HEIGHT
                 <= DungeonLootScreen.TEMPLATE_HEIGHT);
         assertTrue(DungeonLootScreen.PLAN_WIDTH < DungeonLootScreen.TEMPLATE_WIDTH);
