@@ -255,6 +255,8 @@ public final class ModConfigSpec {
     public static final IntValue DUNGEON_LOOT_COOLDOWN_HOURS;
     public static final BooleanValue DUNGEON_DISABLE_MOB_SPAWNS;
     public static final BooleanValue DUNGEON_ALLOW_SPAWNER_MOBS;
+    public static final IntValue DUNGEON_MAX_CHEST_TEMPLATES;
+    public static final IntValue DUNGEON_MAX_CHEST_TEMPLATE_KILOBYTES;
     public static final IntValue MUSIC_DEFAULT_RADIUS;
     public static final IntValue MUSIC_MAX_RADIUS;
     public static final IntValue MUSIC_MAX_TRACK_BYTES;
@@ -863,6 +865,12 @@ public final class ModConfigSpec {
         DUNGEON_ALLOW_SPAWNER_MOBS = builder
             .comment("Let vanilla spawner blocks keep working inside dungeon chunks while natural spawning is off.")
             .define("allowSpawnerMobs", true);
+        DUNGEON_MAX_CHEST_TEMPLATES = builder
+            .comment("Largest number of dungeon chest loot templates the server keeps at once.")
+            .defineInRange("maxChestTemplates", 64, 1, 512);
+        DUNGEON_MAX_CHEST_TEMPLATE_KILOBYTES = builder
+            .comment("Total kilobytes of stored dungeon chest templates; saves past it are refused.")
+            .defineInRange("maxChestTemplateKilobytes", 256, 16, 768);
         builder.pop();
 
         builder.push("music");

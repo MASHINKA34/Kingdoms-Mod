@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.block;
 
 import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.dungeon.ChestTemplate;
 import com.geydev.kalfactions.dungeon.DungeonClock;
 import com.geydev.kalfactions.registry.ModBlockEntities;
 import java.util.ArrayList;
@@ -136,6 +137,18 @@ public final class DungeonChestBlockEntity extends BaseContainerBlockEntity impl
         chance[slot] = Math.clamp(newChance, 0, 100);
         minCount[slot] = Math.clamp(Math.min(newMin, newMax), 1, MAX_COUNT);
         maxCount[slot] = Math.clamp(Math.max(newMin, newMax), 1, MAX_COUNT);
+        markUpdated();
+    }
+
+    public void replacePlan(List<ChestTemplate.Entry> entries) {
+        for (int slot = 0; slot < SIZE; slot++) {
+            ChestTemplate.Entry entry = slot < entries.size() ? entries.get(slot) : ChestTemplate.Entry.EMPTY;
+            ItemStack stack = entry.stack();
+            plan.set(slot, stack.isEmpty() ? ItemStack.EMPTY : stack.copyWithCount(1));
+            chance[slot] = Math.clamp(entry.chance(), 0, 100);
+            minCount[slot] = Math.clamp(entry.minCount(), 1, MAX_COUNT);
+            maxCount[slot] = Math.clamp(entry.maxCount(), 1, MAX_COUNT);
+        }
         markUpdated();
     }
 
