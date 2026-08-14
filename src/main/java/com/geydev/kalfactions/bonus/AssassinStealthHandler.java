@@ -38,12 +38,12 @@ public final class AssassinStealthHandler {
             return;
         }
         int light = level.getMaxLocalRawBrightness(player.blockPosition());
-        if (!stealthed && light <= DARK_LIGHT && !player.hasGlowingTag() && !player.isOnFire()) {
+        if (!stealthed && light <= DARK_LIGHT && !player.isCurrentlyGlowing() && !player.isOnFire()) {
             startStealth(player);
             return;
         }
         if (stealthed) {
-            if (light >= LIT_LIGHT || player.hasGlowingTag() || player.isOnFire()) {
+            if (light >= LIT_LIGHT || player.isCurrentlyGlowing() || player.isOnFire()) {
                 stopStealth(player);
             } else {
                 applyInvisibility(player);

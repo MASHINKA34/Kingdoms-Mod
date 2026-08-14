@@ -163,6 +163,7 @@ dependencies {
     localRuntime files("libs/curios-neoforge-9.5.1+${minecraft_version}.jar")
     localRuntime files("libs/geckolib-neoforge-${minecraft_version}-4.9.2.jar")
     localRuntime files("libs/jei-${minecraft_version}-neoforge-${jei_version}.jar")
+    localRuntime files("libs/hookahmod-${hookah_version}.jar")
 
     localRuntime files("libs/CreateNumismatics-${numismatics_version}.jar")
     localRuntime("com.simibubi.create:create-${minecraft_version}:${create_version}:slim") {

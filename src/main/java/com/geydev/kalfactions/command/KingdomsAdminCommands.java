@@ -48,6 +48,13 @@ public final class KingdomsAdminCommands {
                     builder
             );
 
+    private static final SuggestionProvider<CommandSourceStack> BONUS_SUGGESTIONS = (context, builder) ->
+            SharedSuggestionProvider.suggest(
+                    com.geydev.kalfactions.faction.FactionBonus.SELECTABLE.stream()
+                            .map(bonus -> bonus.name().toLowerCase(java.util.Locale.ROOT)),
+                    builder
+            );
+
     private static final SuggestionProvider<CommandSourceStack> FACTION_SUGGESTIONS = (context, builder) ->
             SharedSuggestionProvider.suggest(
                     FactionManager.get(context.getSource().getServer()).factions().stream()
@@ -94,7 +101,13 @@ public final class KingdomsAdminCommands {
                         .then(Commands.literal("move")
                                 .then(Commands.argument("name", StringArgumentType.greedyString())
                                         .suggests(FACTION_SUGGESTIONS)
-                                        .executes(KingdomsAdminCommands::moveFaction))))
+                                        .executes(KingdomsAdminCommands::moveFaction)))
+                        .then(Commands.literal("bonuses")
+                                .then(Commands.argument("first", StringArgumentType.word())
+                                        .suggests(BONUS_SUGGESTIONS)
+                                        .then(Commands.argument("second", StringArgumentType.word())
+                                                .suggests(BONUS_SUGGESTIONS)
+                                                .executes(KingdomsAdminCommands::setFactionBonuses)))))
                 .then(Commands.literal("dimension")
                         .then(dimensionBranch("nether", Level.NETHER, "Ад"))
                         .then(dimensionBranch("end", Level.END, "Энд")))
@@ -759,6 +772,46 @@ public final class KingdomsAdminCommands {
         int total = granted;
         source.sendSuccess(() -> Component.literal("Изучено узлов: " + total), true);
         return 1;
+    }
+
+    private static int setFactionBonuses(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer player = source.getPlayerOrException();
+        FactionManager manager = FactionManager.get(player.serverLevel());
+        UUID factionId = manager.getFactionIdForMember(player.getUUID()).orElse(null);
+        if (factionId == null) {
+            source.sendFailure(Component.literal("Вы не состоите во фракции."));
+            return 0;
+        }
+        com.geydev.kalfactions.faction.FactionBonus first = parseBonus(context, "first");
+        com.geydev.kalfactions.faction.FactionBonus second = parseBonus(context, "second");
+        if (first == null || second == null) {
+            source.sendFailure(Component.literal("Неизвестный бонус."));
+            return 0;
+        }
+        if (first == second) {
+            source.sendFailure(Component.literal("Бонусы должны быть разными."));
+            return 0;
+        }
+        manager.setFactionBonuses(factionId, java.util.Set.of(first, second));
+        source.sendSuccess(
+                () -> Component.literal("Бонусы фракции: " + first.name() + ", " + second.name()),
+                true
+        );
+        return 1;
+    }
+
+    private static com.geydev.kalfactions.faction.FactionBonus parseBonus(
+            CommandContext<CommandSourceStack> context,
+            String argument
+    ) {
+        try {
+            return com.geydev.kalfactions.faction.FactionBonus.parse(
+                    StringArgumentType.getString(context, argument)
+            );
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
 
     private static int resetResearch(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {

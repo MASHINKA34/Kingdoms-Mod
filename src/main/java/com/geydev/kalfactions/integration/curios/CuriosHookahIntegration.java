@@ -47,6 +47,7 @@ public final class CuriosHookahIntegration {
             "hookah_diamond",
             "hookah_netherite"
     );
+    private static final float HOOKAH_SATURATION_MODIFIER = 0.6F;
     public static final ResourceLocation HOOKAH_ARMOR_MODIFIER_ID =
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "hookah_armor_bonus");
     public static final ResourceLocation HOOKAH_SPEED_MODIFIER_ID =
@@ -93,6 +94,18 @@ public final class CuriosHookahIntegration {
 
     public static boolean hasHookahBonus(ServerPlayer player) {
         return player != null && bonusChecker.test(player);
+    }
+
+    public static boolean hasHookahMastery(ServerPlayer player) {
+        return player != null && FactionAccess.hasLegacyMastery(player, FactionBonus.HOOKAH);
+    }
+
+    public static void onHookahPuff(ServerPlayer player, float charge) {
+        if (!hasHookahMastery(player)) {
+            return;
+        }
+        int nutrition = 1 + Math.round(Math.clamp(charge, 0.0F, 1.0F));
+        player.getFoodData().eat(nutrition, HOOKAH_SATURATION_MODIFIER);
     }
 
     public static boolean canEquipHookah(ServerPlayer player) {
