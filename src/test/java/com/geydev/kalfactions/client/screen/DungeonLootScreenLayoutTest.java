@@ -49,6 +49,31 @@ final class DungeonLootScreenLayoutTest {
     }
 
     @Test
+    void tabStripSitsInsideTheHeaderOfBothTabs() {
+        int strip = DungeonLootScreen.TAB_PLAN_WIDTH
+                + DungeonLootScreen.TAB_GAP
+                + DungeonLootScreen.TAB_TEMPLATES_WIDTH;
+
+        assertTrue(DungeonLootScreen.PLAN_WIDTH - 12 - strip >= 118);
+        assertTrue(DungeonLootScreen.TEMPLATE_WIDTH - 12 - strip >= 118);
+        assertTrue(DungeonLootScreen.TAB_TOP + DungeonLootScreen.TAB_HEIGHT <= DungeonLootScreen.HINT_TOP);
+        assertTrue(DungeonLootScreen.HINT_TOP + 10 <= DungeonLootScreen.LIST_TOP);
+    }
+
+    @Test
+    void planContentStaysCenteredInTheWiderPanel() {
+        assertEquals(
+                DungeonLootScreen.PLAN_WIDTH,
+                com.geydev.kalfactions.menu.DungeonLootMenu.GRID_LEFT * 2 + 162
+        );
+        assertEquals(
+                com.geydev.kalfactions.menu.DungeonLootMenu.GRID_LEFT,
+                com.geydev.kalfactions.menu.DungeonLootMenu.INVENTORY_LEFT
+        );
+        assertEquals(19 + DungeonLootScreen.PLAN_SHIFT, com.geydev.kalfactions.menu.DungeonLootMenu.GRID_LEFT);
+    }
+
+    @Test
     void templateTabStaysInsideThePanel() {
         assertTrue(DungeonLootScreen.PREVIEW_LEFT + DungeonLootScreen.PREVIEW_WIDTH
                 <= DungeonLootScreen.TEMPLATE_WIDTH - DungeonLootScreen.LIST_LEFT);
@@ -58,7 +83,7 @@ final class DungeonLootScreenLayoutTest {
         assertTrue(DungeonLootScreen.LIST_TOP + DungeonLootScreen.LIST_ROWS * DungeonLootScreen.LIST_ROW_HEIGHT + 10
                 <= DungeonLootScreen.NAME_BOX_TOP);
         assertTrue(DungeonLootScreen.NAME_BOX_TOP + 16 <= DungeonLootScreen.LAST_ROW_BOTTOM - 20);
-        assertTrue(DungeonLootScreen.PREVIEW_TOP + DungeonLootScreen.PREVIEW_HEIGHT
+        assertTrue(DungeonLootScreen.PREVIEW_TOP + DungeonLootScreen.PREVIEW_HEIGHT + 30 + 76
                 <= DungeonLootScreen.TEMPLATE_HEIGHT);
         assertTrue(DungeonLootScreen.PLAN_WIDTH < DungeonLootScreen.TEMPLATE_WIDTH);
     }
