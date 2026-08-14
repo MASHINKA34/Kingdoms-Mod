@@ -11,6 +11,7 @@ public final class MusicLimits {
     public static final int MAX_ACTIVE_SPEAKERS_PER_CLIENT = 3;
     public static final long SESSION_TIMEOUT_MILLIS = 60_000L;
     public static final long ACTION_COOLDOWN_TICKS = 5L;
+    public static final int HARD_MAX_TRACK_BYTES = 64 * 1024 * 1024;
     public static final int RADIUS_TICK_INTERVAL = 20;
     public static final byte[] OGG_SIGNATURE = {'O', 'g', 'g', 'S'};
 

@@ -12,6 +12,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class MusicRadius {
@@ -31,8 +32,10 @@ public final class MusicRadius {
             return;
         }
         ServerLevel level = player.serverLevel();
-        MusicManager manager = MusicManager.get(level);
-        Map<Long, MusicSpeaker> wanted = audibleFor(player, level, manager);
+        Map<Long, MusicSpeaker> wanted = new HashMap<>();
+        for (MusicSpeaker speaker : audibleAt(level, player.position())) {
+            wanted.put(speaker.pos().asLong(), speaker);
+        }
         Map<Long, MusicSpeaker> current = ACTIVE.computeIfAbsent(player.getUUID(), key -> new HashMap<>());
         for (Map.Entry<Long, MusicSpeaker> entry : List.copyOf(current.entrySet())) {
             MusicSpeaker target = wanted.get(entry.getKey());
@@ -80,7 +83,8 @@ public final class MusicRadius {
         }
     }
 
-    private static Map<Long, MusicSpeaker> audibleFor(ServerPlayer player, ServerLevel level, MusicManager manager) {
+    public static List<MusicSpeaker> audibleAt(ServerLevel level, Vec3 position) {
+        MusicManager manager = MusicManager.get(level);
         List<MusicSpeaker> candidates = new ArrayList<>();
         for (MusicSpeaker speaker : manager.audibleSpeakers()) {
             if (!speaker.dimension().equals(level.dimension())) {
@@ -91,26 +95,22 @@ public final class MusicRadius {
                 continue;
             }
             double radius = speaker.radius();
-            if (distanceSqr(player, speaker.pos()) <= radius * radius) {
+            if (distanceSqr(position, speaker.pos()) <= radius * radius) {
                 candidates.add(speaker);
             }
         }
-        candidates.sort(Comparator.comparingDouble(speaker -> distanceSqr(player, speaker.pos())));
-        Map<Long, MusicSpeaker> wanted = new HashMap<>();
-        int limit = Math.min(candidates.size(), MusicLimits.MAX_ACTIVE_SPEAKERS_PER_CLIENT);
-        for (int index = 0; index < limit; index++) {
-            MusicSpeaker speaker = candidates.get(index);
-            wanted.put(speaker.pos().asLong(), speaker);
-        }
-        return wanted;
+        candidates.sort(Comparator.comparingDouble(speaker -> distanceSqr(position, speaker.pos())));
+        return candidates.size() <= MusicLimits.MAX_ACTIVE_SPEAKERS_PER_CLIENT
+                ? List.copyOf(candidates)
+                : List.copyOf(candidates.subList(0, MusicLimits.MAX_ACTIVE_SPEAKERS_PER_CLIENT));
     }
 
     private static boolean isPresent(ServerLevel level, BlockPos pos) {
-        return !level.hasChunkAt(pos) || level.getBlockState(pos).is(ModBlocks.MUSIC_BLOCK.get());
+        return !level.isLoaded(pos) || level.getBlockState(pos).is(ModBlocks.MUSIC_BLOCK.get());
     }
 
-    private static double distanceSqr(ServerPlayer player, BlockPos pos) {
-        return player.distanceToSqr(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D);
+    private static double distanceSqr(Vec3 position, BlockPos pos) {
+        return position.distanceToSqr(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D);
     }
 
     private static boolean sameSound(MusicSpeaker first, MusicSpeaker second) {

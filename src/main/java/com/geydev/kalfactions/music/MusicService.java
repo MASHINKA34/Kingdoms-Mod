@@ -32,6 +32,49 @@ public final class MusicService {
     private static final Map<UUID, DownloadQueue> DOWNLOADS = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> LAST_ACTION_TICK = new ConcurrentHashMap<>();
 
+    public enum UploadCheck {
+        OK(""),
+        ALREADY_PRESENT("kingdoms.music.upload.deduplicated"),
+        INVALID_CHECKSUM("kingdoms.music.error.invalid_file"),
+        INVALID_NAME("kingdoms.music.error.invalid_name"),
+        TOO_LARGE("kingdoms.music.error.too_large"),
+        TOO_MANY_TRACKS("kingdoms.music.error.too_many_tracks"),
+        STORAGE_FULL("kingdoms.music.error.storage_full");
+
+        private final String messageKey;
+
+        UploadCheck(String messageKey) {
+            this.messageKey = messageKey;
+        }
+
+        public String messageKey() {
+            return messageKey;
+        }
+    }
+
+    public static UploadCheck checkUpload(MinecraftServer server, String checksum, String name, int totalBytes) {
+        if (!ArchiveHashing.isSha256(checksum)) {
+            return UploadCheck.INVALID_CHECKSUM;
+        }
+        if (MusicLimits.sanitizeName(name).isEmpty()) {
+            return UploadCheck.INVALID_NAME;
+        }
+        if (totalBytes <= 0 || totalBytes > MusicLimits.maxTrackBytes()) {
+            return UploadCheck.TOO_LARGE;
+        }
+        MusicManager manager = MusicManager.get(server);
+        if (manager.track(checksum).isPresent() && MusicStorage.exists(server, checksum)) {
+            return UploadCheck.ALREADY_PRESENT;
+        }
+        if (manager.trackCount() >= MusicLimits.maxTracks()) {
+            return UploadCheck.TOO_MANY_TRACKS;
+        }
+        if (manager.totalBytes() + totalBytes > MusicLimits.maxStorageBytes()) {
+            return UploadCheck.STORAGE_FULL;
+        }
+        return UploadCheck.OK;
+    }
+
     public static boolean canEdit(ServerPlayer player, BlockPos pos) {
         if (player.hasPermissions(2)) {
             return true;
@@ -145,35 +188,18 @@ public final class MusicService {
             uploadFailed(player, sessionId, "kingdoms.music.error.no_permission");
             return;
         }
-        if (!ArchiveHashing.isSha256(payload.checksum())) {
-            uploadFailed(player, sessionId, "kingdoms.music.error.invalid_file");
-            return;
-        }
         String name = MusicLimits.sanitizeName(payload.name());
-        if (name.isEmpty()) {
-            uploadFailed(player, sessionId, "kingdoms.music.error.invalid_name");
-            return;
-        }
         int total = payload.totalBytes();
-        if (total <= 0 || total > MusicLimits.maxTrackBytes()) {
-            uploadFailed(player, sessionId, "kingdoms.music.error.too_large");
-            return;
-        }
-        MusicManager manager = MusicManager.get(player.serverLevel());
-        if (manager.track(payload.checksum()).isPresent()
-                && MusicStorage.exists(player.server, payload.checksum())) {
+        UploadCheck check = checkUpload(player.server, payload.checksum(), name, total);
+        if (check == UploadCheck.ALREADY_PRESENT) {
             assignTrack(player, pos, payload.checksum());
             PacketDistributor.sendToPlayer(player, new MusicPayloads.S2CUploadStatus(
                     sessionId, total, total, true, false, "kingdoms.music.upload.deduplicated"));
             sendScreen(player, pos);
             return;
         }
-        if (manager.trackCount() >= MusicLimits.maxTracks()) {
-            uploadFailed(player, sessionId, "kingdoms.music.error.too_many_tracks");
-            return;
-        }
-        if (manager.totalBytes() + total > MusicLimits.maxStorageBytes()) {
-            uploadFailed(player, sessionId, "kingdoms.music.error.storage_full");
+        if (check != UploadCheck.OK) {
+            uploadFailed(player, sessionId, check.messageKey());
             return;
         }
         UploadSession session = new UploadSession(sessionId, pos, name, total, payload.checksum());
@@ -193,9 +219,9 @@ public final class MusicService {
             uploadFailed(player, session.id, "kingdoms.music.error.invalid_chunk");
             return;
         }
-        if (session.received < session.total) {
+        if (session.received() < session.total) {
             PacketDistributor.sendToPlayer(player, new MusicPayloads.S2CUploadStatus(
-                    session.id, session.received, session.total, false, false, "kingdoms.music.upload.running"));
+                    session.id, session.received(), session.total, false, false, "kingdoms.music.upload.running"));
             return;
         }
         UPLOADS.remove(player.getUUID(), session);
@@ -290,7 +316,7 @@ public final class MusicService {
     }
 
     private static void finishUpload(ServerPlayer player, UploadSession session) {
-        byte[] data = session.buffer;
+        byte[] data = session.data();
         if (!MusicLimits.hasOggSignature(data)) {
             uploadFailed(player, session.id, "kingdoms.music.error.not_ogg");
             return;
@@ -424,10 +450,8 @@ public final class MusicService {
         private final String name;
         private final int total;
         private final String checksum;
-        private final byte[] buffer;
+        private final MusicChunkBuffer chunks;
         private final long startedAt = System.currentTimeMillis();
-        private int expectedIndex;
-        private int received;
         private long lastActivity = System.currentTimeMillis();
 
         private UploadSession(UUID id, BlockPos speakerPos, String name, int total, String checksum) {
@@ -436,30 +460,25 @@ public final class MusicService {
             this.name = name;
             this.total = total;
             this.checksum = checksum;
-            this.buffer = new byte[total];
+            this.chunks = new MusicChunkBuffer(total);
+        }
+
+        private int received() {
+            return chunks.received();
+        }
+
+        private byte[] data() {
+            return chunks.data();
         }
 
         private boolean accept(int index, byte[] data) {
             lastActivity = System.currentTimeMillis();
-            if (index != expectedIndex || data.length == 0 || data.length > MusicLimits.CHUNK_SIZE) {
-                return false;
-            }
-            if (received + data.length > total) {
-                return false;
-            }
-            int expectedLength = Math.min(MusicLimits.CHUNK_SIZE, total - received);
-            if (data.length != expectedLength) {
-                return false;
-            }
             long elapsed = Math.max(0L, lastActivity - startedAt);
             long allowed = UPLOAD_BURST_BYTES + elapsed * UPLOAD_BYTES_PER_SECOND / 1000L;
-            if ((long) received + data.length > allowed) {
+            if ((long) chunks.received() + data.length > allowed) {
                 return false;
             }
-            System.arraycopy(data, 0, buffer, received, data.length);
-            received += data.length;
-            expectedIndex++;
-            return true;
+            return chunks.accept(index, data);
         }
     }
 

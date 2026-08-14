@@ -2,6 +2,7 @@ package com.geydev.kalfactions.client;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.integration.xaero.archive.ArchiveHashing;
+import com.geydev.kalfactions.music.MusicChunkBuffer;
 import com.geydev.kalfactions.music.MusicLimits;
 import com.geydev.kalfactions.music.MusicPayloads;
 import java.io.IOException;
@@ -75,7 +76,7 @@ public final class ClientMusicPlayer {
     public static void handleTrackBegin(MusicPayloads.S2CTrackBegin payload) {
         Minecraft minecraft = Minecraft.getInstance();
         minecraft.execute(() -> {
-            if (payload.totalBytes() <= 0 || payload.totalBytes() > MusicLimits.maxTrackBytes()) {
+            if (payload.totalBytes() <= 0 || payload.totalBytes() > MusicLimits.HARD_MAX_TRACK_BYTES) {
                 DOWNLOADS.remove(payload.hash());
                 return;
             }
@@ -95,11 +96,11 @@ public final class ClientMusicPlayer {
                 return;
             }
             DOWNLOADS.remove(payload.hash());
-            if (!ArchiveHashing.sha256(download.buffer).equals(payload.hash())) {
+            if (!ArchiveHashing.sha256(download.data()).equals(payload.hash())) {
                 notice("kingdoms.music.error.checksum");
                 return;
             }
-            writeCache(payload.hash(), download.buffer);
+            writeCache(payload.hash(), download.data());
         });
     }
 
@@ -292,29 +293,22 @@ public final class ClientMusicPlayer {
     private static final class Download {
         private static final Download PENDING = new Download(0);
 
-        private final byte[] buffer;
-        private int expectedIndex;
-        private int received;
+        private final MusicChunkBuffer chunks;
 
         private Download(int total) {
-            this.buffer = new byte[Math.max(0, total)];
+            this.chunks = new MusicChunkBuffer(Math.max(0, total));
         }
 
         private boolean accept(int index, byte[] data) {
-            if (this == PENDING || index != expectedIndex || data.length == 0) {
-                return false;
-            }
-            if (received + data.length > buffer.length) {
-                return false;
-            }
-            System.arraycopy(data, 0, buffer, received, data.length);
-            received += data.length;
-            expectedIndex++;
-            return true;
+            return this != PENDING && chunks.accept(index, data);
         }
 
         private boolean complete() {
-            return this != PENDING && received == buffer.length && buffer.length > 0;
+            return this != PENDING && chunks.complete();
+        }
+
+        private byte[] data() {
+            return chunks.data();
         }
     }
 
