@@ -39,6 +39,11 @@ public final class MusicNetwork {
                 (payload, context) -> onServer(context, player -> MusicService.requestTrack(player, payload.hash()))
         );
         registrar.playToServer(
+                MusicPayloads.C2SSpeakerStatus.TYPE,
+                MusicPayloads.C2SSpeakerStatus.STREAM_CODEC,
+                (payload, context) -> onServer(context, player -> MusicRadius.acceptStatus(player, payload.handled()))
+        );
+        registrar.playToServer(
                 MusicPayloads.C2SRequestSpeaker.TYPE,
                 MusicPayloads.C2SRequestSpeaker.STREAM_CODEC,
                 (payload, context) -> onServer(context, player -> MusicService.requestScreen(player, payload.pos()))

@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.music;
 
+import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.MusicBlockEntity;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
@@ -249,7 +250,11 @@ public final class MusicService {
         }
         DownloadQueue queue = DOWNLOADS.computeIfAbsent(player.getUUID(), key -> new DownloadQueue());
         if (!queue.reserve(hash)) {
-            return;
+            if (queue.isSending(hash)) {
+                return;
+            }
+            queue.release(hash);
+            queue.reserve(hash);
         }
         MinecraftServer server = player.server;
         MusicStorage.read(server, hash)
@@ -266,6 +271,8 @@ public final class MusicService {
                         return;
                     }
                     queue.enqueue(new PendingDownload(hash, data));
+                    KalFactions.LOGGER.info("Sending music track {} ({} bytes) to {}",
+                            hash.substring(0, 8), data.length, target.getGameProfile().getName());
                     PacketDistributor.sendToPlayer(target, new MusicPayloads.S2CTrackBegin(hash, data.length));
                 }));
     }
@@ -509,6 +516,15 @@ public final class MusicService {
 
         private synchronized boolean isIdle() {
             return pending.isEmpty();
+        }
+
+        private synchronized boolean isSending(String hash) {
+            for (PendingDownload download : pending) {
+                if (download.hash().equals(hash)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private synchronized void pump(ServerPlayer player, long budget) {

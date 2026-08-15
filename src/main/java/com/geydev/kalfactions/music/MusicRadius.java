@@ -57,6 +57,17 @@ public final class MusicRadius {
         }
     }
 
+    public static void acceptStatus(ServerPlayer player, List<Long> handled) {
+        if (player == null || player.hasDisconnected()) {
+            return;
+        }
+        Map<Long, MusicSpeaker> current = ACTIVE.get(player.getUUID());
+        if (current != null && !current.isEmpty()) {
+            current.keySet().retainAll(handled);
+        }
+        refresh(player);
+    }
+
     public static void stopFor(ServerPlayer player) {
         if (player == null) {
             return;

@@ -246,6 +246,36 @@ public final class MusicPayloads {
         }
     }
 
+    public record C2SSpeakerStatus(List<Long> handled) implements CustomPacketPayload {
+        public static final int MAX_ENTRIES = 16;
+        public static final Type<C2SSpeakerStatus> TYPE = payloadType("speaker_status");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SSpeakerStatus> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    int count = Math.min(payload.handled.size(), MAX_ENTRIES);
+                    buffer.writeVarInt(count);
+                    for (int index = 0; index < count; index++) {
+                        buffer.writeLong(payload.handled.get(index));
+                    }
+                },
+                buffer -> {
+                    int count = buffer.readVarInt();
+                    if (count < 0 || count > MAX_ENTRIES) {
+                        throw new DecoderException("Music speaker status count " + count + " exceeds " + MAX_ENTRIES);
+                    }
+                    List<Long> handled = new ArrayList<>(count);
+                    for (int index = 0; index < count; index++) {
+                        handled.add(buffer.readLong());
+                    }
+                    return new C2SSpeakerStatus(handled);
+                }
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record S2CMusicMute(boolean muted) implements CustomPacketPayload {
         public static final Type<S2CMusicMute> TYPE = payloadType("mute");
         public static final StreamCodec<RegistryFriendlyByteBuf, S2CMusicMute> STREAM_CODEC = StreamCodec.of(

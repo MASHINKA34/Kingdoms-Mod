@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,10 +31,13 @@ import net.neoforged.neoforge.network.PacketDistributor;
 public final class ClientMusicPlayer {
     private static final String CACHE_DIRECTORY = "music-cache";
     private static final int HEALTH_CHECK_TICKS = 40;
+    private static final int STATUS_REPORT_TICKS = 100;
+    private static final long DOWNLOAD_TIMEOUT_MILLIS = 20_000L;
 
     private static final Map<Long, Speaker> SPEAKERS = new LinkedHashMap<>();
     private static final Map<String, Download> DOWNLOADS = new HashMap<>();
     private static int healthCheckCounter;
+    private static int statusCounter;
 
     public static void handleStart(MusicPayloads.S2CSpeakerStart payload) {
         Minecraft minecraft = Minecraft.getInstance();
@@ -80,7 +84,7 @@ public final class ClientMusicPlayer {
                 DOWNLOADS.remove(payload.hash());
                 return;
             }
-            DOWNLOADS.put(payload.hash(), new Download(payload.totalBytes()));
+            DOWNLOADS.put(payload.hash(), new Download(payload.totalBytes(), false));
         });
     }
 
@@ -153,10 +157,15 @@ public final class ClientMusicPlayer {
         if (SPEAKERS.isEmpty()) {
             return;
         }
+        if (++statusCounter >= STATUS_REPORT_TICKS) {
+            statusCounter = 0;
+            reportStatus(minecraft);
+        }
         if (++healthCheckCounter < HEALTH_CHECK_TICKS) {
             return;
         }
         healthCheckCounter = 0;
+        expireDownloads();
         if (minecraft.options.getSoundSourceVolume(SoundSource.RECORDS) <= 0.0F || MusicClientSettings.muted()) {
             return;
         }
@@ -165,6 +174,24 @@ public final class ClientMusicPlayer {
                 startOrDownload(speaker);
             }
         }
+    }
+
+    private static void reportStatus(Minecraft minecraft) {
+        List<Long> handled = new ArrayList<>();
+        for (Speaker speaker : SPEAKERS.values()) {
+            if (handled.size() >= MusicPayloads.C2SSpeakerStatus.MAX_ENTRIES) {
+                break;
+            }
+            if (speaker.isHandled(minecraft)) {
+                handled.add(speaker.pos.asLong());
+            }
+        }
+        PacketDistributor.sendToServer(new MusicPayloads.C2SSpeakerStatus(handled));
+    }
+
+    private static void expireDownloads() {
+        long now = System.currentTimeMillis();
+        DOWNLOADS.entrySet().removeIf(entry -> now - entry.getValue().lastActivity > DOWNLOAD_TIMEOUT_MILLIS);
     }
 
     @SubscribeEvent
@@ -179,6 +206,7 @@ public final class ClientMusicPlayer {
         SPEAKERS.clear();
         DOWNLOADS.clear();
         healthCheckCounter = 0;
+        statusCounter = 0;
     }
 
     private static void startOrDownload(Speaker speaker) {
@@ -195,13 +223,15 @@ public final class ClientMusicPlayer {
             return;
         }
         speaker.start(minecraft, file);
+        KalFactions.LOGGER.info("Playing music track {} from speaker {}",
+                speaker.hash.substring(0, 8), speaker.pos.toShortString());
     }
 
     private static void requestTrack(String hash) {
         if (DOWNLOADS.containsKey(hash)) {
             return;
         }
-        DOWNLOADS.put(hash, Download.PENDING);
+        DOWNLOADS.put(hash, new Download(0, true));
         PacketDistributor.sendToServer(new MusicPayloads.C2SRequestTrack(hash));
     }
 
@@ -288,23 +318,32 @@ public final class ClientMusicPlayer {
             instance = null;
             return true;
         }
+
+        private boolean isHandled(Minecraft minecraft) {
+            if (DOWNLOADS.containsKey(hash)) {
+                return true;
+            }
+            return instance != null && minecraft.getSoundManager().isActive(instance);
+        }
     }
 
     private static final class Download {
-        private static final Download PENDING = new Download(0);
-
         private final MusicChunkBuffer chunks;
+        private final boolean placeholder;
+        private long lastActivity = System.currentTimeMillis();
 
-        private Download(int total) {
+        private Download(int total, boolean placeholder) {
             this.chunks = new MusicChunkBuffer(Math.max(0, total));
+            this.placeholder = placeholder;
         }
 
         private boolean accept(int index, byte[] data) {
-            return this != PENDING && chunks.accept(index, data);
+            lastActivity = System.currentTimeMillis();
+            return !placeholder && chunks.accept(index, data);
         }
 
         private boolean complete() {
-            return this != PENDING && chunks.complete();
+            return !placeholder && chunks.complete();
         }
 
         private byte[] data() {
