@@ -1,6 +1,8 @@
 package com.geydev.kalfactions.mixin;
 
 import com.geydev.kalfactions.bonus.NomadRiding;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
@@ -8,7 +10,6 @@ import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(AbstractHorse.class)
@@ -32,15 +33,15 @@ public abstract class AbstractHorseMixin {
         }
     }
 
-    @Redirect(
+    @WrapOperation(
             method = "onPlayerJump",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/world/entity/animal/horse/AbstractHorse;isSaddled()Z"
             )
     )
-    private boolean kingdoms$saddledOrNomad(AbstractHorse horse) {
-        return horse.isSaddled() || kingdoms$unsaddledNomadRider();
+    private boolean kingdoms$saddledOrNomad(AbstractHorse horse, Operation<Boolean> original) {
+        return original.call(horse) || kingdoms$unsaddledNomadRider();
     }
 
     private boolean kingdoms$unsaddledNomadRider() {
