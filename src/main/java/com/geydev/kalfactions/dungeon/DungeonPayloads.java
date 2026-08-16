@@ -26,11 +26,11 @@ public final class DungeonPayloads {
         public static final StreamCodec<RegistryFriendlyByteBuf, C2SRenameDungeon> STREAM_CODEC = StreamCodec.of(
                 (buffer, payload) -> {
                     buffer.writeVarInt(payload.dungeonId);
-                    buffer.writeUtf(payload.name, DungeonManager.MAX_NAME_LENGTH * 4);
+                    buffer.writeUtf(payload.name, DungeonManager.MAX_NAME_CHARS);
                 },
                 buffer -> new C2SRenameDungeon(
                         buffer.readVarInt(),
-                        buffer.readUtf(DungeonManager.MAX_NAME_LENGTH * 4)
+                        buffer.readUtf(DungeonManager.MAX_NAME_CHARS)
                 )
         );
 
@@ -143,7 +143,7 @@ public final class DungeonPayloads {
         public static final StreamCodec<RegistryFriendlyByteBuf, S2COpenDungeon> STREAM_CODEC = StreamCodec.of(
                 (buffer, payload) -> {
                     buffer.writeVarInt(payload.dungeonId);
-                    buffer.writeUtf(payload.name, DungeonManager.MAX_NAME_LENGTH * 4);
+                    buffer.writeUtf(payload.name, DungeonManager.MAX_NAME_CHARS);
                     buffer.writeBlockPos(payload.corePos);
                     buffer.writeResourceLocation(payload.dimension);
                     buffer.writeVarInt(payload.chunkCount);
@@ -161,7 +161,7 @@ public final class DungeonPayloads {
                 },
                 buffer -> {
                     int dungeonId = buffer.readVarInt();
-                    String name = buffer.readUtf(DungeonManager.MAX_NAME_LENGTH * 4);
+                    String name = buffer.readUtf(DungeonManager.MAX_NAME_CHARS);
                     BlockPos corePos = buffer.readBlockPos();
                     ResourceLocation dimension = buffer.readResourceLocation();
                     int chunkCount = buffer.readVarInt();
@@ -287,7 +287,7 @@ public final class DungeonPayloads {
                             buffer.writeUUID(payload.requestId);
                             buffer.writeVarInt(payload.action);
                             buffer.writeUUID(payload.templateId);
-                            buffer.writeUtf(payload.name, ChestTemplate.MAX_NAME_LENGTH * 4);
+                            buffer.writeUtf(payload.name, ChestTemplate.MAX_NAME_CHARS);
                             buffer.writeBoolean(payload.applyCooldown);
                             buffer.writeBoolean(payload.overwrite);
                         },
@@ -296,7 +296,7 @@ public final class DungeonPayloads {
                                 buffer.readUUID(),
                                 Math.clamp(buffer.readVarInt(), SYNC, LAST_ACTION),
                                 buffer.readUUID(),
-                                buffer.readUtf(ChestTemplate.MAX_NAME_LENGTH * 4),
+                                buffer.readUtf(ChestTemplate.MAX_NAME_CHARS),
                                 buffer.readBoolean(),
                                 buffer.readBoolean()
                         )
@@ -348,8 +348,8 @@ public final class DungeonPayloads {
 
         private static void encode(RegistryFriendlyByteBuf buffer, ChestTemplateView view) {
             buffer.writeUUID(view.id);
-            buffer.writeUtf(view.name, ChestTemplate.MAX_NAME_LENGTH * 4);
-            buffer.writeUtf(view.author, ChestTemplate.MAX_AUTHOR_LENGTH * 4);
+            buffer.writeUtf(view.name, ChestTemplate.MAX_NAME_CHARS);
+            buffer.writeUtf(view.author, ChestTemplate.MAX_AUTHOR_CHARS);
             buffer.writeLong(view.createdAt);
             buffer.writeVarInt(view.cooldownHours + 1);
             int size = Math.min(view.slots.size(), DungeonChestBlockEntity.SIZE);
@@ -361,8 +361,8 @@ public final class DungeonPayloads {
 
         private static ChestTemplateView decode(RegistryFriendlyByteBuf buffer) {
             UUID id = buffer.readUUID();
-            String name = buffer.readUtf(ChestTemplate.MAX_NAME_LENGTH * 4);
-            String author = buffer.readUtf(ChestTemplate.MAX_AUTHOR_LENGTH * 4);
+            String name = buffer.readUtf(ChestTemplate.MAX_NAME_CHARS);
+            String author = buffer.readUtf(ChestTemplate.MAX_AUTHOR_CHARS);
             long createdAt = buffer.readLong();
             int cooldownHours = Math.clamp(
                     buffer.readVarInt() - 1,

@@ -22,6 +22,8 @@ public record ChestTemplate(
     public static final int SIZE = DungeonChestBlockEntity.SIZE;
     public static final int MAX_NAME_LENGTH = 32;
     public static final int MAX_AUTHOR_LENGTH = 32;
+    public static final int MAX_NAME_CHARS = MAX_NAME_LENGTH * 2;
+    public static final int MAX_AUTHOR_CHARS = MAX_AUTHOR_LENGTH * 2;
 
     private static final String TAG_ID = "id";
     private static final String TAG_NAME = "name";

@@ -33,6 +33,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 public final class DungeonManager extends SavedData {
     public static final String DATA_NAME = "kingdoms_dungeons";
     public static final int MAX_NAME_LENGTH = 24;
+    public static final int MAX_NAME_CHARS = MAX_NAME_LENGTH * 2;
     public static final int MAX_DUNGEONS = 512;
     public static final int MAX_CHUNKS_PER_DUNGEON = 4096;
     public static final Factory<DungeonManager> FACTORY =
