@@ -3,8 +3,6 @@ package com.geydev.kalfactions;
 import net.neoforged.fml.loading.FMLEnvironment;
 
 public final class ClientBridge {
-    private static final String PAYLOAD_HANDLER = "com.geydev.kalfactions.client.ClientFactionPayloadHandler";
-
     private static volatile boolean scoutBusy;
 
     private ClientBridge() {
@@ -19,21 +17,24 @@ public final class ClientBridge {
     }
 
     public static void openGuide() {
-        invoke("handleOpenGuide");
+        if (FMLEnvironment.dist.isClient()) {
+            ClientOnly.openGuide();
+        }
     }
 
     public static void openNews() {
-        invoke("handleOpenNews");
+        if (FMLEnvironment.dist.isClient()) {
+            ClientOnly.openNews();
+        }
     }
 
-    private static void invoke(String method) {
-        if (!FMLEnvironment.dist.isClient()) {
-            return;
+    private static final class ClientOnly {
+        private static void openGuide() {
+            com.geydev.kalfactions.client.ClientFactionPayloadHandler.handleOpenGuide();
         }
-        try {
-            Class.forName(PAYLOAD_HANDLER).getMethod(method).invoke(null);
-        } catch (ReflectiveOperationException exception) {
-            KalFactions.LOGGER.error("Failed to run client hook {}", method, exception);
+
+        private static void openNews() {
+            com.geydev.kalfactions.client.ClientFactionPayloadHandler.handleOpenNews();
         }
     }
 }
