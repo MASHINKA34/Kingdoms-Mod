@@ -267,6 +267,8 @@ public final class ModConfigSpec {
     public static final IntValue MUSIC_DOWNLOAD_KILOBYTES_PER_SECOND;
     public static final BooleanValue MUSIC_ALLOW_FACTION_UPLOAD;
     public static final BooleanValue MUSIC_REDSTONE_CONTROL;
+    public static final IntValue SMELT_BOOST_CHUNKS_PER_TICK;
+    public static final IntValue SMELT_BOOST_REFRESH_TICKS;
 
     static {
         Builder builder = new Builder();
@@ -904,6 +906,15 @@ public final class ModConfigSpec {
         MUSIC_REDSTONE_CONTROL = builder
             .comment("Let a redstone signal start and stop a music speaker.")
             .define("redstoneControl", true);
+        builder.pop();
+
+        builder.push("smelting");
+        SMELT_BOOST_CHUNKS_PER_TICK = builder
+            .comment("Claimed chunks the smelting research bonus re-checks for furnaces per server tick.")
+            .defineInRange("boostChunksPerTick", 128, 1, 8192);
+        SMELT_BOOST_REFRESH_TICKS = builder
+            .comment("Server ticks between rebuilds of the claimed chunk list the smelting research bonus walks.")
+            .defineInRange("boostRefreshTicks", 100, 1, 12000);
         builder.pop();
         SPEC = builder.build();
     }
