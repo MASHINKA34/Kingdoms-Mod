@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.tax;
 
+import com.geydev.kalfactions.data.SavedDataFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -20,6 +21,7 @@ public final class OfflineNoticeQueue extends SavedData {
     public static final Factory<OfflineNoticeQueue> FACTORY =
         new Factory<>(OfflineNoticeQueue::new, OfflineNoticeQueue::load);
 
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
     private static final int MAX_PER_PLAYER = 20;
     private static final String TAG_PLAYERS = "players";
     private static final String TAG_PLAYER_ID = "id";
@@ -58,6 +60,7 @@ public final class OfflineNoticeQueue extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        FORMAT.stamp(tag);
         ListTag playersTag = new ListTag();
         notices.entrySet().stream()
             .sorted(Map.Entry.comparingByKey(Comparator.comparing(UUID::toString)))
@@ -78,7 +81,9 @@ public final class OfflineNoticeQueue extends SavedData {
         return tag;
     }
 
-    private static OfflineNoticeQueue load(CompoundTag tag, HolderLookup.Provider registries) {
+    private static OfflineNoticeQueue load(CompoundTag saved, HolderLookup.Provider registries) {
+        CompoundTag tag = FORMAT.upgrade(saved);
+        boolean legacyFormat = FORMAT.outdated(saved);
         OfflineNoticeQueue queue = new OfflineNoticeQueue();
         ListTag playersTag = tag.getList(TAG_PLAYERS, Tag.TAG_COMPOUND);
         for (int index = 0; index < playersTag.size(); index++) {
@@ -95,6 +100,9 @@ public final class OfflineNoticeQueue extends SavedData {
             if (!stored.isEmpty()) {
                 queue.notices.put(playerTag.getUUID(TAG_PLAYER_ID), stored);
             }
+        }
+        if (legacyFormat) {
+            queue.setDirty();
         }
         return queue;
     }

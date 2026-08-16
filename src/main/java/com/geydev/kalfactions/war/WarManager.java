@@ -3,6 +3,7 @@ package com.geydev.kalfactions.war;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.command.NumismaticsEconomy;
 import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.data.SavedDataFormat;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.InfluenceType;
@@ -58,6 +59,7 @@ public final class WarManager extends SavedData {
     public static final Factory<WarManager> FACTORY = new Factory<>(WarManager::new, WarManager::load);
 
     private static final Logger LOGGER = LogUtils.getLogger();
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
     private static final String TAG_WARS = "wars";
     private static final String TAG_PENDING_SPOILS = "pendingSpoils";
     private static final String TAG_COOLDOWNS = "declareCooldowns";
@@ -1135,6 +1137,7 @@ public final class WarManager extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        FORMAT.stamp(tag);
         ListTag warsTag = new ListTag();
         for (War war : wars.values()) {
             warsTag.add(war.save());
@@ -1160,9 +1163,11 @@ public final class WarManager extends SavedData {
         return tag;
     }
 
-    private static WarManager load(CompoundTag tag, HolderLookup.Provider registries) {
+    private static WarManager load(CompoundTag saved, HolderLookup.Provider registries) {
+        CompoundTag tag = FORMAT.upgrade(saved);
+        boolean legacyFormat = FORMAT.outdated(saved);
         WarManager manager = new WarManager();
-        boolean repaired = false;
+        boolean repaired = legacyFormat;
         ListTag warsTag = tag.getList(TAG_WARS, Tag.TAG_COMPOUND);
         for (int index = 0; index < warsTag.size(); index++) {
             Optional<War> loaded = War.load(warsTag.getCompound(index));

@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.tax;
 
 import com.geydev.kalfactions.claim.ClaimKey;
+import com.geydev.kalfactions.data.SavedDataFormat;
 import com.geydev.kalfactions.economy.PriceMath;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -21,6 +22,7 @@ public final class LagTaxManager extends SavedData {
     public static final String DATA_NAME = "kingdoms_lagtax";
     public static final Factory<LagTaxManager> FACTORY = new Factory<>(LagTaxManager::new, LagTaxManager::load);
 
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
     private static final String TAG_PERIOD_TICKS = "periodTicks";
     private static final String TAG_LAST_BILLING = "lastBillingMillis";
     private static final String TAG_BILLING_WARN_STAGE = "billingWarnStage";
@@ -282,6 +284,7 @@ public final class LagTaxManager extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        FORMAT.stamp(tag);
         tag.putLong(TAG_PERIOD_TICKS, periodTicks);
         tag.putLong(TAG_LAST_BILLING, lastBillingMillis);
         tag.putInt(TAG_BILLING_WARN_STAGE, billingWarnStage);
@@ -318,7 +321,9 @@ public final class LagTaxManager extends SavedData {
         return tag;
     }
 
-    private static LagTaxManager load(CompoundTag tag, HolderLookup.Provider registries) {
+    private static LagTaxManager load(CompoundTag saved, HolderLookup.Provider registries) {
+        CompoundTag tag = FORMAT.upgrade(saved);
+        boolean legacyFormat = FORMAT.outdated(saved);
         LagTaxManager manager = new LagTaxManager();
         manager.periodTicks = Math.max(0L, tag.getLong(TAG_PERIOD_TICKS));
         manager.lastBillingMillis = Math.max(0L, tag.getLong(TAG_LAST_BILLING));
@@ -360,6 +365,9 @@ public final class LagTaxManager extends SavedData {
                 ));
             }
             manager.states.put(stateTag.getUUID(TAG_FACTION_ID), state);
+        }
+        if (legacyFormat) {
+            manager.setDirty();
         }
         return manager;
     }

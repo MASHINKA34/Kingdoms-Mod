@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.news;
 
+import com.geydev.kalfactions.data.SavedDataFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -24,6 +25,7 @@ public final class NewsManager extends SavedData {
     public static final int MAX_BODY_LENGTH = 1000;
     public static final int MAX_AUTHOR_LENGTH = 32;
 
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
     private static final String TAG_FACTIONS = "factions";
     private static final String TAG_FACTION_ID = "id";
     private static final String TAG_LAST_PUBLISH = "lastPublish";
@@ -158,6 +160,7 @@ public final class NewsManager extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        FORMAT.stamp(tag);
         ListTag factionsTag = new ListTag();
         factions.entrySet().stream()
             .sorted(Map.Entry.comparingByKey(Comparator.comparing(UUID::toString)))
@@ -194,7 +197,9 @@ public final class NewsManager extends SavedData {
         return tag;
     }
 
-    private static NewsManager load(CompoundTag tag, HolderLookup.Provider registries) {
+    private static NewsManager load(CompoundTag saved, HolderLookup.Provider registries) {
+        CompoundTag tag = FORMAT.upgrade(saved);
+        boolean legacyFormat = FORMAT.outdated(saved);
         NewsManager manager = new NewsManager();
         ListTag factionsTag = tag.getList(TAG_FACTIONS, Tag.TAG_COMPOUND);
         for (int index = 0; index < factionsTag.size(); index++) {
@@ -226,6 +231,9 @@ public final class NewsManager extends SavedData {
             if (readerTag.hasUUID(TAG_READER_ID)) {
                 manager.lastSeenByPlayer.put(readerTag.getUUID(TAG_READER_ID), Math.max(0L, readerTag.getLong(TAG_LAST_SEEN)));
             }
+        }
+        if (legacyFormat) {
+            manager.setDirty();
         }
         return manager;
     }

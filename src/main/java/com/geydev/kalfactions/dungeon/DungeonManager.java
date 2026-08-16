@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.dungeon;
 
 import com.geydev.kalfactions.claim.ClaimKey;
+import com.geydev.kalfactions.data.SavedDataFormat;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.outpost.RogueOutpostManager;
 import com.geydev.kalfactions.quarry.QuarryManager;
@@ -39,6 +40,7 @@ public final class DungeonManager extends SavedData {
     public static final Factory<DungeonManager> FACTORY =
             new Factory<>(DungeonManager::new, DungeonManager::load);
 
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
     private static final String TAG_DUNGEONS = "dungeons";
     private static final String TAG_NEXT_ID = "nextId";
     private static final String TAG_ID = "id";
@@ -370,6 +372,7 @@ public final class DungeonManager extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        FORMAT.stamp(tag);
         ListTag list = new ListTag();
         for (Dungeon dungeon : dungeons.values()) {
             list.add(dungeon.save());
@@ -379,7 +382,9 @@ public final class DungeonManager extends SavedData {
         return tag;
     }
 
-    static DungeonManager load(CompoundTag tag, HolderLookup.Provider registries) {
+    static DungeonManager load(CompoundTag saved, HolderLookup.Provider registries) {
+        CompoundTag tag = FORMAT.upgrade(saved);
+        boolean legacyFormat = FORMAT.outdated(saved);
         DungeonManager manager = new DungeonManager();
         ListTag list = tag.getList(TAG_DUNGEONS, Tag.TAG_COMPOUND);
         for (int index = 0; index < list.size(); index++) {
@@ -395,6 +400,9 @@ public final class DungeonManager extends SavedData {
         }
         manager.nextId = Math.max(manager.nextId, tag.getInt(TAG_NEXT_ID));
         manager.revision = 1L;
+        if (legacyFormat) {
+            manager.setDirty();
+        }
         return manager;
     }
 

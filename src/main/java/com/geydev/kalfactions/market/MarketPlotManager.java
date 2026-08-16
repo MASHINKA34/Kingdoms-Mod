@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.market;
 
+import com.geydev.kalfactions.data.SavedDataFormat;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,6 +24,7 @@ public final class MarketPlotManager extends SavedData {
     public static final Factory<MarketPlotManager> FACTORY =
             new Factory<>(MarketPlotManager::new, MarketPlotManager::load);
 
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
     private static final String TAG_PLOTS = "plots";
     private static final String TAG_NEXT_ID = "next_id";
 
@@ -101,6 +103,7 @@ public final class MarketPlotManager extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        FORMAT.stamp(tag);
         ListTag plotsTag = new ListTag();
         plots.values().stream()
                 .map(MarketPlot::save)
@@ -110,7 +113,9 @@ public final class MarketPlotManager extends SavedData {
         return tag;
     }
 
-    private static MarketPlotManager load(CompoundTag tag, HolderLookup.Provider registries) {
+    private static MarketPlotManager load(CompoundTag saved, HolderLookup.Provider registries) {
+        CompoundTag tag = FORMAT.upgrade(saved);
+        boolean legacyFormat = FORMAT.outdated(saved);
         MarketPlotManager manager = new MarketPlotManager();
         ListTag plotsTag = tag.getList(TAG_PLOTS, Tag.TAG_COMPOUND);
         for (int index = 0; index < plotsTag.size(); index++) {
@@ -120,6 +125,9 @@ public final class MarketPlotManager extends SavedData {
         manager.nextId = Math.max(tag.getInt(TAG_NEXT_ID), 1);
         for (MarketPlot plot : manager.plots.values()) {
             manager.nextId = Math.max(manager.nextId, plot.id() + 1);
+        }
+        if (legacyFormat) {
+            manager.setDirty();
         }
         return manager;
     }

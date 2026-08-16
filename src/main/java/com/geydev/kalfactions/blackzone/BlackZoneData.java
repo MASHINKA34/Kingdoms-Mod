@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.blackzone;
 
+import com.geydev.kalfactions.data.SavedDataFormat;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,6 +18,7 @@ public final class BlackZoneData extends SavedData {
     public static final Factory<BlackZoneData> FACTORY =
         new Factory<>(BlackZoneData::new, BlackZoneData::load);
 
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
     private static final String TAG_PLAYERS = "players";
     private static final String TAG_PLAYER_ID = "id";
     private static final String TAG_ACCUMULATED = "accumulated";
@@ -58,6 +60,7 @@ public final class BlackZoneData extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        FORMAT.stamp(tag);
         ListTag playersTag = new ListTag();
         tolls.entrySet().stream()
             .sorted(Map.Entry.comparingByKey(Comparator.comparing(UUID::toString)))
@@ -74,7 +77,9 @@ public final class BlackZoneData extends SavedData {
         return tag;
     }
 
-    private static BlackZoneData load(CompoundTag tag, HolderLookup.Provider registries) {
+    private static BlackZoneData load(CompoundTag saved, HolderLookup.Provider registries) {
+        CompoundTag tag = FORMAT.upgrade(saved);
+        boolean legacyFormat = FORMAT.outdated(saved);
         BlackZoneData data = new BlackZoneData();
         ListTag playersTag = tag.getList(TAG_PLAYERS, Tag.TAG_COMPOUND);
         for (int index = 0; index < playersTag.size(); index++) {
@@ -88,6 +93,9 @@ public final class BlackZoneData extends SavedData {
                 playerTag.contains(TAG_NOTIFIED_STAGE) ? playerTag.getInt(TAG_NOTIFIED_STAGE) : -1,
                 playerTag.getLong(TAG_LAST_KOLYVAN)
             ));
+        }
+        if (legacyFormat) {
+            data.setDirty();
         }
         return data;
     }

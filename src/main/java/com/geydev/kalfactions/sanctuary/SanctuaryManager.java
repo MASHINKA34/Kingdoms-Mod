@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.sanctuary;
 
 import com.geydev.kalfactions.claim.ClaimKey;
+import com.geydev.kalfactions.data.SavedDataFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -27,6 +28,7 @@ public final class SanctuaryManager extends SavedData {
     public static final Factory<SanctuaryManager> FACTORY =
             new Factory<>(SanctuaryManager::new, SanctuaryManager::load);
 
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
     private static final String TAG_CLAIMS = "claims";
     private static final String TAG_AUTOMATIC_CLAIMS = "automaticClaims";
     private static final String TAG_AUTOMATIC_EXCLUSIONS = "automaticExclusions";
@@ -277,6 +279,7 @@ public final class SanctuaryManager extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        FORMAT.stamp(tag);
         ListTag claimsTag = new ListTag();
         manualClaims.stream()
                 .sorted()
@@ -304,7 +307,9 @@ public final class SanctuaryManager extends SavedData {
         return tag;
     }
 
-    static SanctuaryManager load(CompoundTag tag, HolderLookup.Provider registries) {
+    static SanctuaryManager load(CompoundTag saved, HolderLookup.Provider registries) {
+        CompoundTag tag = FORMAT.upgrade(saved);
+        boolean legacyFormat = FORMAT.outdated(saved);
         SanctuaryManager manager = new SanctuaryManager();
         ListTag claimsTag = tag.getList(TAG_CLAIMS, Tag.TAG_COMPOUND);
         for (int index = 0; index < claimsTag.size(); index++) {
@@ -325,6 +330,9 @@ public final class SanctuaryManager extends SavedData {
                 ? BlockPos.of(tag.getLong(TAG_AUTOMATIC_ANCHOR))
                 : null;
         manager.revision = 1L;
+        if (legacyFormat) {
+            manager.setDirty();
+        }
         return manager;
     }
 }

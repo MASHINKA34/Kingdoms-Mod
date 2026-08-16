@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.music;
 
+import com.geydev.kalfactions.data.SavedDataFormat;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,6 +22,7 @@ public final class MusicManager extends SavedData {
     public static final String DATA_NAME = "kingdoms_music";
     public static final Factory<MusicManager> FACTORY = new Factory<>(MusicManager::new, MusicManager::load);
 
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
     private static final String TAG_TRACKS = "tracks";
     private static final String TAG_SPEAKERS = "speakers";
 
@@ -148,6 +150,7 @@ public final class MusicManager extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        FORMAT.stamp(tag);
         ListTag tracksTag = new ListTag();
         tracks.values().stream().map(MusicTrack::save).forEach(tracksTag::add);
         tag.put(TAG_TRACKS, tracksTag);
@@ -157,7 +160,9 @@ public final class MusicManager extends SavedData {
         return tag;
     }
 
-    static MusicManager load(CompoundTag tag, HolderLookup.Provider registries) {
+    static MusicManager load(CompoundTag saved, HolderLookup.Provider registries) {
+        CompoundTag tag = FORMAT.upgrade(saved);
+        boolean legacyFormat = FORMAT.outdated(saved);
         MusicManager manager = new MusicManager();
         ListTag tracksTag = tag.getList(TAG_TRACKS, Tag.TAG_COMPOUND);
         for (int index = 0; index < tracksTag.size(); index++) {
@@ -174,6 +179,9 @@ public final class MusicManager extends SavedData {
             }
         }
         manager.revision = 1L;
+        if (legacyFormat) {
+            manager.setDirty();
+        }
         return manager;
     }
 

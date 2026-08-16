@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.sanctuary;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.data.SavedDataFormat;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -24,6 +25,7 @@ public final class SanctuaryExecutionManager extends SavedData {
     public static final Factory<SanctuaryExecutionManager> FACTORY =
             new Factory<>(SanctuaryExecutionManager::new, SanctuaryExecutionManager::load);
 
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
     private static final String TAG_VULNERABLE = "vulnerable";
 
     private final Set<UUID> vulnerablePlayers = new LinkedHashSet<>();
@@ -59,6 +61,7 @@ public final class SanctuaryExecutionManager extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        FORMAT.stamp(tag);
         ListTag list = new ListTag();
         vulnerablePlayers.stream()
                 .sorted()
@@ -75,11 +78,16 @@ public final class SanctuaryExecutionManager extends SavedData {
         }
     }
 
-    private static SanctuaryExecutionManager load(CompoundTag tag, HolderLookup.Provider registries) {
+    private static SanctuaryExecutionManager load(CompoundTag saved, HolderLookup.Provider registries) {
+        CompoundTag tag = FORMAT.upgrade(saved);
+        boolean legacyFormat = FORMAT.outdated(saved);
         SanctuaryExecutionManager manager = new SanctuaryExecutionManager();
         ListTag list = tag.getList(TAG_VULNERABLE, Tag.TAG_INT_ARRAY);
         for (int index = 0; index < list.size(); index++) {
             manager.vulnerablePlayers.add(NbtUtils.loadUUID(list.get(index)));
+        }
+        if (legacyFormat) {
+            manager.setDirty();
         }
         return manager;
     }

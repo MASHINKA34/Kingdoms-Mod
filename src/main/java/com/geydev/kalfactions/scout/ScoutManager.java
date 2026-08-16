@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.scout;
 
+import com.geydev.kalfactions.data.SavedDataFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -24,6 +25,7 @@ public final class ScoutManager extends SavedData {
     public static final String DATA_NAME = "kingdoms_scout";
     public static final Factory<ScoutManager> FACTORY = new Factory<>(ScoutManager::new, ScoutManager::load);
 
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
     private static final String TAG_ORDERS = "orders";
     private static final String TAG_FACTION_ID = "faction";
     private static final String TAG_ORDER = "order";
@@ -102,6 +104,7 @@ public final class ScoutManager extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        FORMAT.stamp(tag);
         ListTag ordersTag = new ListTag();
         orders.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey(Comparator.comparing(UUID::toString)))
@@ -127,7 +130,9 @@ public final class ScoutManager extends SavedData {
         return tag;
     }
 
-    private static ScoutManager load(CompoundTag tag, HolderLookup.Provider registries) {
+    private static ScoutManager load(CompoundTag saved, HolderLookup.Provider registries) {
+        CompoundTag tag = FORMAT.upgrade(saved);
+        boolean legacyFormat = FORMAT.outdated(saved);
         ScoutManager manager = new ScoutManager();
         ListTag ordersTag = tag.getList(TAG_ORDERS, Tag.TAG_COMPOUND);
         for (int index = 0; index < ordersTag.size(); index++) {
@@ -156,6 +161,9 @@ public final class ScoutManager extends SavedData {
                     ResourceKey.create(Registries.DIMENSION, dimensionId),
                     BlockPos.of(postTag.getLong(TAG_POST_POS))
             ));
+        }
+        if (legacyFormat) {
+            manager.setDirty();
         }
         return manager;
     }

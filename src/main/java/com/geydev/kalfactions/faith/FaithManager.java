@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.faith;
 
+import com.geydev.kalfactions.data.SavedDataFormat;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -21,6 +22,7 @@ public final class FaithManager extends SavedData {
     public static final String DATA_NAME = "kingdoms_faith";
     public static final Factory<FaithManager> FACTORY = new Factory<>(FaithManager::new, FaithManager::load);
 
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
     private static final String TAG_FACTIONS = "factions";
     private static final String TAG_FACTION_ID = "id";
     private static final String TAG_GODS = "gods";
@@ -225,6 +227,7 @@ public final class FaithManager extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        FORMAT.stamp(tag);
         ListTag factionsTag = new ListTag();
         factions.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey(Comparator.comparing(UUID::toString)))
@@ -272,7 +275,9 @@ public final class FaithManager extends SavedData {
         return tag;
     }
 
-    private static FaithManager load(CompoundTag tag, HolderLookup.Provider registries) {
+    private static FaithManager load(CompoundTag saved, HolderLookup.Provider registries) {
+        CompoundTag tag = FORMAT.upgrade(saved);
+        boolean legacyFormat = FORMAT.outdated(saved);
         FaithManager manager = new FaithManager();
         ListTag factionsTag = tag.getList(TAG_FACTIONS, Tag.TAG_COMPOUND);
         for (int index = 0; index < factionsTag.size(); index++) {
@@ -315,6 +320,9 @@ public final class FaithManager extends SavedData {
             if (!windows.isEmpty()) {
                 manager.forfeitedWindows.put(playerTag.getUUID(TAG_PLAYER_ID), windows);
             }
+        }
+        if (legacyFormat) {
+            manager.setDirty();
         }
         return manager;
     }

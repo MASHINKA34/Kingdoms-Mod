@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.outpost;
 
 import com.geydev.kalfactions.claim.ClaimKey;
+import com.geydev.kalfactions.data.SavedDataFormat;
 import com.mojang.logging.LogUtils;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,6 +37,7 @@ public final class RogueOutpostManager extends SavedData {
         new Factory<>(RogueOutpostManager::new, RogueOutpostManager::load);
 
     private static final Logger LOGGER = LogUtils.getLogger();
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
     private static final String TAG_OUTPOSTS = "outposts";
     private static final int GARRISON_PATROL_INTERVAL_TICKS = 60;
     private static final double GARRISON_PATROL_SPEED = 0.85D;
@@ -144,6 +146,7 @@ public final class RogueOutpostManager extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        FORMAT.stamp(tag);
         ListTag outpostsTag = new ListTag();
         for (RogueOutpost outpost : outposts.values()) {
             outpostsTag.add(outpost.save());
@@ -152,7 +155,9 @@ public final class RogueOutpostManager extends SavedData {
         return tag;
     }
 
-    private static RogueOutpostManager load(CompoundTag tag, HolderLookup.Provider registries) {
+    private static RogueOutpostManager load(CompoundTag saved, HolderLookup.Provider registries) {
+        CompoundTag tag = FORMAT.upgrade(saved);
+        boolean legacyFormat = FORMAT.outdated(saved);
         RogueOutpostManager manager = new RogueOutpostManager();
         ListTag outpostsTag = tag.getList(TAG_OUTPOSTS, Tag.TAG_COMPOUND);
         for (int index = 0; index < outpostsTag.size(); index++) {
@@ -170,6 +175,9 @@ public final class RogueOutpostManager extends SavedData {
             for (UUID garrisonId : outpost.garrison()) {
                 manager.garrisonIndex.put(garrisonId, outpost.id());
             }
+        }
+        if (legacyFormat) {
+            manager.setDirty();
         }
         return manager;
     }

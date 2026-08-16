@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.dungeon;
 
 import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.data.SavedDataFormat;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -25,6 +26,7 @@ public final class ChestTemplateManager extends SavedData {
     public static final Factory<ChestTemplateManager> FACTORY =
             new Factory<>(ChestTemplateManager::new, ChestTemplateManager::load);
 
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
     private static final String TAG_TEMPLATES = "templates";
 
     private final Map<UUID, ChestTemplate> templates = new LinkedHashMap<>();
@@ -143,6 +145,7 @@ public final class ChestTemplateManager extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        FORMAT.stamp(tag);
         ListTag list = new ListTag();
         for (ChestTemplate template : templates.values()) {
             list.add(template.save(registries));
@@ -151,12 +154,17 @@ public final class ChestTemplateManager extends SavedData {
         return tag;
     }
 
-    static ChestTemplateManager load(CompoundTag tag, HolderLookup.Provider registries) {
+    static ChestTemplateManager load(CompoundTag saved, HolderLookup.Provider registries) {
+        CompoundTag tag = FORMAT.upgrade(saved);
+        boolean legacyFormat = FORMAT.outdated(saved);
         ChestTemplateManager manager = new ChestTemplateManager();
         ListTag list = tag.getList(TAG_TEMPLATES, Tag.TAG_COMPOUND);
         for (int index = 0; index < list.size(); index++) {
             ChestTemplate.load(list.getCompound(index), registries)
                     .ifPresent(template -> manager.templates.putIfAbsent(template.id(), template));
+        }
+        if (legacyFormat) {
+            manager.setDirty();
         }
         return manager;
     }

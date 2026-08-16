@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.war;
 
+import com.geydev.kalfactions.data.SavedDataFormat;
 import com.mojang.logging.LogUtils;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +20,7 @@ public final class WarHistory extends SavedData {
     public static final Factory<WarHistory> FACTORY = new Factory<>(WarHistory::new, WarHistory::load);
 
     private static final Logger LOGGER = LogUtils.getLogger();
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
     private static final String TAG_RECORDS = "records";
 
     private final List<WarRecord> records = new ArrayList<>();
@@ -47,6 +49,7 @@ public final class WarHistory extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        FORMAT.stamp(tag);
         ListTag recordsTag = new ListTag();
         for (WarRecord record : records) {
             recordsTag.add(record.save());
@@ -55,9 +58,11 @@ public final class WarHistory extends SavedData {
         return tag;
     }
 
-    private static WarHistory load(CompoundTag tag, HolderLookup.Provider registries) {
+    private static WarHistory load(CompoundTag saved, HolderLookup.Provider registries) {
+        CompoundTag tag = FORMAT.upgrade(saved);
+        boolean legacyFormat = FORMAT.outdated(saved);
         WarHistory history = new WarHistory();
-        boolean repaired = false;
+        boolean repaired = legacyFormat;
         ListTag recordsTag = tag.getList(TAG_RECORDS, Tag.TAG_COMPOUND);
         for (int index = 0; index < recordsTag.size(); index++) {
             var record = WarRecord.load(recordsTag.getCompound(index));

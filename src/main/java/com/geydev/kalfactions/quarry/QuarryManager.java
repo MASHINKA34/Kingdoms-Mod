@@ -2,6 +2,7 @@ package com.geydev.kalfactions.quarry;
 
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.data.SavedDataFormat;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.FactionRole;
@@ -50,6 +51,7 @@ public final class QuarryManager extends SavedData {
     public static final Factory<QuarryManager> FACTORY =
             new Factory<>(QuarryManager::new, QuarryManager::load);
 
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
     private static final String TAG_QUARRIES = "quarries";
     private final Map<UUID, Quarry> quarries = new LinkedHashMap<>();
     private final Map<Long, UUID> coreIndex = new LinkedHashMap<>();
@@ -503,6 +505,7 @@ public final class QuarryManager extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        FORMAT.stamp(tag);
         ListTag list = new ListTag();
         for (Quarry quarry : quarries.values()) {
             list.add(quarry.save());
@@ -511,7 +514,9 @@ public final class QuarryManager extends SavedData {
         return tag;
     }
 
-    static QuarryManager load(CompoundTag tag, HolderLookup.Provider registries) {
+    static QuarryManager load(CompoundTag saved, HolderLookup.Provider registries) {
+        CompoundTag tag = FORMAT.upgrade(saved);
+        boolean legacyFormat = FORMAT.outdated(saved);
         QuarryManager manager = new QuarryManager();
         ListTag list = tag.getList(TAG_QUARRIES, Tag.TAG_COMPOUND);
         for (int index = 0; index < list.size(); index++) {
@@ -522,6 +527,9 @@ public final class QuarryManager extends SavedData {
                     manager.coreIndex.put(quarry.core.asLong(), quarry.id);
                 }
             });
+        }
+        if (legacyFormat) {
+            manager.setDirty();
         }
         return manager;
     }
