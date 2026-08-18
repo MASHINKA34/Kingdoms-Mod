@@ -4,6 +4,7 @@ import com.geydev.kalfactions.protection.MachineProtection;
 import com.simibubi.create.content.contraptions.Contraption;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -19,8 +20,12 @@ public abstract class CreateContraptionPlacementMixin {
             BlockState state,
             CallbackInfoReturnable<Boolean> cir
     ) {
-        if (MachineProtection.protectsBlocks(world, pos)) {
-            cir.setReturnValue(true);
+        if (!MachineProtection.protectsBlocks(world, pos)) {
+            return;
         }
+        if (!world.isClientSide()) {
+            Block.dropResources(state, world, pos, null);
+        }
+        cir.setReturnValue(true);
     }
 }
