@@ -1,0 +1,29 @@
+{
+  "replace": false,
+  "inputs": {
+    "minecraft:paper": {
+      "science": 2,
+      "seconds": 15
+    },
+    "minecraft:redstone": {
+      "science": 5,
+      "seconds": 20
+    },
+    "minecraft:book": {
+      "science": 8,
+      "seconds": 30
+    },
+    "minecraft:lapis_lazuli": {
+      "science": 10,
+      "seconds": 30
+    },
+    "minecraft:diamond": {
+      "science": 40,
+      "seconds": 90
+    },
+    "kingdoms:crystal_science": {
+      "science": 120,
+      "seconds": 120
+    }
+  }
+}

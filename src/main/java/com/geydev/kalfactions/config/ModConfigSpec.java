@@ -272,6 +272,8 @@ public final class ModConfigSpec {
     public static final BooleanValue MUSIC_REDSTONE_CONTROL;
     public static final IntValue SMELT_BOOST_CHUNKS_PER_TICK;
     public static final IntValue SMELT_BOOST_REFRESH_TICKS;
+    public static final IntValue RESEARCH_BENCH_SECONDS_PER_ITEM;
+    public static final IntValue RESEARCH_BENCH_CHECK_INTERVAL_TICKS;
 
     static {
         Builder builder = new Builder();
@@ -927,6 +929,15 @@ public final class ModConfigSpec {
         SMELT_BOOST_REFRESH_TICKS = builder
             .comment("Server ticks between rebuilds of the claimed chunk list the smelting research bonus walks.")
             .defineInRange("boostRefreshTicks", 100, 1, 12000);
+        builder.pop();
+
+        builder.push("researchBench");
+        RESEARCH_BENCH_SECONDS_PER_ITEM = builder
+            .comment("Seconds a research bench spends on one material when science_inputs.json gives it no own time.")
+            .defineInRange("secondsPerItem", 30, 1, 86400);
+        RESEARCH_BENCH_CHECK_INTERVAL_TICKS = builder
+            .comment("Server ticks between research bench checks; processing itself runs on real time and catches up.")
+            .defineInRange("checkIntervalTicks", 20, 1, 1200);
         builder.pop();
         SPEC = builder.build();
     }
