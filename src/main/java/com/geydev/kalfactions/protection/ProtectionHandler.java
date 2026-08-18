@@ -285,6 +285,31 @@ public final class ProtectionHandler {
         });
     }
 
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onToolModification(BlockEvent.BlockToolModificationEvent event) {
+        if (!(event.getLevel() instanceof ServerLevel level)
+                || !(event.getPlayer() instanceof ServerPlayer player)
+                || player.hasPermissions(2)) {
+            return;
+        }
+        BlockPos pos = event.getPos();
+        String denial = null;
+        if (com.geydev.kalfactions.dungeon.DungeonProtection.isDungeon(level, pos)) {
+            denial = "kingdoms.dungeon.protected";
+        } else if (com.geydev.kalfactions.quarry.QuarryManager.get(level).isQuarry(level, pos)) {
+            denial = "kingdoms.quarry.protected";
+        } else if (isSanctuaryProtected(player, level, pos)) {
+            denial = "kingdoms.protection.no_interact";
+        }
+        if (denial == null) {
+            return;
+        }
+        event.setCanceled(true);
+        if (!event.isSimulated()) {
+            deny(player, denial);
+        }
+    }
+
     private static UUID resolveExploderFaction(FactionManager factions, Explosion explosion) {
         if (explosion.getIndirectSourceEntity() instanceof ServerPlayer player) {
             return factions.getFactionIdForMember(player.getUUID()).orElse(null);
