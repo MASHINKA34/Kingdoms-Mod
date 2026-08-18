@@ -34,7 +34,7 @@ public abstract class CreateAbstractContraptionEntityMixin extends Entity {
         StructureTransform transform = makeStructureTransform();
         if (contraption.getBlocks().keySet().stream()
                 .map(transform::apply)
-                .anyMatch(pos -> !MachineProtection.canContraptionBreak(level(), pos))) {
+                .anyMatch(pos -> !MachineProtection.canContraptionAct(level(), pos))) {
             ci.cancel();
         }
     }

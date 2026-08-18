@@ -20,6 +20,7 @@
     "CreateBlockBreakingMovementBehaviourMixin",
     "CreateBlockHelperMixin",
     "CreateContraptionMixin",
+    "CreateContraptionPlacementMixin",
     "CreateDeployerHandlerMixin",
     "CreateHarvesterMovementBehaviourMixin",
     "CreatePloughMovementBehaviourMixin",

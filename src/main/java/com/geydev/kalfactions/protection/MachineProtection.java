@@ -89,9 +89,16 @@ public final class MachineProtection {
         if (!(level instanceof ServerLevel serverLevel)) {
             return true;
         }
-        return !SanctuaryManager.get(serverLevel).isSanctuary(serverLevel, target)
-                && !QuarryManager.get(serverLevel).isQuarry(serverLevel, target)
+        return canContraptionAct(serverLevel, target)
                 && !DungeonProtection.isDungeon(serverLevel, target);
+    }
+
+    public static boolean canContraptionAct(Level level, BlockPos target) {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return true;
+        }
+        return !SanctuaryManager.get(serverLevel).isSanctuary(serverLevel, target)
+                && !QuarryManager.get(serverLevel).isQuarry(serverLevel, target);
     }
 
     public static boolean canPlayerMine(Level level, BlockPos target, ServerPlayer player) {

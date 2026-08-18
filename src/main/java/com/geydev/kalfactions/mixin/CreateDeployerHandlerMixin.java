@@ -22,7 +22,7 @@ public abstract class CreateDeployerHandlerMixin {
             @Coerce Object mode,
             CallbackInfo ci
     ) {
-        if (!MachineProtection.canContraptionBreak(player.level(), pos)) {
+        if (!MachineProtection.canContraptionAct(player.level(), pos)) {
             ci.cancel();
         }
     }
