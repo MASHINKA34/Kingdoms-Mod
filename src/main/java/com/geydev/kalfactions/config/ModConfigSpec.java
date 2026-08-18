@@ -63,15 +63,18 @@ public final class ModConfigSpec {
     public static final IntValue INFLUENCE_KILL_CAP_HOURS;
     public static final LongValue INFLUENCE_WAR_WIN_INFLUENCE;
     public static final LongValue INFLUENCE_WAR_JOIN_REWARD;
-    public static final LongValue INFLUENCE_CRAFT_PER_ITEM;
-    public static final IntValue INFLUENCE_CRAFT_CAP_PER_ITEM;
-    public static final IntValue INFLUENCE_CRAFT_CAP_HOURS;
     public static final LongValue INFLUENCE_VILLAGER_TRADE;
     public static final LongValue INFLUENCE_SELL_PER_THRESHOLD;
     public static final IntValue INFLUENCE_MOB_KILLS_PER_AWARD;
     public static final LongValue INFLUENCE_MOB_KILL_INFLUENCE;
     public static final LongValue INFLUENCE_MOB_DAILY_CAP;
     public static final LongValue INFLUENCE_SPURS_PER_ECON;
+    public static final LongValue SCIENCE_DISCOVERY_INFLUENCE;
+    public static final DoubleValue SCIENCE_DISCOVERY_TIER1_MULTIPLIER;
+    public static final DoubleValue SCIENCE_DISCOVERY_TIER2_MULTIPLIER;
+    public static final DoubleValue SCIENCE_DISCOVERY_TIER3_MULTIPLIER;
+    public static final BooleanValue SCIENCE_DISCOVERY_ALLOW_VANILLA;
+    public static final LongValue SCIENCE_DAILY_CAP;
     public static final LongValue WAR_POINTS_GOAL;
     public static final IntValue WAR_BLOCK_BREAK_POINTS;
     public static final IntValue WAR_KILL_POINTS;
@@ -456,15 +459,6 @@ public final class ModConfigSpec {
         INFLUENCE_WAR_JOIN_REWARD = builder
             .comment("Secondary influence awarded to an ally that joined the winning side; randomly economic or science.")
             .defineInRange("warJoinReward", 100L, 0L, Long.MAX_VALUE);
-        INFLUENCE_CRAFT_PER_ITEM = builder
-            .comment("Science influence granted per crafted modded (non-vanilla) item.")
-            .defineInRange("craftInfluencePerItem", 5L, 0L, Long.MAX_VALUE);
-        INFLUENCE_CRAFT_CAP_PER_ITEM = builder
-            .comment("Per-player crafts of one item type that grant influence within the cap window; further crafts give nothing.")
-            .defineInRange("craftInfluenceCapPerItem", 64, 0, Integer.MAX_VALUE);
-        INFLUENCE_CRAFT_CAP_HOURS = builder
-            .comment("Real-time hours of the per-item craft-influence anti-farm window (wall-clock, runs while offline).")
-            .defineInRange("craftInfluenceCapHours", 24, 1, 8760);
         INFLUENCE_VILLAGER_TRADE = builder
             .comment("Economic influence granted per trade with an ordinary villager.")
             .defineInRange("villagerTradeInfluence", 2L, 0L, Long.MAX_VALUE);
@@ -483,6 +477,24 @@ public final class ModConfigSpec {
         INFLUENCE_SPURS_PER_ECON = builder
             .comment("Spurs a member must earn selling to the trader to grant one sell-influence award.")
             .defineInRange("spursPerEconInfluence", 50L, 1L, Long.MAX_VALUE);
+        SCIENCE_DISCOVERY_INFLUENCE = builder
+            .comment("Base science influence granted the first time a faction crafts an item; scaled by its discovery tier.")
+            .defineInRange("discoveryInfluence", 25L, 0L, Long.MAX_VALUE);
+        SCIENCE_DISCOVERY_TIER1_MULTIPLIER = builder
+            .comment("Discovery reward multiplier for items in the kingdoms:science_discovery_tier1 tag and for untagged items.")
+            .defineInRange("discoveryTier1Multiplier", 1.0D, 0D, 1000D);
+        SCIENCE_DISCOVERY_TIER2_MULTIPLIER = builder
+            .comment("Discovery reward multiplier for items in the kingdoms:science_discovery_tier2 tag.")
+            .defineInRange("discoveryTier2Multiplier", 2.0D, 0D, 1000D);
+        SCIENCE_DISCOVERY_TIER3_MULTIPLIER = builder
+            .comment("Discovery reward multiplier for items in the kingdoms:science_discovery_tier3 tag.")
+            .defineInRange("discoveryTier3Multiplier", 4.0D, 0D, 1000D);
+        SCIENCE_DISCOVERY_ALLOW_VANILLA = builder
+            .comment("Whether crafting vanilla (minecraft:) items can also count as a discovery.")
+            .define("discoveryAllowVanilla", false);
+        SCIENCE_DAILY_CAP = builder
+            .comment("Science influence a faction can earn per Moscow calendar day from all sources (0 disables the cap).")
+            .defineInRange("scienceDailyCap", 1500L, 0L, Long.MAX_VALUE);
         builder.pop();
 
         builder.push("war");

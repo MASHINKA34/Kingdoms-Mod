@@ -1683,6 +1683,27 @@ public final class FactionPayloads {
         }
     }
 
+    public record S2CScienceDiscovery(String itemId, long amount) implements CustomPacketPayload {
+        public static final int MAX_ITEM_ID = 256;
+        public static final Type<S2CScienceDiscovery> TYPE = FactionPayloads.payloadType("science_discovery");
+        public static final StreamCodec<RegistryFriendlyByteBuf, S2CScienceDiscovery> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeUtf(payload.itemId, MAX_ITEM_ID);
+                    buffer.writeLong(payload.amount);
+                },
+                buffer -> new S2CScienceDiscovery(buffer.readUtf(MAX_ITEM_ID), buffer.readLong())
+        );
+
+        public S2CScienceDiscovery {
+            amount = Math.max(0L, amount);
+        }
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> payloadType(String path) {
         return new CustomPacketPayload.Type<>(
                 ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, path)

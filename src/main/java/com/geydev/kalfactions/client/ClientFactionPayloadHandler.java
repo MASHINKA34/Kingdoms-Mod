@@ -16,7 +16,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 
 public final class ClientFactionPayloadHandler {
@@ -55,6 +57,16 @@ public final class ClientFactionPayloadHandler {
             Minecraft minecraft = Minecraft.getInstance();
             minecraft.execute(() -> InfluenceGainToast.show(type, payload.amount()));
         });
+    }
+
+    public static void handleScienceDiscovery(FactionPayloads.S2CScienceDiscovery payload) {
+        ResourceLocation itemId = ResourceLocation.tryParse(payload.itemId());
+        if (itemId == null || !BuiltInRegistries.ITEM.containsKey(itemId)) {
+            return;
+        }
+        Component itemName = BuiltInRegistries.ITEM.get(itemId).getDescription();
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.execute(() -> InfluenceGainToast.showDiscovery(itemName, payload.amount()));
     }
 
     public static void handleMiningBonus(FactionPayloads.S2CMiningBonus payload) {

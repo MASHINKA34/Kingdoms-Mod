@@ -16,7 +16,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class FactionNetwork {
-    private static final String PROTOCOL_VERSION = "15";
+    private static final String PROTOCOL_VERSION = "16";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -245,6 +245,11 @@ public final class FactionNetwork {
                 FactionPayloads.S2CInfluenceGain.TYPE,
                 FactionPayloads.S2CInfluenceGain.STREAM_CODEC,
                 FactionNetwork::handleInfluenceGain
+        );
+        registrar.playToClient(
+                FactionPayloads.S2CScienceDiscovery.TYPE,
+                FactionPayloads.S2CScienceDiscovery.STREAM_CODEC,
+                FactionNetwork::handleScienceDiscovery
         );
         registrar.playToClient(
                 FactionPayloads.S2CMiningBonus.TYPE,
@@ -592,6 +597,12 @@ public final class FactionNetwork {
     private static void handleInfluenceGain(FactionPayloads.S2CInfluenceGain payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientFactionPayloadHandler.handleInfluenceGain(payload);
+        }
+    }
+
+    private static void handleScienceDiscovery(FactionPayloads.S2CScienceDiscovery payload, IPayloadContext context) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientFactionPayloadHandler.handleScienceDiscovery(payload);
         }
     }
 

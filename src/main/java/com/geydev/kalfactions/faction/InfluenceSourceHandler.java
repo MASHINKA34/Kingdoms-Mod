@@ -13,6 +13,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
@@ -23,7 +24,6 @@ import net.neoforged.neoforge.network.PacketDistributor;
 public final class InfluenceSourceHandler {
     private static final long DAY_MILLIS = 24L * 3_600_000L;
     private static final Map<String, Deque<Long>> KILL_AWARDS = new HashMap<>();
-    private static final Map<String, Deque<Long>> CRAFT_AWARDS = new HashMap<>();
     private static final Map<UUID, Integer> MOB_PROGRESS = new HashMap<>();
     private static final Map<UUID, Deque<Long>> MOB_AWARDS = new HashMap<>();
 
@@ -123,30 +123,15 @@ public final class InfluenceSourceHandler {
         if (factionId == null) {
             return;
         }
-        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(event.getCrafting().getItem());
-        if (itemId == null || itemId.getNamespace().equals("minecraft")) {
+        ItemStack crafted = event.getCrafting();
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(crafted.getItem());
+        if (itemId == null) {
             return;
         }
-        long perItem = ModConfigSpec.INFLUENCE_CRAFT_PER_ITEM.getAsLong();
-        if (perItem <= 0L) {
+        if (itemId.getNamespace().equals("minecraft") && !ModConfigSpec.SCIENCE_DISCOVERY_ALLOW_VANILLA.get()) {
             return;
         }
-        int cap = ModConfigSpec.INFLUENCE_CRAFT_CAP_PER_ITEM.getAsInt();
-        long window = ModConfigSpec.INFLUENCE_CRAFT_CAP_HOURS.getAsInt() * 3_600_000L;
-        long now = System.currentTimeMillis();
-        Deque<Long> awards = CRAFT_AWARDS.computeIfAbsent(
-                player.getUUID() + ":" + itemId,
-                ignored -> new ArrayDeque<>()
-        );
-        prune(awards, now, window);
-        if (cap > 0 && awards.size() >= cap) {
-            return;
-        }
-        FactionManager.OperationResult result = manager.grantInfluence(factionId, InfluenceType.SCIENCE, perItem);
-        awards.addLast(now);
-        if (result.successful()) {
-            sendInfluenceToast(player, InfluenceType.SCIENCE, result.amount());
-        }
+        ScienceIncome.awardDiscovery(player, factionId, crafted);
     }
 
     private static void prune(Deque<Long> awards, long now, long window) {
@@ -166,7 +151,6 @@ public final class InfluenceSourceHandler {
         UUID id = event.getEntity().getUUID();
         String idText = id.toString();
         KILL_AWARDS.keySet().removeIf(key -> key.startsWith(idText) || key.endsWith(idText));
-        CRAFT_AWARDS.keySet().removeIf(key -> key.startsWith(idText));
         MOB_PROGRESS.remove(id);
         MOB_AWARDS.remove(id);
     }
