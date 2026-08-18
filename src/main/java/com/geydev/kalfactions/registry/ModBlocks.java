@@ -12,6 +12,7 @@ import com.geydev.kalfactions.block.MusicBlock;
 import com.geydev.kalfactions.block.NewsBoardBlock;
 import com.geydev.kalfactions.block.OutpostCoreBlock;
 import com.geydev.kalfactions.block.QuarryCoreBlock;
+import com.geydev.kalfactions.block.ResearchBenchBlock;
 import com.geydev.kalfactions.block.SanctuaryCoreBlock;
 import com.geydev.kalfactions.block.StatueScienceBlock;
 import com.geydev.kalfactions.block.StoneGodStatueBlock;
@@ -244,6 +245,14 @@ public final class ModBlocks {
                     .mapColor(MapColor.COLOR_BLACK)
                     .strength(3.0F, 12.0F)
                     .sound(SoundType.METAL))
+    );
+
+    public static final DeferredBlock<ResearchBenchBlock> RESEARCH_BENCH = BLOCKS.register(
+            "research_bench",
+            () -> new ResearchBenchBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.WOOD)
+                    .strength(3.0F, 9.0F)
+                    .sound(SoundType.WOOD))
     );
 
     public static void register(IEventBus bus) {

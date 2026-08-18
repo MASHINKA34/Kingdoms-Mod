@@ -7,6 +7,7 @@ import com.geydev.kalfactions.block.EconomyGodStatueBlockEntity;
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
 import com.geydev.kalfactions.block.GuideBoardBlockEntity;
 import com.geydev.kalfactions.block.MusicBlockEntity;
+import com.geydev.kalfactions.block.ResearchBenchBlockEntity;
 import com.geydev.kalfactions.block.StatueScienceBlockEntity;
 import com.geydev.kalfactions.block.StoneGodStatueBlockEntity;
 import com.geydev.kalfactions.block.WarGodStatueBlockEntity;
@@ -64,6 +65,11 @@ public final class ModBlockEntities {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "music_block");
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MusicBlockEntity>> MUSIC_BLOCK =
             DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, MUSIC_BLOCK_ID);
+    public static final ResourceLocation RESEARCH_BENCH_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "research_bench");
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ResearchBenchBlockEntity>> RESEARCH_BENCH =
+            DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, RESEARCH_BENCH_ID);
+
     @SubscribeEvent
     public static void register(RegisterEvent event) {
         event.register(Registries.BLOCK_ENTITY_TYPE, FACTION_TABLE_ID, () -> {
@@ -152,6 +158,15 @@ public final class ModBlockEntities {
                 );
             }
             return BlockEntityType.Builder.of(DungeonChestBlockEntity::new, block).build(null);
+        });
+        event.register(Registries.BLOCK_ENTITY_TYPE, RESEARCH_BENCH_ID, () -> {
+            Block block = BuiltInRegistries.BLOCK.get(RESEARCH_BENCH_ID);
+            if (block == Blocks.AIR) {
+                throw new IllegalStateException(
+                        "kingdoms:research_bench must be registered before its block entity type"
+                );
+            }
+            return BlockEntityType.Builder.of(ResearchBenchBlockEntity::new, block).build(null);
         });
         event.register(Registries.BLOCK_ENTITY_TYPE, MUSIC_BLOCK_ID, () -> {
             Block block = BuiltInRegistries.BLOCK.get(MUSIC_BLOCK_ID);

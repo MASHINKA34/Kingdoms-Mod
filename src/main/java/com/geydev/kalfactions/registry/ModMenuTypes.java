@@ -4,6 +4,7 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.menu.DrillMenu;
 import com.geydev.kalfactions.menu.DungeonLootMenu;
 import com.geydev.kalfactions.menu.QuarryMenu;
+import com.geydev.kalfactions.menu.ResearchBenchMenu;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.MenuType;
@@ -29,6 +30,11 @@ public final class ModMenuTypes {
     public static final DeferredHolder<MenuType<?>, MenuType<DungeonLootMenu>> DUNGEON_LOOT =
             DeferredHolder.create(Registries.MENU, DUNGEON_LOOT_ID);
 
+    public static final ResourceLocation RESEARCH_BENCH_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "research_bench");
+    public static final DeferredHolder<MenuType<?>, MenuType<ResearchBenchMenu>> RESEARCH_BENCH =
+            DeferredHolder.create(Registries.MENU, RESEARCH_BENCH_ID);
+
     @SubscribeEvent
     public static void register(RegisterEvent event) {
         event.register(Registries.MENU, DUNGEON_LOOT_ID, () -> IMenuTypeExtension.create(
@@ -41,6 +47,9 @@ public final class ModMenuTypes {
         event.register(Registries.MENU, QUARRY_ID, () -> IMenuTypeExtension.create(
                 (containerId, playerInventory, extraData) ->
                         new QuarryMenu(containerId, playerInventory, extraData.readBlockPos())
+        ));
+        event.register(Registries.MENU, RESEARCH_BENCH_ID, () -> IMenuTypeExtension.create(
+                (containerId, playerInventory, extraData) -> new ResearchBenchMenu(containerId, playerInventory)
         ));
     }
 

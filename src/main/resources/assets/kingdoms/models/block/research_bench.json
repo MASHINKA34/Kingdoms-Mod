@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "top": "kingdoms:block/research_bench_top",
+    "bottom": "kingdoms:block/research_bench_bottom",
+    "side": "kingdoms:block/research_bench_side"
+  }
+}
