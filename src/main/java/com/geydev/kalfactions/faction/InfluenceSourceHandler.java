@@ -128,10 +128,15 @@ public final class InfluenceSourceHandler {
         if (itemId == null) {
             return;
         }
-        if (itemId.getNamespace().equals("minecraft") && !ModConfigSpec.SCIENCE_DISCOVERY_ALLOW_VANILLA.get()) {
+        if (!countsAsDiscovery(itemId)) {
             return;
         }
         ScienceIncome.awardDiscovery(player, factionId, crafted);
+    }
+
+    public static boolean countsAsDiscovery(ResourceLocation itemId) {
+        return itemId != null
+                && (!itemId.getNamespace().equals("minecraft") || ModConfigSpec.SCIENCE_DISCOVERY_ALLOW_VANILLA.get());
     }
 
     private static void prune(Deque<Long> awards, long now, long window) {
