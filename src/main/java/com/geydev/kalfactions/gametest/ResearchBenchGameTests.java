@@ -8,6 +8,7 @@ import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.InfluenceType;
 import com.geydev.kalfactions.faction.ScienceLedger;
 import com.geydev.kalfactions.registry.ModBlocks;
+import com.geydev.kalfactions.registry.ModItems;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import com.geydev.kalfactions.science.ResearchBenchStatus;
 import com.geydev.kalfactions.science.ScienceInputs;
@@ -16,11 +17,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
+import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
@@ -161,6 +165,29 @@ public final class ResearchBenchGameTests {
             clearBench(level, pos);
         }
         helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "research_bench", timeoutTicks = 200)
+    public static void onlyOneBenchRecipeLoads(GameTestHelper helper) {
+        boolean create = ModList.get().isLoaded("create");
+        RecipeHolder<?> withCreate = recipe(helper, "research_bench");
+        RecipeHolder<?> withoutCreate = recipe(helper, "research_bench_vanilla");
+
+        helper.assertTrue(create == (withCreate != null), "The Create bench recipe ignores whether Create is loaded");
+        helper.assertTrue(create != (withoutCreate != null), "Both bench recipes loaded at once");
+        RecipeHolder<?> loaded = withCreate == null ? withoutCreate : withCreate;
+        helper.assertTrue(
+                loaded.value().getResultItem(helper.getLevel().registryAccess()).is(ModItems.RESEARCH_BENCH.get()),
+                "The bench recipe does not craft a research bench"
+        );
+        helper.succeed();
+    }
+
+    private static RecipeHolder<?> recipe(GameTestHelper helper, String id) {
+        return helper.getLevel()
+                .getRecipeManager()
+                .byKey(ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, id))
+                .orElse(null);
     }
 
     private static ScienceInputs.Entry requireEntry(GameTestHelper helper) {
