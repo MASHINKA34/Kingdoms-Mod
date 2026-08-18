@@ -5,7 +5,12 @@ import com.geydev.kalfactions.net.FactionPayloads;
 import com.geydev.kalfactions.net.FactionSnapshot;
 import java.util.List;
 import java.util.Locale;
+import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.PlayerFaceRenderer;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.client.resources.DefaultPlayerSkin;
+import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -15,6 +20,10 @@ public final class FactionMembersScreen extends FactionScreen {
     private static final int LEADER_TIER = 2;
     private static final int ROW_HEIGHT = 22;
     private static final int VISIBLE_ROWS = 5;
+    private static final int FACE_SIZE = 16;
+    private static final int NAME_LEFT = CONTENT_LEFT + FACE_SIZE + 4;
+    private static final int ROLE_LEFT = 116;
+    private static final int NAME_WIDTH = ROLE_LEFT - NAME_LEFT - 4;
 
     private int scrollOffset;
 
@@ -90,9 +99,17 @@ public final class FactionMembersScreen extends FactionScreen {
         int shown = Math.min(VISIBLE_ROWS, members.size() - scrollOffset);
         for (int index = 0; index < shown; index++) {
             FactionSnapshot.Member member = members.get(scrollOffset + index);
-            int rowY = listTop + index * ROW_HEIGHT + 6;
-            graphics.drawString(font, member.name(), left + CONTENT_LEFT, rowY, TEXT_DARK, false);
-            graphics.drawString(font, roleText(member.role()), left + 116, rowY, TEXT_HINT, false);
+            int rowTop = listTop + index * ROW_HEIGHT;
+            int rowY = rowTop + 6;
+            PlayerFaceRenderer.draw(
+                    graphics,
+                    resolveSkin(member.name()),
+                    left + CONTENT_LEFT,
+                    rowTop + 2,
+                    FACE_SIZE
+            );
+            graphics.drawString(font, clipName(member.name()), left + NAME_LEFT, rowY, TEXT_DARK, false);
+            graphics.drawString(font, roleText(member.role()), left + ROLE_LEFT, rowY, TEXT_HINT, false);
         }
         if (members.size() > VISIBLE_ROWS) {
             graphics.drawString(
@@ -123,6 +140,24 @@ public final class FactionMembersScreen extends FactionScreen {
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    private PlayerSkin resolveSkin(String playerName) {
+        if (minecraft != null && minecraft.getConnection() != null) {
+            PlayerInfo info = minecraft.getConnection().getPlayerInfo(playerName);
+            if (info != null) {
+                return info.getSkin();
+            }
+        }
+        return DefaultPlayerSkin.get(Util.NIL_UUID);
+    }
+
+    private String clipName(String name) {
+        if (font.width(name) <= NAME_WIDTH) {
+            return name;
+        }
+        int ellipsis = font.width("…");
+        return font.plainSubstrByWidth(name, Math.max(0, NAME_WIDTH - ellipsis)) + "…";
     }
 
     private static int tierOf(String role) {
