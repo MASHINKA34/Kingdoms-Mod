@@ -1,6 +1,5 @@
 package com.geydev.kalfactions.mixin;
 
-import com.geydev.kalfactions.dungeon.DungeonProtection;
 import com.geydev.kalfactions.protection.MachineProtection;
 import com.simibubi.create.content.contraptions.Contraption;
 import java.util.Queue;
@@ -28,7 +27,7 @@ public abstract class CreateContraptionMixin {
         if (pos == null) {
             return;
         }
-        if (DungeonProtection.isDungeon(level, pos)) {
+        if (MachineProtection.protectsBlocks(level, pos)) {
             visited.add(frontier.poll());
             cir.setReturnValue(true);
             return;

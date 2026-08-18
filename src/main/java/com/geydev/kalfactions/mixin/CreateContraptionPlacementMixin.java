@@ -1,6 +1,6 @@
 package com.geydev.kalfactions.mixin;
 
-import com.geydev.kalfactions.dungeon.DungeonProtection;
+import com.geydev.kalfactions.protection.MachineProtection;
 import com.simibubi.create.content.contraptions.Contraption;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.LevelAccessor;
@@ -13,13 +13,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(Contraption.class)
 public abstract class CreateContraptionPlacementMixin {
     @Inject(method = "customBlockPlacement", at = @At("HEAD"), cancellable = true)
-    private void kingdoms$keepDungeonBlocksOnDisassembly(
+    private void kingdoms$keepProtectedBlocksOnDisassembly(
             LevelAccessor world,
             BlockPos pos,
             BlockState state,
             CallbackInfoReturnable<Boolean> cir
     ) {
-        if (DungeonProtection.isDungeon(world, pos)) {
+        if (MachineProtection.protectsBlocks(world, pos)) {
             cir.setReturnValue(true);
         }
     }

@@ -11,6 +11,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelReader;
 
 public final class MachineProtection {
     private static final class ProjectileContext {
@@ -89,16 +90,22 @@ public final class MachineProtection {
         if (!(level instanceof ServerLevel serverLevel)) {
             return true;
         }
-        return canContraptionAct(serverLevel, target)
-                && !DungeonProtection.isDungeon(serverLevel, target);
+        return canContraptionAct(serverLevel, target) && !protectsBlocks(serverLevel, target);
     }
 
     public static boolean canContraptionAct(Level level, BlockPos target) {
         if (!(level instanceof ServerLevel serverLevel)) {
             return true;
         }
-        return !SanctuaryManager.get(serverLevel).isSanctuary(serverLevel, target)
-                && !QuarryManager.get(serverLevel).isQuarry(serverLevel, target);
+        return !SanctuaryManager.get(serverLevel).isSanctuary(serverLevel, target);
+    }
+
+    public static boolean protectsBlocks(LevelReader level, BlockPos target) {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return false;
+        }
+        return DungeonProtection.isDungeon(serverLevel, target)
+                || QuarryManager.get(serverLevel).isQuarry(serverLevel, target);
     }
 
     public static boolean canPlayerMine(Level level, BlockPos target, ServerPlayer player) {
