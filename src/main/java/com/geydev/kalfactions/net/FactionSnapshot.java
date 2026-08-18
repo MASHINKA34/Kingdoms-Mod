@@ -50,7 +50,9 @@ public record FactionSnapshot(
         int crystalMilitary,
         WarSpoils pendingWarSpoils,
         int claimCount,
-        int forceLoadUsed
+        int forceLoadUsed,
+        long scienceToday,
+        long scienceDailyCap
 ) {
     public static final UUID NO_FACTION = new UUID(0L, 0L);
     public static final int MAX_RESEARCH_NODES = 64;
@@ -111,6 +113,8 @@ public record FactionSnapshot(
         pendingWarSpoils = pendingWarSpoils == null ? WarSpoils.EMPTY : pendingWarSpoils;
         claimCount = Math.max(0, claimCount);
         forceLoadUsed = Math.max(0, forceLoadUsed);
+        scienceToday = Math.max(0L, scienceToday);
+        scienceDailyCap = Math.max(0L, scienceDailyCap);
     }
 
     public static FactionSnapshot empty(BlockPos tablePos, int centerChunkX, int centerChunkZ, long creationCost) {
@@ -119,7 +123,7 @@ public record FactionSnapshot(
                 centerChunkX, centerChunkZ, 6, List.of(), List.of(),
                 0L, 0L, 0L, 0L, 0L, false, creationCost, NO_FACTION, false,
                 "", 0L, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), "", List.of(), "",
-                List.of(), "", 0L, List.of(0, 0, 0, 0, 0, 0), 0, 0, 0, WarSpoils.EMPTY, 0, 0
+                List.of(), "", 0L, List.of(0, 0, 0, 0, 0, 0), 0, 0, 0, WarSpoils.EMPTY, 0, 0, 0L, 0L
         );
     }
 
@@ -204,6 +208,8 @@ public record FactionSnapshot(
         snapshot.pendingWarSpoils.encode(buffer);
         buffer.writeVarInt(snapshot.claimCount);
         buffer.writeVarInt(snapshot.forceLoadUsed);
+        buffer.writeLong(snapshot.scienceToday);
+        buffer.writeLong(snapshot.scienceDailyCap);
     }
 
     private static FactionSnapshot decode(RegistryFriendlyByteBuf buffer) {
@@ -253,6 +259,8 @@ public record FactionSnapshot(
         WarSpoils pendingWarSpoils = WarSpoils.decode(buffer);
         int claimCount = buffer.readVarInt();
         int forceLoadUsed = buffer.readVarInt();
+        long scienceToday = buffer.readLong();
+        long scienceDailyCap = buffer.readLong();
         return new FactionSnapshot(
                 tablePos, factionId, name, ownerName, color, canManage, canClaim,
                 centerChunkX, centerChunkZ, mapRadius, members, claims,
@@ -262,7 +270,7 @@ public record FactionSnapshot(
                 onlinePlayers, bonuses, extraBonus, emblem, emblemUrl,
                 completedResearch, activeResearchNode, activeResearchEndMillis,
                 researchCrystalCosts, crystalScience, crystalEconomic, crystalMilitary, pendingWarSpoils,
-                claimCount, forceLoadUsed
+                claimCount, forceLoadUsed, scienceToday, scienceDailyCap
         );
     }
 

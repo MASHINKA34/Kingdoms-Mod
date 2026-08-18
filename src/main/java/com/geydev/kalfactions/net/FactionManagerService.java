@@ -99,7 +99,10 @@ public final class FactionManagerService implements FactionServerHooks.Service {
                 countCrystals(player.getInventory(), InfluenceType.MILITARY),
                 pendingWarSpoils(player, faction),
                 faction.claimCount(),
-                faction.forceLoadedCount()
+                faction.forceLoadedCount(),
+                com.geydev.kalfactions.faction.ScienceLedger.get(player.serverLevel())
+                        .grantedToday(faction.id(), System.currentTimeMillis()),
+                ModConfigSpec.SCIENCE_DAILY_CAP.getAsLong()
         );
     }
 

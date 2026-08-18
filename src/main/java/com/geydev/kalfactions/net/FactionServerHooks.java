@@ -1167,7 +1167,9 @@ public final class FactionServerHooks {
                 snapshot.crystalMilitary(),
                 snapshot.pendingWarSpoils(),
                 snapshot.claimCount(),
-                snapshot.forceLoadUsed()
+                snapshot.forceLoadUsed(),
+                snapshot.scienceToday(),
+                snapshot.scienceDailyCap()
         );
     }
 

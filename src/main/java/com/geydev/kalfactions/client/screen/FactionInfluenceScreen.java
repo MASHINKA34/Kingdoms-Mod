@@ -53,6 +53,7 @@ public final class FactionInfluenceScreen extends FactionScreen {
                 false
         );
         renderRow(graphics, ICON_SCIENCE, "kingdoms.influence.science", snapshot.influenceScience(), top + 64);
+        renderDailyScience(graphics, top + 68);
         renderRow(graphics, ICON_ECONOMIC, "kingdoms.influence.economic", snapshot.influenceEconomic(), top + 88);
         renderRow(graphics, ICON_MILITARY, "kingdoms.influence.military", snapshot.influenceMilitary(), top + 112);
         List<FormattedCharSequence> hintLines = font.split(
@@ -62,6 +63,13 @@ public final class FactionInfluenceScreen extends FactionScreen {
         for (int index = 0; index < Math.min(2, hintLines.size()); index++) {
             graphics.drawString(font, hintLines.get(index), left + CONTENT_LEFT, top + 132 + index * 9, TEXT_HINT, false);
         }
+    }
+
+    private void renderDailyScience(GuiGraphics graphics, int y) {
+        Component line = snapshot.scienceDailyCap() > 0L
+                ? text("screen.kingdoms.science_today", snapshot.scienceToday(), snapshot.scienceDailyCap())
+                : text("screen.kingdoms.science_today_unlimited", snapshot.scienceToday());
+        graphics.drawString(font, line, left + CONTENT_RIGHT - font.width(line), y, TEXT_HINT, false);
     }
 
     private void renderRow(GuiGraphics graphics, ResourceLocation icon, String key, long value, int y) {
