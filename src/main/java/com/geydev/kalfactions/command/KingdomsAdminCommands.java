@@ -1,10 +1,12 @@
 package com.geydev.kalfactions.command;
 
+import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.dimension.DimensionControlEvents;
 import com.geydev.kalfactions.dimension.DimensionControlManager;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.ResearchNode;
+import com.geydev.kalfactions.faction.ScienceLedger;
 import com.geydev.kalfactions.news.NewsManager;
 import com.geydev.kalfactions.news.NewsService;
 import com.geydev.kalfactions.outpost.trader.TraderLifecycle;
@@ -173,9 +175,86 @@ public final class KingdomsAdminCommands {
                                 .executes(KingdomsAdminCommands::cancelRender))
                         .then(Commands.literal("status")
                                 .executes(KingdomsAdminCommands::mapStatus)))
+                .then(Commands.literal("influence")
+                        .then(Commands.literal("discoveries")
+                                .executes(context -> discoveries(context, null))
+                                .then(Commands.literal("reset")
+                                        .then(Commands.argument("faction", StringArgumentType.greedyString())
+                                                .suggests(FACTION_SUGGESTIONS)
+                                                .executes(KingdomsAdminCommands::resetDiscoveries)))
+                                .then(Commands.argument("faction", StringArgumentType.greedyString())
+                                        .suggests(FACTION_SUGGESTIONS)
+                                        .executes(context -> discoveries(
+                                                context,
+                                                StringArgumentType.getString(context, "faction")
+                                        ))))
+                        .then(Commands.literal("daily")
+                                .then(Commands.literal("reset")
+                                        .then(Commands.argument("faction", StringArgumentType.greedyString())
+                                                .suggests(FACTION_SUGGESTIONS)
+                                                .executes(KingdomsAdminCommands::resetDailyScience)))))
                 .then(ClusterCommands.build())
                 .then(BlackZoneCommands.build())
                 .then(com.geydev.kalfactions.dungeon.DungeonCommands.build()));
+    }
+
+    private static int discoveries(CommandContext<CommandSourceStack> context, String factionName) {
+        CommandSourceStack source = context.getSource();
+        FactionManager factions = FactionManager.get(source.getServer());
+        Collection<Faction> targets;
+        if (factionName == null) {
+            targets = factions.factions();
+        } else {
+            Faction faction = factions.getFactionByName(factionName).orElse(null);
+            if (faction == null) {
+                source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+                return 0;
+            }
+            targets = java.util.List.of(faction);
+        }
+        ScienceLedger ledger = ScienceLedger.get(source.getServer());
+        long now = System.currentTimeMillis();
+        long cap = ModConfigSpec.SCIENCE_DAILY_CAP.getAsLong();
+        String capText = cap > 0L ? String.valueOf(cap) : "без лимита";
+        for (Faction faction : targets) {
+            String line = faction.name()
+                    + " · открыто предметов: " + ledger.discoveryCount(faction.id())
+                    + " · наука за сегодня: " + ledger.grantedToday(faction.id(), now) + "/" + capText;
+            source.sendSuccess(() -> Component.literal(line), false);
+        }
+        if (targets.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("Фракций нет."), false);
+        }
+        return targets.size();
+    }
+
+    private static int resetDiscoveries(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        String factionName = StringArgumentType.getString(context, "faction");
+        Faction faction = FactionManager.get(source.getServer()).getFactionByName(factionName).orElse(null);
+        if (faction == null) {
+            source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+            return 0;
+        }
+        ScienceLedger.get(source.getServer()).resetDiscoveries(faction.id());
+        source.sendSuccess(() -> Component.literal("Открытия фракции " + faction.name() + " сброшены."), true);
+        return 1;
+    }
+
+    private static int resetDailyScience(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        String factionName = StringArgumentType.getString(context, "faction");
+        Faction faction = FactionManager.get(source.getServer()).getFactionByName(factionName).orElse(null);
+        if (faction == null) {
+            source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+            return 0;
+        }
+        ScienceLedger.get(source.getServer()).resetDaily(faction.id());
+        source.sendSuccess(
+                () -> Component.literal("Дневной счётчик науки фракции " + faction.name() + " сброшен."),
+                true
+        );
+        return 1;
     }
 
     private static int scoutSpawn(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
