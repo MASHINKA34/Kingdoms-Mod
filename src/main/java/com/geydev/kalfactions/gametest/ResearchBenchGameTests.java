@@ -259,7 +259,6 @@ public final class ResearchBenchGameTests {
                     .orElse(0L);
         }
 
-        /** Rebuilds the bench from its saved tag with the production clock moved back, as a chunk reload does. */
         private ResearchBenchBlockEntity rewind(long millis) {
             ResearchBenchBlockEntity current = (ResearchBenchBlockEntity) level.getBlockEntity(pos);
             CompoundTag tag = current.saveWithoutMetadata(level.registryAccess());
