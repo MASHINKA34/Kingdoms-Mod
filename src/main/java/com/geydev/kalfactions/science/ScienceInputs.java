@@ -26,7 +26,7 @@ import net.neoforged.neoforge.event.AddReloadListenerEvent;
 public final class ScienceInputs extends SimplePreparableReloadListener<Map<Item, ScienceInputs.Entry>> {
     public static final ResourceLocation FILE =
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "science_inputs.json");
-    public static final int MAX_SECONDS = 86400;
+    private static final int MAX_SECONDS = 86400;
 
     private static final ScienceInputs INSTANCE = new ScienceInputs();
     private static final String TAG_REPLACE = "replace";
@@ -54,10 +54,6 @@ public final class ScienceInputs extends SimplePreparableReloadListener<Map<Item
 
     public static Map<Item, Entry> all() {
         return entries;
-    }
-
-    public static void install(Map<Item, Entry> replacement) {
-        entries = Map.copyOf(replacement);
     }
 
     public static int defaultSeconds() {

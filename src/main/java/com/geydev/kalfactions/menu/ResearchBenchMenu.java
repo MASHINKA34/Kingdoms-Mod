@@ -18,11 +18,11 @@ public final class ResearchBenchMenu extends AbstractContainerMenu {
     public static final int DATA_SIZE = 6;
     public static final int INPUT_COLUMNS = 3;
     public static final int INPUT_SLOT_X = 26;
-    public static final int INPUT_SLOT_Y = 40;
+    public static final int INPUT_SLOT_Y = 44;
     public static final int INPUT_SLOT_STEP = 20;
-    public static final int PLAYER_INVENTORY_X = 32;
-    public static final int PLAYER_INVENTORY_Y = 122;
-    public static final int PLAYER_HOTBAR_Y = 180;
+    public static final int PLAYER_INVENTORY_X = 57;
+    public static final int PLAYER_INVENTORY_Y = 146;
+    public static final int PLAYER_HOTBAR_Y = 204;
 
     private final Container container;
     private final ContainerData data;

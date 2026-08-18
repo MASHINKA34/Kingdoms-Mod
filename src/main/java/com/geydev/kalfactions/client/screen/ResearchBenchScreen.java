@@ -5,22 +5,24 @@ import com.geydev.kalfactions.science.ResearchBenchStatus;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 
 public final class ResearchBenchScreen extends AbstractContainerScreen<ResearchBenchMenu> {
-    private static final int PANEL_WIDTH = 226;
-    private static final int PANEL_HEIGHT = 210;
+    private static final int PANEL_WIDTH = 276;
+    private static final int PANEL_HEIGHT = 236;
     private static final int READOUT_X = 92;
-    private static final int READOUT_Y = 34;
-    private static final int READOUT_WIDTH = 126;
-    private static final int READOUT_HEIGHT = 78;
+    private static final int READOUT_Y = 30;
+    private static final int READOUT_WIDTH = 176;
+    private static final int READOUT_HEIGHT = 96;
     private static final int PROGRESS_X = 98;
-    private static final int PROGRESS_Y = 44;
-    private static final int PROGRESS_WIDTH = 114;
+    private static final int PROGRESS_Y = 40;
+    private static final int PROGRESS_WIDTH = 164;
     private static final int PROGRESS_HEIGHT = 10;
-    private static final int INVENTORY_PANEL_TOP = 112;
-    private static final int INVENTORY_LABEL_Y = 112;
-    private static final int LINE_STEP = 12;
+    private static final int TEXT_TOP = READOUT_Y + 26;
+    private static final int INVENTORY_PANEL_TOP = 132;
+    private static final int INVENTORY_LABEL_Y = 134;
+    private static final int LINE_STEP = 10;
     private static final int GOLD = 0xFFE8D6A0;
     private static final int TEXT = 0xFFB9C8D5;
     private static final int SCIENCE = 0xFF8FD8F5;
@@ -119,16 +121,21 @@ public final class ResearchBenchScreen extends AbstractContainerScreen<ResearchB
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
         graphics.drawString(font, title, titleLabelX, titleLabelY, GOLD, false);
         graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, GOLD, false);
-        int line = READOUT_Y + 26;
-        graphics.drawString(font, statusLine(), READOUT_X + 6, line, statusColor(), false);
-        line += LINE_STEP;
-        graphics.drawString(font, scienceTodayLine(), READOUT_X + 6, line, SCIENCE, false);
-        line += LINE_STEP;
-        graphics.drawString(font, speedLine(), READOUT_X + 6, line, TEXT, false);
-        line += LINE_STEP;
+        int line = drawWrapped(graphics, statusLine(), TEXT_TOP, statusColor());
+        line = drawWrapped(graphics, scienceTodayLine(), line, SCIENCE);
+        line = drawWrapped(graphics, speedLine(), line, TEXT);
         if (menu.currentScience() > 0) {
-            graphics.drawString(font, materialLine(), READOUT_X + 6, line, TEXT, false);
+            drawWrapped(graphics, materialLine(), line, TEXT);
         }
+    }
+
+    private int drawWrapped(GuiGraphics graphics, Component text, int top, int color) {
+        int line = top;
+        for (FormattedCharSequence part : font.split(text, READOUT_WIDTH - 12)) {
+            graphics.drawString(font, part, READOUT_X + 6, line, color, false);
+            line += LINE_STEP;
+        }
+        return line + 2;
     }
 
     private Component statusLine() {

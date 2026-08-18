@@ -11,8 +11,4 @@ public enum ResearchBenchStatus {
     public static ResearchBenchStatus byOrdinal(int ordinal) {
         return ordinal < 0 || ordinal >= VALUES.length ? NO_MATERIALS : VALUES[ordinal];
     }
-
-    public boolean running() {
-        return this == WORKING;
-    }
 }
