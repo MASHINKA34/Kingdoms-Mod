@@ -4,6 +4,8 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.DrillBlock;
 import com.geydev.kalfactions.block.DungeonChestBlock;
 import com.geydev.kalfactions.block.DungeonCoreBlock;
+import com.geydev.kalfactions.block.DungeonKeyPedestalActivation;
+import com.geydev.kalfactions.block.DungeonKeyPedestalBlock;
 import com.geydev.kalfactions.block.EconomyGodStatueBlock;
 import com.geydev.kalfactions.block.FactionTableBlock;
 import com.geydev.kalfactions.block.GuideBoardBlock;
@@ -178,8 +180,9 @@ public final class ModBlocks {
             "research_god_stone_8blocks",
             () -> new StoneGodStatueBlock(
                     stoneGodStatueProperties(),
-                    Block.box(-24.0D, 0.0D, -24.0D, 40.0D, 16.0D, 40.0D),
-                    Block.box(-24.0D, 0.0D, -24.0D, 40.0D, 16.0D, 40.0D)
+                    "research_god_stone_8blocks",
+                    null,
+                    null
             )
     );
 
@@ -187,8 +190,9 @@ public final class ModBlocks {
             "war_god_stone_8blocks",
             () -> new StoneGodStatueBlock(
                     stoneGodStatueProperties(),
-                    Block.box(-44.0D, 0.0D, -24.0D, 52.0D, 16.0D, 40.0D),
-                    Block.box(-24.0D, 0.0D, -44.0D, 40.0D, 16.0D, 52.0D)
+                    "war_god_stone_8blocks",
+                    0.0F,
+                    0.0F
             )
     );
 
@@ -196,8 +200,9 @@ public final class ModBlocks {
             "economy_god_stone_8blocks",
             () -> new StoneGodStatueBlock(
                     stoneGodStatueProperties(),
-                    Block.box(-24.0D, 0.0D, -24.0D, 40.0D, 16.0D, 40.0D),
-                    Block.box(-24.0D, 0.0D, -24.0D, 40.0D, 16.0D, 40.0D)
+                    "economy_god_stone_8blocks",
+                    null,
+                    null
             )
     );
 
@@ -287,6 +292,18 @@ public final class ModBlocks {
                     .strength(4.0F, 12.0F)
                     .sound(SoundType.STONE)
                     .lightLevel(state -> 3)
+                    .noOcclusion()
+                    .dynamicShape())
+    );
+
+    public static final DeferredBlock<DungeonKeyPedestalBlock> DUNGEON_KEY_PEDESTAL = BLOCKS.register(
+            "dungeon_key_pedestal",
+            () -> new DungeonKeyPedestalBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BLACK)
+                    .strength(4.0F, 12.0F)
+                    .sound(SoundType.POLISHED_DEEPSLATE)
+                    .lightLevel(state -> state.getValue(DungeonKeyPedestalBlock.ACTIVATION)
+                            == DungeonKeyPedestalActivation.NONE ? 0 : 7)
                     .noOcclusion()
                     .dynamicShape())
     );

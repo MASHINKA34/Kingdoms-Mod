@@ -1,0 +1,24 @@
+{
+  "variants": {
+    "activation=none,facing=north": { "model": "kingdoms:block/dungeon_key_pedestal" },
+    "activation=none,facing=east": { "model": "kingdoms:block/dungeon_key_pedestal", "y": 90 },
+    "activation=none,facing=south": { "model": "kingdoms:block/dungeon_key_pedestal", "y": 180 },
+    "activation=none,facing=west": { "model": "kingdoms:block/dungeon_key_pedestal", "y": 270 },
+    "activation=ghost,facing=north": { "model": "kingdoms:block/dungeon_key_pedestal_ghost_active" },
+    "activation=ghost,facing=east": { "model": "kingdoms:block/dungeon_key_pedestal_ghost_active", "y": 90 },
+    "activation=ghost,facing=south": { "model": "kingdoms:block/dungeon_key_pedestal_ghost_active", "y": 180 },
+    "activation=ghost,facing=west": { "model": "kingdoms:block/dungeon_key_pedestal_ghost_active", "y": 270 },
+    "activation=sculk,facing=north": { "model": "kingdoms:block/dungeon_key_pedestal_sculk_active" },
+    "activation=sculk,facing=east": { "model": "kingdoms:block/dungeon_key_pedestal_sculk_active", "y": 90 },
+    "activation=sculk,facing=south": { "model": "kingdoms:block/dungeon_key_pedestal_sculk_active", "y": 180 },
+    "activation=sculk,facing=west": { "model": "kingdoms:block/dungeon_key_pedestal_sculk_active", "y": 270 },
+    "activation=infernal,facing=north": { "model": "kingdoms:block/dungeon_key_pedestal_infernal_active" },
+    "activation=infernal,facing=east": { "model": "kingdoms:block/dungeon_key_pedestal_infernal_active", "y": 90 },
+    "activation=infernal,facing=south": { "model": "kingdoms:block/dungeon_key_pedestal_infernal_active", "y": 180 },
+    "activation=infernal,facing=west": { "model": "kingdoms:block/dungeon_key_pedestal_infernal_active", "y": 270 },
+    "activation=mossy,facing=north": { "model": "kingdoms:block/dungeon_key_pedestal_mossy_active" },
+    "activation=mossy,facing=east": { "model": "kingdoms:block/dungeon_key_pedestal_mossy_active", "y": 90 },
+    "activation=mossy,facing=south": { "model": "kingdoms:block/dungeon_key_pedestal_mossy_active", "y": 180 },
+    "activation=mossy,facing=west": { "model": "kingdoms:block/dungeon_key_pedestal_mossy_active", "y": 270 }
+  }
+}

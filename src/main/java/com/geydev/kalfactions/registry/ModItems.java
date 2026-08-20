@@ -341,6 +341,9 @@ public final class ModItems {
             () -> new Item(new Item.Properties())
     );
 
+    public static final DeferredItem<BlockItem> DUNGEON_KEY_PEDESTAL =
+            ITEMS.registerSimpleBlockItem(ModBlocks.DUNGEON_KEY_PEDESTAL);
+
     public static Item crystalFor(InfluenceType type) {
         return switch (type) {
             case SCIENCE -> CRYSTAL_SCIENCE.get();

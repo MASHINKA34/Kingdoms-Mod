@@ -106,7 +106,8 @@ public final class ModCreativeTabs {
                 ModItems.MOSSY_KEY_BOW_FRAGMENT.get(),
                 ModItems.MOSSY_KEY_SHAFT_FRAGMENT.get(),
                 ModItems.MOSSY_KEY_BIT_FRAGMENT.get(),
-                ModItems.MOSSY_KEY.get()
+                ModItems.MOSSY_KEY.get(),
+                ModItems.DUNGEON_KEY_PEDESTAL.get()
         );
     }
 

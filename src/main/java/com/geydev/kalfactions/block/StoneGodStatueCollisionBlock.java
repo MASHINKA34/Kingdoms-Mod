@@ -11,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
@@ -23,6 +24,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 public final class StoneGodStatueCollisionBlock extends Block {
     private static final int OFFSET_BIAS = 3;
+    private static final ThreadLocal<Boolean> SUPPRESS_ANCHOR_DESTRUCTION =
+            ThreadLocal.withInitial(() -> false);
     public static final IntegerProperty OFFSET_X = IntegerProperty.create("offset_x", 0, 6);
     public static final IntegerProperty OFFSET_Z = IntegerProperty.create("offset_z", 0, 6);
     public static final IntegerProperty SEGMENT = IntegerProperty.create("segment", 0, StoneGodStatueBlock.HEIGHT - 1);
@@ -47,10 +50,11 @@ public final class StoneGodStatueCollisionBlock extends Block {
             return statue.getCollisionSlice(
                     anchorState,
                     decodeOffset(state.getValue(OFFSET_X)),
+                    state.getValue(SEGMENT),
                     decodeOffset(state.getValue(OFFSET_Z))
             );
         }
-        return Shapes.block();
+        return Shapes.empty();
     }
 
     @Override
@@ -73,7 +77,9 @@ public final class StoneGodStatueCollisionBlock extends Block {
 
     @Override
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
-        if (!state.is(newState.getBlock()) && !level.isClientSide()) {
+        if (!state.is(newState.getBlock())
+                && !level.isClientSide()
+                && !SUPPRESS_ANCHOR_DESTRUCTION.get()) {
             destroyAnchor(level, pos, state, null, true);
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
@@ -102,6 +108,28 @@ public final class StoneGodStatueCollisionBlock extends Block {
 
     static int decodeOffset(int encodedOffset) {
         return encodedOffset - OFFSET_BIAS;
+    }
+
+    static int maxOffset() {
+        return OFFSET_BIAS;
+    }
+
+    static void removeWithoutDestroyingAnchor(Level level, BlockPos pos) {
+        boolean previous = SUPPRESS_ANCHOR_DESTRUCTION.get();
+        SUPPRESS_ANCHOR_DESTRUCTION.set(true);
+        try {
+            level.setBlock(
+                    pos,
+                    Blocks.AIR.defaultBlockState(),
+                    UPDATE_ALL | UPDATE_SUPPRESS_DROPS
+            );
+        } finally {
+            if (previous) {
+                SUPPRESS_ANCHOR_DESTRUCTION.set(true);
+            } else {
+                SUPPRESS_ANCHOR_DESTRUCTION.remove();
+            }
+        }
     }
 
     private static void destroyAnchor(

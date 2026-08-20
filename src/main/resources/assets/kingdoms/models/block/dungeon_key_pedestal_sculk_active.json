@@ -1,0 +1,6 @@
+{
+  "parent": "kingdoms:block/dungeon_key_pedestal_base",
+  "textures": {
+    "2": "kingdoms:block/dungeon_key_pedestal/dungeon_key_pedestal_sculk_active"
+  }
+}

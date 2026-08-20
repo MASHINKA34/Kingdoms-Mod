@@ -2,12 +2,13 @@ package com.geydev.kalfactions.block;
 
 import com.geydev.kalfactions.faith.FaithService;
 import com.geydev.kalfactions.registry.ModBlocks;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
@@ -29,9 +30,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -41,21 +40,20 @@ public final class StoneGodStatueBlock extends Block implements EntityBlock {
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final IntegerProperty SEGMENT = IntegerProperty.create("segment", 0, HEIGHT - 1);
 
-    private final VoxelShape northShape;
-    private final VoxelShape eastShape;
-    private final List<CollisionCell> northCollisionCells;
-    private final List<CollisionCell> eastCollisionCells;
+    private final Map<Direction, List<StoneGodStatueCollisionModel.Cell>> collisionCellsByDirection;
 
     public StoneGodStatueBlock(
             BlockBehaviour.Properties properties,
-            VoxelShape northShape,
-            VoxelShape eastShape
+            String modelName,
+            @Nullable Float centerXOverride,
+            @Nullable Float centerZOverride
     ) {
         super(properties);
-        this.northShape = northShape;
-        this.eastShape = eastShape;
-        this.northCollisionCells = createCollisionCells(northShape);
-        this.eastCollisionCells = createCollisionCells(eastShape);
+        this.collisionCellsByDirection = StoneGodStatueCollisionModel.load(
+                modelName,
+                centerXOverride,
+                centerZOverride
+        );
         registerDefaultState(stateDefinition.any()
                 .setValue(FACING, Direction.NORTH)
                 .setValue(SEGMENT, 0));
@@ -76,11 +74,17 @@ public final class StoneGodStatueBlock extends Block implements EntityBlock {
         if (base.getY() > level.getMaxBuildHeight() - HEIGHT) {
             return null;
         }
-        for (CollisionCell cell : collisionCells(facing)) {
-            for (int segment = 0; segment < HEIGHT; segment++) {
-                if (!level.getBlockState(base.offset(cell.offsetX(), segment, cell.offsetZ())).canBeReplaced()) {
-                    return null;
-                }
+        for (int segment = 0; segment < HEIGHT; segment++) {
+            if (!level.getBlockState(base.above(segment)).canBeReplaced()) {
+                return null;
+            }
+        }
+        for (StoneGodStatueCollisionModel.Cell cell : collisionCells(facing)) {
+            if (cell.offsetX() == 0 && cell.offsetZ() == 0) {
+                continue;
+            }
+            if (!level.getBlockState(base.offset(cell.offsetX(), cell.segment(), cell.offsetZ())).canBeReplaced()) {
+                return null;
             }
         }
         return defaultBlockState()
@@ -102,31 +106,64 @@ public final class StoneGodStatueBlock extends Block implements EntityBlock {
 
     void ensureCollisionField(Level level, BlockPos pos, BlockState state) {
         BlockState collisionState = ModBlocks.STONE_GOD_STATUE_COLLISION.get().defaultBlockState();
-        for (CollisionCell cell : collisionCells(state.getValue(FACING))) {
+        List<StoneGodStatueCollisionModel.Cell> cells = collisionCells(state.getValue(FACING));
+        removeStaleCollisionCells(level, pos, cells);
+        for (StoneGodStatueCollisionModel.Cell cell : cells) {
             if (cell.offsetX() == 0 && cell.offsetZ() == 0) {
                 continue;
             }
-            for (int segment = 0; segment < HEIGHT; segment++) {
-                BlockPos collisionPos = pos.offset(cell.offsetX(), segment, cell.offsetZ());
-                BlockState existingState = level.getBlockState(collisionPos);
-                if (isMatchingCollisionSegment(existingState, cell, segment)) {
+            BlockPos collisionPos = pos.offset(cell.offsetX(), cell.segment(), cell.offsetZ());
+            BlockState existingState = level.getBlockState(collisionPos);
+            if (isMatchingCollisionSegment(existingState, cell)) {
+                continue;
+            }
+            if (existingState.canBeReplaced()) {
+                level.setBlock(
+                        collisionPos,
+                        collisionState
+                                .setValue(
+                                        StoneGodStatueCollisionBlock.OFFSET_X,
+                                        StoneGodStatueCollisionBlock.encodeOffset(cell.offsetX())
+                                )
+                                .setValue(
+                                        StoneGodStatueCollisionBlock.OFFSET_Z,
+                                        StoneGodStatueCollisionBlock.encodeOffset(cell.offsetZ())
+                                )
+                                .setValue(StoneGodStatueCollisionBlock.SEGMENT, cell.segment()),
+                        UPDATE_ALL
+                );
+            }
+        }
+    }
+
+    private static void removeStaleCollisionCells(
+            Level level,
+            BlockPos base,
+            List<StoneGodStatueCollisionModel.Cell> cells
+    ) {
+        Set<CellPosition> expected = new HashSet<>();
+        for (StoneGodStatueCollisionModel.Cell cell : cells) {
+            if (cell.offsetX() != 0 || cell.offsetZ() != 0) {
+                expected.add(new CellPosition(cell.offsetX(), cell.segment(), cell.offsetZ()));
+            }
+        }
+        for (int offsetX = -StoneGodStatueCollisionBlock.maxOffset();
+                offsetX <= StoneGodStatueCollisionBlock.maxOffset();
+                offsetX++) {
+            for (int offsetZ = -StoneGodStatueCollisionBlock.maxOffset();
+                    offsetZ <= StoneGodStatueCollisionBlock.maxOffset();
+                    offsetZ++) {
+                if (offsetX == 0 && offsetZ == 0) {
                     continue;
                 }
-                if (existingState.canBeReplaced()) {
-                    level.setBlock(
-                            collisionPos,
-                            collisionState
-                                    .setValue(
-                                            StoneGodStatueCollisionBlock.OFFSET_X,
-                                            StoneGodStatueCollisionBlock.encodeOffset(cell.offsetX())
-                                    )
-                                    .setValue(
-                                            StoneGodStatueCollisionBlock.OFFSET_Z,
-                                            StoneGodStatueCollisionBlock.encodeOffset(cell.offsetZ())
-                                    )
-                                    .setValue(StoneGodStatueCollisionBlock.SEGMENT, segment),
-                            UPDATE_ALL
-                    );
+                for (int segment = 0; segment < HEIGHT; segment++) {
+                    BlockPos candidate = base.offset(offsetX, segment, offsetZ);
+                    BlockState candidateState = level.getBlockState(candidate);
+                    if (candidateState.getBlock() instanceof StoneGodStatueCollisionBlock
+                            && StoneGodStatueCollisionBlock.anchorOf(candidate, candidateState).equals(base)
+                            && !expected.contains(new CellPosition(offsetX, segment, offsetZ))) {
+                        StoneGodStatueCollisionBlock.removeWithoutDestroyingAnchor(level, candidate);
+                    }
                 }
             }
         }
@@ -134,7 +171,7 @@ public final class StoneGodStatueBlock extends Block implements EntityBlock {
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return state.getValue(FACING).getAxis() == Direction.Axis.X ? eastShape : northShape;
+        return getCollisionSlice(state, 0, state.getValue(SEGMENT), 0);
     }
 
     @Override
@@ -165,21 +202,36 @@ public final class StoneGodStatueBlock extends Block implements EntityBlock {
             int removedSegment = state.getValue(SEGMENT);
             BlockPos base = pos.below(removedSegment);
             Direction facing = state.getValue(FACING);
-            for (CollisionCell cell : collisionCells(facing)) {
-                for (int segment = 0; segment < HEIGHT; segment++) {
-                    BlockPos segmentPos = base.offset(cell.offsetX(), segment, cell.offsetZ());
-                    if (segmentPos.equals(pos)) {
+            for (int segment = 0; segment < HEIGHT; segment++) {
+                BlockPos segmentPos = base.above(segment);
+                if (segmentPos.equals(pos)) {
+                    continue;
+                }
+                BlockState segmentState = level.getBlockState(segmentPos);
+                if (isMatchingSegment(segmentState, facing, segment)) {
+                    level.setBlock(
+                            segmentPos,
+                            Blocks.AIR.defaultBlockState(),
+                            UPDATE_ALL | UPDATE_SUPPRESS_DROPS
+                    );
+                }
+            }
+            for (int offsetX = -StoneGodStatueCollisionBlock.maxOffset();
+                    offsetX <= StoneGodStatueCollisionBlock.maxOffset();
+                    offsetX++) {
+                for (int offsetZ = -StoneGodStatueCollisionBlock.maxOffset();
+                        offsetZ <= StoneGodStatueCollisionBlock.maxOffset();
+                        offsetZ++) {
+                    if (offsetX == 0 && offsetZ == 0) {
                         continue;
                     }
-                    BlockState segmentState = level.getBlockState(segmentPos);
-                    if ((cell.offsetX() == 0 && cell.offsetZ() == 0
-                            && isMatchingSegment(segmentState, facing, segment))
-                            || isMatchingCollisionSegment(segmentState, cell, segment)) {
-                        level.setBlock(
-                                segmentPos,
-                                Blocks.AIR.defaultBlockState(),
-                                UPDATE_ALL | UPDATE_SUPPRESS_DROPS
-                        );
+                    for (int segment = 0; segment < HEIGHT; segment++) {
+                        BlockPos collisionPos = base.offset(offsetX, segment, offsetZ);
+                        BlockState collisionState = level.getBlockState(collisionPos);
+                        if (collisionState.getBlock() instanceof StoneGodStatueCollisionBlock
+                                && StoneGodStatueCollisionBlock.anchorOf(collisionPos, collisionState).equals(base)) {
+                            StoneGodStatueCollisionBlock.removeWithoutDestroyingAnchor(level, collisionPos);
+                        }
                     }
                 }
             }
@@ -208,42 +260,25 @@ public final class StoneGodStatueBlock extends Block implements EntityBlock {
                 && state.getValue(SEGMENT) == segment;
     }
 
-    VoxelShape getCollisionSlice(BlockState state, int offsetX, int offsetZ) {
-        for (CollisionCell cell : collisionCells(state.getValue(FACING))) {
-            if (cell.offsetX() == offsetX && cell.offsetZ() == offsetZ) {
+    VoxelShape getCollisionSlice(BlockState state, int offsetX, int segment, int offsetZ) {
+        for (StoneGodStatueCollisionModel.Cell cell : collisionCells(state.getValue(FACING))) {
+            if (cell.offsetX() == offsetX
+                    && cell.segment() == segment
+                    && cell.offsetZ() == offsetZ) {
                 return cell.shape();
             }
         }
-        return Shapes.block();
+        return Shapes.empty();
     }
 
-    private List<CollisionCell> collisionCells(Direction facing) {
-        return facing.getAxis() == Direction.Axis.X ? eastCollisionCells : northCollisionCells;
+    private List<StoneGodStatueCollisionModel.Cell> collisionCells(Direction facing) {
+        return collisionCellsByDirection.get(facing);
     }
 
-    private static List<CollisionCell> createCollisionCells(VoxelShape shape) {
-        AABB bounds = shape.bounds();
-        int minX = Mth.floor(bounds.minX);
-        int maxX = Mth.ceil(bounds.maxX) - 1;
-        int minZ = Mth.floor(bounds.minZ);
-        int maxZ = Mth.ceil(bounds.maxZ) - 1;
-        List<CollisionCell> cells = new ArrayList<>((maxX - minX + 1) * (maxZ - minZ + 1));
-        for (int offsetX = minX; offsetX <= maxX; offsetX++) {
-            for (int offsetZ = minZ; offsetZ <= maxZ; offsetZ++) {
-                VoxelShape slice = Shapes.join(
-                        shape.move(-offsetX, 0.0D, -offsetZ),
-                        Shapes.block(),
-                        BooleanOp.AND
-                ).optimize();
-                if (!slice.isEmpty()) {
-                    cells.add(new CollisionCell(offsetX, offsetZ, slice));
-                }
-            }
-        }
-        return List.copyOf(cells);
-    }
-
-    private static boolean isMatchingCollisionSegment(BlockState state, CollisionCell cell, int segment) {
+    private static boolean isMatchingCollisionSegment(
+            BlockState state,
+            StoneGodStatueCollisionModel.Cell cell
+    ) {
         return state.getBlock() instanceof StoneGodStatueCollisionBlock
                 && StoneGodStatueCollisionBlock.decodeOffset(
                         state.getValue(StoneGodStatueCollisionBlock.OFFSET_X)
@@ -251,10 +286,10 @@ public final class StoneGodStatueBlock extends Block implements EntityBlock {
                 && StoneGodStatueCollisionBlock.decodeOffset(
                         state.getValue(StoneGodStatueCollisionBlock.OFFSET_Z)
                 ) == cell.offsetZ()
-                && state.getValue(StoneGodStatueCollisionBlock.SEGMENT) == segment;
+                && state.getValue(StoneGodStatueCollisionBlock.SEGMENT) == cell.segment();
     }
 
-    private record CollisionCell(int offsetX, int offsetZ, VoxelShape shape) {
+    private record CellPosition(int offsetX, int segment, int offsetZ) {
     }
 
     @Override

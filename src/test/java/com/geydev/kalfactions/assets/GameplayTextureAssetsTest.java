@@ -8,6 +8,8 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -198,6 +200,109 @@ final class GameplayTextureAssetsTest {
         assertTrue(keyModel.contains("\"scale\": [0.55, 0.55, 0.55]"));
     }
 
+    @Test
+    void ghostKeyTexturesAreAnimatedExactPixelArtAssembly() throws IOException {
+        List<String> names = List.of(
+                "ghost_key_bow_fragment",
+                "ghost_key_shaft_fragment",
+                "ghost_key_bit_fragment",
+                "ghost_key"
+        );
+
+        for (String name : names) {
+            String texturePath = "/assets/kingdoms/textures/item/" + name + ".png";
+            BufferedImage image = read(texturePath);
+            assertEquals(64, image.getWidth());
+            assertEquals(512, image.getHeight());
+            assertTrue(image.getColorModel().hasAlpha());
+            assertEquals(6, readBytes(texturePath)[25]);
+            assertTrue(hasBinaryAlpha(image));
+            assertTrue(opaqueColors(image).size() <= 17);
+
+            for (int frame = 0; frame < 8; frame++) {
+                assertEquals(0, image.getRGB(0, frame * 64) >>> 24);
+                assertEquals(0, image.getRGB(63, frame * 64) >>> 24);
+                assertEquals(0, image.getRGB(0, frame * 64 + 63) >>> 24);
+                assertEquals(0, image.getRGB(63, frame * 64 + 63) >>> 24);
+                assertTrue(frameHasOpaquePixels(image, frame));
+            }
+
+            String metadata = readText(texturePath + ".mcmeta");
+            assertTrue(metadata.contains("\"frametime\": 3"));
+            assertTrue(metadata.contains("\"interpolate\": false"));
+            assertTrue(metadata.contains("\"frames\": [0, 1, 2, 3, 4, 5, 6, 7]"));
+
+            String model = readText("/assets/kingdoms/models/item/" + name + ".json");
+            assertTrue(model.contains("\"parent\": \"minecraft:item/generated\""));
+            assertTrue(model.contains("\"layer0\": \"kingdoms:item/" + name + "\""));
+        }
+
+        BufferedImage bow = read("/assets/kingdoms/textures/item/ghost_key_bow_fragment.png");
+        BufferedImage shaft = read("/assets/kingdoms/textures/item/ghost_key_shaft_fragment.png");
+        BufferedImage bit = read("/assets/kingdoms/textures/item/ghost_key_bit_fragment.png");
+        BufferedImage key = read("/assets/kingdoms/textures/item/ghost_key.png");
+
+        assertStableFrameMask(bow);
+        assertStableFrameMask(shaft);
+        assertStableFrameMask(bit);
+        assertTrue(changedPixels(bow, 0, 1) > 0);
+        assertTrue(changedPixels(shaft, 0, 1) > 0);
+        assertTrue(changedPixels(bit, 0, 1) > 0);
+        assertTrue(changedPixels(key, 0, 1) > 0);
+
+        for (int frame = 0; frame < 8; frame++) {
+            BufferedImage composed = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+            copyTranslatedFrame(composed, bow, frame, 16, -18);
+            copyTranslatedFrame(composed, shaft, frame, -2, 6);
+            copyTranslatedFrame(composed, bit, frame, -18, 23);
+
+            int extraPixels = 0;
+            for (int y = 0; y < 64; y++) {
+                for (int x = 0; x < 64; x++) {
+                    int expected = composed.getRGB(x, y);
+                    int actual = key.getRGB(x, frame * 64 + y);
+                    if ((expected >>> 24) != 0) {
+                        assertEquals(expected, actual, frame + ":" + x + "," + y);
+                    } else if ((actual >>> 24) != 0) {
+                        extraPixels++;
+                    }
+                }
+            }
+
+            int expectedWisps = switch (frame) {
+                case 3 -> 1;
+                case 4 -> 4;
+                case 5 -> 3;
+                default -> 0;
+            };
+            assertEquals(expectedWisps, extraPixels, "frame " + frame);
+        }
+
+        String modItems = Files.readString(Path.of(
+                "src/main/java/com/geydev/kalfactions/registry/ModItems.java"
+        ));
+        String creativeTabs = Files.readString(Path.of(
+                "src/main/java/com/geydev/kalfactions/registry/ModCreativeTabs.java"
+        ));
+        List<String> fields = List.of(
+                "GHOST_KEY_BOW_FRAGMENT",
+                "GHOST_KEY_SHAFT_FRAGMENT",
+                "GHOST_KEY_BIT_FRAGMENT",
+                "GHOST_KEY"
+        );
+        for (int i = 0; i < names.size(); i++) {
+            assertTrue(modItems.contains("\"" + names.get(i) + "\""));
+            assertTrue(creativeTabs.contains("ModItems." + fields.get(i) + ".get()"));
+            assertTrue(readText("/assets/kingdoms/lang/en_us.json")
+                    .contains("\"item.kingdoms." + names.get(i) + "\""));
+            assertTrue(readText("/assets/kingdoms/lang/ru_ru.json")
+                    .contains("\"item.kingdoms." + names.get(i) + "\""));
+        }
+        Path source = Path.of("art/aseprite/items/ghost_key_set.aseprite");
+        assertTrue(Files.isRegularFile(source));
+        assertTrue(Files.size(source) > 0);
+    }
+
     private static BufferedImage read(String path) throws IOException {
         try (InputStream input = GameplayTextureAssetsTest.class.getResourceAsStream(path)) {
             assertNotNull(input, path);
@@ -230,6 +335,74 @@ final class GameplayTextureAssetsTest {
             }
         }
         return false;
+    }
+
+    private static boolean frameHasOpaquePixels(BufferedImage image, int frame) {
+        int size = image.getWidth();
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                if ((image.getRGB(x, frame * size + y) >>> 24) == 255) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static void assertStableFrameMask(BufferedImage image) {
+        int size = image.getWidth();
+        for (int frame = 1; frame < 8; frame++) {
+            for (int y = 0; y < size; y++) {
+                for (int x = 0; x < size; x++) {
+                    assertEquals(
+                            image.getRGB(x, y) >>> 24,
+                            image.getRGB(x, frame * size + y) >>> 24,
+                            frame + ":" + x + "," + y
+                    );
+                }
+            }
+        }
+    }
+
+    private static int changedPixels(BufferedImage image, int firstFrame, int secondFrame) {
+        int changed = 0;
+        int size = image.getWidth();
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                if (image.getRGB(x, firstFrame * size + y)
+                        != image.getRGB(x, secondFrame * size + y)) {
+                    changed++;
+                }
+            }
+        }
+        return changed;
+    }
+
+    private static void copyTranslatedFrame(
+            BufferedImage target,
+            BufferedImage source,
+            int frame,
+            int dx,
+            int dy
+    ) {
+        int size = source.getWidth();
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                int argb = source.getRGB(x, frame * size + y);
+                if ((argb >>> 24) == 0) {
+                    continue;
+                }
+                int targetX = x + dx;
+                int targetY = y + dy;
+                assertTrue(targetX >= 0 && targetX < target.getWidth());
+                assertTrue(targetY >= 0 && targetY < target.getHeight());
+                int existing = target.getRGB(targetX, targetY);
+                if ((existing >>> 24) != 0) {
+                    assertEquals(existing, argb, targetX + "," + targetY);
+                }
+                target.setRGB(targetX, targetY, argb);
+            }
+        }
     }
 
     private static boolean isFullyOpaque(BufferedImage image) {

@@ -1527,5 +1527,6 @@
   "item.kingdoms.mossy_key_shaft_fragment": "Mossy Key Shaft",
   "item.kingdoms.mossy_key_bit_fragment": "Mossy Key Bit",
   "item.kingdoms.mossy_key": "Mossy Key",
-  "screen.kingdoms.key_forge.progress": "Assembly: %s%% · %s ticks remaining"
+  "screen.kingdoms.key_forge.progress": "Assembly: %s%% · %s ticks remaining",
+  "block.kingdoms.dungeon_key_pedestal": "Key Pedestal"
 }
