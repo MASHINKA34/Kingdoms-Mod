@@ -1507,5 +1507,6 @@
   "screen.kingdoms.research_bench.speed": "Speed: one item per %s s",
   "screen.kingdoms.research_bench.material": "This item: +%s science",
   "screen.kingdoms.research_bench.remaining": "Until science: %s",
-  "death.attack.kingdoms_black_zone": "%1$s died from a kiss on hot lips"
+  "death.attack.kingdoms_black_zone": "%1$s died from a kiss on hot lips",
+  "block.kingdoms.sculk_key_forge": "Sculk Key Forge"
 }

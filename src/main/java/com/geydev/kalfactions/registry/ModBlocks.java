@@ -14,6 +14,7 @@ import com.geydev.kalfactions.block.OutpostCoreBlock;
 import com.geydev.kalfactions.block.QuarryCoreBlock;
 import com.geydev.kalfactions.block.ResearchBenchBlock;
 import com.geydev.kalfactions.block.SanctuaryCoreBlock;
+import com.geydev.kalfactions.block.SculkKeyForgeBlock;
 import com.geydev.kalfactions.block.StatueScienceBlock;
 import com.geydev.kalfactions.block.StoneGodStatueBlock;
 import com.geydev.kalfactions.block.StoneGodStatueCollisionBlock;
@@ -253,6 +254,17 @@ public final class ModBlocks {
                     .mapColor(MapColor.WOOD)
                     .strength(3.0F, 9.0F)
                     .sound(SoundType.WOOD))
+    );
+
+    public static final DeferredBlock<SculkKeyForgeBlock> SCULK_KEY_FORGE = BLOCKS.register(
+            "sculk_key_forge",
+            () -> new SculkKeyForgeBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BLACK)
+                    .strength(4.0F, 12.0F)
+                    .sound(SoundType.SCULK)
+                    .lightLevel(state -> 5)
+                    .noOcclusion()
+                    .dynamicShape())
     );
 
     public static void register(IEventBus bus) {

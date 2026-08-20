@@ -1507,5 +1507,6 @@
   "screen.kingdoms.research_bench.speed": "Скорость: одна позиция за %s с",
   "screen.kingdoms.research_bench.material": "Этот предмет: +%s науки",
   "screen.kingdoms.research_bench.remaining": "До науки: %s",
-  "death.attack.kingdoms_black_zone": "%1$s умер от поцелуя в жаркие уста"
+  "death.attack.kingdoms_black_zone": "%1$s умер от поцелуя в жаркие уста",
+  "block.kingdoms.sculk_key_forge": "Скалковая кузница ключей"
 }

@@ -252,6 +252,9 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> RESEARCH_BENCH =
             ITEMS.registerSimpleBlockItem(ModBlocks.RESEARCH_BENCH);
 
+    public static final DeferredItem<BlockItem> SCULK_KEY_FORGE =
+            ITEMS.registerSimpleBlockItem(ModBlocks.SCULK_KEY_FORGE);
+
     public static Item crystalFor(InfluenceType type) {
         return switch (type) {
             case SCIENCE -> CRYSTAL_SCIENCE.get();
