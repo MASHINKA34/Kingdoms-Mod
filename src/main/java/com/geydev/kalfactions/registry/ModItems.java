@@ -281,6 +281,26 @@ public final class ModItems {
             () -> new Item(new Item.Properties())
     );
 
+    public static final DeferredItem<Item> INFERNAL_KEY_BOW_FRAGMENT = ITEMS.register(
+            "infernal_key_bow_fragment",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static final DeferredItem<Item> INFERNAL_KEY_SHAFT_FRAGMENT = ITEMS.register(
+            "infernal_key_shaft_fragment",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static final DeferredItem<Item> INFERNAL_KEY_BIT_FRAGMENT = ITEMS.register(
+            "infernal_key_bit_fragment",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static final DeferredItem<Item> INFERNAL_KEY = ITEMS.register(
+            "infernal_key",
+            () -> new Item(new Item.Properties())
+    );
+
     public static final DeferredItem<Item> SCULK_KEY_BOW_FRAGMENT = ITEMS.register(
             "sculk_key_bow_fragment",
             () -> new Item(new Item.Properties())

@@ -1518,5 +1518,9 @@
   "item.kingdoms.sculk_key_bow_fragment": "Sculk Key Bow",
   "item.kingdoms.sculk_key_shaft_fragment": "Sculk Key Shaft",
   "item.kingdoms.sculk_key_bit_fragment": "Sculk Key Bit",
-  "item.kingdoms.sculk_key": "Sculk Key"
+  "item.kingdoms.sculk_key": "Sculk Key",
+  "item.kingdoms.infernal_key_bow_fragment": "Infernal Key Bow",
+  "item.kingdoms.infernal_key_shaft_fragment": "Infernal Key Shaft",
+  "item.kingdoms.infernal_key_bit_fragment": "Infernal Key Bit",
+  "item.kingdoms.infernal_key": "Infernal Key"
 }
