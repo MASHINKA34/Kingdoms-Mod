@@ -1510,5 +1510,9 @@
   "death.attack.kingdoms_black_zone": "%1$s умер от поцелуя в жаркие уста",
   "block.kingdoms.sculk_key_forge": "Скалковая кузница ключей",
   "block.kingdoms.infernal_key_forge": "Адская кузница ключей",
-  "block.kingdoms.mossy_key_forge": "Мшистая кузница ключей"
+  "block.kingdoms.mossy_key_forge": "Мшистая кузница ключей",
+  "item.kingdoms.ghost_key_bow_fragment": "Рукоять призрачного ключа",
+  "item.kingdoms.ghost_key_shaft_fragment": "Стержень призрачного ключа",
+  "item.kingdoms.ghost_key_bit_fragment": "Зубцы призрачного ключа",
+  "item.kingdoms.ghost_key": "Призрачный ключ"
 }

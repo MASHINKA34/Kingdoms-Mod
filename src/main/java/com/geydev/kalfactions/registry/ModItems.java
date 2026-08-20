@@ -261,6 +261,26 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> MOSSY_KEY_FORGE =
             ITEMS.registerSimpleBlockItem(ModBlocks.MOSSY_KEY_FORGE);
 
+    public static final DeferredItem<Item> GHOST_KEY_BOW_FRAGMENT = ITEMS.register(
+            "ghost_key_bow_fragment",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static final DeferredItem<Item> GHOST_KEY_SHAFT_FRAGMENT = ITEMS.register(
+            "ghost_key_shaft_fragment",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static final DeferredItem<Item> GHOST_KEY_BIT_FRAGMENT = ITEMS.register(
+            "ghost_key_bit_fragment",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static final DeferredItem<Item> GHOST_KEY = ITEMS.register(
+            "ghost_key",
+            () -> new Item(new Item.Properties())
+    );
+
     public static Item crystalFor(InfluenceType type) {
         return switch (type) {
             case SCIENCE -> CRYSTAL_SCIENCE.get();

@@ -90,7 +90,11 @@ public final class ModCreativeTabs {
                 ModItems.BLACKZONE_ANTIDOTE.get(),
                 ModItems.MUSIC_BLOCK.get(),
                 ModItems.SCULK_KEY_FORGE.get(),
-                ModItems.MOSSY_KEY_FORGE.get()
+                ModItems.MOSSY_KEY_FORGE.get(),
+                ModItems.GHOST_KEY_BOW_FRAGMENT.get(),
+                ModItems.GHOST_KEY_SHAFT_FRAGMENT.get(),
+                ModItems.GHOST_KEY_BIT_FRAGMENT.get(),
+                ModItems.GHOST_KEY.get()
         );
     }
 

@@ -1510,5 +1510,9 @@
   "death.attack.kingdoms_black_zone": "%1$s died from a kiss on hot lips",
   "block.kingdoms.sculk_key_forge": "Sculk Key Forge",
   "block.kingdoms.infernal_key_forge": "Infernal Key Forge",
-  "block.kingdoms.mossy_key_forge": "Mossy Key Forge"
+  "block.kingdoms.mossy_key_forge": "Mossy Key Forge",
+  "item.kingdoms.ghost_key_bow_fragment": "Spectral Key Bow",
+  "item.kingdoms.ghost_key_shaft_fragment": "Spectral Key Shaft",
+  "item.kingdoms.ghost_key_bit_fragment": "Spectral Key Bit",
+  "item.kingdoms.ghost_key": "Spectral Key"
 }
