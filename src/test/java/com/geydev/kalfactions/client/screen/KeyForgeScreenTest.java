@@ -26,6 +26,53 @@ final class KeyForgeScreenTest {
             "/assets/kingdoms/textures/gui/mossy_key_forge/mossy_key_forge.png";
     private static final String MOSSY_PROGRESS =
             "/assets/kingdoms/textures/gui/mossy_key_forge/progress.png";
+    private static final String GHOST_BACKGROUND =
+            "/assets/kingdoms/textures/gui/key_forge/ghost_key_forge.png";
+    private static final String GHOST_IDLE =
+            "/assets/kingdoms/textures/gui/key_forge/ghost_key_forge_idle.png";
+    private static final String GHOST_READY =
+            "/assets/kingdoms/textures/gui/key_forge/ghost_key_forge_ready.png";
+    private static final String GHOST_PROGRESS =
+            "/assets/kingdoms/textures/gui/key_forge/ghost_key_forge_progress.png";
+    private static final String GHOST_COMPLETE =
+            "/assets/kingdoms/textures/gui/key_forge/ghost_key_forge_complete.png";
+
+    @Test
+    void ghostLayoutUsesExactAnimationGridsAndServerProgressFrames() throws IOException {
+        BufferedImage background = read(GHOST_BACKGROUND);
+        BufferedImage idle = read(GHOST_IDLE);
+        BufferedImage ready = read(GHOST_READY);
+        BufferedImage progress = read(GHOST_PROGRESS);
+        BufferedImage complete = read(GHOST_COMPLETE);
+
+        assertEquals(KeyForgeScreen.PANEL_WIDTH, background.getWidth());
+        assertEquals(KeyForgeScreen.GHOST_PANEL_HEIGHT, background.getHeight());
+        assertSheet(idle, KeyForgeScreen.GHOST_IDLE_COLUMNS, 2);
+        assertSheet(ready, KeyForgeScreen.GHOST_READY_COLUMNS, 2);
+        assertSheet(progress, KeyForgeScreen.GHOST_PROGRESS_COLUMNS, 4);
+        assertSheet(complete, KeyForgeScreen.GHOST_COMPLETE_COLUMNS, 2);
+        assertTrue(hasBinaryAlpha(background));
+        assertTrue(hasTransparentPixels(background));
+        assertTrue(hasOpaquePixels(background));
+        assertTrue(hasBinaryAlpha(idle));
+        assertTrue(hasBinaryAlpha(ready));
+        assertTrue(hasBinaryAlpha(progress));
+        assertTrue(hasBinaryAlpha(complete));
+        assertEquals(0, KeyForgeScreen.ghostProgressFrame(0.0F));
+        assertEquals(6, KeyForgeScreen.ghostProgressFrame(0.25F));
+        assertEquals(12, KeyForgeScreen.ghostProgressFrame(0.5F));
+        assertEquals(17, KeyForgeScreen.ghostProgressFrame(0.75F));
+        assertEquals(23, KeyForgeScreen.ghostProgressFrame(1.0F));
+        assertEquals(35, KeyForgeMenu.GHOST_LEFT_INPUT_X);
+        assertEquals(79, KeyForgeMenu.GHOST_CENTER_INPUT_X);
+        assertEquals(123, KeyForgeMenu.GHOST_RIGHT_INPUT_X);
+        assertEquals(29, KeyForgeMenu.GHOST_INPUT_Y);
+        assertEquals(79, KeyForgeMenu.GHOST_OUTPUT_X);
+        assertEquals(83, KeyForgeMenu.GHOST_OUTPUT_Y);
+        assertEquals(120, KeyForgeMenu.GHOST_PLAYER_INVENTORY_Y);
+        assertEquals(178, KeyForgeMenu.GHOST_PLAYER_HOTBAR_Y);
+        assertTrue((270 - KeyForgeScreen.GHOST_PANEL_HEIGHT) / 2 >= 0);
+    }
 
     @Test
     void sculkLayoutAndTexturesUseNativePixelDimensions() throws IOException {
@@ -138,6 +185,13 @@ final class KeyForgeScreenTest {
         assertEquals(height - KeyForgeScreen.PANEL_HEIGHT, top * 2 + (height - KeyForgeScreen.PANEL_HEIGHT) % 2);
         assertTrue(left >= 0);
         assertTrue(top >= 0);
+    }
+
+    private static void assertSheet(BufferedImage image, int columns, int rows) {
+        assertEquals(KeyForgeScreen.GHOST_OVERLAY_WIDTH * columns, image.getWidth());
+        assertEquals(KeyForgeScreen.GHOST_OVERLAY_HEIGHT * rows, image.getHeight());
+        assertTrue(hasTransparentPixels(image));
+        assertTrue(hasOpaquePixels(image));
     }
 
     private static BufferedImage read(String path) throws IOException {

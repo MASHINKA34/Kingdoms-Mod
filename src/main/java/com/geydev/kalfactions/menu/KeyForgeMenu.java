@@ -22,6 +22,14 @@ public final class KeyForgeMenu extends AbstractContainerMenu {
     public static final int INPUT_Y = 27;
     public static final int OUTPUT_X = 79;
     public static final int OUTPUT_Y = 76;
+    public static final int GHOST_LEFT_INPUT_X = 35;
+    public static final int GHOST_CENTER_INPUT_X = 79;
+    public static final int GHOST_RIGHT_INPUT_X = 123;
+    public static final int GHOST_INPUT_Y = 29;
+    public static final int GHOST_OUTPUT_X = 79;
+    public static final int GHOST_OUTPUT_Y = 83;
+    public static final int GHOST_PLAYER_INVENTORY_Y = 120;
+    public static final int GHOST_PLAYER_HOTBAR_Y = 178;
     public static final int PLAYER_INVENTORY_X = 7;
     public static final int PLAYER_INVENTORY_Y = 108;
     public static final int PLAYER_HOTBAR_Y = 166;
@@ -64,10 +72,19 @@ public final class KeyForgeMenu extends AbstractContainerMenu {
         this.forgePos = forgePos.immutable();
         this.forgeType = forgeType;
         container.startOpen(playerInventory.player);
-        addInputSlot(KeyForgeBlockEntity.BOW_SLOT, LEFT_INPUT_X, INPUT_Y);
-        addInputSlot(KeyForgeBlockEntity.SHAFT_SLOT, CENTER_INPUT_X, INPUT_Y);
-        addInputSlot(KeyForgeBlockEntity.BIT_SLOT, RIGHT_INPUT_X, INPUT_Y);
-        addSlot(new Slot(container, KeyForgeBlockEntity.RESULT_SLOT, OUTPUT_X, OUTPUT_Y) {
+        boolean ghost = forgeType == KeyForgeType.GHOST;
+        int leftInputX = ghost ? GHOST_LEFT_INPUT_X : LEFT_INPUT_X;
+        int centerInputX = ghost ? GHOST_CENTER_INPUT_X : CENTER_INPUT_X;
+        int rightInputX = ghost ? GHOST_RIGHT_INPUT_X : RIGHT_INPUT_X;
+        int inputY = ghost ? GHOST_INPUT_Y : INPUT_Y;
+        int outputX = ghost ? GHOST_OUTPUT_X : OUTPUT_X;
+        int outputY = ghost ? GHOST_OUTPUT_Y : OUTPUT_Y;
+        int playerInventoryY = ghost ? GHOST_PLAYER_INVENTORY_Y : PLAYER_INVENTORY_Y;
+        int playerHotbarY = ghost ? GHOST_PLAYER_HOTBAR_Y : PLAYER_HOTBAR_Y;
+        addInputSlot(KeyForgeBlockEntity.BOW_SLOT, leftInputX, inputY);
+        addInputSlot(KeyForgeBlockEntity.SHAFT_SLOT, centerInputX, inputY);
+        addInputSlot(KeyForgeBlockEntity.BIT_SLOT, rightInputX, inputY);
+        addSlot(new Slot(container, KeyForgeBlockEntity.RESULT_SLOT, outputX, outputY) {
             @Override
             public boolean mayPlace(ItemStack stack) {
                 return false;
@@ -84,7 +101,7 @@ public final class KeyForgeMenu extends AbstractContainerMenu {
                         playerInventory,
                         column + row * 9 + 9,
                         PLAYER_INVENTORY_X + column * 18,
-                        PLAYER_INVENTORY_Y + row * 18
+                        playerInventoryY + row * 18
                 ));
             }
         }
@@ -93,7 +110,7 @@ public final class KeyForgeMenu extends AbstractContainerMenu {
                     playerInventory,
                     column,
                     PLAYER_INVENTORY_X + column * 18,
-                    PLAYER_HOTBAR_Y
+                    playerHotbarY
             ));
         }
         addDataSlots(data);
@@ -192,6 +209,12 @@ public final class KeyForgeMenu extends AbstractContainerMenu {
 
     public int remainingTicks() {
         return Math.max(0, totalTicks() - progress());
+    }
+
+    public boolean hasCompleteInput() {
+        return getSlot(KeyForgeBlockEntity.BOW_SLOT).getItem().is(forgeType.bowFragment())
+                && getSlot(KeyForgeBlockEntity.SHAFT_SLOT).getItem().is(forgeType.shaftFragment())
+                && getSlot(KeyForgeBlockEntity.BIT_SLOT).getItem().is(forgeType.bitFragment());
     }
 
     public BlockPos forgePos() {

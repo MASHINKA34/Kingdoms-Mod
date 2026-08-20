@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.block.KeyForgeBlockEntity;
 import com.geydev.kalfactions.block.KeyForgeType;
 import com.geydev.kalfactions.menu.KeyForgeMenu;
 import net.minecraft.client.gui.GuiGraphics;
@@ -12,15 +13,26 @@ import net.minecraft.world.entity.player.Inventory;
 public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> {
     public static final int PANEL_WIDTH = 176;
     public static final int PANEL_HEIGHT = 190;
+    public static final int GHOST_PANEL_HEIGHT = 202;
     public static final int SCULK_PROGRESS_X = 48;
     public static final int SCULK_PROGRESS_Y = 46;
     public static final int SCULK_PROGRESS_WIDTH = 80;
     public static final int SCULK_PROGRESS_HEIGHT = 29;
     public static final int SCULK_PROGRESS_TEXTURE_HEIGHT = 58;
-    public static final int GHOST_PROGRESS_X = 61;
-    public static final int GHOST_PROGRESS_Y = 59;
-    public static final int GHOST_PROGRESS_WIDTH = 54;
-    public static final int GHOST_PROGRESS_HEIGHT = 7;
+    public static final int GHOST_PROGRESS_X = 66;
+    public static final int GHOST_PROGRESS_Y = 43;
+    public static final int GHOST_PROGRESS_WIDTH = 43;
+    public static final int GHOST_PROGRESS_HEIGHT = 43;
+    public static final int GHOST_OVERLAY_WIDTH = 176;
+    public static final int GHOST_OVERLAY_HEIGHT = 106;
+    public static final int GHOST_IDLE_FRAMES = 8;
+    public static final int GHOST_READY_FRAMES = 6;
+    public static final int GHOST_PROGRESS_FRAMES = 24;
+    public static final int GHOST_COMPLETE_FRAMES = 10;
+    public static final int GHOST_IDLE_COLUMNS = 4;
+    public static final int GHOST_READY_COLUMNS = 3;
+    public static final int GHOST_PROGRESS_COLUMNS = 6;
+    public static final int GHOST_COMPLETE_COLUMNS = 5;
     public static final int INFERNAL_PROGRESS_X = 42;
     public static final int INFERNAL_PROGRESS_Y = 46;
     public static final int INFERNAL_PROGRESS_WIDTH = 92;
@@ -47,6 +59,15 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
     private static final int INFERNAL_SPOUT_WIDTH = 5;
     private static final int INFERNAL_SPOUT_HEIGHT = 10;
     private static final int INFERNAL_HIGHLIGHT_X = 91;
+    private static final int GHOST_IDLE_ROWS = 2;
+    private static final int GHOST_READY_ROWS = 2;
+    private static final int GHOST_PROGRESS_ROWS = 4;
+    private static final int GHOST_COMPLETE_ROWS = 2;
+    private static final int GHOST_COMPLETE_DURATION_TICKS = 14;
+    private static final ResourceLocation GHOST_IDLE_TEXTURE = ghostTexture("ghost_key_forge_idle.png");
+    private static final ResourceLocation GHOST_READY_TEXTURE = ghostTexture("ghost_key_forge_ready.png");
+    private static final ResourceLocation GHOST_PROGRESS_TEXTURE = ghostTexture("ghost_key_forge_progress.png");
+    private static final ResourceLocation GHOST_COMPLETE_TEXTURE = ghostTexture("ghost_key_forge_complete.png");
 
     private static final ProgressPiece[][] SCULK_STAGES = {
             {piece(2, 0, 3, 2), piece(38, 0, 3, 2), piece(74, 0, 3, 2)},
@@ -64,24 +85,65 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
 
     private final ResourceLocation background;
     private final ResourceLocation progressTexture;
+    private int ghostCompleteTick = -1;
+    private boolean ghostObservedAssembly;
+    private boolean ghostResultPresent;
 
     public KeyForgeScreen(KeyForgeMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
         imageWidth = PANEL_WIDTH;
-        imageHeight = PANEL_HEIGHT;
-        titleLabelX = 8;
+        imageHeight = menu.forgeType() == KeyForgeType.GHOST ? GHOST_PANEL_HEIGHT : PANEL_HEIGHT;
+        titleLabelX = menu.forgeType() == KeyForgeType.GHOST ? 15 : 8;
         titleLabelY = 7;
-        inventoryLabelX = KeyForgeMenu.PLAYER_INVENTORY_X;
-        inventoryLabelY = 97;
+        inventoryLabelX = menu.forgeType() == KeyForgeType.GHOST
+                ? 15
+                : KeyForgeMenu.PLAYER_INVENTORY_X;
+        inventoryLabelY = menu.forgeType() == KeyForgeType.GHOST ? 107 : 97;
         String path = menu.forgeType().serializedName();
         background = ResourceLocation.fromNamespaceAndPath(
                 KalFactions.MOD_ID,
-                "textures/gui/" + path + "/" + path + ".png"
+                menu.forgeType() == KeyForgeType.GHOST
+                        ? "textures/gui/key_forge/ghost_key_forge.png"
+                        : "textures/gui/" + path + "/" + path + ".png"
         );
         progressTexture = ResourceLocation.fromNamespaceAndPath(
                 KalFactions.MOD_ID,
                 "textures/gui/" + path + "/progress.png"
         );
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        if (menu.forgeType() == KeyForgeType.GHOST) {
+            ghostResultPresent = menu.getSlot(KeyForgeBlockEntity.RESULT_SLOT).hasItem();
+            ghostObservedAssembly = menu.progress() > 0;
+            ghostCompleteTick = -1;
+        }
+    }
+
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+        if (menu.forgeType() != KeyForgeType.GHOST) {
+            return;
+        }
+        if (ghostCompleteTick >= 0 && ++ghostCompleteTick >= GHOST_COMPLETE_DURATION_TICKS) {
+            ghostCompleteTick = -1;
+        }
+        boolean hasResult = menu.getSlot(KeyForgeBlockEntity.RESULT_SLOT).hasItem();
+        boolean hasInput = menu.hasCompleteInput();
+        if (!hasResult && (menu.progress() > 0 || hasInput)) {
+            ghostObservedAssembly = true;
+        }
+        if (hasResult && !ghostResultPresent && ghostObservedAssembly) {
+            ghostCompleteTick = 0;
+            ghostObservedAssembly = false;
+        }
+        if (!hasResult && menu.progress() == 0 && !hasInput) {
+            ghostObservedAssembly = false;
+        }
+        ghostResultPresent = hasResult;
     }
 
     @Override
@@ -112,9 +174,9 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
                 0.0F,
                 0.0F,
                 PANEL_WIDTH,
-                PANEL_HEIGHT,
+                imageHeight,
                 PANEL_WIDTH,
-                PANEL_HEIGHT
+                imageHeight
         );
         switch (menu.forgeType()) {
             case GHOST -> renderGhostProgress(graphics);
@@ -142,20 +204,71 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
     }
 
     private void renderGhostProgress(GuiGraphics graphics) {
-        int filled = Math.round(GHOST_PROGRESS_WIDTH * menu.progressFraction());
-        if (filled > 0) {
-            graphics.blit(
-                    progressTexture,
-                    leftPos + GHOST_PROGRESS_X,
-                    topPos + GHOST_PROGRESS_Y,
-                    0.0F,
-                    0.0F,
-                    filled,
-                    GHOST_PROGRESS_HEIGHT,
-                    GHOST_PROGRESS_WIDTH,
-                    GHOST_PROGRESS_HEIGHT
+        if (ghostCompleteTick >= 0) {
+            int frame = Math.min(
+                    GHOST_COMPLETE_FRAMES - 1,
+                    ghostCompleteTick * GHOST_COMPLETE_FRAMES / GHOST_COMPLETE_DURATION_TICKS
             );
+            renderGhostFrame(
+                    graphics,
+                    GHOST_COMPLETE_TEXTURE,
+                    frame,
+                    GHOST_COMPLETE_COLUMNS,
+                    GHOST_COMPLETE_ROWS
+            );
+            return;
         }
+        boolean hasResult = menu.getSlot(KeyForgeBlockEntity.RESULT_SLOT).hasItem();
+        if (menu.progress() > 0) {
+            renderGhostFrame(
+                    graphics,
+                    GHOST_PROGRESS_TEXTURE,
+                    ghostProgressFrame(menu.progressFraction()),
+                    GHOST_PROGRESS_COLUMNS,
+                    GHOST_PROGRESS_ROWS
+            );
+            return;
+        }
+        long gameTime = minecraft.level == null ? 0L : minecraft.level.getGameTime();
+        if (!hasResult && menu.hasCompleteInput()) {
+            renderGhostFrame(
+                    graphics,
+                    GHOST_READY_TEXTURE,
+                    (int) (gameTime / 2L % GHOST_READY_FRAMES),
+                    GHOST_READY_COLUMNS,
+                    GHOST_READY_ROWS
+            );
+            return;
+        }
+        renderGhostFrame(
+                graphics,
+                GHOST_IDLE_TEXTURE,
+                (int) (gameTime / 3L % GHOST_IDLE_FRAMES),
+                GHOST_IDLE_COLUMNS,
+                GHOST_IDLE_ROWS
+        );
+    }
+
+    private void renderGhostFrame(
+            GuiGraphics graphics,
+            ResourceLocation texture,
+            int frame,
+            int columns,
+            int rows
+    ) {
+        int textureX = frame % columns * GHOST_OVERLAY_WIDTH;
+        int textureY = frame / columns * GHOST_OVERLAY_HEIGHT;
+        graphics.blit(
+                texture,
+                leftPos,
+                topPos,
+                textureX,
+                textureY,
+                GHOST_OVERLAY_WIDTH,
+                GHOST_OVERLAY_HEIGHT,
+                columns * GHOST_OVERLAY_WIDTH,
+                rows * GHOST_OVERLAY_HEIGHT
+        );
     }
 
     private void renderSculkProgress(GuiGraphics graphics) {
@@ -263,6 +376,14 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
         );
     }
 
+    static int ghostProgressFrame(float progressFraction) {
+        return Math.clamp(
+                Math.round(progressFraction * (GHOST_PROGRESS_FRAMES - 1)),
+                0,
+                GHOST_PROGRESS_FRAMES - 1
+        );
+    }
+
     private void renderStage(GuiGraphics graphics, ProgressPiece[] pieces, int textureY) {
         for (ProgressPiece piece : pieces) {
             graphics.blit(
@@ -313,23 +434,31 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
         int text = switch (menu.forgeType()) {
-            case GHOST -> 0xFFD7F8FF;
+            case GHOST -> 0xFFF0FDFF;
             case SCULK -> 0xFFBDEFF1;
             case INFERNAL -> 0xFFE4C7AF;
             case MOSSY -> 0xFFE9E1B9;
         };
         int muted = switch (menu.forgeType()) {
-            case GHOST -> 0xFF9DB7C5;
+            case GHOST -> 0xFFC0D4E2;
             case SCULK -> 0xFF76969A;
             case INFERNAL -> 0xFF9F8172;
             case MOSSY -> 0xFF88916D;
         };
-        graphics.drawString(font, title, titleLabelX, titleLabelY, text, false);
-        graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, muted, false);
+        boolean shadow = menu.forgeType() == KeyForgeType.GHOST;
+        graphics.drawString(font, title, titleLabelX, titleLabelY, text, shadow);
+        graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, muted, shadow);
     }
 
     private static ProgressPiece piece(int x, int y, int width, int height) {
         return new ProgressPiece(x, y, width, height);
+    }
+
+    private static ResourceLocation ghostTexture(String name) {
+        return ResourceLocation.fromNamespaceAndPath(
+                KalFactions.MOD_ID,
+                "textures/gui/key_forge/" + name
+        );
     }
 
     private record ProgressPiece(int x, int y, int width, int height) {
