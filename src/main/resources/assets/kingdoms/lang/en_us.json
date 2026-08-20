@@ -1522,5 +1522,9 @@
   "item.kingdoms.infernal_key_bow_fragment": "Infernal Key Bow",
   "item.kingdoms.infernal_key_shaft_fragment": "Infernal Key Shaft",
   "item.kingdoms.infernal_key_bit_fragment": "Infernal Key Bit",
-  "item.kingdoms.infernal_key": "Infernal Key"
+  "item.kingdoms.infernal_key": "Infernal Key",
+  "item.kingdoms.mossy_key_bow_fragment": "Mossy Key Bow",
+  "item.kingdoms.mossy_key_shaft_fragment": "Mossy Key Shaft",
+  "item.kingdoms.mossy_key_bit_fragment": "Mossy Key Bit",
+  "item.kingdoms.mossy_key": "Mossy Key"
 }

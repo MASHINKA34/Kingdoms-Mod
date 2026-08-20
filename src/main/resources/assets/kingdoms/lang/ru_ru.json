@@ -1522,5 +1522,9 @@
   "item.kingdoms.infernal_key_bow_fragment": "Рукоять адского ключа",
   "item.kingdoms.infernal_key_shaft_fragment": "Стержень адского ключа",
   "item.kingdoms.infernal_key_bit_fragment": "Зубцы адского ключа",
-  "item.kingdoms.infernal_key": "Адский ключ"
+  "item.kingdoms.infernal_key": "Адский ключ",
+  "item.kingdoms.mossy_key_bow_fragment": "Рукоять мшистого ключа",
+  "item.kingdoms.mossy_key_shaft_fragment": "Стержень мшистого ключа",
+  "item.kingdoms.mossy_key_bit_fragment": "Зубцы мшистого ключа",
+  "item.kingdoms.mossy_key": "Мшистый ключ"
 }

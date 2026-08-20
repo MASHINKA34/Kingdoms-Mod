@@ -145,6 +145,59 @@ final class GameplayTextureAssetsTest {
         assertTrue(hotPixelsAreEmbedded(key));
     }
 
+    @Test
+    void mossyKeyTexturesAreExactOpaquePixelArtAssembly() throws IOException {
+        List<String> names = List.of(
+                "mossy_key_bow_fragment",
+                "mossy_key_shaft_fragment",
+                "mossy_key_bit_fragment",
+                "mossy_key"
+        );
+
+        for (String name : names) {
+            String texturePath = "/assets/kingdoms/textures/item/" + name + ".png";
+            BufferedImage image = read(texturePath);
+            assertSquare(image, 32);
+            assertTrue(image.getColorModel().hasAlpha());
+            assertEquals(6, readBytes(texturePath)[25]);
+            assertEquals(0, image.getRGB(0, 0) >>> 24);
+            assertEquals(0, image.getRGB(31, 0) >>> 24);
+            assertEquals(0, image.getRGB(0, 31) >>> 24);
+            assertEquals(0, image.getRGB(31, 31) >>> 24);
+            assertTrue(hasOpaquePixels(image));
+            assertTrue(hasBinaryAlpha(image));
+            assertTrue(opaqueColors(image).size() <= 13);
+            assertTrue(readText("/assets/kingdoms/models/item/" + name + ".json")
+                    .contains("\"layer0\": \"kingdoms:item/" + name + "\""));
+        }
+
+        BufferedImage bow = read("/assets/kingdoms/textures/item/mossy_key_bow_fragment.png");
+        BufferedImage shaft = read("/assets/kingdoms/textures/item/mossy_key_shaft_fragment.png");
+        BufferedImage bit = read("/assets/kingdoms/textures/item/mossy_key_bit_fragment.png");
+        BufferedImage key = read("/assets/kingdoms/textures/item/mossy_key.png");
+        BufferedImage composed = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
+
+        copyTranslated(composed, bow, 0, -8);
+        copyTranslated(composed, shaft, 0, 2);
+        copyTranslated(composed, bit, 0, 11);
+
+        for (int y = 0; y < 32; y++) {
+            for (int x = 0; x < 32; x++) {
+                assertEquals(composed.getRGB(x, y), key.getRGB(x, y), x + "," + y);
+            }
+        }
+
+        Set<Integer> colors = opaqueColors(key);
+        assertTrue(colors.contains(0xFF9F6543));
+        assertTrue(colors.contains(0xFF93998D));
+        assertTrue(colors.contains(0xFF5E6F33));
+        assertTrue(colors.contains(0xFFFFDA50));
+        String keyModel = readText("/assets/kingdoms/models/item/mossy_key.json");
+        assertTrue(keyModel.contains("\"rotation\": [0, -90, -155]"));
+        assertTrue(keyModel.contains("\"rotation\": [0, 90, 155]"));
+        assertTrue(keyModel.contains("\"scale\": [0.55, 0.55, 0.55]"));
+    }
+
     private static BufferedImage read(String path) throws IOException {
         try (InputStream input = GameplayTextureAssetsTest.class.getResourceAsStream(path)) {
             assertNotNull(input, path);
