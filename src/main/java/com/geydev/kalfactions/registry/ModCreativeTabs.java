@@ -59,6 +59,7 @@ public final class ModCreativeTabs {
                 ModItems.DUNGEON_CORE.get(),
                 ModItems.DUNGEON_CHEST.get(),
                 ModItems.GHOST_KEY_FORGE.get(),
+                ModItems.INFERNAL_KEY_FORGE.get(),
                 ModItems.ACCESS_TOOL.get(),
                 ModItems.OUTPOST_CHARTER.get(),
                 ModItems.QUARRY_ACTIVATOR.get(),
@@ -88,7 +89,8 @@ public final class ModCreativeTabs {
                 ModItems.BOSS_TROPHY_LEGENDARY.get(),
                 ModItems.BLACKZONE_ANTIDOTE.get(),
                 ModItems.MUSIC_BLOCK.get(),
-                ModItems.SCULK_KEY_FORGE.get()
+                ModItems.SCULK_KEY_FORGE.get(),
+                ModItems.MOSSY_KEY_FORGE.get()
         );
     }
 

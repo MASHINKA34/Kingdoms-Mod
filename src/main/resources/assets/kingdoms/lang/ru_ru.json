@@ -1508,5 +1508,7 @@
   "screen.kingdoms.research_bench.material": "Этот предмет: +%s науки",
   "screen.kingdoms.research_bench.remaining": "До науки: %s",
   "death.attack.kingdoms_black_zone": "%1$s умер от поцелуя в жаркие уста",
-  "block.kingdoms.sculk_key_forge": "Скалковая кузница ключей"
+  "block.kingdoms.sculk_key_forge": "Скалковая кузница ключей",
+  "block.kingdoms.infernal_key_forge": "Адская кузница ключей",
+  "block.kingdoms.mossy_key_forge": "Мшистая кузница ключей"
 }

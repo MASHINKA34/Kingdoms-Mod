@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "kingdoms:block/mossy_key_forge" },
+    "facing=east": { "model": "kingdoms:block/mossy_key_forge", "y": 90 },
+    "facing=south": { "model": "kingdoms:block/mossy_key_forge", "y": 180 },
+    "facing=west": { "model": "kingdoms:block/mossy_key_forge", "y": 270 }
+  }
+}

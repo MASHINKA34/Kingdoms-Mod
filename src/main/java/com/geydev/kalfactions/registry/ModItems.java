@@ -239,6 +239,9 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> GHOST_KEY_FORGE =
             ITEMS.registerSimpleBlockItem(ModBlocks.GHOST_KEY_FORGE);
 
+    public static final DeferredItem<BlockItem> INFERNAL_KEY_FORGE =
+            ITEMS.registerSimpleBlockItem(ModBlocks.INFERNAL_KEY_FORGE);
+
     public static final DeferredItem<BlackZoneAntidoteItem> BLACKZONE_ANTIDOTE = ITEMS.register(
             "blackzone_antidote",
             () -> new BlackZoneAntidoteItem(
@@ -254,6 +257,9 @@ public final class ModItems {
 
     public static final DeferredItem<BlockItem> SCULK_KEY_FORGE =
             ITEMS.registerSimpleBlockItem(ModBlocks.SCULK_KEY_FORGE);
+
+    public static final DeferredItem<BlockItem> MOSSY_KEY_FORGE =
+            ITEMS.registerSimpleBlockItem(ModBlocks.MOSSY_KEY_FORGE);
 
     public static Item crystalFor(InfluenceType type) {
         return switch (type) {

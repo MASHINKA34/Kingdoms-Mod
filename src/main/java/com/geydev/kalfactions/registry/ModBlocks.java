@@ -8,6 +8,8 @@ import com.geydev.kalfactions.block.EconomyGodStatueBlock;
 import com.geydev.kalfactions.block.FactionTableBlock;
 import com.geydev.kalfactions.block.GuideBoardBlock;
 import com.geydev.kalfactions.block.GhostKeyForgeBlock;
+import com.geydev.kalfactions.block.InfernalKeyForgeBlock;
+import com.geydev.kalfactions.block.MossyKeyForgeBlock;
 import com.geydev.kalfactions.block.MusicBlock;
 import com.geydev.kalfactions.block.NewsBoardBlock;
 import com.geydev.kalfactions.block.OutpostCoreBlock;
@@ -240,6 +242,17 @@ public final class ModBlocks {
                     .dynamicShape())
     );
 
+    public static final DeferredBlock<InfernalKeyForgeBlock> INFERNAL_KEY_FORGE = BLOCKS.register(
+            "infernal_key_forge",
+            () -> new InfernalKeyForgeBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BLACK)
+                    .strength(4.0F, 12.0F)
+                    .sound(SoundType.NETHER_BRICKS)
+                    .lightLevel(state -> 10)
+                    .noOcclusion()
+                    .dynamicShape())
+    );
+
     public static final DeferredBlock<MusicBlock> MUSIC_BLOCK = BLOCKS.register(
             "music_block",
             () -> new MusicBlock(BlockBehaviour.Properties.of()
@@ -263,6 +276,17 @@ public final class ModBlocks {
                     .strength(4.0F, 12.0F)
                     .sound(SoundType.SCULK)
                     .lightLevel(state -> 5)
+                    .noOcclusion()
+                    .dynamicShape())
+    );
+
+    public static final DeferredBlock<MossyKeyForgeBlock> MOSSY_KEY_FORGE = BLOCKS.register(
+            "mossy_key_forge",
+            () -> new MossyKeyForgeBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .strength(4.0F, 12.0F)
+                    .sound(SoundType.STONE)
+                    .lightLevel(state -> 3)
                     .noOcclusion()
                     .dynamicShape())
     );

@@ -1508,5 +1508,7 @@
   "screen.kingdoms.research_bench.material": "This item: +%s science",
   "screen.kingdoms.research_bench.remaining": "Until science: %s",
   "death.attack.kingdoms_black_zone": "%1$s died from a kiss on hot lips",
-  "block.kingdoms.sculk_key_forge": "Sculk Key Forge"
+  "block.kingdoms.sculk_key_forge": "Sculk Key Forge",
+  "block.kingdoms.infernal_key_forge": "Infernal Key Forge",
+  "block.kingdoms.mossy_key_forge": "Mossy Key Forge"
 }
