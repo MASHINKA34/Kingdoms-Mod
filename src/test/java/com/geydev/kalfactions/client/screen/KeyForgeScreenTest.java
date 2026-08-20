@@ -22,6 +22,10 @@ final class KeyForgeScreenTest {
             "/assets/kingdoms/textures/gui/infernal_key_forge/infernal_key_forge.png";
     private static final String INFERNAL_PROGRESS =
             "/assets/kingdoms/textures/gui/infernal_key_forge/progress.png";
+    private static final String MOSSY_BACKGROUND =
+            "/assets/kingdoms/textures/gui/mossy_key_forge/mossy_key_forge.png";
+    private static final String MOSSY_PROGRESS =
+            "/assets/kingdoms/textures/gui/mossy_key_forge/progress.png";
 
     @Test
     void sculkLayoutAndTexturesUseNativePixelDimensions() throws IOException {
@@ -98,6 +102,35 @@ final class KeyForgeScreenTest {
         assertEquals(10, KeyForgeScreen.segmentPixels(100, 90, 100, 10));
     }
 
+    @Test
+    void mossyLayoutUsesNativePixelArtClearSlotsAndCroppedVineProgress() throws IOException {
+        BufferedImage background = read(MOSSY_BACKGROUND);
+        BufferedImage progress = read(MOSSY_PROGRESS);
+
+        assertEquals(KeyForgeScreen.PANEL_WIDTH, background.getWidth());
+        assertEquals(KeyForgeScreen.PANEL_HEIGHT, background.getHeight());
+        assertEquals(KeyForgeScreen.MOSSY_PROGRESS_WIDTH, progress.getWidth());
+        assertEquals(KeyForgeScreen.MOSSY_PROGRESS_HEIGHT, progress.getHeight());
+        assertTrue(isFullyOpaque(background));
+        assertTrue(hasBinaryAlpha(progress));
+        assertTrue(hasTransparentPixels(progress));
+        assertTrue(hasOpaquePixels(progress));
+        assertTrue(hasOpaquePixelInEveryColumn(progress));
+        assertTrue(uniqueOpaqueColors(background) >= 30);
+        assertTrue(countMossPixels(background) >= 40);
+        assertTrue(countBronzePixels(background) >= 100);
+        assertTrue(countGoldenPixels(background) >= 5);
+        assertTrue(countGoldenPixels(progress) >= 10);
+        assertSlotInteriorClear(background, KeyForgeMenu.LEFT_INPUT_X, KeyForgeMenu.INPUT_Y);
+        assertSlotInteriorClear(background, KeyForgeMenu.CENTER_INPUT_X, KeyForgeMenu.INPUT_Y);
+        assertSlotInteriorClear(background, KeyForgeMenu.RIGHT_INPUT_X, KeyForgeMenu.INPUT_Y);
+        assertSlotInteriorClear(background, KeyForgeMenu.OUTPUT_X, KeyForgeMenu.OUTPUT_Y);
+        assertEquals(0, KeyForgeScreen.segmentPixels(0, 0, 100, KeyForgeScreen.MOSSY_PROGRESS_WIDTH));
+        assertEquals(1, KeyForgeScreen.segmentPixels(1, 0, 100, KeyForgeScreen.MOSSY_PROGRESS_WIDTH));
+        assertEquals(45, KeyForgeScreen.segmentPixels(50, 0, 100, KeyForgeScreen.MOSSY_PROGRESS_WIDTH));
+        assertEquals(90, KeyForgeScreen.segmentPixels(100, 0, 100, KeyForgeScreen.MOSSY_PROGRESS_WIDTH));
+    }
+
     private static void assertCentered(int width, int height) {
         int left = (width - KeyForgeScreen.PANEL_WIDTH) / 2;
         int top = (height - KeyForgeScreen.PANEL_HEIGHT) / 2;
@@ -159,6 +192,31 @@ final class KeyForgeScreenTest {
             }
         }
         return false;
+    }
+
+    private static boolean hasOpaquePixelInEveryColumn(BufferedImage image) {
+        for (int x = 0; x < image.getWidth(); x++) {
+            boolean opaque = false;
+            for (int y = 0; y < image.getHeight(); y++) {
+                if ((image.getRGB(x, y) >>> 24) == 255) {
+                    opaque = true;
+                    break;
+                }
+            }
+            if (!opaque) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static void assertSlotInteriorClear(BufferedImage image, int startX, int startY) {
+        Set<Integer> allowed = Set.of(0xFF2A302A, 0xFF535B50, 0xFF454D44, 0xFF171C18);
+        for (int y = startY; y < startY + 16; y++) {
+            for (int x = startX; x < startX + 16; x++) {
+                assertTrue(allowed.contains(image.getRGB(x, y)), "decorated slot pixel at " + x + "," + y);
+            }
+        }
     }
 
     private static int uniqueOpaqueColors(BufferedImage image) {
@@ -248,6 +306,54 @@ final class KeyForgeScreenTest {
                 int green = rgb >> 8 & 255;
                 int blue = rgb & 255;
                 if (red >= 45 && red > green * 2 && green >= blue) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private static int countMossPixels(BufferedImage image) {
+        int count = 0;
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                int argb = image.getRGB(x, y);
+                int red = argb >> 16 & 255;
+                int green = argb >> 8 & 255;
+                int blue = argb & 255;
+                if ((argb >>> 24) == 255 && green >= 70 && green > red * 1.15 && green > blue * 1.25) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private static int countBronzePixels(BufferedImage image) {
+        int count = 0;
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                int argb = image.getRGB(x, y);
+                int red = argb >> 16 & 255;
+                int green = argb >> 8 & 255;
+                int blue = argb & 255;
+                if ((argb >>> 24) == 255 && red >= 85 && red > green * 1.15 && green > blue * 1.1) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private static int countGoldenPixels(BufferedImage image) {
+        int count = 0;
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                int argb = image.getRGB(x, y);
+                int red = argb >> 16 & 255;
+                int green = argb >> 8 & 255;
+                int blue = argb & 255;
+                if ((argb >>> 24) == 255 && red >= 190 && green >= 140 && blue <= 110) {
                     count++;
                 }
             }

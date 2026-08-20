@@ -13,7 +13,8 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 public enum KeyForgeType {
     GHOST("ghost_key_forge"),
     SCULK("sculk_key_forge"),
-    INFERNAL("infernal_key_forge");
+    INFERNAL("infernal_key_forge"),
+    MOSSY("mossy_key_forge");
 
     private final String serializedName;
 
@@ -34,6 +35,7 @@ public enum KeyForgeType {
             case GHOST -> ModBlocks.GHOST_KEY_FORGE.get();
             case SCULK -> ModBlocks.SCULK_KEY_FORGE.get();
             case INFERNAL -> ModBlocks.INFERNAL_KEY_FORGE.get();
+            case MOSSY -> ModBlocks.MOSSY_KEY_FORGE.get();
         };
     }
 
@@ -42,6 +44,7 @@ public enum KeyForgeType {
             case GHOST -> ModItems.GHOST_KEY_BOW_FRAGMENT.get();
             case SCULK -> ModItems.SCULK_KEY_BOW_FRAGMENT.get();
             case INFERNAL -> ModItems.INFERNAL_KEY_BOW_FRAGMENT.get();
+            case MOSSY -> ModItems.MOSSY_KEY_BOW_FRAGMENT.get();
         };
     }
 
@@ -50,6 +53,7 @@ public enum KeyForgeType {
             case GHOST -> ModItems.GHOST_KEY_SHAFT_FRAGMENT.get();
             case SCULK -> ModItems.SCULK_KEY_SHAFT_FRAGMENT.get();
             case INFERNAL -> ModItems.INFERNAL_KEY_SHAFT_FRAGMENT.get();
+            case MOSSY -> ModItems.MOSSY_KEY_SHAFT_FRAGMENT.get();
         };
     }
 
@@ -58,6 +62,7 @@ public enum KeyForgeType {
             case GHOST -> ModItems.GHOST_KEY_BIT_FRAGMENT.get();
             case SCULK -> ModItems.SCULK_KEY_BIT_FRAGMENT.get();
             case INFERNAL -> ModItems.INFERNAL_KEY_BIT_FRAGMENT.get();
+            case MOSSY -> ModItems.MOSSY_KEY_BIT_FRAGMENT.get();
         };
     }
 
@@ -66,6 +71,7 @@ public enum KeyForgeType {
             case GHOST -> ModItems.GHOST_KEY.get();
             case SCULK -> ModItems.SCULK_KEY.get();
             case INFERNAL -> ModItems.INFERNAL_KEY.get();
+            case MOSSY -> ModItems.MOSSY_KEY.get();
         };
     }
 
@@ -74,6 +80,7 @@ public enum KeyForgeType {
             case GHOST -> ModBlockEntities.GHOST_KEY_FORGE.get();
             case SCULK -> ModBlockEntities.SCULK_KEY_FORGE.get();
             case INFERNAL -> ModBlockEntities.INFERNAL_KEY_FORGE.get();
+            case MOSSY -> ModBlockEntities.MOSSY_KEY_FORGE.get();
         };
     }
 
@@ -82,6 +89,7 @@ public enum KeyForgeType {
             case GHOST -> ModMenuTypes.GHOST_KEY_FORGE.get();
             case SCULK -> ModMenuTypes.SCULK_KEY_FORGE.get();
             case INFERNAL -> ModMenuTypes.INFERNAL_KEY_FORGE.get();
+            case MOSSY -> ModMenuTypes.MOSSY_KEY_FORGE.get();
         };
     }
 }

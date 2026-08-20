@@ -25,6 +25,10 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
     public static final int INFERNAL_PROGRESS_Y = 46;
     public static final int INFERNAL_PROGRESS_WIDTH = 92;
     public static final int INFERNAL_PROGRESS_HEIGHT = 30;
+    public static final int MOSSY_PROGRESS_X = 43;
+    public static final int MOSSY_PROGRESS_Y = 53;
+    public static final int MOSSY_PROGRESS_WIDTH = 90;
+    public static final int MOSSY_PROGRESS_HEIGHT = 15;
 
     private static final int INFERNAL_BRANCH_END = 35;
     private static final int INFERNAL_CHAMBER_END = 55;
@@ -116,6 +120,24 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
             case GHOST -> renderGhostProgress(graphics);
             case SCULK -> renderSculkProgress(graphics);
             case INFERNAL -> renderInfernalProgress(graphics);
+            case MOSSY -> renderMossyProgress(graphics);
+        }
+    }
+
+    private void renderMossyProgress(GuiGraphics graphics) {
+        int filled = segmentPixels(menu.progress(), 0, menu.totalTicks(), MOSSY_PROGRESS_WIDTH);
+        if (filled > 0) {
+            graphics.blit(
+                    progressTexture,
+                    leftPos + MOSSY_PROGRESS_X,
+                    topPos + MOSSY_PROGRESS_Y,
+                    0.0F,
+                    0.0F,
+                    filled,
+                    MOSSY_PROGRESS_HEIGHT,
+                    MOSSY_PROGRESS_WIDTH,
+                    MOSSY_PROGRESS_HEIGHT
+            );
         }
     }
 
@@ -262,21 +284,25 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
             case GHOST -> GHOST_PROGRESS_X;
             case SCULK -> SCULK_PROGRESS_X;
             case INFERNAL -> INFERNAL_PROGRESS_X;
+            case MOSSY -> MOSSY_PROGRESS_X;
         };
         int y = switch (menu.forgeType()) {
             case GHOST -> GHOST_PROGRESS_Y;
             case SCULK -> SCULK_PROGRESS_Y;
             case INFERNAL -> INFERNAL_PROGRESS_Y;
+            case MOSSY -> MOSSY_PROGRESS_Y;
         };
         int width = switch (menu.forgeType()) {
             case GHOST -> GHOST_PROGRESS_WIDTH;
             case SCULK -> SCULK_PROGRESS_WIDTH;
             case INFERNAL -> INFERNAL_PROGRESS_WIDTH;
+            case MOSSY -> MOSSY_PROGRESS_WIDTH;
         };
         int height = switch (menu.forgeType()) {
             case GHOST -> GHOST_PROGRESS_HEIGHT;
             case SCULK -> SCULK_PROGRESS_HEIGHT;
             case INFERNAL -> INFERNAL_PROGRESS_HEIGHT;
+            case MOSSY -> MOSSY_PROGRESS_HEIGHT;
         };
         return mouseX >= leftPos + x
                 && mouseX < leftPos + x + width
@@ -290,11 +316,13 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
             case GHOST -> 0xFFD7F8FF;
             case SCULK -> 0xFFBDEFF1;
             case INFERNAL -> 0xFFE4C7AF;
+            case MOSSY -> 0xFFE9E1B9;
         };
         int muted = switch (menu.forgeType()) {
             case GHOST -> 0xFF9DB7C5;
             case SCULK -> 0xFF76969A;
             case INFERNAL -> 0xFF9F8172;
+            case MOSSY -> 0xFF88916D;
         };
         graphics.drawString(font, title, titleLabelX, titleLabelY, text, false);
         graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, muted, false);

@@ -48,6 +48,10 @@ public final class ModMenuTypes {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "infernal_key_forge");
     public static final DeferredHolder<MenuType<?>, MenuType<KeyForgeMenu>> INFERNAL_KEY_FORGE =
             DeferredHolder.create(Registries.MENU, INFERNAL_KEY_FORGE_ID);
+    public static final ResourceLocation MOSSY_KEY_FORGE_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "mossy_key_forge");
+    public static final DeferredHolder<MenuType<?>, MenuType<KeyForgeMenu>> MOSSY_KEY_FORGE =
+            DeferredHolder.create(Registries.MENU, MOSSY_KEY_FORGE_ID);
 
     @SubscribeEvent
     public static void register(RegisterEvent event) {
@@ -90,6 +94,15 @@ public final class ModMenuTypes {
                                 playerInventory,
                                 extraData.readBlockPos(),
                                 KeyForgeType.INFERNAL
+                        )
+        ));
+        event.register(Registries.MENU, MOSSY_KEY_FORGE_ID, () -> IMenuTypeExtension.create(
+                (containerId, playerInventory, extraData) ->
+                        new KeyForgeMenu(
+                                containerId,
+                                playerInventory,
+                                extraData.readBlockPos(),
+                                KeyForgeType.MOSSY
                         )
         ));
     }

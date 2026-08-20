@@ -83,6 +83,10 @@ public final class ModBlockEntities {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "infernal_key_forge");
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<KeyForgeBlockEntity>> INFERNAL_KEY_FORGE =
             DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, INFERNAL_KEY_FORGE_ID);
+    public static final ResourceLocation MOSSY_KEY_FORGE_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "mossy_key_forge");
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<KeyForgeBlockEntity>> MOSSY_KEY_FORGE =
+            DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, MOSSY_KEY_FORGE_ID);
 
     @SubscribeEvent
     public static void register(RegisterEvent event) {
@@ -224,6 +228,18 @@ public final class ModBlockEntities {
             }
             return BlockEntityType.Builder.of(
                     (pos, state) -> new KeyForgeBlockEntity(KeyForgeType.INFERNAL, pos, state),
+                    block
+            ).build(null);
+        });
+        event.register(Registries.BLOCK_ENTITY_TYPE, MOSSY_KEY_FORGE_ID, () -> {
+            Block block = BuiltInRegistries.BLOCK.get(MOSSY_KEY_FORGE_ID);
+            if (block == Blocks.AIR) {
+                throw new IllegalStateException(
+                        "kingdoms:mossy_key_forge must be registered before its block entity type"
+                );
+            }
+            return BlockEntityType.Builder.of(
+                    (pos, state) -> new KeyForgeBlockEntity(KeyForgeType.MOSSY, pos, state),
                     block
             ).build(null);
         });

@@ -22,6 +22,7 @@ public final class KingdomsMenuScreens {
         event.register(ModMenuTypes.GHOST_KEY_FORGE.get(), KeyForgeScreen::new);
         event.register(ModMenuTypes.SCULK_KEY_FORGE.get(), KeyForgeScreen::new);
         event.register(ModMenuTypes.INFERNAL_KEY_FORGE.get(), KeyForgeScreen::new);
+        event.register(ModMenuTypes.MOSSY_KEY_FORGE.get(), KeyForgeScreen::new);
     }
 
     private KingdomsMenuScreens() {
