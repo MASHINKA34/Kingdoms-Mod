@@ -94,7 +94,11 @@ public final class ModCreativeTabs {
                 ModItems.GHOST_KEY_BOW_FRAGMENT.get(),
                 ModItems.GHOST_KEY_SHAFT_FRAGMENT.get(),
                 ModItems.GHOST_KEY_BIT_FRAGMENT.get(),
-                ModItems.GHOST_KEY.get()
+                ModItems.GHOST_KEY.get(),
+                ModItems.SCULK_KEY_BOW_FRAGMENT.get(),
+                ModItems.SCULK_KEY_SHAFT_FRAGMENT.get(),
+                ModItems.SCULK_KEY_BIT_FRAGMENT.get(),
+                ModItems.SCULK_KEY.get()
         );
     }
 

@@ -1514,5 +1514,9 @@
   "item.kingdoms.ghost_key_bow_fragment": "Рукоять призрачного ключа",
   "item.kingdoms.ghost_key_shaft_fragment": "Стержень призрачного ключа",
   "item.kingdoms.ghost_key_bit_fragment": "Зубцы призрачного ключа",
-  "item.kingdoms.ghost_key": "Призрачный ключ"
+  "item.kingdoms.ghost_key": "Призрачный ключ",
+  "item.kingdoms.sculk_key_bow_fragment": "Рукоять скалкового ключа",
+  "item.kingdoms.sculk_key_shaft_fragment": "Стержень скалкового ключа",
+  "item.kingdoms.sculk_key_bit_fragment": "Зубцы скалкового ключа",
+  "item.kingdoms.sculk_key": "Скалковый ключ"
 }

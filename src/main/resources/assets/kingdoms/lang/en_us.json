@@ -1514,5 +1514,9 @@
   "item.kingdoms.ghost_key_bow_fragment": "Spectral Key Bow",
   "item.kingdoms.ghost_key_shaft_fragment": "Spectral Key Shaft",
   "item.kingdoms.ghost_key_bit_fragment": "Spectral Key Bit",
-  "item.kingdoms.ghost_key": "Spectral Key"
+  "item.kingdoms.ghost_key": "Spectral Key",
+  "item.kingdoms.sculk_key_bow_fragment": "Sculk Key Bow",
+  "item.kingdoms.sculk_key_shaft_fragment": "Sculk Key Shaft",
+  "item.kingdoms.sculk_key_bit_fragment": "Sculk Key Bit",
+  "item.kingdoms.sculk_key": "Sculk Key"
 }

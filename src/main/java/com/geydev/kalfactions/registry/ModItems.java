@@ -281,6 +281,26 @@ public final class ModItems {
             () -> new Item(new Item.Properties())
     );
 
+    public static final DeferredItem<Item> SCULK_KEY_BOW_FRAGMENT = ITEMS.register(
+            "sculk_key_bow_fragment",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static final DeferredItem<Item> SCULK_KEY_SHAFT_FRAGMENT = ITEMS.register(
+            "sculk_key_shaft_fragment",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static final DeferredItem<Item> SCULK_KEY_BIT_FRAGMENT = ITEMS.register(
+            "sculk_key_bit_fragment",
+            () -> new Item(new Item.Properties())
+    );
+
+    public static final DeferredItem<Item> SCULK_KEY = ITEMS.register(
+            "sculk_key",
+            () -> new Item(new Item.Properties())
+    );
+
     public static Item crystalFor(InfluenceType type) {
         return switch (type) {
             case SCIENCE -> CRYSTAL_SCIENCE.get();
