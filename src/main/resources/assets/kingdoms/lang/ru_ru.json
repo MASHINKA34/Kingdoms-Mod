@@ -1526,5 +1526,6 @@
   "item.kingdoms.mossy_key_bow_fragment": "Рукоять мшистого ключа",
   "item.kingdoms.mossy_key_shaft_fragment": "Стержень мшистого ключа",
   "item.kingdoms.mossy_key_bit_fragment": "Зубцы мшистого ключа",
-  "item.kingdoms.mossy_key": "Мшистый ключ"
+  "item.kingdoms.mossy_key": "Мшистый ключ",
+  "screen.kingdoms.key_forge.progress": "Сборка: %s%% · осталось %s тиков"
 }

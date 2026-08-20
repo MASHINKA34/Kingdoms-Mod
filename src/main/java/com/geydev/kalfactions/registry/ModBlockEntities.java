@@ -6,6 +6,8 @@ import com.geydev.kalfactions.block.DungeonChestBlockEntity;
 import com.geydev.kalfactions.block.EconomyGodStatueBlockEntity;
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
 import com.geydev.kalfactions.block.GuideBoardBlockEntity;
+import com.geydev.kalfactions.block.KeyForgeBlockEntity;
+import com.geydev.kalfactions.block.KeyForgeType;
 import com.geydev.kalfactions.block.MusicBlockEntity;
 import com.geydev.kalfactions.block.ResearchBenchBlockEntity;
 import com.geydev.kalfactions.block.StatueScienceBlockEntity;
@@ -69,6 +71,18 @@ public final class ModBlockEntities {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "research_bench");
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ResearchBenchBlockEntity>> RESEARCH_BENCH =
             DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, RESEARCH_BENCH_ID);
+    public static final ResourceLocation GHOST_KEY_FORGE_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "ghost_key_forge");
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<KeyForgeBlockEntity>> GHOST_KEY_FORGE =
+            DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, GHOST_KEY_FORGE_ID);
+    public static final ResourceLocation SCULK_KEY_FORGE_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "sculk_key_forge");
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<KeyForgeBlockEntity>> SCULK_KEY_FORGE =
+            DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, SCULK_KEY_FORGE_ID);
+    public static final ResourceLocation INFERNAL_KEY_FORGE_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "infernal_key_forge");
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<KeyForgeBlockEntity>> INFERNAL_KEY_FORGE =
+            DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, INFERNAL_KEY_FORGE_ID);
 
     @SubscribeEvent
     public static void register(RegisterEvent event) {
@@ -176,6 +190,42 @@ public final class ModBlockEntities {
                 );
             }
             return BlockEntityType.Builder.of(MusicBlockEntity::new, block).build(null);
+        });
+        event.register(Registries.BLOCK_ENTITY_TYPE, GHOST_KEY_FORGE_ID, () -> {
+            Block block = BuiltInRegistries.BLOCK.get(GHOST_KEY_FORGE_ID);
+            if (block == Blocks.AIR) {
+                throw new IllegalStateException(
+                        "kingdoms:ghost_key_forge must be registered before its block entity type"
+                );
+            }
+            return BlockEntityType.Builder.of(
+                    (pos, state) -> new KeyForgeBlockEntity(KeyForgeType.GHOST, pos, state),
+                    block
+            ).build(null);
+        });
+        event.register(Registries.BLOCK_ENTITY_TYPE, SCULK_KEY_FORGE_ID, () -> {
+            Block block = BuiltInRegistries.BLOCK.get(SCULK_KEY_FORGE_ID);
+            if (block == Blocks.AIR) {
+                throw new IllegalStateException(
+                        "kingdoms:sculk_key_forge must be registered before its block entity type"
+                );
+            }
+            return BlockEntityType.Builder.of(
+                    (pos, state) -> new KeyForgeBlockEntity(KeyForgeType.SCULK, pos, state),
+                    block
+            ).build(null);
+        });
+        event.register(Registries.BLOCK_ENTITY_TYPE, INFERNAL_KEY_FORGE_ID, () -> {
+            Block block = BuiltInRegistries.BLOCK.get(INFERNAL_KEY_FORGE_ID);
+            if (block == Blocks.AIR) {
+                throw new IllegalStateException(
+                        "kingdoms:infernal_key_forge must be registered before its block entity type"
+                );
+            }
+            return BlockEntityType.Builder.of(
+                    (pos, state) -> new KeyForgeBlockEntity(KeyForgeType.INFERNAL, pos, state),
+                    block
+            ).build(null);
         });
     }
 

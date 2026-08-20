@@ -3,6 +3,8 @@ package com.geydev.kalfactions.registry;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.menu.DrillMenu;
 import com.geydev.kalfactions.menu.DungeonLootMenu;
+import com.geydev.kalfactions.block.KeyForgeType;
+import com.geydev.kalfactions.menu.KeyForgeMenu;
 import com.geydev.kalfactions.menu.QuarryMenu;
 import com.geydev.kalfactions.menu.ResearchBenchMenu;
 import net.minecraft.core.registries.Registries;
@@ -34,6 +36,18 @@ public final class ModMenuTypes {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "research_bench");
     public static final DeferredHolder<MenuType<?>, MenuType<ResearchBenchMenu>> RESEARCH_BENCH =
             DeferredHolder.create(Registries.MENU, RESEARCH_BENCH_ID);
+    public static final ResourceLocation GHOST_KEY_FORGE_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "ghost_key_forge");
+    public static final DeferredHolder<MenuType<?>, MenuType<KeyForgeMenu>> GHOST_KEY_FORGE =
+            DeferredHolder.create(Registries.MENU, GHOST_KEY_FORGE_ID);
+    public static final ResourceLocation SCULK_KEY_FORGE_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "sculk_key_forge");
+    public static final DeferredHolder<MenuType<?>, MenuType<KeyForgeMenu>> SCULK_KEY_FORGE =
+            DeferredHolder.create(Registries.MENU, SCULK_KEY_FORGE_ID);
+    public static final ResourceLocation INFERNAL_KEY_FORGE_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "infernal_key_forge");
+    public static final DeferredHolder<MenuType<?>, MenuType<KeyForgeMenu>> INFERNAL_KEY_FORGE =
+            DeferredHolder.create(Registries.MENU, INFERNAL_KEY_FORGE_ID);
 
     @SubscribeEvent
     public static void register(RegisterEvent event) {
@@ -50,6 +64,33 @@ public final class ModMenuTypes {
         ));
         event.register(Registries.MENU, RESEARCH_BENCH_ID, () -> IMenuTypeExtension.create(
                 (containerId, playerInventory, extraData) -> new ResearchBenchMenu(containerId, playerInventory)
+        ));
+        event.register(Registries.MENU, GHOST_KEY_FORGE_ID, () -> IMenuTypeExtension.create(
+                (containerId, playerInventory, extraData) ->
+                        new KeyForgeMenu(
+                                containerId,
+                                playerInventory,
+                                extraData.readBlockPos(),
+                                KeyForgeType.GHOST
+                        )
+        ));
+        event.register(Registries.MENU, SCULK_KEY_FORGE_ID, () -> IMenuTypeExtension.create(
+                (containerId, playerInventory, extraData) ->
+                        new KeyForgeMenu(
+                                containerId,
+                                playerInventory,
+                                extraData.readBlockPos(),
+                                KeyForgeType.SCULK
+                        )
+        ));
+        event.register(Registries.MENU, INFERNAL_KEY_FORGE_ID, () -> IMenuTypeExtension.create(
+                (containerId, playerInventory, extraData) ->
+                        new KeyForgeMenu(
+                                containerId,
+                                playerInventory,
+                                extraData.readBlockPos(),
+                                KeyForgeType.INFERNAL
+                        )
         ));
     }
 
