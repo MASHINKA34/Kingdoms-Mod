@@ -13,7 +13,6 @@ import com.geydev.kalfactions.block.GhostKeyForgeBlock;
 import com.geydev.kalfactions.block.InfernalKeyForgeBlock;
 import com.geydev.kalfactions.block.MossyKeyForgeBlock;
 import com.geydev.kalfactions.block.MusicBlock;
-import com.geydev.kalfactions.block.NewsBoardBlock;
 import com.geydev.kalfactions.block.OutpostCoreBlock;
 import com.geydev.kalfactions.block.QuarryCoreBlock;
 import com.geydev.kalfactions.block.ResearchBenchBlock;
@@ -87,15 +86,6 @@ public final class ModBlocks {
     public static final DeferredBlock<GuideBoardBlock> GUIDE_BOARD = BLOCKS.register(
             "guide_board",
             () -> new GuideBoardBlock(BlockBehaviour.Properties.of()
-                    .mapColor(MapColor.WOOD)
-                    .strength(2.5F)
-                    .sound(SoundType.WOOD)
-                    .noOcclusion())
-    );
-
-    public static final DeferredBlock<NewsBoardBlock> NEWS_BOARD = BLOCKS.register(
-            "news_board",
-            () -> new NewsBoardBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.WOOD)
                     .strength(2.5F)
                     .sound(SoundType.WOOD)

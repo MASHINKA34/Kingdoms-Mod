@@ -22,19 +22,9 @@ public final class ClientBridge {
         }
     }
 
-    public static void openNews() {
-        if (FMLEnvironment.dist.isClient()) {
-            ClientOnly.openNews();
-        }
-    }
-
     private static final class ClientOnly {
         private static void openGuide() {
             com.geydev.kalfactions.client.ClientFactionPayloadHandler.handleOpenGuide();
-        }
-
-        private static void openNews() {
-            com.geydev.kalfactions.client.ClientFactionPayloadHandler.handleOpenNews();
         }
     }
 }

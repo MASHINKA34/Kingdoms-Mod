@@ -38,7 +38,6 @@ public final class ModCreativeTabs {
                 ModItems.FACTION_TABLE.get(),
                 ModItems.WAR_ARCHIVE.get(),
                 ModItems.GUIDE_BOARD.get(),
-                ModItems.NEWS_BOARD.get(),
                 ModItems.SANCTUARY_CORE.get(),
                 ModItems.STATUE_SCIENCE.get(),
                 ModItems.WAR_GOD_STATUE.get(),
