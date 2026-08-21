@@ -83,7 +83,7 @@ public final class ModCreativeTabs {
                 ModItems.MINIBOSS_TOKEN_SCULK.get(),
                 ModItems.MINIBOSS_TOKEN_NETHER.get(),
                 ModItems.MINIBOSS_TOKEN_LUSH_CAVES.get(),
-                ModItems.MINIBOSS_TOKEN_END.get(),
+                ModItems.MINIBOSS_TOKEN.get(),
                 ModItems.BOSS_TROPHY_LESSER.get(),
                 ModItems.BOSS_TROPHY_GREATER.get(),
                 ModItems.BOSS_TROPHY_LEGENDARY.get(),

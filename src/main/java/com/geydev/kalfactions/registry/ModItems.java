@@ -8,6 +8,7 @@ import com.geydev.kalfactions.item.BankerSpawnEggItem;
 import com.geydev.kalfactions.item.BlackZoneAntidoteItem;
 import com.geydev.kalfactions.item.DimensionKeyItem;
 import com.geydev.kalfactions.item.FactionMeterItem;
+import com.geydev.kalfactions.item.LegacyTokenItem;
 import com.geydev.kalfactions.item.NetherReturnItem;
 import com.geydev.kalfactions.item.PlotWandItem;
 import com.geydev.kalfactions.item.SellerCatalogItem;
@@ -203,6 +204,11 @@ public final class ModItems {
 
     public static final DeferredItem<Item> MINIBOSS_TOKEN_END = ITEMS.register(
             "miniboss_token_end",
+            () -> new LegacyTokenItem(new Item.Properties(), "item.kingdoms.miniboss_token")
+    );
+
+    public static final DeferredItem<Item> MINIBOSS_TOKEN = ITEMS.register(
+            "miniboss_token",
             () -> new Item(new Item.Properties())
     );
 

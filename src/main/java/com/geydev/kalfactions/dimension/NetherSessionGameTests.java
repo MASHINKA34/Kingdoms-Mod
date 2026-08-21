@@ -4,6 +4,7 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.dimension.DimensionControlManager.EntryStatus;
 import com.geydev.kalfactions.dimension.DimensionControlManager.LandingPos;
 import com.geydev.kalfactions.dimension.DimensionControlManager.PortalBounds;
+import com.geydev.kalfactions.item.LegacyTokenItem;
 import com.geydev.kalfactions.registry.ModCreativeTabs;
 import com.geydev.kalfactions.registry.ModItems;
 import com.mojang.authlib.GameProfile;
@@ -429,6 +430,7 @@ public final class NetherSessionGameTests {
     public static void creativeTabContainsEveryKingdomsItem(GameTestHelper helper) {
         Set<net.minecraft.world.item.Item> registered = BuiltInRegistries.ITEM.stream()
                 .filter(item -> KalFactions.MOD_ID.equals(BuiltInRegistries.ITEM.getKey(item).getNamespace()))
+                .filter(item -> !(item instanceof LegacyTokenItem))
                 .collect(Collectors.toSet());
         Set<net.minecraft.world.item.Item> displayed = Set.copyOf(ModCreativeTabs.creativeItems());
         helper.assertTrue(

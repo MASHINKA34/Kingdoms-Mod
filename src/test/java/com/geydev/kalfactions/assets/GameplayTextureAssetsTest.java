@@ -47,6 +47,18 @@ final class GameplayTextureAssetsTest {
     }
 
     @Test
+    void genericMinibossTokenIsAGameReadyItemTexture() throws IOException {
+        BufferedImage image = read("/assets/kingdoms/textures/item/miniboss_token.png");
+
+        assertSquare(image, 16);
+        assertTrue(image.getColorModel().hasAlpha());
+        assertEquals(0, image.getRGB(0, 0) >>> 24);
+        assertTrue(hasOpaquePixels(image));
+        assertTrue(readText("/assets/kingdoms/models/item/miniboss_token.json")
+                .contains("\"layer0\": \"kingdoms:item/miniboss_token\""));
+    }
+
+    @Test
     void mapArchiveTableHasCompleteTextureSet() throws IOException {
         assertSquare(read("/assets/kingdoms/textures/block/xaero_map_archive_top.png"), 32);
         assertSquare(read("/assets/kingdoms/textures/block/xaero_map_archive_side.png"), 32);
