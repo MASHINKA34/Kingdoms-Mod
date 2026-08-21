@@ -60,7 +60,7 @@ public final class ScorchedIntegrationGameTests {
         ItemStack ordinaryScorchedItem = stack(scguns("gunpowder_dust"));
         helper.assertFalse(ordinaryScorchedItem.isEmpty(), "Ordinary Scorched Guns item must remain registered");
         helper.assertFalse(DisabledRaidFlares.isDisabled(ordinaryScorchedItem), "Ordinary Scorched Guns item was disabled");
-        helper.assertTrue(helper.getLevel().getRecipeManager().byKey(scguns("gun_bench")).isPresent(),
+        helper.assertTrue(helper.getLevel().getRecipeManager().byKey(scguns("ammo_box")).isPresent(),
                 "Ordinary Scorched Guns recipes must remain loaded");
         helper.succeed();
     }
