@@ -31,6 +31,12 @@ public enum TraderOffer {
             ModConfigSpec.FACTION_TABLE_COST::get,
             Shop.KINGDOMS
     ),
+    XAERO_MAP_ARCHIVE(
+            "xaero_map_archive",
+            ModItems.XAERO_MAP_ARCHIVE,
+            () -> 350L,
+            Shop.KINGDOMS
+    ),
     ACCESS_TOOL(
             "access_tool",
             ModItems.ACCESS_TOOL,

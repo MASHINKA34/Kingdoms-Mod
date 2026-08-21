@@ -81,13 +81,53 @@ final class GameplayTextureAssetsTest {
     }
 
     @Test
-    void drillItemIsAReadableTransparentTexture() throws IOException {
-        BufferedImage drill = read("/assets/kingdoms/textures/item/drill.png");
+    void drillItemIsAnAnimatedReadableTransparentTexture() throws IOException {
+        String texturePath = "/assets/kingdoms/textures/item/drill.png";
+        BufferedImage drill = read(texturePath);
 
-        assertSquare(drill, 64);
+        assertEquals(32, drill.getWidth());
+        assertEquals(256, drill.getHeight());
         assertTrue(drill.getColorModel().hasAlpha());
         assertEquals(0, drill.getRGB(0, 0) >>> 24);
         assertTrue(hasOpaquePixels(drill));
+        assertEquals(6, readBytes(texturePath)[25]);
+        assertTrue(hasBinaryAlpha(drill));
+        assertTrue(opaqueColors(drill).size() <= 16);
+
+        for (int frame = 0; frame < 8; frame++) {
+            assertEquals(0, drill.getRGB(0, frame * 32) >>> 24);
+            assertEquals(0, drill.getRGB(31, frame * 32) >>> 24);
+            assertEquals(0, drill.getRGB(0, frame * 32 + 31) >>> 24);
+            assertEquals(0, drill.getRGB(31, frame * 32 + 31) >>> 24);
+            assertTrue(frameHasOpaquePixels(drill, frame));
+        }
+
+        for (int frame = 1; frame < 8; frame++) {
+            int changed = 0;
+            for (int y = 0; y < 32; y++) {
+                for (int x = 0; x < 32; x++) {
+                    if (drill.getRGB(x, (frame - 1) * 32 + y)
+                            == drill.getRGB(x, frame * 32 + y)) {
+                        continue;
+                    }
+                    changed++;
+                    assertTrue(
+                            x >= 11 && x <= 15 && y >= 13 && y <= 17
+                                    || x >= 25 && x <= 30 && y >= 12 && y <= 18,
+                            frame + ":" + x + "," + y
+                    );
+                }
+            }
+            assertTrue(changed > 0);
+        }
+
+        String metadata = readText(texturePath + ".mcmeta");
+        assertTrue(metadata.contains("\"frametime\": 2"));
+        assertTrue(metadata.contains("\"interpolate\": false"));
+        assertTrue(metadata.contains("\"frames\": [0, 1, 2, 3, 4, 5, 6, 7]"));
+        assertTrue(readText("/assets/kingdoms/models/item/drill.json")
+                .contains("\"layer0\": \"kingdoms:item/drill\""));
+        assertTrue(Files.isRegularFile(Path.of("art/aseprite/items/drill.aseprite")));
     }
 
     @Test

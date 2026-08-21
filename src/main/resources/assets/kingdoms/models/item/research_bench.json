@@ -1,3 +1,6 @@
 {
-  "parent": "kingdoms:block/research_bench"
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "kingdoms:item/research_bench"
+  }
 }

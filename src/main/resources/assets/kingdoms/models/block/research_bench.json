@@ -13,6 +13,7 @@
 		"7": "kingdoms:block/research_bench_crystal",
 		"8": "kingdoms:block/research_bench_glass",
 		"9": "kingdoms:block/research_bench_quill",
+		"10": "kingdoms:block/research_bench_liquid",
 		"particle": "kingdoms:block/research_bench_wood"
 	},
 	"elements": [
@@ -423,6 +424,19 @@
 				"up": {"uv": [0, 0, 1.4, 1.4], "texture": "#4"},
 				"down": {"uv": [0, 0, 1.4, 1.4], "texture": "#4"}
 			}
+		},
+		{
+			"name": "flask_liquid",
+			"from": [11.68, 12.22, 10.98],
+			"to": [14.02, 14.2, 13.32],
+			"faces": {
+				"north": {"uv": [0, 0, 2.34, 1.98], "texture": "#10"},
+				"east": {"uv": [0, 0, 2.34, 1.98], "texture": "#10"},
+				"south": {"uv": [0, 0, 2.34, 1.98], "texture": "#10"},
+				"west": {"uv": [0, 0, 2.34, 1.98], "texture": "#10"},
+				"up": {"uv": [0, 0, 2.34, 2.34], "texture": "#10"},
+				"down": {"uv": [0, 0, 2.34, 2.34], "texture": "#10"}
+			}
 		}
 	],
 	"display": {
@@ -486,7 +500,7 @@
 			"origin": [8, 8, 8],
 			"scope": 0,
 			"color": 0,
-			"children": [26, 27, 28, 29, 30]
+			"children": [26, 27, 28, 29, 30, 31]
 		}
 	]
 }
