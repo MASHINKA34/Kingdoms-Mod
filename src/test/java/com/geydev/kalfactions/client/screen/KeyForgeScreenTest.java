@@ -87,6 +87,10 @@ final class KeyForgeScreenTest {
         assertTrue(hasBinaryAlpha(progress));
         assertTrue(hasTransparentPixels(progress));
         assertTrue(hasOpaquePixels(progress));
+        for (int frame = 0; frame < KeyForgeScreen.SCULK_PROGRESS_FRAMES; frame++) {
+            assertTrue(hasOpaquePixelsInFrame(progress, frame));
+        }
+        assertTrue(framesDiffer(progress, 0, KeyForgeScreen.SCULK_PROGRESS_FRAMES - 1));
         assertTrue(uniqueOpaqueColors(background) >= 20);
         assertTrue(countCyanPixels(background) >= 25);
         assertTrue(countBonePixels(background) >= 25);
@@ -97,6 +101,25 @@ final class KeyForgeScreenTest {
         assertEquals(79, KeyForgeMenu.OUTPUT_X);
         assertEquals(76, KeyForgeMenu.OUTPUT_Y);
         assertEquals(108, KeyForgeMenu.PLAYER_INVENTORY_Y);
+    }
+
+    @Test
+    void sculkProgressSelectsEveryAnimationFrameFromServerTicks() {
+        assertEquals(-1, KeyForgeScreen.sculkProgressFrame(0, 100));
+        assertEquals(-1, KeyForgeScreen.sculkProgressFrame(1, 0));
+        assertEquals(0, KeyForgeScreen.sculkProgressFrame(1, 100));
+        assertEquals(0, KeyForgeScreen.sculkProgressFrame(5, 100));
+        assertEquals(1, KeyForgeScreen.sculkProgressFrame(6, 100));
+        assertEquals(9, KeyForgeScreen.sculkProgressFrame(50, 100));
+        assertEquals(12, KeyForgeScreen.sculkProgressFrame(65, 100));
+        assertEquals(19, KeyForgeScreen.sculkProgressFrame(99, 100));
+        assertEquals(19, KeyForgeScreen.sculkProgressFrame(100, 100));
+
+        Set<Integer> frames = new HashSet<>();
+        for (int progress = 1; progress <= 100; progress++) {
+            frames.add(KeyForgeScreen.sculkProgressFrame(progress, 100));
+        }
+        assertEquals(KeyForgeScreen.SCULK_PROGRESS_FRAMES, frames.size());
     }
 
     @Test
@@ -157,12 +180,17 @@ final class KeyForgeScreenTest {
         assertEquals(KeyForgeScreen.PANEL_WIDTH, background.getWidth());
         assertEquals(KeyForgeScreen.PANEL_HEIGHT, background.getHeight());
         assertEquals(KeyForgeScreen.MOSSY_PROGRESS_WIDTH, progress.getWidth());
-        assertEquals(KeyForgeScreen.MOSSY_PROGRESS_HEIGHT, progress.getHeight());
+        assertEquals(KeyForgeScreen.MOSSY_PROGRESS_TEXTURE_HEIGHT, progress.getHeight());
         assertTrue(isFullyOpaque(background));
         assertTrue(hasBinaryAlpha(progress));
         assertTrue(hasTransparentPixels(progress));
         assertTrue(hasOpaquePixels(progress));
         assertTrue(hasOpaquePixelInEveryColumn(progress));
+        for (int frame = 0; frame < KeyForgeScreen.MOSSY_PROGRESS_FRAMES; frame++) {
+            assertTrue(hasOpaquePixelsInMossyFrame(progress, frame));
+            assertTrue(hasOpaquePixelInEveryMossyFrameColumn(progress, frame));
+        }
+        assertTrue(mossyFramesDiffer(progress, 0, KeyForgeScreen.MOSSY_PROGRESS_FRAMES - 1));
         assertTrue(uniqueOpaqueColors(background) >= 30);
         assertTrue(countMossPixels(background) >= 40);
         assertTrue(countBronzePixels(background) >= 100);
@@ -172,10 +200,30 @@ final class KeyForgeScreenTest {
         assertSlotInteriorClear(background, KeyForgeMenu.CENTER_INPUT_X, KeyForgeMenu.INPUT_Y);
         assertSlotInteriorClear(background, KeyForgeMenu.RIGHT_INPUT_X, KeyForgeMenu.INPUT_Y);
         assertSlotInteriorClear(background, KeyForgeMenu.OUTPUT_X, KeyForgeMenu.OUTPUT_Y);
+        for (int y : new int[]{108, 126, 144, 166}) {
+            for (int column = 0; column < 9; column++) {
+                assertInventorySlotInteriorClear(background, 7 + column * 18, y);
+            }
+        }
         assertEquals(0, KeyForgeScreen.segmentPixels(0, 0, 100, KeyForgeScreen.MOSSY_PROGRESS_WIDTH));
         assertEquals(1, KeyForgeScreen.segmentPixels(1, 0, 100, KeyForgeScreen.MOSSY_PROGRESS_WIDTH));
         assertEquals(45, KeyForgeScreen.segmentPixels(50, 0, 100, KeyForgeScreen.MOSSY_PROGRESS_WIDTH));
         assertEquals(90, KeyForgeScreen.segmentPixels(100, 0, 100, KeyForgeScreen.MOSSY_PROGRESS_WIDTH));
+    }
+
+    @Test
+    void mossyAnimationCyclesAtAsepriteFrameDuration() {
+        assertEquals(0, KeyForgeScreen.mossyAnimationFrame(0));
+        assertEquals(0, KeyForgeScreen.mossyAnimationFrame(1));
+        assertEquals(1, KeyForgeScreen.mossyAnimationFrame(2));
+        assertEquals(7, KeyForgeScreen.mossyAnimationFrame(15));
+        assertEquals(0, KeyForgeScreen.mossyAnimationFrame(16));
+
+        Set<Integer> frames = new HashSet<>();
+        for (long gameTime = 0; gameTime < 16; gameTime++) {
+            frames.add(KeyForgeScreen.mossyAnimationFrame(gameTime));
+        }
+        assertEquals(KeyForgeScreen.MOSSY_PROGRESS_FRAMES, frames.size());
     }
 
     private static void assertCentered(int width, int height) {
@@ -248,6 +296,76 @@ final class KeyForgeScreenTest {
         return false;
     }
 
+    private static boolean hasOpaquePixelsInFrame(BufferedImage image, int frame) {
+        int startY = frame * KeyForgeScreen.SCULK_PROGRESS_HEIGHT;
+        int endY = startY + KeyForgeScreen.SCULK_PROGRESS_HEIGHT;
+        for (int y = startY; y < endY; y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                if ((image.getRGB(x, y) >>> 24) == 255) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean framesDiffer(BufferedImage image, int firstFrame, int secondFrame) {
+        int firstY = firstFrame * KeyForgeScreen.SCULK_PROGRESS_HEIGHT;
+        int secondY = secondFrame * KeyForgeScreen.SCULK_PROGRESS_HEIGHT;
+        for (int y = 0; y < KeyForgeScreen.SCULK_PROGRESS_HEIGHT; y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                if (image.getRGB(x, firstY + y) != image.getRGB(x, secondY + y)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasOpaquePixelsInMossyFrame(BufferedImage image, int frame) {
+        int startY = frame * KeyForgeScreen.MOSSY_PROGRESS_HEIGHT;
+        int endY = startY + KeyForgeScreen.MOSSY_PROGRESS_HEIGHT;
+        for (int y = startY; y < endY; y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                if ((image.getRGB(x, y) >>> 24) == 255) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasOpaquePixelInEveryMossyFrameColumn(BufferedImage image, int frame) {
+        int startY = frame * KeyForgeScreen.MOSSY_PROGRESS_HEIGHT;
+        int endY = startY + KeyForgeScreen.MOSSY_PROGRESS_HEIGHT;
+        for (int x = 0; x < image.getWidth(); x++) {
+            boolean opaque = false;
+            for (int y = startY; y < endY; y++) {
+                if ((image.getRGB(x, y) >>> 24) == 255) {
+                    opaque = true;
+                    break;
+                }
+            }
+            if (!opaque) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean mossyFramesDiffer(BufferedImage image, int firstFrame, int secondFrame) {
+        int firstY = firstFrame * KeyForgeScreen.MOSSY_PROGRESS_HEIGHT;
+        int secondY = secondFrame * KeyForgeScreen.MOSSY_PROGRESS_HEIGHT;
+        for (int y = 0; y < KeyForgeScreen.MOSSY_PROGRESS_HEIGHT; y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                if (image.getRGB(x, firstY + y) != image.getRGB(x, secondY + y)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private static boolean hasOpaquePixelInEveryColumn(BufferedImage image) {
         for (int x = 0; x < image.getWidth(); x++) {
             boolean opaque = false;
@@ -269,6 +387,22 @@ final class KeyForgeScreenTest {
         for (int y = startY; y < startY + 16; y++) {
             for (int x = startX; x < startX + 16; x++) {
                 assertTrue(allowed.contains(image.getRGB(x, y)), "decorated slot pixel at " + x + "," + y);
+            }
+        }
+    }
+
+    private static void assertInventorySlotInteriorClear(BufferedImage image, int startX, int startY) {
+        Set<Integer> allowed = Set.of(
+                0xFF343A32,
+                0xFF6F7667,
+                0xFF596157,
+                0xFF171B17,
+                0xFF444B41,
+                0xFF293028
+        );
+        for (int y = startY; y < startY + 16; y++) {
+            for (int x = startX; x < startX + 16; x++) {
+                assertTrue(allowed.contains(image.getRGB(x, y)), "decorated inventory pixel at " + x + "," + y);
             }
         }
     }

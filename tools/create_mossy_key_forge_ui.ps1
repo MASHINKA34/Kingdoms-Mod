@@ -1,6 +1,6 @@
 Add-Type -AssemblyName System.Drawing
 
-$resourceDirectory = Join-Path $PSScriptRoot '..\src\main\resources\assets\kingdoms\textures\gui\mossy_key_forge'
+$resourceDirectory = Join-Path $PSScriptRoot '..\art\aseprite\gui\mossy_key_forge\generated_base'
 $previewDirectory = Join-Path $PSScriptRoot '..\outputs'
 New-Item -ItemType Directory -Force -Path $resourceDirectory | Out-Null
 New-Item -ItemType Directory -Force -Path $previewDirectory | Out-Null
@@ -301,7 +301,7 @@ Pixel $background 172 3 '#89907d'
 Pixel $background 3 186 '#3f7463'
 Pixel $background 172 186 '#6e7f48'
 
-$backgroundPath = Join-Path $resourceDirectory 'mossy_key_forge.png'
+$backgroundPath = Join-Path $resourceDirectory 'mossy_key_forge_base.png'
 $background.Save($backgroundPath, [System.Drawing.Imaging.ImageFormat]::Png)
 
 $progress = New-Object System.Drawing.Bitmap 90, 15, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
@@ -330,7 +330,7 @@ foreach ($berryX in @(72, 76, 81, 85, 88)) {
 }
 Pixel $progress 89 (VineY 89) '#f1d36b'
 
-$progressPath = Join-Path $resourceDirectory 'progress.png'
+$progressPath = Join-Path $resourceDirectory 'progress_base.png'
 $progress.Save($progressPath, [System.Drawing.Imaging.ImageFormat]::Png)
 $progress.Dispose()
 $background.Dispose()

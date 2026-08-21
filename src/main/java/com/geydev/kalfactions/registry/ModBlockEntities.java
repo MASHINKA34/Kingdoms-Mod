@@ -3,6 +3,7 @@ package com.geydev.kalfactions.registry;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.DrillBlockEntity;
 import com.geydev.kalfactions.block.DungeonChestBlockEntity;
+import com.geydev.kalfactions.block.DungeonKeyPedestalBlockEntity;
 import com.geydev.kalfactions.block.EconomyGodStatueBlockEntity;
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
 import com.geydev.kalfactions.block.GuideBoardBlockEntity;
@@ -87,6 +88,13 @@ public final class ModBlockEntities {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "mossy_key_forge");
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<KeyForgeBlockEntity>> MOSSY_KEY_FORGE =
             DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, MOSSY_KEY_FORGE_ID);
+    public static final ResourceLocation DUNGEON_KEY_PEDESTAL_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "dungeon_key_pedestal");
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DungeonKeyPedestalBlockEntity>>
+            DUNGEON_KEY_PEDESTAL = DeferredHolder.create(
+                    Registries.BLOCK_ENTITY_TYPE,
+                    DUNGEON_KEY_PEDESTAL_ID
+            );
 
     @SubscribeEvent
     public static void register(RegisterEvent event) {
@@ -242,6 +250,15 @@ public final class ModBlockEntities {
                     (pos, state) -> new KeyForgeBlockEntity(KeyForgeType.MOSSY, pos, state),
                     block
             ).build(null);
+        });
+        event.register(Registries.BLOCK_ENTITY_TYPE, DUNGEON_KEY_PEDESTAL_ID, () -> {
+            Block block = BuiltInRegistries.BLOCK.get(DUNGEON_KEY_PEDESTAL_ID);
+            if (block == Blocks.AIR) {
+                throw new IllegalStateException(
+                        "kingdoms:dungeon_key_pedestal must be registered before its block entity type"
+                );
+            }
+            return BlockEntityType.Builder.of(DungeonKeyPedestalBlockEntity::new, block).build(null);
         });
     }
 

@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.block;
 
 import com.geydev.kalfactions.registry.ModItems;
+import java.util.List;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.item.ItemStack;
 
@@ -10,6 +11,9 @@ public enum DungeonKeyPedestalActivation implements StringRepresentable {
     SCULK("sculk"),
     INFERNAL("infernal"),
     MOSSY("mossy");
+
+    public static final List<DungeonKeyPedestalActivation> CONFIGURATION_VALUES =
+            List.of(NONE, GHOST, SCULK, INFERNAL, MOSSY);
 
     private final String serializedName;
 
@@ -31,6 +35,25 @@ public enum DungeonKeyPedestalActivation implements StringRepresentable {
             return MOSSY;
         }
         return NONE;
+    }
+
+    public static DungeonKeyPedestalActivation fromSerializedName(String name) {
+        for (DungeonKeyPedestalActivation activation : values()) {
+            if (activation.serializedName.equals(name)) {
+                return activation;
+            }
+        }
+        return NONE;
+    }
+
+    public String displayNameKey() {
+        return switch (this) {
+            case NONE -> "screen.kingdoms.dungeon_key_pedestal.key_disabled";
+            case GHOST -> "item.kingdoms.ghost_key";
+            case SCULK -> "item.kingdoms.sculk_key";
+            case INFERNAL -> "item.kingdoms.infernal_key";
+            case MOSSY -> "item.kingdoms.mossy_key";
+        };
     }
 
     @Override

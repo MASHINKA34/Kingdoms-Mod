@@ -197,45 +197,68 @@ final class GameplayTextureAssetsTest {
         for (String name : names) {
             String texturePath = "/assets/kingdoms/textures/item/" + name + ".png";
             BufferedImage image = read(texturePath);
-            assertSquare(image, 32);
+            assertEquals(64, image.getWidth());
+            assertEquals(512, image.getHeight());
             assertTrue(image.getColorModel().hasAlpha());
             assertEquals(6, readBytes(texturePath)[25]);
-            assertEquals(0, image.getRGB(0, 0) >>> 24);
-            assertEquals(0, image.getRGB(31, 0) >>> 24);
-            assertEquals(0, image.getRGB(0, 31) >>> 24);
-            assertEquals(0, image.getRGB(31, 31) >>> 24);
-            assertTrue(hasOpaquePixels(image));
             assertTrue(hasBinaryAlpha(image));
-            assertTrue(opaqueColors(image).size() <= 13);
-            assertTrue(readText("/assets/kingdoms/models/item/" + name + ".json")
-                    .contains("\"layer0\": \"kingdoms:item/" + name + "\""));
+            assertTrue(opaqueColors(image).size() <= 21);
+
+            for (int frame = 0; frame < 8; frame++) {
+                assertEquals(0, image.getRGB(0, frame * 64) >>> 24);
+                assertEquals(0, image.getRGB(63, frame * 64) >>> 24);
+                assertEquals(0, image.getRGB(0, frame * 64 + 63) >>> 24);
+                assertEquals(0, image.getRGB(63, frame * 64 + 63) >>> 24);
+                assertTrue(frameHasOpaquePixels(image, frame));
+            }
+
+            String metadata = readText(texturePath + ".mcmeta");
+            assertTrue(metadata.contains("\"frametime\": 3"));
+            assertTrue(metadata.contains("\"interpolate\": false"));
+            assertTrue(metadata.contains("\"frames\": [0, 1, 2, 3, 4, 5, 6, 7]"));
+
+            String model = readText("/assets/kingdoms/models/item/" + name + ".json");
+            assertTrue(model.contains("\"parent\": \"minecraft:item/generated\""));
+            assertTrue(model.contains("\"layer0\": \"kingdoms:item/" + name + "\""));
         }
 
         BufferedImage bow = read("/assets/kingdoms/textures/item/mossy_key_bow_fragment.png");
         BufferedImage shaft = read("/assets/kingdoms/textures/item/mossy_key_shaft_fragment.png");
         BufferedImage bit = read("/assets/kingdoms/textures/item/mossy_key_bit_fragment.png");
         BufferedImage key = read("/assets/kingdoms/textures/item/mossy_key.png");
-        BufferedImage composed = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
+        assertEquals(0, changedPixels(bow, 0, 7));
+        assertEquals(0, changedPixels(shaft, 0, 7));
+        assertEquals(0, changedPixels(bit, 0, 7));
+        assertEquals(0, changedPixels(key, 0, 7));
+        assertTrue(changedPixels(bow, 0, 1) > 0);
+        assertTrue(changedPixels(shaft, 0, 3) > 0);
+        assertTrue(changedPixels(bit, 0, 5) > 0);
 
-        copyTranslated(composed, bow, 0, -8);
-        copyTranslated(composed, shaft, 0, 2);
-        copyTranslated(composed, bit, 0, 11);
+        for (int frame = 0; frame < 8; frame++) {
+            BufferedImage composed = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+            copyTranslatedFrameOverwrite(composed, bow, frame, -16, -15);
+            copyTranslatedFrameOverwrite(composed, shaft, frame, 3, 2);
+            copyTranslatedFrameOverwrite(composed, bit, frame, 18, 15);
 
-        for (int y = 0; y < 32; y++) {
-            for (int x = 0; x < 32; x++) {
-                assertEquals(composed.getRGB(x, y), key.getRGB(x, y), x + "," + y);
+            for (int y = 0; y < 64; y++) {
+                for (int x = 0; x < 64; x++) {
+                    assertEquals(composed.getRGB(x, y), key.getRGB(x, frame * 64 + y), frame + ":" + x + "," + y);
+                }
             }
         }
 
         Set<Integer> colors = opaqueColors(key);
-        assertTrue(colors.contains(0xFF9F6543));
-        assertTrue(colors.contains(0xFF93998D));
-        assertTrue(colors.contains(0xFF5E6F33));
-        assertTrue(colors.contains(0xFFFFDA50));
+        assertTrue(colors.contains(0xFFA45E3D));
+        assertTrue(colors.contains(0xFF8D9688));
+        assertTrue(colors.contains(0xFF4D7334));
+        assertTrue(colors.contains(0xFFF2B84B));
         String keyModel = readText("/assets/kingdoms/models/item/mossy_key.json");
         assertTrue(keyModel.contains("\"rotation\": [0, -90, -155]"));
         assertTrue(keyModel.contains("\"rotation\": [0, 90, 155]"));
         assertTrue(keyModel.contains("\"scale\": [0.55, 0.55, 0.55]"));
+        Path source = Path.of("art/aseprite/items/mossy_key_set.aseprite");
+        assertTrue(Files.isRegularFile(source));
+        assertTrue(Files.size(source) > 0);
     }
 
     @Test

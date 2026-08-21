@@ -1528,5 +1528,18 @@
   "item.kingdoms.mossy_key_bit_fragment": "Mossy Key Bit",
   "item.kingdoms.mossy_key": "Mossy Key",
   "screen.kingdoms.key_forge.progress": "Assembly: %s%% · %s ticks remaining",
-  "block.kingdoms.dungeon_key_pedestal": "Key Pedestal"
+  "block.kingdoms.dungeon_key_pedestal": "Key Pedestal",
+  "screen.kingdoms.dungeon_key_pedestal.title": "Key Pedestal Settings",
+  "screen.kingdoms.dungeon_key_pedestal.operator_hint": "Available to server operators only",
+  "screen.kingdoms.dungeon_key_pedestal.required_key": "Required key: %s",
+  "screen.kingdoms.dungeon_key_pedestal.key_disabled": "Not configured (disabled)",
+  "screen.kingdoms.dungeon_key_pedestal.signal_duration": "Redstone signal duration",
+  "screen.kingdoms.dungeon_key_pedestal.unit.seconds": "Seconds",
+  "screen.kingdoms.dungeon_key_pedestal.unit.minutes": "Minutes",
+  "screen.kingdoms.dungeon_key_pedestal.unit.hours": "Hours",
+  "screen.kingdoms.dungeon_key_pedestal.invalid_time": "Enter a whole number from 1 to %s (%s)",
+  "screen.kingdoms.dungeon_key_pedestal.save": "Save",
+  "message.kingdoms.dungeon_key_pedestal.not_configured": "This pedestal has not been configured by an operator yet.",
+  "message.kingdoms.dungeon_key_pedestal.wrong_key": "This pedestal requires: %s.",
+  "message.kingdoms.dungeon_key_pedestal.settings_saved": "Key pedestal settings saved."
 }

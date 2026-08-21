@@ -3,6 +3,7 @@ package com.geydev.kalfactions.gametest;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.DungeonKeyPedestalActivation;
 import com.geydev.kalfactions.block.DungeonKeyPedestalBlock;
+import com.geydev.kalfactions.block.DungeonKeyPedestalBlockEntity;
 import com.geydev.kalfactions.registry.ModBlocks;
 import com.geydev.kalfactions.registry.ModItems;
 import java.util.List;
@@ -50,6 +51,7 @@ public final class DungeonKeyPedestalGameTests {
         for (int index = 0; index < keys.size(); index++) {
             BlockPos pos = helper.absolutePos(new BlockPos(index, 1, 0));
             level.setBlock(pos, ModBlocks.DUNGEON_KEY_PEDESTAL.get().defaultBlockState(), Block.UPDATE_ALL);
+            configure(level, pos, activations.get(index), DungeonKeyPedestalBlockEntity.DEFAULT_SIGNAL_TICKS);
             ItemStack stack = new ItemStack(keys.get(index), 2);
             use(level, pos, player, stack);
             BlockState state = level.getBlockState(pos);
@@ -66,6 +68,8 @@ public final class DungeonKeyPedestalGameTests {
         ServerLevel level = helper.getLevel();
         BlockPos pos = helper.absolutePos(new BlockPos(0, 1, 0));
         level.setBlock(pos, ModBlocks.DUNGEON_KEY_PEDESTAL.get().defaultBlockState(), Block.UPDATE_ALL);
+        configure(level, pos, DungeonKeyPedestalActivation.GHOST,
+                DungeonKeyPedestalBlockEntity.DEFAULT_SIGNAL_TICKS);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
 
         ItemStack wrongItem = new ItemStack(Items.DIAMOND, 3);
@@ -95,6 +99,8 @@ public final class DungeonKeyPedestalGameTests {
         ServerLevel level = helper.getLevel();
         BlockPos pos = helper.absolutePos(new BlockPos(0, 1, 0));
         level.setBlock(pos, ModBlocks.DUNGEON_KEY_PEDESTAL.get().defaultBlockState(), Block.UPDATE_ALL);
+        configure(level, pos, DungeonKeyPedestalActivation.SCULK,
+                DungeonKeyPedestalBlockEntity.DEFAULT_SIGNAL_TICKS);
         Player player = helper.makeMockPlayer(GameType.CREATIVE);
         ItemStack stack = new ItemStack(ModItems.SCULK_KEY.get(), 2);
         use(level, pos, player, stack);
@@ -112,6 +118,7 @@ public final class DungeonKeyPedestalGameTests {
         ServerLevel level = helper.getLevel();
         BlockPos pos = helper.absolutePos(new BlockPos(0, 1, 0));
         level.setBlock(pos, ModBlocks.DUNGEON_KEY_PEDESTAL.get().defaultBlockState(), Block.UPDATE_ALL);
+        configure(level, pos, DungeonKeyPedestalActivation.INFERNAL, 400);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         use(level, pos, player, new ItemStack(ModItems.INFERNAL_KEY.get()));
 
@@ -136,6 +143,32 @@ public final class DungeonKeyPedestalGameTests {
         });
     }
 
+    @GameTest(template = "empty", batch = "dungeon_key_pedestal", timeoutTicks = 80)
+    public static void activationUsesConfiguredSignalDuration(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos pos = helper.absolutePos(new BlockPos(0, 1, 0));
+        level.setBlock(pos, ModBlocks.DUNGEON_KEY_PEDESTAL.get().defaultBlockState(), Block.UPDATE_ALL);
+        configure(level, pos, DungeonKeyPedestalActivation.MOSSY, 60);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        use(level, pos, player, new ItemStack(ModItems.MOSSY_KEY.get()));
+
+        helper.runAfterDelay(59, () -> helper.assertValueEqual(
+                level.getBlockState(pos).getValue(DungeonKeyPedestalBlock.ACTIVATION),
+                DungeonKeyPedestalActivation.MOSSY,
+                "activation at configured tick 59"
+        ));
+        helper.runAfterDelay(60, () -> {
+            BlockState state = level.getBlockState(pos);
+            helper.assertValueEqual(
+                    state.getValue(DungeonKeyPedestalBlock.ACTIVATION),
+                    DungeonKeyPedestalActivation.NONE,
+                    "activation at configured tick 60"
+            );
+            helper.assertValueEqual(state.getSignal(level, pos, Direction.NORTH), 0, "configured signal ended");
+            helper.succeed();
+        });
+    }
+
     @GameTest(template = "empty", batch = "dungeon_key_pedestal")
     public static void redstoneWireUpdatesAndBreakingStopsPower(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -144,6 +177,8 @@ public final class DungeonKeyPedestalGameTests {
         level.setBlock(pedestalPos.below(), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
         level.setBlock(wirePos.below(), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
         level.setBlock(pedestalPos, ModBlocks.DUNGEON_KEY_PEDESTAL.get().defaultBlockState(), Block.UPDATE_ALL);
+        configure(level, pedestalPos, DungeonKeyPedestalActivation.MOSSY,
+                DungeonKeyPedestalBlockEntity.DEFAULT_SIGNAL_TICKS);
         level.setBlock(wirePos, Blocks.REDSTONE_WIRE.defaultBlockState(), Block.UPDATE_ALL);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         use(level, pedestalPos, player, new ItemStack(ModItems.MOSSY_KEY.get()));
@@ -177,6 +212,42 @@ public final class DungeonKeyPedestalGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty", batch = "dungeon_key_pedestal")
+    public static void unconfiguredAndMismatchedKeysAreRejected(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos pos = helper.absolutePos(new BlockPos(0, 1, 0));
+        level.setBlock(pos, ModBlocks.DUNGEON_KEY_PEDESTAL.get().defaultBlockState(), Block.UPDATE_ALL);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+
+        ItemStack ghostKey = new ItemStack(ModItems.GHOST_KEY.get(), 2);
+        use(level, pos, player, ghostKey);
+        helper.assertValueEqual(ghostKey.getCount(), 2, "unconfigured key count");
+        helper.assertValueEqual(
+                level.getBlockState(pos).getValue(DungeonKeyPedestalBlock.ACTIVATION),
+                DungeonKeyPedestalActivation.NONE,
+                "unconfigured activation"
+        );
+
+        configure(level, pos, DungeonKeyPedestalActivation.SCULK, 40);
+        use(level, pos, player, ghostKey);
+        helper.assertValueEqual(ghostKey.getCount(), 2, "mismatched key count");
+        helper.assertValueEqual(
+                level.getBlockState(pos).getValue(DungeonKeyPedestalBlock.ACTIVATION),
+                DungeonKeyPedestalActivation.NONE,
+                "mismatched activation"
+        );
+
+        ItemStack sculkKey = new ItemStack(ModItems.SCULK_KEY.get());
+        use(level, pos, player, sculkKey);
+        helper.assertValueEqual(sculkKey.getCount(), 0, "matching key count");
+        helper.assertValueEqual(
+                level.getBlockState(pos).getValue(DungeonKeyPedestalBlock.ACTIVATION),
+                DungeonKeyPedestalActivation.SCULK,
+                "matching activation"
+        );
+        helper.succeed();
+    }
+
     private static void use(ServerLevel level, BlockPos pos, Player player, ItemStack stack) {
         player.setItemInHand(InteractionHand.MAIN_HAND, stack);
         level.getBlockState(pos).useItemOn(
@@ -186,6 +257,18 @@ public final class DungeonKeyPedestalGameTests {
                 InteractionHand.MAIN_HAND,
                 new BlockHitResult(Vec3.atCenterOf(pos), Direction.UP, pos, false)
         );
+    }
+
+    private static void configure(
+            ServerLevel level,
+            BlockPos pos,
+            DungeonKeyPedestalActivation requiredKey,
+            int signalTicks
+    ) {
+        if (!(level.getBlockEntity(pos) instanceof DungeonKeyPedestalBlockEntity pedestal)) {
+            throw new IllegalStateException("Missing dungeon key pedestal block entity at " + pos);
+        }
+        pedestal.configure(requiredKey, signalTicks);
     }
 
     private DungeonKeyPedestalGameTests() {

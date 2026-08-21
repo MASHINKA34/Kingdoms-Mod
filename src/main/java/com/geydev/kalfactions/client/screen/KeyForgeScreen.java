@@ -18,7 +18,8 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
     public static final int SCULK_PROGRESS_Y = 46;
     public static final int SCULK_PROGRESS_WIDTH = 80;
     public static final int SCULK_PROGRESS_HEIGHT = 29;
-    public static final int SCULK_PROGRESS_TEXTURE_HEIGHT = 58;
+    public static final int SCULK_PROGRESS_FRAMES = 20;
+    public static final int SCULK_PROGRESS_TEXTURE_HEIGHT = SCULK_PROGRESS_HEIGHT * SCULK_PROGRESS_FRAMES;
     public static final int GHOST_PROGRESS_X = 66;
     public static final int GHOST_PROGRESS_Y = 43;
     public static final int GHOST_PROGRESS_WIDTH = 43;
@@ -41,6 +42,8 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
     public static final int MOSSY_PROGRESS_Y = 53;
     public static final int MOSSY_PROGRESS_WIDTH = 90;
     public static final int MOSSY_PROGRESS_HEIGHT = 15;
+    public static final int MOSSY_PROGRESS_FRAMES = 8;
+    public static final int MOSSY_PROGRESS_TEXTURE_HEIGHT = MOSSY_PROGRESS_HEIGHT * MOSSY_PROGRESS_FRAMES;
 
     private static final int INFERNAL_BRANCH_END = 35;
     private static final int INFERNAL_CHAMBER_END = 55;
@@ -68,20 +71,6 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
     private static final ResourceLocation GHOST_READY_TEXTURE = ghostTexture("ghost_key_forge_ready.png");
     private static final ResourceLocation GHOST_PROGRESS_TEXTURE = ghostTexture("ghost_key_forge_progress.png");
     private static final ResourceLocation GHOST_COMPLETE_TEXTURE = ghostTexture("ghost_key_forge_complete.png");
-
-    private static final ProgressPiece[][] SCULK_STAGES = {
-            {piece(2, 0, 3, 2), piece(38, 0, 3, 2), piece(74, 0, 3, 2)},
-            {piece(5, 3, 3, 2), piece(38, 3, 3, 2), piece(71, 3, 3, 2)},
-            {piece(10, 6, 3, 2), piece(38, 6, 3, 2), piece(66, 6, 3, 2)},
-            {piece(16, 9, 4, 2), piece(38, 9, 3, 2), piece(60, 9, 4, 2)},
-            {piece(23, 11, 4, 2), piece(38, 12, 3, 2), piece(53, 11, 4, 2)},
-            {piece(30, 13, 4, 2), piece(38, 15, 3, 2), piece(46, 13, 4, 2)},
-            {piece(35, 16, 4, 2), piece(41, 16, 4, 2)},
-            {piece(38, 18, 4, 2)},
-            {piece(38, 21, 4, 2)},
-            {piece(38, 24, 4, 2)},
-            {piece(37, 27, 6, 2)}
-    };
 
     private final ResourceLocation background;
     private final ResourceLocation progressTexture;
@@ -189,16 +178,18 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
     private void renderMossyProgress(GuiGraphics graphics) {
         int filled = segmentPixels(menu.progress(), 0, menu.totalTicks(), MOSSY_PROGRESS_WIDTH);
         if (filled > 0) {
+            long gameTime = minecraft.level == null ? 0L : minecraft.level.getGameTime();
+            int frame = mossyAnimationFrame(gameTime);
             graphics.blit(
                     progressTexture,
                     leftPos + MOSSY_PROGRESS_X,
                     topPos + MOSSY_PROGRESS_Y,
                     0.0F,
-                    0.0F,
+                    frame * MOSSY_PROGRESS_HEIGHT,
                     filled,
                     MOSSY_PROGRESS_HEIGHT,
                     MOSSY_PROGRESS_WIDTH,
-                    MOSSY_PROGRESS_HEIGHT
+                    MOSSY_PROGRESS_TEXTURE_HEIGHT
             );
         }
     }
@@ -272,18 +263,21 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
     }
 
     private void renderSculkProgress(GuiGraphics graphics) {
-        int progress = menu.progress();
-        if (progress <= 0) {
+        int frame = sculkProgressFrame(menu.progress(), menu.totalTicks());
+        if (frame < 0) {
             return;
         }
-        int litStages = Math.min(
-                SCULK_STAGES.length,
-                Math.max(1, (progress * SCULK_STAGES.length + menu.totalTicks() - 1) / menu.totalTicks())
+        graphics.blit(
+                progressTexture,
+                leftPos + SCULK_PROGRESS_X,
+                topPos + SCULK_PROGRESS_Y,
+                0.0F,
+                frame * SCULK_PROGRESS_HEIGHT,
+                SCULK_PROGRESS_WIDTH,
+                SCULK_PROGRESS_HEIGHT,
+                SCULK_PROGRESS_WIDTH,
+                SCULK_PROGRESS_TEXTURE_HEIGHT
         );
-        for (int stage = 0; stage < litStages; stage++) {
-            renderStage(graphics, SCULK_STAGES[stage], 0);
-        }
-        renderStage(graphics, SCULK_STAGES[litStages - 1], SCULK_PROGRESS_HEIGHT);
     }
 
     private void renderInfernalProgress(GuiGraphics graphics) {
@@ -384,20 +378,19 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
         );
     }
 
-    private void renderStage(GuiGraphics graphics, ProgressPiece[] pieces, int textureY) {
-        for (ProgressPiece piece : pieces) {
-            graphics.blit(
-                    progressTexture,
-                    leftPos + SCULK_PROGRESS_X + piece.x(),
-                    topPos + SCULK_PROGRESS_Y + piece.y(),
-                    piece.x(),
-                    textureY + piece.y(),
-                    piece.width(),
-                    piece.height(),
-                    SCULK_PROGRESS_WIDTH,
-                    SCULK_PROGRESS_TEXTURE_HEIGHT
-            );
+    static int sculkProgressFrame(int progress, int totalTicks) {
+        if (progress <= 0 || totalTicks <= 0) {
+            return -1;
         }
+        return Math.clamp(
+                (progress * SCULK_PROGRESS_FRAMES - 1) / totalTicks,
+                0,
+                SCULK_PROGRESS_FRAMES - 1
+        );
+    }
+
+    static int mossyAnimationFrame(long gameTime) {
+        return (int) Math.floorMod(gameTime / 2L, MOSSY_PROGRESS_FRAMES);
     }
 
     private boolean insideProgress(int mouseX, int mouseY) {
@@ -450,10 +443,6 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
         graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, muted, shadow);
     }
 
-    private static ProgressPiece piece(int x, int y, int width, int height) {
-        return new ProgressPiece(x, y, width, height);
-    }
-
     private static ResourceLocation ghostTexture(String name) {
         return ResourceLocation.fromNamespaceAndPath(
                 KalFactions.MOD_ID,
@@ -461,6 +450,4 @@ public final class KeyForgeScreen extends AbstractContainerScreen<KeyForgeMenu> 
         );
     }
 
-    private record ProgressPiece(int x, int y, int width, int height) {
-    }
 }

@@ -1528,5 +1528,18 @@
   "item.kingdoms.mossy_key_bit_fragment": "Зубцы мшистого ключа",
   "item.kingdoms.mossy_key": "Мшистый ключ",
   "screen.kingdoms.key_forge.progress": "Сборка: %s%% · осталось %s тиков",
-  "block.kingdoms.dungeon_key_pedestal": "Пьедестал ключей"
+  "block.kingdoms.dungeon_key_pedestal": "Пьедестал ключей",
+  "screen.kingdoms.dungeon_key_pedestal.title": "Настройка пьедестала",
+  "screen.kingdoms.dungeon_key_pedestal.operator_hint": "Доступно только операторам сервера",
+  "screen.kingdoms.dungeon_key_pedestal.required_key": "Требуемый ключ: %s",
+  "screen.kingdoms.dungeon_key_pedestal.key_disabled": "Не настроено (выключено)",
+  "screen.kingdoms.dungeon_key_pedestal.signal_duration": "Длительность редстоун-сигнала",
+  "screen.kingdoms.dungeon_key_pedestal.unit.seconds": "Секунды",
+  "screen.kingdoms.dungeon_key_pedestal.unit.minutes": "Минуты",
+  "screen.kingdoms.dungeon_key_pedestal.unit.hours": "Часы",
+  "screen.kingdoms.dungeon_key_pedestal.invalid_time": "Введите целое число от 1 до %s (%s)",
+  "screen.kingdoms.dungeon_key_pedestal.save": "Сохранить",
+  "message.kingdoms.dungeon_key_pedestal.not_configured": "Пьедестал ещё не настроен оператором.",
+  "message.kingdoms.dungeon_key_pedestal.wrong_key": "Для этого пьедестала требуется: %s.",
+  "message.kingdoms.dungeon_key_pedestal.settings_saved": "Настройки пьедестала сохранены."
 }

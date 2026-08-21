@@ -1,13 +1,18 @@
 package com.geydev.kalfactions.block;
 
+import com.geydev.kalfactions.pedestal.DungeonKeyPedestalNetwork;
+import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -15,8 +20,10 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -28,12 +35,10 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-public final class DungeonKeyPedestalBlock extends Block {
+public final class DungeonKeyPedestalBlock extends Block implements EntityBlock {
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final EnumProperty<DungeonKeyPedestalActivation> ACTIVATION =
             EnumProperty.create("activation", DungeonKeyPedestalActivation.class);
-    public static final int ACTIVE_TICKS = 400;
-
     private static final VoxelShape SHAPE = Shapes.or(
             Block.box(0.5D, 0.0D, 0.5D, 15.5D, 2.0D, 15.5D),
             Block.box(2.0D, 2.0D, 2.0D, 14.0D, 3.25D, 14.0D),
@@ -50,6 +55,27 @@ public final class DungeonKeyPedestalBlock extends Block {
                 .setValue(ACTIVATION, DungeonKeyPedestalActivation.NONE));
     }
 
+    @Nullable
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new DungeonKeyPedestalBlockEntity(pos, state);
+    }
+
+    @Override
+    protected InteractionResult useWithoutItem(
+            BlockState state,
+            Level level,
+            BlockPos pos,
+            Player player,
+            BlockHitResult hitResult
+    ) {
+        if (!player.hasPermissions(2)) {
+            return InteractionResult.PASS;
+        }
+        openSettings(level, pos, player);
+        return InteractionResult.sidedSuccess(level.isClientSide());
+    }
+
     @Override
     protected ItemInteractionResult useItemOn(
             ItemStack stack,
@@ -60,6 +86,10 @@ public final class DungeonKeyPedestalBlock extends Block {
             InteractionHand hand,
             BlockHitResult hitResult
     ) {
+        if (player.hasPermissions(2) && player.isSecondaryUseActive()) {
+            openSettings(level, pos, player);
+            return ItemInteractionResult.sidedSuccess(level.isClientSide());
+        }
         DungeonKeyPedestalActivation activation = DungeonKeyPedestalActivation.fromKey(stack);
         if (activation == DungeonKeyPedestalActivation.NONE) {
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
@@ -68,9 +98,35 @@ public final class DungeonKeyPedestalBlock extends Block {
             return ItemInteractionResult.FAIL;
         }
         if (!level.isClientSide()) {
-            activate((ServerLevel) level, pos, state, activation, stack, player);
+            if (!(level.getBlockEntity(pos) instanceof DungeonKeyPedestalBlockEntity pedestal)) {
+                return ItemInteractionResult.FAIL;
+            }
+            if (pedestal.requiredKey() == DungeonKeyPedestalActivation.NONE) {
+                player.displayClientMessage(
+                        Component.translatable("message.kingdoms.dungeon_key_pedestal.not_configured"),
+                        true
+                );
+                return ItemInteractionResult.FAIL;
+            }
+            if (pedestal.requiredKey() != activation) {
+                player.displayClientMessage(
+                        Component.translatable(
+                                "message.kingdoms.dungeon_key_pedestal.wrong_key",
+                                Component.translatable(pedestal.requiredKey().displayNameKey())
+                        ),
+                        true
+                );
+                return ItemInteractionResult.FAIL;
+            }
+            activate((ServerLevel) level, pos, state, activation, pedestal.signalTicks(), stack, player);
         }
         return ItemInteractionResult.sidedSuccess(level.isClientSide());
+    }
+
+    private static void openSettings(Level level, BlockPos pos, Player player) {
+        if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
+            DungeonKeyPedestalNetwork.openSettings(serverPlayer, pos);
+        }
     }
 
     private void activate(
@@ -78,11 +134,12 @@ public final class DungeonKeyPedestalBlock extends Block {
             BlockPos pos,
             BlockState state,
             DungeonKeyPedestalActivation activation,
+            int signalTicks,
             ItemStack stack,
             Player player
     ) {
         level.setBlock(pos, state.setValue(ACTIVATION, activation), Block.UPDATE_ALL);
-        level.scheduleTick(pos, this, ACTIVE_TICKS);
+        level.scheduleTick(pos, this, signalTicks);
         notifySignalNeighbors(level, pos);
         if (!player.isCreative()) {
             stack.shrink(1);
