@@ -5,36 +5,54 @@ import com.geydev.kalfactions.science.ResearchBenchStatus;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 
 public final class ResearchBenchScreen extends AbstractContainerScreen<ResearchBenchMenu> {
+    private static final ResourceLocation BACKGROUND = ResourceLocation.fromNamespaceAndPath(
+            "kingdoms",
+            "textures/gui/research_bench/research_bench.png"
+    );
+    private static final ResourceLocation SLOT_STATES = ResourceLocation.fromNamespaceAndPath(
+            "kingdoms",
+            "textures/gui/research_bench/slot_states.png"
+    );
+    private static final ResourceLocation PROGRESS = ResourceLocation.fromNamespaceAndPath(
+            "kingdoms",
+            "textures/gui/research_bench/progress.png"
+    );
     private static final int PANEL_WIDTH = 276;
     private static final int PANEL_HEIGHT = 236;
-    private static final int READOUT_X = 92;
-    private static final int READOUT_Y = 30;
-    private static final int READOUT_WIDTH = 176;
-    private static final int READOUT_HEIGHT = 96;
-    private static final int PROGRESS_X = 98;
-    private static final int PROGRESS_Y = 40;
-    private static final int PROGRESS_WIDTH = 164;
+    private static final int READOUT_X = 97;
+    private static final int READOUT_WIDTH = 166;
+    private static final int PROGRESS_X = 99;
+    private static final int PROGRESS_Y = 44;
+    private static final int PROGRESS_WIDTH = 162;
     private static final int PROGRESS_HEIGHT = 10;
-    private static final int TEXT_TOP = READOUT_Y + 26;
-    private static final int INVENTORY_PANEL_TOP = 132;
+    private static final int TEXT_TOP = 64;
     private static final int INVENTORY_LABEL_Y = 134;
     private static final int LINE_STEP = 10;
-    private static final int GOLD = 0xFFE8D6A0;
-    private static final int TEXT = 0xFFB9C8D5;
-    private static final int SCIENCE = 0xFF8FD8F5;
-    private static final int WORKING = 0xFF9BE07A;
-    private static final int WARNING = 0xFFF0D99D;
-    private static final int DANGER = 0xFFE08A7A;
+    private static final int INPUT_SLOT_SIZE = 20;
+    private static final int INPUT_SLOT_ATLAS_WIDTH = 100;
+    private static final int SLOT_ATLAS_HEIGHT = 40;
+    private static final int PLAYER_SLOT_SIZE = 18;
+    private static final int PLAYER_SLOT_V = 22;
+    private static final int PROGRESS_TEXTURE_WIDTH = 164;
+    private static final int PROGRESS_TEXTURE_HEIGHT = 20;
+    private static final int PROGRESS_IDLE_V = 10;
+    private static final int GOLD = 0xFFE5BE68;
+    private static final int PARCHMENT_TEXT = 0xFF3D2A22;
+    private static final int SCIENCE = 0xFF245D70;
+    private static final int WORKING = 0xFF356B3C;
+    private static final int WARNING = 0xFF76551D;
+    private static final int DANGER = 0xFF873B31;
 
     public ResearchBenchScreen(ResearchBenchMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
         imageWidth = PANEL_WIDTH;
         imageHeight = PANEL_HEIGHT;
-        titleLabelX = 10;
+        titleLabelX = 14;
         titleLabelY = 10;
         inventoryLabelX = ResearchBenchMenu.PLAYER_INVENTORY_X;
         inventoryLabelY = INVENTORY_LABEL_Y;
@@ -49,83 +67,119 @@ public final class ResearchBenchScreen extends AbstractContainerScreen<ResearchB
 
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
-        graphics.fill(leftPos, topPos, leftPos + imageWidth, topPos + imageHeight, 0xFF101820);
-        graphics.fill(leftPos + 4, topPos + 4, leftPos + imageWidth - 4, topPos + imageHeight - 4, 0xFF172331);
-        graphics.fill(leftPos + 6, topPos + 6, leftPos + imageWidth - 6, topPos + imageHeight - 6, 0xFF0D141D);
-        graphics.fill(leftPos, topPos, leftPos + imageWidth, topPos + 2, 0xFFB98E35);
-        graphics.fill(leftPos, topPos + imageHeight - 2, leftPos + imageWidth, topPos + imageHeight, 0xFF4D3210);
-        renderReadoutPlate(graphics);
+        graphics.blit(BACKGROUND, leftPos, topPos, 0.0F, 0.0F, PANEL_WIDTH, PANEL_HEIGHT, PANEL_WIDTH, PANEL_HEIGHT);
         renderProgressBar(graphics);
-        renderInputSlots(graphics);
-        renderPlayerInventoryPanel(graphics);
-    }
-
-    private void renderReadoutPlate(GuiGraphics graphics) {
-        int left = leftPos + READOUT_X;
-        int top = topPos + READOUT_Y;
-        graphics.fill(left, top, left + READOUT_WIDTH, top + READOUT_HEIGHT, 0xFF080B10);
-        graphics.fill(left + 1, top + 1, left + READOUT_WIDTH - 1, top + READOUT_HEIGHT - 1, 0xFF17222F);
-        graphics.fill(left, top, left + READOUT_WIDTH, top + 2, 0xFFC6A24C);
+        renderInputSlots(graphics, mouseX, mouseY);
+        renderPlayerSlots(graphics, mouseX, mouseY);
     }
 
     private void renderProgressBar(GuiGraphics graphics) {
-        int left = leftPos + PROGRESS_X;
-        int top = topPos + PROGRESS_Y;
-        graphics.fill(left - 1, top - 1, left + PROGRESS_WIDTH + 1, top + PROGRESS_HEIGHT + 1, 0xFF5D3B13);
-        graphics.fill(left, top, left + PROGRESS_WIDTH, top + PROGRESS_HEIGHT, 0xFF0A1119);
         int filled = Math.round(PROGRESS_WIDTH * menu.progressFraction());
         if (filled <= 0) {
             return;
         }
-        int color = menu.status() == ResearchBenchStatus.WORKING ? 0xFF2F7FA8 : 0xFF6A5A2A;
-        int highlight = menu.status() == ResearchBenchStatus.WORKING ? 0xFF5AC8F0 : 0xFFC6A24C;
-        graphics.fill(left, top, left + filled, top + PROGRESS_HEIGHT, color);
-        graphics.fill(left, top, left + filled, top + 2, highlight);
+        int sourceY = menu.status() == ResearchBenchStatus.WORKING ? 0 : PROGRESS_IDLE_V;
+        graphics.blit(
+                PROGRESS,
+                leftPos + PROGRESS_X,
+                topPos + PROGRESS_Y,
+                0.0F,
+                sourceY,
+                filled,
+                PROGRESS_HEIGHT,
+                PROGRESS_TEXTURE_WIDTH,
+                PROGRESS_TEXTURE_HEIGHT
+        );
     }
 
-    private void renderInputSlots(GuiGraphics graphics) {
+    private void renderInputSlots(GuiGraphics graphics, int mouseX, int mouseY) {
+        int activeSlot = activeInputSlot();
+        boolean locked = menu.status() == ResearchBenchStatus.OFF_TERRITORY
+                || menu.status() == ResearchBenchStatus.DAILY_CAP;
         for (int slot = 0; slot < ResearchBenchMenu.SLOTS; slot++) {
             int row = slot / ResearchBenchMenu.INPUT_COLUMNS;
             int column = slot % ResearchBenchMenu.INPUT_COLUMNS;
-            goldSlotFrame(
-                    graphics,
-                    leftPos + ResearchBenchMenu.INPUT_SLOT_X + column * ResearchBenchMenu.INPUT_SLOT_STEP,
-                    topPos + ResearchBenchMenu.INPUT_SLOT_Y + row * ResearchBenchMenu.INPUT_SLOT_STEP
+            int itemX = ResearchBenchMenu.INPUT_SLOT_X + column * ResearchBenchMenu.INPUT_SLOT_STEP;
+            int itemY = ResearchBenchMenu.INPUT_SLOT_Y + row * ResearchBenchMenu.INPUT_SLOT_STEP;
+            boolean hovered = inside(mouseX, mouseY, itemX - 2, itemY - 2, INPUT_SLOT_SIZE);
+            boolean filled = menu.slots.get(slot).hasItem();
+            int state = locked ? 3 : slot == activeSlot ? 2 : hovered ? 1 : filled ? 4 : 0;
+            graphics.blit(
+                    SLOT_STATES,
+                    leftPos + itemX - 2,
+                    topPos + itemY - 2,
+                    state * INPUT_SLOT_SIZE,
+                    0.0F,
+                    INPUT_SLOT_SIZE,
+                    INPUT_SLOT_SIZE,
+                    INPUT_SLOT_ATLAS_WIDTH,
+                    SLOT_ATLAS_HEIGHT
             );
         }
     }
 
-    private void renderPlayerInventoryPanel(GuiGraphics graphics) {
-        int panelTop = topPos + INVENTORY_PANEL_TOP;
-        graphics.fill(leftPos + 6, panelTop, leftPos + imageWidth - 6, topPos + imageHeight - 6, 0xFF101820);
-        graphics.fill(leftPos + 6, panelTop, leftPos + imageWidth - 6, panelTop + 1, 0xFFB98E35);
-        for (int row = 0; row < 3; row++) {
-            for (int column = 0; column < 9; column++) {
-                inventorySlotFrame(
-                        graphics,
-                        leftPos + ResearchBenchMenu.PLAYER_INVENTORY_X + column * 18,
-                        topPos + ResearchBenchMenu.PLAYER_INVENTORY_Y + row * 18
-                );
-            }
-        }
-        for (int column = 0; column < 9; column++) {
-            inventorySlotFrame(
-                    graphics,
-                    leftPos + ResearchBenchMenu.PLAYER_INVENTORY_X + column * 18,
-                    topPos + ResearchBenchMenu.PLAYER_HOTBAR_Y
+    private void renderPlayerSlots(GuiGraphics graphics, int mouseX, int mouseY) {
+        for (int index = ResearchBenchMenu.SLOTS; index < menu.slots.size(); index++) {
+            var slot = menu.slots.get(index);
+            boolean hovered = inside(mouseX, mouseY, slot.x - 1, slot.y - 1, PLAYER_SLOT_SIZE);
+            int state = hovered ? 1 : slot.hasItem() ? 2 : 0;
+            graphics.blit(
+                    SLOT_STATES,
+                    leftPos + slot.x - 1,
+                    topPos + slot.y - 1,
+                    state * PLAYER_SLOT_SIZE,
+                    PLAYER_SLOT_V,
+                    PLAYER_SLOT_SIZE,
+                    PLAYER_SLOT_SIZE,
+                    INPUT_SLOT_ATLAS_WIDTH,
+                    SLOT_ATLAS_HEIGHT
             );
         }
+    }
+
+    private int activeInputSlot() {
+        if (menu.status() != ResearchBenchStatus.WORKING) {
+            return -1;
+        }
+        for (int slot = 0; slot < ResearchBenchMenu.SLOTS; slot++) {
+            if (menu.slots.get(slot).hasItem()) {
+                return slot;
+            }
+        }
+        return -1;
+    }
+
+    private boolean inside(int mouseX, int mouseY, int x, int y, int size) {
+        int left = leftPos + x;
+        int top = topPos + y;
+        return mouseX >= left && mouseX < left + size && mouseY >= top && mouseY < top + size;
     }
 
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
         graphics.drawString(font, title, titleLabelX, titleLabelY, GOLD, false);
+        graphics.drawString(
+                font,
+                Component.translatable("screen.kingdoms.research_bench.components"),
+                18,
+                31,
+                GOLD,
+                false
+        );
+        graphics.drawString(
+                font,
+                Component.translatable("screen.kingdoms.research_bench.research"),
+                101,
+                31,
+                PARCHMENT_TEXT,
+                false
+        );
         graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, GOLD, false);
-        int line = drawWrapped(graphics, statusLine(), TEXT_TOP, statusColor());
+        int line = drawWrapped(graphics, factionLine(), TEXT_TOP, statusColor());
         line = drawWrapped(graphics, scienceTodayLine(), line, SCIENCE);
-        line = drawWrapped(graphics, speedLine(), line, TEXT);
+        line = drawWrapped(graphics, speedLine(), line, PARCHMENT_TEXT);
         if (menu.currentScience() > 0) {
-            drawWrapped(graphics, materialLine(), line, TEXT);
+            drawWrapped(graphics, materialLine(), line, PARCHMENT_TEXT);
         }
     }
 
@@ -136,6 +190,10 @@ public final class ResearchBenchScreen extends AbstractContainerScreen<ResearchB
             line += LINE_STEP;
         }
         return line + 2;
+    }
+
+    private Component factionLine() {
+        return Component.translatable("screen.kingdoms.research_bench.faction_status", statusLine());
     }
 
     private Component statusLine() {
@@ -152,7 +210,7 @@ public final class ResearchBenchScreen extends AbstractContainerScreen<ResearchB
             case WORKING -> WORKING;
             case DAILY_CAP -> WARNING;
             case OFF_TERRITORY -> DANGER;
-            case NO_MATERIALS -> TEXT;
+            case NO_MATERIALS -> PARCHMENT_TEXT;
         };
     }
 
@@ -196,22 +254,5 @@ public final class ResearchBenchScreen extends AbstractContainerScreen<ResearchB
                 totalSeconds % 3600L / 60L,
                 totalSeconds % 60L
         );
-    }
-
-    private static void goldSlotFrame(GuiGraphics graphics, int x, int y) {
-        graphics.fill(x, y, x + 16, y + 16, 0xE40A1119);
-        graphics.fill(x - 2, y - 2, x + 18, y - 1, 0xFFE0B857);
-        graphics.fill(x - 2, y + 17, x + 18, y + 18, 0xFF5D3B13);
-        graphics.fill(x - 2, y - 1, x - 1, y + 17, 0xFFB8872F);
-        graphics.fill(x + 17, y - 1, x + 18, y + 17, 0xFF6D4919);
-    }
-
-    private static void inventorySlotFrame(GuiGraphics graphics, int x, int y) {
-        graphics.fill(x - 1, y - 1, x + 17, y + 17, 0xFF05080D);
-        graphics.fill(x, y, x + 16, y + 16, 0xFF24303D);
-        graphics.fill(x, y, x + 16, y + 1, 0xFF546373);
-        graphics.fill(x, y, x + 1, y + 16, 0xFF3C4855);
-        graphics.fill(x, y + 15, x + 16, y + 16, 0xFF121923);
-        graphics.fill(x + 15, y, x + 16, y + 16, 0xFF121923);
     }
 }

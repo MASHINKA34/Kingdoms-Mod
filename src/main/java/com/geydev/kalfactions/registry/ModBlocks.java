@@ -271,7 +271,8 @@ public final class ModBlocks {
             () -> new ResearchBenchBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.WOOD)
                     .strength(3.0F, 9.0F)
-                    .sound(SoundType.WOOD))
+                    .sound(SoundType.WOOD)
+                    .noOcclusion())
     );
 
     public static final DeferredBlock<SculkKeyForgeBlock> SCULK_KEY_FORGE = BLOCKS.register(
