@@ -8,7 +8,8 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 
 public final class ReplacedRecipes {
     public static final List<ResourceLocation> RECIPE_IDS = List.of(
-            ResourceLocation.fromNamespaceAndPath("scguns", "gun_bench")
+            ResourceLocation.fromNamespaceAndPath("scguns", "gun_bench"),
+            ResourceLocation.fromNamespaceAndPath("protection_pixel", "platformloot")
     );
     private static final Set<ResourceLocation> RECIPE_ID_SET = Set.copyOf(RECIPE_IDS);
 

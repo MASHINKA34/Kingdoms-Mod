@@ -3,6 +3,7 @@ package com.geydev.kalfactions.gametest;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.item.LegacyTokenConversion;
 import com.geydev.kalfactions.registry.ModItems;
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -25,6 +26,8 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @PrefixGameTestTemplate(false)
 public final class MinibossTokenRecipeGameTests {
     private static final ResourceLocation GUN_BENCH = ResourceLocation.fromNamespaceAndPath("scguns", "gun_bench");
+    private static final ResourceLocation PLATFORM =
+            ResourceLocation.fromNamespaceAndPath("protection_pixel", "armorloadplatform");
 
     @GameTest(template = "empty", batch = "miniboss_token_recipes")
     public static void gunBenchIsOnlyCraftableWithTheLushCavesToken(GameTestHelper helper) {
@@ -51,6 +54,37 @@ public final class MinibossTokenRecipeGameTests {
                 iron, flint, ItemStack.EMPTY,
                 planks, planks, ItemStack.EMPTY
         ), false);
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "miniboss_token_recipes")
+    public static void armorPlatformIsOnlyCraftableWithTheGhostToken(GameTestHelper helper) {
+        if (!ModList.get().isLoaded("protection_pixel") || !ModList.get().isLoaded("create")) {
+            helper.succeed();
+            return;
+        }
+        RecipeHolder<?> holder = assertSingleRecipeUsesToken(
+                helper,
+                PLATFORM,
+                ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "armor_load_platform"),
+                ModItems.MINIBOSS_TOKEN_GHOST.get()
+        );
+        ItemStack token = new ItemStack(ModItems.MINIBOSS_TOKEN_GHOST.get());
+        ItemStack alloy = create("andesite_alloy");
+        ItemStack cog = create("cogwheel");
+        ItemStack casing = create("brass_casing");
+        ItemStack largeCog = create("large_cogwheel");
+
+        assertMatches(helper, holder, mechanicalInput(5, 3, List.of(
+                alloy, cog, token, cog, alloy,
+                alloy, cog, ItemStack.EMPTY, cog, alloy,
+                ItemStack.EMPTY, casing, largeCog, casing, ItemStack.EMPTY
+        )), true);
+        assertMatches(helper, holder, mechanicalInput(5, 3, List.of(
+                alloy, cog, ItemStack.EMPTY, cog, alloy,
+                alloy, cog, ItemStack.EMPTY, cog, alloy,
+                ItemStack.EMPTY, casing, largeCog, casing, ItemStack.EMPTY
+        )), false);
         helper.succeed();
     }
 
@@ -121,5 +155,22 @@ public final class MinibossTokenRecipeGameTests {
                 expected,
                 (expected ? "assembles " : "must not assemble without the token: ") + holder.id()
         );
+    }
+
+    private static CraftingInput mechanicalInput(int width, int height, List<ItemStack> grid) {
+        try {
+            Constructor<?> constructor = Class
+                    .forName("com.simibubi.create.content.kinetics.crafter.MechanicalCraftingInput")
+                    .getDeclaredConstructor(int.class, int.class, List.class);
+            constructor.setAccessible(true);
+            return (CraftingInput) constructor.newInstance(width, height, grid);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Create mechanical crafting input is unavailable", exception);
+        }
+    }
+
+    private static ItemStack create(String path) {
+        return new ItemStack(BuiltInRegistries.ITEM
+                .get(ResourceLocation.fromNamespaceAndPath("create", path)));
     }
 }
