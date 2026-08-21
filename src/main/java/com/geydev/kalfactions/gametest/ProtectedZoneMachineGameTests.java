@@ -54,6 +54,7 @@ public final class ProtectedZoneMachineGameTests {
         );
         try {
             assertMachinesRunBeside(helper, level, chunk, anchor.getY());
+            assertMachinesRunInside(helper, level, chunk, anchor.getY());
         } finally {
             manager.remove(dungeonId);
         }
@@ -77,7 +78,9 @@ public final class ProtectedZoneMachineGameTests {
                 .orElseThrow()
                 .core();
         try {
-            assertMachinesRunBeside(helper, level, new ChunkPos(core.x - 1, core.z), level.getSeaLevel() + 24);
+            ChunkPos edge = new ChunkPos(core.x - 1, core.z);
+            assertMachinesRunBeside(helper, level, edge, level.getSeaLevel() + 24);
+            assertMachinesRunInside(helper, level, edge, level.getSeaLevel() + 24);
         } finally {
             manager.removeByCore(level, quarryCore);
             level.removeBlock(quarryCore, false);
@@ -99,6 +102,7 @@ public final class ProtectedZoneMachineGameTests {
         helper.assertTrue(manager.setClaim(key, true), "the chunk joined the spawn zone");
         try {
             assertMachinesRunBeside(helper, level, chunk, level.getSeaLevel() + 24);
+            assertMachinesRunInside(helper, level, chunk, level.getSeaLevel() + 24);
         } finally {
             manager.setClaim(key, false);
         }
@@ -157,6 +161,45 @@ public final class ProtectedZoneMachineGameTests {
             helper.assertValueEqual(outside, OUTSIDE_BLOCKS, "blocks taken from outside the zone");
 
             assertDisassemblyDropsInsteadOfOverwriting(helper, level, contraption, inside.above(2), start.above(2));
+        } finally {
+            clear(level, firstX - 1, lastX + 1, y, z);
+        }
+    }
+
+    private static void assertMachinesRunInside(
+            GameTestHelper helper,
+            ServerLevel level,
+            ChunkPos protectedChunk,
+            int y
+    ) {
+        int z = protectedChunk.getMiddleBlockZ();
+        int firstX = protectedChunk.getMinBlockX() + 2;
+        int lastX = firstX + INSIDE_BLOCKS - 1;
+        BlockPos start = new BlockPos(firstX, y, z);
+        try {
+            clear(level, firstX - 1, lastX + 1, y, z);
+            for (int x = firstX; x <= lastX; x++) {
+                level.setBlock(new BlockPos(x, y, z), Blocks.STONE.defaultBlockState(), 3);
+            }
+
+            TestContraption contraption = new TestContraption();
+            boolean assembled;
+            try {
+                assembled = contraption.searchMovedStructure(level, start, Direction.EAST);
+            } catch (AssemblyException exception) {
+                helper.fail("assembly inside a protected zone threw " + exception.getMessage(), start);
+                return;
+            }
+            helper.assertTrue(assembled, "a machine standing inside the zone assembles");
+            helper.assertValueEqual(
+                    contraption.getBlocks().size(),
+                    INSIDE_BLOCKS,
+                    "blocks a machine inside the zone may move"
+            );
+            helper.assertFalse(
+                    contraption.placeBlock(level, start.above(2), Blocks.OAK_PLANKS.defaultBlockState()),
+                    "a machine inside the zone puts its blocks back instead of dropping them"
+            );
         } finally {
             clear(level, firstX - 1, lastX + 1, y, z);
         }

@@ -1,10 +1,14 @@
 package com.geydev.kalfactions.protection;
 
 import com.geydev.kalfactions.claim.ClaimKey;
+import com.geydev.kalfactions.dungeon.DungeonManager;
 import com.geydev.kalfactions.dungeon.DungeonProtection;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.market.MarketPlot;
+import com.geydev.kalfactions.market.MarketPlotManager;
 import com.geydev.kalfactions.quarry.QuarryManager;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
+import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -71,7 +75,7 @@ public final class MachineProtection {
         if (!(level instanceof ServerLevel serverLevel)) {
             return true;
         }
-        if (!canContraptionBreak(level, target)) {
+        if (protectsBlocks(serverLevel, target) && !sharesProtectedZone(serverLevel, target, anchor)) {
             return false;
         }
         FactionManager factions = FactionManager.get(serverLevel);
@@ -97,6 +101,32 @@ public final class MachineProtection {
         return SanctuaryManager.get(serverLevel).isSanctuary(serverLevel, target)
                 || QuarryManager.get(serverLevel).isQuarry(serverLevel, target)
                 || DungeonProtection.isDungeon(serverLevel, target);
+    }
+
+    public static boolean sharesProtectedZone(LevelReader level, BlockPos target, BlockPos anchor) {
+        if (anchor == null || !(level instanceof ServerLevel serverLevel)) {
+            return false;
+        }
+        DungeonManager dungeons = DungeonManager.get(serverLevel);
+        Optional<DungeonManager.DungeonView> dungeon = dungeons.dungeonAt(ClaimKey.of(serverLevel, target));
+        if (dungeon.isPresent()) {
+            return dungeons.dungeonAt(ClaimKey.of(serverLevel, anchor))
+                    .filter(other -> other.id() == dungeon.get().id())
+                    .isPresent();
+        }
+        if (QuarryManager.get(serverLevel).isQuarry(serverLevel, target)) {
+            return QuarryManager.get(serverLevel).isQuarry(serverLevel, anchor);
+        }
+        if (!SanctuaryManager.get(serverLevel).isSanctuary(serverLevel, target)
+                || !SanctuaryManager.get(serverLevel).isSanctuary(serverLevel, anchor)) {
+            return false;
+        }
+        MarketPlotManager plots = MarketPlotManager.get(serverLevel);
+        Optional<MarketPlot> anchorPlot = plots.plotAt(serverLevel.dimension(), anchor);
+        return anchorPlot.isEmpty()
+                || plots.plotAt(serverLevel.dimension(), target)
+                        .filter(plot -> plot.id() == anchorPlot.get().id())
+                        .isPresent();
     }
 
     public static boolean canPlayerMine(Level level, BlockPos target, ServerPlayer player) {

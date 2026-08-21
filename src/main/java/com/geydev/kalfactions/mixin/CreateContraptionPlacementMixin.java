@@ -20,7 +20,8 @@ public abstract class CreateContraptionPlacementMixin {
             BlockState state,
             CallbackInfoReturnable<Boolean> cir
     ) {
-        if (!MachineProtection.protectsBlocks(world, pos)) {
+        if (!MachineProtection.protectsBlocks(world, pos)
+                || MachineProtection.sharesProtectedZone(world, pos, ((Contraption) (Object) this).anchor)) {
             return;
         }
         if (!world.isClientSide()) {

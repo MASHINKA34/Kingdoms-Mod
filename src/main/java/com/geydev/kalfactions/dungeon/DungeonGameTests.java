@@ -122,8 +122,12 @@ public final class DungeonGameTests {
                     "a Create contraption cannot break or assemble a dungeon block"
             );
             helper.assertFalse(
+                    MachineProtection.canContraptionBreak(level, target, outside),
+                    "a contraption anchored outside cannot break a dungeon block either"
+            );
+            helper.assertTrue(
                     MachineProtection.canContraptionBreak(level, target, target),
-                    "an anchored contraption cannot break a dungeon block either"
+                    "a contraption standing inside the dungeon runs on its own blocks"
             );
             helper.assertFalse(
                     MachineProtection.canProjectileBreak(level, target, shooter),

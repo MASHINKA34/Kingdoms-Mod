@@ -24,9 +24,13 @@ public abstract class CreateContraptionMixin {
             CallbackInfoReturnable<Boolean> cir
     ) {
         BlockPos pos = frontier.peek();
-        if (pos != null && MachineProtection.protectsBlocks(level, pos)) {
-            visited.add(frontier.poll());
-            cir.setReturnValue(true);
+        if (pos == null || !MachineProtection.protectsBlocks(level, pos)) {
+            return;
         }
+        if (MachineProtection.sharesProtectedZone(level, pos, ((Contraption) (Object) this).anchor)) {
+            return;
+        }
+        visited.add(frontier.poll());
+        cir.setReturnValue(true);
     }
 }
