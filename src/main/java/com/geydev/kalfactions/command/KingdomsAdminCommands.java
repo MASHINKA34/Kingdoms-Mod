@@ -19,7 +19,6 @@ import com.geydev.kalfactions.sanctuary.SanctuaryExecutionManager;
 import com.geydev.kalfactions.scout.ScoutManager;
 import com.geydev.kalfactions.scout.ScoutOrder;
 import com.geydev.kalfactions.scout.ScoutService;
-import com.geydev.kalfactions.worldmap.WorldMapRenderManager;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -40,7 +39,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.core.BlockPos;
 
 public final class KingdomsAdminCommands {
@@ -165,16 +163,6 @@ public final class KingdomsAdminCommands {
                                 .then(Commands.argument("faction", StringArgumentType.greedyString())
                                         .suggests(FACTION_SUGGESTIONS)
                                         .executes(KingdomsAdminCommands::scoutComplete))))
-                .then(Commands.literal("map")
-                        .then(Commands.literal("render")
-                                .executes(context -> startRender(context, DEFAULT_MAP_RESOLUTION))
-                                .then(Commands.argument("resolution", IntegerArgumentType.integer(256, 8192))
-                                        .executes(context -> startRender(context,
-                                                IntegerArgumentType.getInteger(context, "resolution")))))
-                        .then(Commands.literal("cancel")
-                                .executes(KingdomsAdminCommands::cancelRender))
-                        .then(Commands.literal("status")
-                                .executes(KingdomsAdminCommands::mapStatus)))
                 .then(Commands.literal("influence")
                         .then(Commands.literal("discoveries")
                                 .executes(context -> discoveries(context, null))
@@ -905,49 +893,6 @@ public final class KingdomsAdminCommands {
         }
         manager.clearAllResearch(factionId);
         source.sendSuccess(() -> Component.literal("Все исследования фракции сброшены."), true);
-        return 1;
-    }
-
-    private static final int DEFAULT_MAP_RESOLUTION = 2048;
-    private static final int MAX_MAP_REGION = 20_000;
-
-    private static int startRender(CommandContext<CommandSourceStack> context, int resolution) {
-        CommandSourceStack source = context.getSource();
-        ServerLevel level = source.getLevel();
-        if (WorldMapRenderManager.isRunning()) {
-            source.sendFailure(Component.literal(
-                    "Рендер карты уже идёт: " + WorldMapRenderManager.progressPercent() + "%"));
-            return 0;
-        }
-        WorldBorder border = level.getWorldBorder();
-        int centerX = (int) Math.round(border.getCenterX());
-        int centerZ = (int) Math.round(border.getCenterZ());
-        int regionBlocks = (int) Math.min(border.getSize(), MAX_MAP_REGION);
-        WorldMapRenderManager.start(level, centerX, centerZ, regionBlocks, resolution);
-        source.sendSuccess(() -> Component.literal(
-                "Старт рендера карты " + regionBlocks + "x" + regionBlocks
-                        + " @ " + resolution + "px вокруг " + centerX + ", " + centerZ + "."), true);
-        return 1;
-    }
-
-    private static int cancelRender(CommandContext<CommandSourceStack> context) {
-        CommandSourceStack source = context.getSource();
-        if (!WorldMapRenderManager.cancel()) {
-            source.sendFailure(Component.literal("Рендер карты сейчас не выполняется."));
-            return 0;
-        }
-        source.sendSuccess(() -> Component.literal("Рендер карты отменён."), true);
-        return 1;
-    }
-
-    private static int mapStatus(CommandContext<CommandSourceStack> context) {
-        CommandSourceStack source = context.getSource();
-        if (WorldMapRenderManager.isRunning()) {
-            source.sendSuccess(() -> Component.literal(
-                    "Рендер карты: " + WorldMapRenderManager.progressPercent() + "%"), false);
-        } else {
-            source.sendSuccess(() -> Component.literal("Рендер карты не выполняется."), false);
-        }
         return 1;
     }
 

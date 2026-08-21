@@ -55,8 +55,6 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> SANCTUARY_CORE =
             ITEMS.registerSimpleBlockItem(ModBlocks.SANCTUARY_CORE);
 
-    public static final DeferredItem<BlockItem> WORLD_MAP =
-            ITEMS.registerSimpleBlockItem(ModBlocks.WORLD_MAP);
 
     public static final DeferredItem<BlockItem> XAERO_MAP_ARCHIVE =
             ITEMS.registerSimpleBlockItem(ModBlocks.XAERO_MAP_ARCHIVE);

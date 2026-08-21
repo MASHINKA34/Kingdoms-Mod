@@ -23,7 +23,6 @@ import com.geydev.kalfactions.block.StoneGodStatueBlock;
 import com.geydev.kalfactions.block.StoneGodStatueCollisionBlock;
 import com.geydev.kalfactions.block.WarArchiveBlock;
 import com.geydev.kalfactions.block.WarGodStatueBlock;
-import com.geydev.kalfactions.block.WorldMapBlock;
 import com.geydev.kalfactions.block.XaeroMapArchiveBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
@@ -117,14 +116,6 @@ public final class ModBlocks {
                     .sound(SoundType.METAL)
                     .pushReaction(PushReaction.BLOCK)
                     .noLootTable())
-    );
-
-    public static final DeferredBlock<WorldMapBlock> WORLD_MAP = BLOCKS.register(
-            "world_map",
-            () -> new WorldMapBlock(BlockBehaviour.Properties.of()
-                    .mapColor(MapColor.STONE)
-                    .strength(3.0F, 6.0F)
-                    .sound(SoundType.STONE))
     );
 
     public static final DeferredBlock<XaeroMapArchiveBlock> XAERO_MAP_ARCHIVE = BLOCKS.register(

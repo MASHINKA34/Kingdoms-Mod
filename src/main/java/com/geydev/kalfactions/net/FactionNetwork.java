@@ -2,9 +2,6 @@ package com.geydev.kalfactions.net;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.ClientFactionPayloadHandler;
-import com.geydev.kalfactions.client.ClientWorldMapStore;
-import com.geydev.kalfactions.client.ClientWorldMapTracks;
-import com.geydev.kalfactions.worldmap.WorldMapService;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -16,7 +13,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class FactionNetwork {
-    private static final String PROTOCOL_VERSION = "16";
+    private static final String PROTOCOL_VERSION = "17";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -187,11 +184,6 @@ public final class FactionNetwork {
                 FactionNetwork::handleRequestFactionList
         );
         registrar.playToServer(
-                FactionPayloads.C2SRequestWorldMap.TYPE,
-                FactionPayloads.C2SRequestWorldMap.STREAM_CODEC,
-                FactionNetwork::handleRequestWorldMap
-        );
-        registrar.playToServer(
                 FactionPayloads.C2SRespondInvite.TYPE,
                 FactionPayloads.C2SRespondInvite.STREAM_CODEC,
                 FactionNetwork::handleRespondInvite
@@ -270,31 +262,6 @@ public final class FactionNetwork {
                 FactionPayloads.S2COpenSanctuary.TYPE,
                 FactionPayloads.S2COpenSanctuary.STREAM_CODEC,
                 FactionNetwork::handleOpenSanctuary
-        );
-        registrar.playToClient(
-                FactionPayloads.S2CWorldMapBegin.TYPE,
-                FactionPayloads.S2CWorldMapBegin.STREAM_CODEC,
-                FactionNetwork::handleWorldMapBegin
-        );
-        registrar.playToClient(
-                FactionPayloads.S2CWorldMapPart.TYPE,
-                FactionPayloads.S2CWorldMapPart.STREAM_CODEC,
-                FactionNetwork::handleWorldMapPart
-        );
-        registrar.playToClient(
-                FactionPayloads.S2CWorldMapTracks.TYPE,
-                FactionPayloads.S2CWorldMapTracks.STREAM_CODEC,
-                FactionNetwork::handleWorldMapTracks
-        );
-        registrar.playToClient(
-                FactionPayloads.S2CWorldMapStations.TYPE,
-                FactionPayloads.S2CWorldMapStations.STREAM_CODEC,
-                FactionNetwork::handleWorldMapStations
-        );
-        registrar.playToClient(
-                FactionPayloads.S2CWorldMapTrains.TYPE,
-                FactionPayloads.S2CWorldMapTrains.STREAM_CODEC,
-                FactionNetwork::handleWorldMapTrains
         );
         registrar.playToClient(
                 FactionPayloads.S2CBlackZoneState.TYPE,
@@ -501,40 +468,6 @@ public final class FactionNetwork {
             IPayloadContext context
     ) {
         FactionServerHooks.sendFactionList(serverPlayer(context));
-    }
-
-    private static void handleRequestWorldMap(FactionPayloads.C2SRequestWorldMap payload, IPayloadContext context) {
-        WorldMapService.send(serverPlayer(context));
-    }
-
-    private static void handleWorldMapBegin(FactionPayloads.S2CWorldMapBegin payload, IPayloadContext context) {
-        if (FMLEnvironment.dist == Dist.CLIENT) {
-            ClientWorldMapStore.handleBegin(payload);
-        }
-    }
-
-    private static void handleWorldMapPart(FactionPayloads.S2CWorldMapPart payload, IPayloadContext context) {
-        if (FMLEnvironment.dist == Dist.CLIENT) {
-            ClientWorldMapStore.handlePart(payload);
-        }
-    }
-
-    private static void handleWorldMapTracks(FactionPayloads.S2CWorldMapTracks payload, IPayloadContext context) {
-        if (FMLEnvironment.dist == Dist.CLIENT) {
-            ClientWorldMapTracks.handle(payload);
-        }
-    }
-
-    private static void handleWorldMapStations(FactionPayloads.S2CWorldMapStations payload, IPayloadContext context) {
-        if (FMLEnvironment.dist == Dist.CLIENT) {
-            ClientWorldMapTracks.handleStations(payload);
-        }
-    }
-
-    private static void handleWorldMapTrains(FactionPayloads.S2CWorldMapTrains payload, IPayloadContext context) {
-        if (FMLEnvironment.dist == Dist.CLIENT) {
-            ClientWorldMapTracks.handleTrains(payload);
-        }
     }
 
     private static void handleRespondInvite(FactionPayloads.C2SRespondInvite payload, IPayloadContext context) {

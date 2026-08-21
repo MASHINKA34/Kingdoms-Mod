@@ -14,7 +14,6 @@ import com.geydev.kalfactions.block.ResearchBenchBlockEntity;
 import com.geydev.kalfactions.block.StatueScienceBlockEntity;
 import com.geydev.kalfactions.block.StoneGodStatueBlockEntity;
 import com.geydev.kalfactions.block.WarGodStatueBlockEntity;
-import com.geydev.kalfactions.block.WorldMapBlockEntity;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
@@ -34,16 +33,12 @@ public final class ModBlockEntities {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "drill");
     public static final ResourceLocation GUIDE_BOARD_ID =
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "guide_board");
-    public static final ResourceLocation WORLD_MAP_ID =
-            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "world_map");
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<FactionTableBlockEntity>> FACTION_TABLE =
             DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, FACTION_TABLE_ID);
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DrillBlockEntity>> DRILL =
             DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, DRILL_ID);
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GuideBoardBlockEntity>> GUIDE_BOARD =
             DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, GUIDE_BOARD_ID);
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WorldMapBlockEntity>> WORLD_MAP =
-            DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, WORLD_MAP_ID);
     public static final ResourceLocation STATUE_SCIENCE_ID =
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "statue_science");
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<StatueScienceBlockEntity>> STATUE_SCIENCE =
@@ -124,15 +119,6 @@ public final class ModBlockEntities {
                 );
             }
             return BlockEntityType.Builder.of(GuideBoardBlockEntity::new, block).build(null);
-        });
-        event.register(Registries.BLOCK_ENTITY_TYPE, WORLD_MAP_ID, () -> {
-            Block block = BuiltInRegistries.BLOCK.get(WORLD_MAP_ID);
-            if (block == Blocks.AIR) {
-                throw new IllegalStateException(
-                        "kingdoms:world_map must be registered before its block entity type"
-                );
-            }
-            return BlockEntityType.Builder.of(WorldMapBlockEntity::new, block).build(null);
         });
         event.register(Registries.BLOCK_ENTITY_TYPE, STATUE_SCIENCE_ID, () -> {
             Block block = BuiltInRegistries.BLOCK.get(STATUE_SCIENCE_ID);

@@ -53,7 +53,6 @@ public final class ModCreativeTabs {
                 ModItems.QUARRY_CORE.get(),
                 ModItems.DRILL.get(),
                 ModItems.RESEARCH_BENCH.get(),
-                ModItems.WORLD_MAP.get(),
                 ModItems.XAERO_MAP_ARCHIVE.get(),
                 ModItems.DUNGEON_CORE.get(),
                 ModItems.DUNGEON_CHEST.get(),
