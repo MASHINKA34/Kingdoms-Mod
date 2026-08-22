@@ -140,8 +140,9 @@ public final class NetherPortalIgnition {
                 anchor -> NetherPortalRegistration.clearConnectedPortal(overworld, anchor)
         );
         control.clearNetherPortal();
-        control.clearNetherPortalCharge();
-        broadcast(server, Component.translatable(noticeKey), false);
+        if (control.clearNetherPortalCharge()) {
+            broadcast(server, Component.translatable(noticeKey), false);
+        }
         return evacuated;
     }
 
