@@ -118,7 +118,8 @@ public final class DimensionPayloads {
             boolean administrativelyClosed,
             int remainingSessions,
             int totalSessions,
-            long sessionEndsAtEpochMillis
+            long sessionEndsAtEpochMillis,
+            long portalChargedUntilEpochMillis
     ) implements CustomPacketPayload {
         public static final Type<S2CNetherStatus> TYPE = payloadType("nether_status");
         public static final StreamCodec<RegistryFriendlyByteBuf, S2CNetherStatus> STREAM_CODEC = StreamCodec.of(
@@ -130,6 +131,7 @@ public final class DimensionPayloads {
                     buffer.writeVarInt(payload.remainingSessions + 1);
                     buffer.writeVarInt(payload.totalSessions);
                     buffer.writeLong(payload.sessionEndsAtEpochMillis);
+                    buffer.writeLong(payload.portalChargedUntilEpochMillis);
                 },
                 S2CNetherStatus::decodeStatus
         );
@@ -142,7 +144,8 @@ public final class DimensionPayloads {
             if (totalSessions < 1 || totalSessions > 16) {
                 throw new IllegalArgumentException("totalSessions");
             }
-            if (phaseEndsAtEpochMillis < 0L || sessionEndsAtEpochMillis < 0L) {
+            if (phaseEndsAtEpochMillis < 0L || sessionEndsAtEpochMillis < 0L
+                    || portalChargedUntilEpochMillis < 0L) {
                 throw new IllegalArgumentException("end time");
             }
         }
@@ -160,13 +163,14 @@ public final class DimensionPayloads {
             int remaining = buffer.readVarInt() - 1;
             int total = buffer.readVarInt();
             long sessionEnd = buffer.readLong();
+            long portalChargedUntil = buffer.readLong();
             if (remaining < -1 || remaining > 16 || total < 1 || total > 16
                     || remaining >= 0 && remaining > total
-                    || serverNow < 0L || phaseEnd < 0L || sessionEnd < 0L) {
+                    || serverNow < 0L || phaseEnd < 0L || sessionEnd < 0L || portalChargedUntil < 0L) {
                 throw new DecoderException("Invalid Nether status payload");
             }
             return new S2CNetherStatus(
-                    serverNow, phaseEnd, open, closed, remaining, total, sessionEnd
+                    serverNow, phaseEnd, open, closed, remaining, total, sessionEnd, portalChargedUntil
             );
         }
     }

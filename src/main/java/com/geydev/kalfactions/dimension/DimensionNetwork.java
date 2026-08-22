@@ -25,7 +25,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class DimensionNetwork {
-    private static final String PROTOCOL_VERSION = "5";
+    private static final String PROTOCOL_VERSION = "6";
     private static final Map<UUID, Long> LAST_STATUS_REQUEST = new HashMap<>();
 
     @SubscribeEvent
@@ -205,6 +205,10 @@ public final class DimensionNetwork {
                 .filter(session -> factionId != null && session.factionId().equals(factionId))
                 .map(session -> session.endsAt().toEpochMilli())
                 .orElse(0L);
+        long portalChargedUntil = control.netherPortalCharge()
+                .filter(charge -> charge.expiresAt().isAfter(now))
+                .map(charge -> charge.expiresAt().toEpochMilli())
+                .orElse(0L);
         return new DimensionPayloads.S2CNetherStatus(
                 now.toEpochMilli(),
                 phaseEnd.toEpochMilli(),
@@ -212,7 +216,8 @@ public final class DimensionNetwork {
                 scheduleOpen && control.isClosed(Level.NETHER),
                 remaining,
                 control.rules().sessionsPerDay(),
-                sessionEnd
+                sessionEnd,
+                portalChargedUntil
         );
     }
 

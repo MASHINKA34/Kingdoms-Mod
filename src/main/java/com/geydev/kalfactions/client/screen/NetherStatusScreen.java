@@ -1,6 +1,8 @@
 package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.dimension.DimensionPayloads;
+import com.geydev.kalfactions.dimension.NetherSchedulePolicy;
+import java.time.Duration;
 import java.util.Locale;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
@@ -12,7 +14,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class NetherStatusScreen extends Screen {
     private static final int PANEL_WIDTH = 286;
-    private static final int PANEL_HEIGHT = 180;
+    private static final int PANEL_HEIGHT = 206;
     private DimensionPayloads.S2CNetherStatus state;
     private long receivedAtMillis;
     private int panelLeft;
@@ -136,6 +138,39 @@ public final class NetherStatusScreen extends Screen {
                 );
             }
         }
+        renderPortalLine(graphics, now);
+    }
+
+    private void renderPortalLine(GuiGraphics graphics, long now) {
+        graphics.fill(panelLeft + 24, panelTop + 112, panelLeft + PANEL_WIDTH - 24, panelTop + 113, 0xFF6B4E2A);
+        if (state.portalChargedUntilEpochMillis() > now) {
+            graphics.drawCenteredString(
+                    font,
+                    Component.translatable(
+                            "screen.kingdoms.nether_status.portal_closes_in",
+                            NetherSchedulePolicy.formatRemaining(Duration.ofSeconds(
+                                    remainingSeconds(state.portalChargedUntilEpochMillis(), now)
+                            ))
+                    ),
+                    width / 2,
+                    panelTop + 122,
+                    0xFFFFB15C
+            );
+            return;
+        }
+        graphics.drawCenteredString(
+                font,
+                Component.translatable("screen.kingdoms.nether_status.portal_unlit"),
+                width / 2,
+                panelTop + 122,
+                0xFFE07A6B
+        );
+        renderWrappedCentered(
+                graphics,
+                Component.translatable("screen.kingdoms.nether_status.portal_unlit_hint"),
+                panelTop + 140,
+                0xFFB8B0A4
+        );
     }
 
     private void renderWrappedCentered(GuiGraphics graphics, Component text, int y, int color) {
