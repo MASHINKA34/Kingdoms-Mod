@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "kingdoms:block/nether_portal_anchor"
+    }
+  }
+}

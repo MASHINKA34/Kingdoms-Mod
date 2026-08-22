@@ -142,19 +142,6 @@ public final class NetherSessionGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void ordinaryPlayerPortalCreationIsRejected(GameTestHelper helper) {
-        helper.assertTrue(
-                !NetherPortalRegistration.mayCreatePortal(false, true),
-                "Ordinary player was allowed to create a Nether portal"
-        );
-        helper.assertTrue(
-                NetherPortalRegistration.mayCreatePortal(true, true),
-                "Operator was not allowed to create a remote Overworld portal"
-        );
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
     public static void operatorPortalIsDetectedAndRegistered(GameTestHelper helper) {
         BlockPos bottom = new BlockPos(3, 93, 3);
         for (int x = 0; x < 2; x++) {

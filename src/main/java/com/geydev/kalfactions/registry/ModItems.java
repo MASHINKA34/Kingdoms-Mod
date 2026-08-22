@@ -9,6 +9,7 @@ import com.geydev.kalfactions.item.BlackZoneAntidoteItem;
 import com.geydev.kalfactions.item.DimensionKeyItem;
 import com.geydev.kalfactions.item.FactionMeterItem;
 import com.geydev.kalfactions.item.LegacyTokenItem;
+import com.geydev.kalfactions.item.NetherIgniterItem;
 import com.geydev.kalfactions.item.NetherReturnItem;
 import com.geydev.kalfactions.item.PlotWandItem;
 import com.geydev.kalfactions.item.SellerCatalogItem;
@@ -345,6 +346,16 @@ public final class ModItems {
 
     public static final DeferredItem<BlockItem> DUNGEON_KEY_PEDESTAL =
             ITEMS.registerSimpleBlockItem(ModBlocks.DUNGEON_KEY_PEDESTAL);
+
+    public static final DeferredItem<BlockItem> NETHER_PORTAL_ANCHOR =
+            ITEMS.registerSimpleBlockItem(ModBlocks.NETHER_PORTAL_ANCHOR);
+
+    public static final DeferredItem<NetherIgniterItem> NETHER_IGNITER = ITEMS.register(
+            "nether_igniter",
+            () -> new NetherIgniterItem(
+                    new Item.Properties().stacksTo(16).rarity(net.minecraft.world.item.Rarity.RARE)
+            )
+    );
 
     public static Item crystalFor(InfluenceType type) {
         return switch (type) {

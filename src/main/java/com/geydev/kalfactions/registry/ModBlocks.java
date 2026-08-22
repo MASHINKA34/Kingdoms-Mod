@@ -13,6 +13,7 @@ import com.geydev.kalfactions.block.GhostKeyForgeBlock;
 import com.geydev.kalfactions.block.InfernalKeyForgeBlock;
 import com.geydev.kalfactions.block.MossyKeyForgeBlock;
 import com.geydev.kalfactions.block.MusicBlock;
+import com.geydev.kalfactions.block.NetherPortalAnchorBlock;
 import com.geydev.kalfactions.block.OutpostCoreBlock;
 import com.geydev.kalfactions.block.QuarryCoreBlock;
 import com.geydev.kalfactions.block.ResearchBenchBlock;
@@ -288,6 +289,15 @@ public final class ModBlocks {
                             == DungeonKeyPedestalActivation.NONE ? 0 : 7)
                     .noOcclusion()
                     .dynamicShape())
+    );
+
+    public static final DeferredBlock<NetherPortalAnchorBlock> NETHER_PORTAL_ANCHOR = BLOCKS.register(
+            "nether_portal_anchor",
+            () -> new NetherPortalAnchorBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BLACK)
+                    .strength(50.0F, 1200.0F)
+                    .sound(SoundType.ANCIENT_DEBRIS)
+                    .lightLevel(state -> 7))
     );
 
     public static void register(IEventBus bus) {

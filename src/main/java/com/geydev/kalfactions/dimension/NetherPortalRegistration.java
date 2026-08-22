@@ -16,10 +16,6 @@ public final class NetherPortalRegistration {
     private static final int MAX_PORTAL_BLOCKS = MAX_AXIS_SIZE * MAX_AXIS_SIZE;
     private static final int MAX_VANILLA_PORTAL_BLOCKS = 21 * 21;
 
-    static boolean mayCreatePortal(boolean operator, boolean overworld) {
-        return operator && overworld;
-    }
-
     public static Optional<PortalBounds> findConnectedPortal(ServerLevel level, BlockPos origin) {
         Optional<PortalBounds> connected = findConnectedPortalBlocks(level, origin);
         if (connected.isEmpty()) {

@@ -6,6 +6,8 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Locale;
+import net.minecraft.network.chat.Component;
 
 public final class NetherSchedulePolicy {
     public static final ZoneId MOSCOW = ZoneId.of("Europe/Moscow");
@@ -41,6 +43,21 @@ public final class NetherSchedulePolicy {
             return 0L;
         }
         return Math.max(0L, Duration.between(now, closeInstant(now)).getSeconds());
+    }
+
+    public static String formatClock(Duration remaining) {
+        long seconds = Math.max(0L, remaining.getSeconds()) % 86_400L;
+        return String.format(
+                Locale.ROOT, "%02d:%02d:%02d", seconds / 3600L, (seconds % 3600L) / 60L, seconds % 60L
+        );
+    }
+
+    public static Component formatRemaining(Duration remaining) {
+        long days = Math.max(0L, remaining.getSeconds()) / 86_400L;
+        String clock = formatClock(remaining);
+        return days > 0L
+                ? Component.translatable("kingdoms.time.days_clock", days, clock)
+                : Component.literal(clock);
     }
 
     public static Instant sessionEnd(Instant start, Duration duration) {

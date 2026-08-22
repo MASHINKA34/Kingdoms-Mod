@@ -9,6 +9,7 @@ import com.geydev.kalfactions.market.MarketPlot;
 import com.geydev.kalfactions.market.MarketPlotManager;
 import com.geydev.kalfactions.outpost.RogueOutpostManager;
 import com.geydev.kalfactions.outpost.trader.TraderWorldData;
+import com.geydev.kalfactions.registry.ModBlocks;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
@@ -65,8 +66,6 @@ public final class DimensionControlEvents {
     private static final Map<UUID, Long> ENTRY_GUARD_UNTIL = new HashMap<>();
     private static final Map<UUID, BlockPos> PENDING_RETURN_POSITIONS = new HashMap<>();
     private static final Map<UUID, PendingNetherEntry> PENDING_NETHER_ENTRIES = new HashMap<>();
-    private static final Map<BlockPos, PortalIgnition> PORTAL_IGNITIONS = new HashMap<>();
-    private static final List<PendingPortalRegistration> PENDING_PORTAL_REGISTRATIONS = new ArrayList<>();
     private static int tickCounter;
 
     @SubscribeEvent
@@ -90,8 +89,7 @@ public final class DimensionControlEvents {
         ENTRY_GUARD_UNTIL.clear();
         PENDING_RETURN_POSITIONS.clear();
         PENDING_NETHER_ENTRIES.clear();
-        PORTAL_IGNITIONS.clear();
-        PENDING_PORTAL_REGISTRATIONS.clear();
+        NetherPortalIgnition.clear();
         NetherEntryConfirmations.clear();
         DimensionNetwork.clear();
         tickCounter = 0;
@@ -144,6 +142,10 @@ public final class DimensionControlEvents {
         }
         if (!control.isInsideRegisteredPortal(portalPosition)) {
             deny(event, player, Component.translatable("kingdoms.nether.portal.unregistered"));
+            return;
+        }
+        if (!control.isNetherPortalCharged(Instant.now())) {
+            deny(event, player, Component.translatable("kingdoms.nether.portal.not_ignited"));
             return;
         }
         boolean operator = player.hasPermissions(2);
@@ -402,8 +404,10 @@ public final class DimensionControlEvents {
             BlockPos landing
     ) {
         ServerPlayer player = validPendingPlayer(server, pending);
-        if (player == null || (!pending.operator()
-                && !DimensionControlManager.get(server).isNetherOpenForPlayers(Instant.now()))) {
+        if (player == null
+                || !DimensionControlManager.get(server).isNetherPortalCharged(Instant.now())
+                || (!pending.operator()
+                        && !DimensionControlManager.get(server).isNetherOpenForPlayers(Instant.now()))) {
             failAuthorizedOrPending(server, pending, authorized);
             return;
         }
@@ -550,41 +554,40 @@ public final class DimensionControlEvents {
         if (PortalShape.findEmptyPortalShape(level, firePosition, Direction.Axis.X).isEmpty()) {
             return;
         }
-        boolean overworld = Level.OVERWORLD.equals(level.dimension());
-        if (!NetherPortalRegistration.mayCreatePortal(player.hasPermissions(2), overworld)) {
-            event.setCancellationResult(InteractionResult.FAIL);
-            event.setCanceled(true);
-            player.displayClientMessage(Component.translatable(player.hasPermissions(2)
-                    ? "commands.kingdoms.nether.portal.invalid"
-                    : "kingdoms.nether.portal.spawn_only"), true);
-            return;
-        }
-        PORTAL_IGNITIONS.put(firePosition, new PortalIgnition(player.getUUID(), level.getGameTime()));
+        event.setCancellationResult(InteractionResult.FAIL);
+        event.setCanceled(true);
+        player.displayClientMessage(Component.translatable("kingdoms.nether.portal.igniter_required"), true);
     }
 
     @SubscribeEvent
     public static void onPortalSpawn(BlockEvent.PortalSpawnEvent event) {
-        if (!(event.getLevel() instanceof ServerLevel level)) {
+        event.setCanceled(true);
+    }
+
+    @SubscribeEvent
+    public static void onAnchorBreak(BlockEvent.BreakEvent event) {
+        if (!(event.getPlayer() instanceof ServerPlayer player)
+                || player.hasPermissions(2)
+                || !event.getState().is(ModBlocks.NETHER_PORTAL_ANCHOR.get())) {
             return;
         }
-        PortalIgnition ignition = PORTAL_IGNITIONS.remove(event.getPos());
-        ServerPlayer actor = ignition == null ? null : level.getServer().getPlayerList().getPlayer(ignition.playerId());
-        if (ignition == null || level.getGameTime() - ignition.gameTime() > 2L
-                || actor == null || !actor.hasPermissions(2)) {
-            event.setCanceled(true);
-            if (actor != null) {
-                actor.displayClientMessage(Component.translatable("kingdoms.nether.portal.spawn_only"), true);
-            }
+        event.setCanceled(true);
+        player.displayClientMessage(
+                Component.translatable("kingdoms.nether.portal.anchor.operator_only"), true
+        );
+    }
+
+    @SubscribeEvent
+    public static void onAnchorPlace(BlockEvent.EntityPlaceEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)
+                || player.hasPermissions(2)
+                || !event.getPlacedBlock().is(ModBlocks.NETHER_PORTAL_ANCHOR.get())) {
             return;
         }
-        if (!Level.OVERWORLD.equals(level.dimension())) {
-            event.setCanceled(true);
-            actor.displayClientMessage(Component.translatable("commands.kingdoms.nether.portal.invalid"), true);
-            return;
-        }
-        PENDING_PORTAL_REGISTRATIONS.add(new PendingPortalRegistration(
-                event.getPos().immutable(), actor.getUUID(), level.getGameTime()
-        ));
+        event.setCanceled(true);
+        player.displayClientMessage(
+                Component.translatable("kingdoms.nether.portal.anchor.operator_only"), true
+        );
     }
 
     @SubscribeEvent
@@ -621,6 +624,7 @@ public final class DimensionControlEvents {
         EXPECTED_NETHER_ARRIVALS.remove(playerId);
         PENDING_RETURN_POSITIONS.remove(playerId);
         PENDING_NETHER_ENTRIES.remove(playerId);
+        NetherPortalIgnition.removePlayer(playerId);
         removePlayerFromBossBars(event.getEntity().getUUID());
         NetherEntryConfirmations.remove(playerId);
         DimensionNetwork.removePlayer(playerId);
@@ -703,7 +707,6 @@ public final class DimensionControlEvents {
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
-        processPortalRegistrations(event.getServer());
         if (++tickCounter < 20) {
             return;
         }
@@ -712,6 +715,7 @@ public final class DimensionControlEvents {
         Instant now = Instant.now();
         DimensionControlManager control = DimensionControlManager.get(server);
         control.applyScheduledNetherOpening(now);
+        NetherPortalIgnition.tick(server, now);
         validateRegisteredPortal(server, control);
         FactionManager factions = FactionManager.get(server);
         List<EndedSession> ended = control.expireSessions(now, id -> factions.getFactionById(id).isPresent());
@@ -742,6 +746,18 @@ public final class DimensionControlEvents {
         List<ServerPlayer> players = List.copyOf(level.players());
         for (ServerPlayer player : players) {
             evacuatePlayer(player, "kingdoms.dimension.evicted");
+        }
+        return players.size();
+    }
+
+    public static int evacuateNether(MinecraftServer server, String noticeKey) {
+        ServerLevel nether = server.getLevel(Level.NETHER);
+        if (nether == null) {
+            return 0;
+        }
+        List<ServerPlayer> players = List.copyOf(nether.players());
+        for (ServerPlayer player : players) {
+            evacuatePlayer(player, noticeKey);
         }
         return players.size();
     }
@@ -1055,38 +1071,6 @@ public final class DimensionControlEvents {
         );
     }
 
-    private static void processPortalRegistrations(MinecraftServer server) {
-        ServerLevel overworld = server.overworld();
-        long gameTime = overworld.getGameTime();
-        PORTAL_IGNITIONS.entrySet().removeIf(entry -> gameTime - entry.getValue().gameTime() > 5L);
-        for (PendingPortalRegistration pending : List.copyOf(PENDING_PORTAL_REGISTRATIONS)) {
-            if (gameTime <= pending.gameTime()) {
-                continue;
-            }
-            var bounds = NetherPortalRegistration.findConnectedPortal(overworld, pending.position());
-            if (bounds.isPresent()) {
-                DimensionControlManager.get(server).setNetherPortal(bounds.get());
-                ServerPlayer operator = server.getPlayerList().getPlayer(pending.operatorId());
-                if (operator != null) {
-                    var value = bounds.get();
-                    operator.sendSystemMessage(Component.translatable(
-                            "commands.kingdoms.nether.portal.registered",
-                            value.minX(), value.minY(), value.minZ(), value.maxX(), value.maxY(), value.maxZ()
-                    ));
-                }
-                PENDING_PORTAL_REGISTRATIONS.remove(pending);
-            } else if (gameTime - pending.gameTime() >= 5L) {
-                ServerPlayer operator = server.getPlayerList().getPlayer(pending.operatorId());
-                if (operator != null) {
-                    operator.displayClientMessage(
-                            Component.translatable("commands.kingdoms.nether.portal.invalid"), true
-                    );
-                }
-                PENDING_PORTAL_REGISTRATIONS.remove(pending);
-            }
-        }
-    }
-
     private static void validateRegisteredPortal(MinecraftServer server, DimensionControlManager control) {
         var registered = control.netherPortal().orElse(null);
         if (registered != null && !NetherPortalRegistration.isIntact(server.overworld(), registered)) {
@@ -1137,12 +1121,6 @@ public final class DimensionControlEvents {
 
     private static String wipeGenKey(ResourceKey<Level> dimension) {
         return WIPE_GEN_KEY_PREFIX + dimension.location().getPath();
-    }
-
-    private record PortalIgnition(UUID playerId, long gameTime) {
-    }
-
-    private record PendingPortalRegistration(BlockPos position, UUID operatorId, long gameTime) {
     }
 
     private record PendingNetherEntry(
