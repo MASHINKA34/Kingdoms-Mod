@@ -8,11 +8,13 @@ import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 
 public final class NetherPortalRegistration {
     public static final int MAX_AXIS_SIZE = 16;
     private static final int MAX_PORTAL_BLOCKS = MAX_AXIS_SIZE * MAX_AXIS_SIZE;
+    private static final int MAX_VANILLA_PORTAL_BLOCKS = 21 * 21;
 
     static boolean mayCreatePortal(boolean operator, boolean overworld) {
         return operator && overworld;
@@ -69,6 +71,32 @@ public final class NetherPortalRegistration {
         return visited.isEmpty()
                 ? Optional.empty()
                 : Optional.of(new PortalBounds(minX, minY, minZ, maxX, maxY, maxZ));
+    }
+
+    public static int clearConnectedPortal(ServerLevel level, BlockPos origin) {
+        BlockPos seed = findPortalSeed(level, origin).orElse(null);
+        if (seed == null) {
+            return 0;
+        }
+        ArrayDeque<BlockPos> pending = new ArrayDeque<>();
+        Set<BlockPos> visited = new HashSet<>();
+        pending.add(seed);
+        int cleared = 0;
+        while (!pending.isEmpty() && visited.size() <= MAX_VANILLA_PORTAL_BLOCKS) {
+            BlockPos current = pending.removeFirst();
+            if (!visited.add(current) || !level.getBlockState(current).is(Blocks.NETHER_PORTAL)) {
+                continue;
+            }
+            for (Direction direction : Direction.values()) {
+                BlockPos next = current.relative(direction).immutable();
+                if (!visited.contains(next) && level.getBlockState(next).is(Blocks.NETHER_PORTAL)) {
+                    pending.addLast(next);
+                }
+            }
+            level.setBlock(current, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+            cleared++;
+        }
+        return cleared;
     }
 
     public static boolean isIntact(ServerLevel level, PortalBounds bounds) {

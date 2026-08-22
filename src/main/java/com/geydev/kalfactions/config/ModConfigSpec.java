@@ -159,6 +159,7 @@ public final class ModConfigSpec {
     public static final IntValue NETHER_LANDING_MAX_RADIUS;
     public static final IntValue NETHER_LANDING_ATTEMPTS;
     public static final IntValue NETHER_LANDING_MINIMUM_SEPARATION;
+    public static final DoubleValue NETHER_PORTAL_LIFETIME_HOURS;
     public static final IntValue CLUSTER_UNITS_RICHNESS_1;
     public static final IntValue CLUSTER_UNITS_RICHNESS_2;
     public static final IntValue CLUSTER_UNITS_RICHNESS_3;
@@ -352,6 +353,9 @@ public final class ModConfigSpec {
         NETHER_LANDING_MAX_RADIUS = builder.defineInRange("landingMaxRadius", 5000, 1, 100000);
         NETHER_LANDING_ATTEMPTS = builder.defineInRange("landingAttempts", 8, 1, 8);
         NETHER_LANDING_MINIMUM_SEPARATION = builder.defineInRange("landingMinimumSeparation", 512, 0, 100000);
+        NETHER_PORTAL_LIFETIME_HOURS = builder
+            .comment("Real hours a lit spawn portal stays open before it burns out; fractions are allowed for testing.")
+            .defineInRange("netherPortalLifetimeHours", 48.0D, 0.01D, 8760.0D);
         builder.pop();
 
         builder.push("resourceDeposits");

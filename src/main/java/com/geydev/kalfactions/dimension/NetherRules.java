@@ -9,7 +9,8 @@ public record NetherRules(
         int landingMinRadius,
         int landingMaxRadius,
         int landingAttempts,
-        int landingMinimumSeparation
+        int landingMinimumSeparation,
+        Duration portalLifetime
 ) {
     public static final NetherRules DEFAULT = new NetherRules(
             Duration.ofMinutes(90),
@@ -17,7 +18,8 @@ public record NetherRules(
             1_000,
             5_000,
             8,
-            512
+            512,
+            Duration.ofHours(48)
     );
 
     public NetherRules {
@@ -36,6 +38,9 @@ public record NetherRules(
         if (landingMinimumSeparation < 0) {
             throw new IllegalArgumentException("landingMinimumSeparation");
         }
+        if (portalLifetime.isNegative() || portalLifetime.isZero()) {
+            throw new IllegalArgumentException("portalLifetime");
+        }
     }
 
     public static NetherRules configured() {
@@ -47,7 +52,11 @@ public record NetherRules(
                 minRadius,
                 maxRadius,
                 ModConfigSpec.NETHER_LANDING_ATTEMPTS.getAsInt(),
-                ModConfigSpec.NETHER_LANDING_MINIMUM_SEPARATION.getAsInt()
+                ModConfigSpec.NETHER_LANDING_MINIMUM_SEPARATION.getAsInt(),
+                Duration.ofSeconds(Math.max(
+                        1L,
+                        Math.round(ModConfigSpec.NETHER_PORTAL_LIFETIME_HOURS.getAsDouble() * 3600.0D)
+                ))
         );
     }
 }

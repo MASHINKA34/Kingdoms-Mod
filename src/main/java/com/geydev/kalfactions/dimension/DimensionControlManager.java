@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
@@ -37,7 +38,7 @@ import net.minecraft.world.level.storage.LevelResource;
 public final class DimensionControlManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String FILE_NAME = "kingdoms_dimension_control.json";
-    private static final int FORMAT_VERSION = 4;
+    private static final int FORMAT_VERSION = 5;
     private static DimensionControlManager instance;
 
     private final Path file;
@@ -126,6 +127,55 @@ public final class DimensionControlManager {
 
     public synchronized boolean isInsideRegisteredPortal(BlockPos pos) {
         return state.netherPortal != null && state.netherPortal.toValue().contains(pos);
+    }
+
+    public synchronized Optional<PortalCharge> netherPortalCharge() {
+        if (state.netherPortalChargedUntil == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new PortalCharge(
+                Instant.ofEpochMilli(state.netherPortalIgnitedAt == null ? 0L : state.netherPortalIgnitedAt),
+                Instant.ofEpochMilli(state.netherPortalChargedUntil),
+                state.netherPortalIgnitedBy == null ? "" : state.netherPortalIgnitedBy
+        ));
+    }
+
+    public synchronized boolean isNetherPortalCharged(Instant now) {
+        return state.netherPortalChargedUntil != null && state.netherPortalChargedUntil > now.toEpochMilli();
+    }
+
+    public synchronized PortalCharge igniteNetherPortal(
+            Instant now,
+            Duration lifetime,
+            String ignitedBy,
+            BlockPos anchor
+    ) {
+        state.netherPortalIgnitedAt = now.toEpochMilli();
+        state.netherPortalChargedUntil = now.plus(lifetime).toEpochMilli();
+        state.netherPortalIgnitedBy = ignitedBy;
+        state.netherPortalAnchor = LandingData.from(anchor);
+        save();
+        return netherPortalCharge().orElseThrow();
+    }
+
+    public synchronized boolean clearNetherPortalCharge() {
+        if (state.netherPortalChargedUntil == null) {
+            return false;
+        }
+        state.netherPortalChargedUntil = null;
+        state.netherPortalIgnitedAt = null;
+        state.netherPortalIgnitedBy = null;
+        save();
+        return true;
+    }
+
+    public synchronized Optional<BlockPos> netherPortalAnchor() {
+        return Optional.ofNullable(state.netherPortalAnchor).map(anchor -> anchor.toValue().blockPos());
+    }
+
+    public synchronized void setNetherPortalAnchor(BlockPos anchor) {
+        state.netherPortalAnchor = LandingData.from(anchor);
+        save();
     }
 
     public synchronized EntryResult authorizeNetherEntry(
@@ -971,7 +1021,15 @@ public final class DimensionControlManager {
     }
 
     private static State normalize(State state) {
+        // Worlds written before the anchor rework never had a lit portal, so they start unlit.
+        boolean legacy = state.formatVersion < FORMAT_VERSION;
         state.formatVersion = FORMAT_VERSION;
+        if (legacy) {
+            state.netherPortalIgnitedAt = null;
+            state.netherPortalChargedUntil = null;
+            state.netherPortalIgnitedBy = null;
+            state.netherPortalAnchor = null;
+        }
         if (state.netherFactions == null) {
             state.netherFactions = new HashMap<>();
         }
@@ -1111,6 +1169,9 @@ public final class DimensionControlManager {
         }
     }
 
+    public record PortalCharge(Instant ignitedAt, Instant expiresAt, String ignitedBy) {
+    }
+
     public record EndedSession(UUID factionId, UUID sessionId, Set<UUID> joinedPlayers) {
         public EndedSession {
             joinedPlayers = Set.copyOf(joinedPlayers);
@@ -1156,6 +1217,10 @@ public final class DimensionControlManager {
         private Long netherSeed;
         private Long endSeed;
         private PortalBoundsData netherPortal;
+        private Long netherPortalIgnitedAt;
+        private Long netherPortalChargedUntil;
+        private String netherPortalIgnitedBy;
+        private LandingData netherPortalAnchor;
         private Map<String, FactionLedger> netherFactions = new HashMap<>();
         private Map<String, ActiveSessionData> operatorSessions = new HashMap<>();
         private Map<String, String> deathLocks = new HashMap<>();
