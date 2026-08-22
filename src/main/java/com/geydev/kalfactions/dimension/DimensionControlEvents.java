@@ -902,6 +902,9 @@ public final class DimensionControlEvents {
             Instant now
     ) {
         ActiveSession active = control.assignedSession(player.getUUID(), now).orElse(null);
+        if (!control.isNetherPortalCharged(now)) {
+            return false;
+        }
         if (player.hasPermissions(2)) {
             return active != null && active.joinedPlayers().contains(player.getUUID());
         }
