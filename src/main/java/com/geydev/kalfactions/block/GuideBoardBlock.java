@@ -121,7 +121,17 @@ public final class GuideBoardBlock extends Block implements EntityBlock {
             BlockPos pos,
             CollisionContext context
     ) {
-        return BlockShapes.guideBoard(state.getValue(FACING));
+        return boardShape(state);
+    }
+
+    @Override
+    protected VoxelShape getCollisionShape(
+            BlockState state,
+            BlockGetter level,
+            BlockPos pos,
+            CollisionContext context
+    ) {
+        return boardShape(state);
     }
 
     @Override
@@ -206,6 +216,14 @@ public final class GuideBoardBlock extends Block implements EntityBlock {
     private static boolean canPlacePart(BlockPlaceContext context, BlockPos pos) {
         Level level = context.getLevel();
         return level.getWorldBorder().isWithinBounds(pos) && level.getBlockState(pos).canBeReplaced(context);
+    }
+
+    private static VoxelShape boardShape(BlockState state) {
+        return BlockShapes.guideBoard(
+                state.getValue(FACING),
+                state.getValue(PART),
+                state.getValue(HALF)
+        );
     }
 
     private static Direction leftDirection(Direction facing) {

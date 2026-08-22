@@ -25,8 +25,8 @@ final class SellerTraderTextureAssetsTest {
         BufferedImage wandering = read(WANDERING);
         BufferedImage contraband = read(CONTRABAND);
 
-        assertSkinAtlas(wandering);
-        assertSkinAtlas(contraband);
+        assertSkinAtlas(wandering, 128);
+        assertSkinAtlas(contraband, 64);
         assertNotEquals(digest(WANDERING), digest(CONTRABAND));
     }
 
@@ -39,9 +39,9 @@ final class SellerTraderTextureAssetsTest {
         }
     }
 
-    private static void assertSkinAtlas(BufferedImage image) {
-        assertEquals(64, image.getWidth());
-        assertEquals(64, image.getHeight());
+    private static void assertSkinAtlas(BufferedImage image, int expectedSize) {
+        assertEquals(expectedSize, image.getWidth());
+        assertEquals(expectedSize, image.getHeight());
         assertTrue(image.getColorModel().hasAlpha());
     }
 
