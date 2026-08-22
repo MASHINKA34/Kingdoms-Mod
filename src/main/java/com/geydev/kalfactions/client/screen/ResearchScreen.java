@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.client.screen;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.client.EmblemTextures;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionBonus;
 import com.geydev.kalfactions.faction.InfluenceType;
@@ -16,7 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -26,36 +26,52 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class ResearchScreen extends FactionScreen {
-    private static final ResourceLocation PANEL = tex("research/panel");
-    private static final ResourceLocation TAB_SCIENCE = tex("research/tab_science");
-    private static final ResourceLocation TAB_ECONOMIC = tex("research/tab_economic");
-    private static final ResourceLocation TAB_MILITARY = tex("research/tab_military");
-    private static final ResourceLocation TAB_LEGACY = tex("research/tab_legacy");
+    private static final ResourceLocation PANEL_FRAME = tex("research/panel_frame");
+    private static final ResourceLocation TREE_FRAME = tex("research/tree_frame");
+    private static final ResourceLocation INFO_FRAME = tex("research/info_frame");
+    private static final ResourceLocation TREE_TILES = tex("research/tree_tiles");
+    private static final ResourceLocation TABS = tex("research/tabs");
+    private static final ResourceLocation SEAL_FRAME = tex("research/seal_frame");
     private static final ResourceLocation NODE_ROOT = tex("research/node_root");
     private static final ResourceLocation NODE_LOCKED = tex("research/node_locked");
+    private static final ResourceLocation NODE_UNAVAILABLE = tex("research/node_unavailable");
     private static final ResourceLocation NODE_AVAILABLE = tex("research/node_available");
     private static final ResourceLocation NODE_ACTIVE = tex("research/node_active");
     private static final ResourceLocation NODE_DONE = tex("research/node_done");
-    private static final ResourceLocation BAR_EMPTY = tex("war/bar_empty");
-    private static final ResourceLocation BAR_FULL = tex("war/bar_full");
+    private static final ResourceLocation NODE_OVERLAY = tex("research/node_overlay");
+    private static final ResourceLocation NODE_ROOT_OVERLAY = tex("research/node_root_overlay");
+    private static final ResourceLocation NODE_ICONS = tex("research/node_icons");
+    private static final ResourceLocation PROGRESS = tex("research/progress");
     private static final ResourceLocation ICON_SCIENCE = tex("influence/science");
     private static final ResourceLocation ICON_ECONOMIC = tex("influence/economic");
     private static final ResourceLocation ICON_MILITARY = tex("influence/military");
 
-    private static final int WINDOW_WIDTH = 420;
-    private static final int WINDOW_HEIGHT = 260;
-    private static final int TREE_LEFT = 24;
-    private static final int TREE_TOP = 62;
-    private static final int TREE_WIDTH = 372;
-    private static final int TREE_HEIGHT = 148;
-    private static final int TAB_WIDTH = 44;
-    private static final int TAB_HEIGHT = 34;
-    private static final int TAB_STEP = 48;
+    private static final int MAX_WINDOW_WIDTH = 400;
+    private static final int MAX_WINDOW_HEIGHT = 236;
+    private static final int SAFE_MARGIN = 14;
+    private static final int PANEL_BORDER = 6;
+    private static final int TREE_FRAME_LEFT = 10;
+    private static final int TREE_FRAME_TOP = 44;
+    private static final int TREE_FRAME_BORDER = 4;
+    private static final int TREE_FOOTER_GAP = 4;
+    private static final int FOOTER_BOTTOM = 8;
+    private static final int FOOTER_HEIGHT = 45;
+    private static final int TAB_WIDTH = 36;
+    private static final int TAB_HEIGHT = 24;
+    private static final int TAB_GAP = 4;
     private static final int LEGACY_TAB = InfluenceType.VALUES.length;
     private static final int TAB_COUNT = LEGACY_TAB + 1;
-    private static final int NODE_SIZE = 30;
-    private static final int ROOT_SIZE = 46;
-    private static final int LEGACY_ICON_INSET = 6;
+    private static final int NODE_SIZE = 32;
+    private static final int ROOT_SIZE = 40;
+    private static final int NODE_OVERLAY_SIZE = 40;
+    private static final int ROOT_OVERLAY_SIZE = 48;
+    private static final int NODE_ICON_SIZE = 14;
+    private static final int BUTTON_WIDTH = 60;
+    private static final int BUTTON_HEIGHT = 18;
+    private static final int CAMERA_PADDING = 24;
+    private static final float MIN_ZOOM = 0.44F;
+    private static final float MAX_ZOOM = 1.50F;
+    private static final float ZOOM_STEP = 0.14F;
     private static final int LEGACY_ROW_SHIFT = 50;
     private static final int FORCE_LOAD_SLOTS_PER_LEVEL = 5;
     private static final int MINING_SPEED_PERCENT_PER_LEVEL = 5;
@@ -66,11 +82,16 @@ public final class ResearchScreen extends FactionScreen {
 
     private int selectedTab;
     private ResearchNode selectedNode = ResearchNode.SCI_SMELT;
+    private Button backButton;
     private Button startButton;
     private Button extraBonusButton;
+    private Button doneButton;
+    private int windowWidth;
+    private int windowHeight;
     private float panX;
     private float panY;
     private float zoom = 0.72F;
+    private boolean centerCamera = true;
     private boolean draggingTree;
     private double lastDragX;
     private double lastDragY;
@@ -85,61 +106,45 @@ public final class ResearchScreen extends FactionScreen {
 
     @Override
     protected void init() {
-        left = (width - WINDOW_WIDTH) / 2;
-        top = (height - WINDOW_HEIGHT) / 2;
-        addRenderableWidget(KingdomsButton.create(
+        windowWidth = Math.max(1, Math.min(MAX_WINDOW_WIDTH, width - SAFE_MARGIN * 2));
+        windowHeight = Math.max(1, Math.min(MAX_WINDOW_HEIGHT, height - SAFE_MARGIN * 2));
+        left = (width - windowWidth) / 2;
+        top = (height - windowHeight) / 2;
+        doneButton = addRenderableWidget(KingdomsButton.create(
                 Component.translatable("gui.done"),
                 button -> onClose(),
-                left + WINDOW_WIDTH - 74,
-                top + WINDOW_HEIGHT - 25,
-                66,
-                20
+                0,
+                0,
+                BUTTON_WIDTH,
+                BUTTON_HEIGHT
         ));
         initFactionWidgets();
+        if (centerCamera) {
+            centerTree();
+            centerCamera = false;
+        } else {
+            clampPan();
+        }
     }
 
     @Override
     protected void initFactionWidgets() {
-        addRenderableWidget(KingdomsButton.create(
+        backButton = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.back"),
                 button -> FactionScreens.openInfluence(snapshot, true, ""),
-                left + 16, top + WINDOW_HEIGHT - 25, 70, 20
+                0, 0, BUTTON_WIDTH, BUTTON_HEIGHT
         ));
         startButton = addRenderableWidget(KingdomsButton.create(
                 text("screen.kingdoms.research_start"),
                 button -> startSelectedNode(),
-                left + WINDOW_WIDTH - 150,
-                top + WINDOW_HEIGHT - 25,
-                66,
-                20
+                0, 0, BUTTON_WIDTH, BUTTON_HEIGHT
         ));
         extraBonusButton = addRenderableWidget(KingdomsButton.create(
-                text("screen.kingdoms.legacy_extra_bonus"),
+                text("screen.kingdoms.legacy_extra_bonus_short"),
                 button -> openExtraBonusPicker(),
-                left + 92,
-                top + WINDOW_HEIGHT - 25,
-                140,
-                20
+                0, 0, BUTTON_WIDTH, BUTTON_HEIGHT
         ));
         updateStartButton();
-    }
-
-    private void renderExtraBonus(GuiGraphics graphics) {
-        FactionBonus bonus = extraBonus();
-        if (selectedTab != LEGACY_TAB || bonus == null) {
-            return;
-        }
-        int iconX = left + 92;
-        int iconY = top + WINDOW_HEIGHT - 23;
-        graphics.blit(FactionCreateScreen.bonusIcon(bonus), iconX, iconY, 16, 16, 0.0F, 0.0F, 64, 64, 64, 64);
-        graphics.drawString(
-                font,
-                text("screen.kingdoms.legacy_extra_bonus_current", text(bonus.translationKey())),
-                iconX + 20,
-                iconY + 5,
-                0xFFEFE0B4,
-                true
-        );
     }
 
     private boolean canPickExtraBonus() {
@@ -193,23 +198,27 @@ public final class ResearchScreen extends FactionScreen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.renderBackground(graphics, mouseX, mouseY, partialTick);
-        graphics.blit(PANEL, left, top, 0.0F, 0.0F, WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT);
+        drawNineSlice(graphics, PANEL_FRAME, left, top, windowWidth, windowHeight, PANEL_BORDER, 24, 24);
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         renderWidgets(graphics, mouseX, mouseY, partialTick);
-        int titleAreaLeft = left + 224;
-        int titleAreaWidth = WINDOW_WIDTH - 248;
-        graphics.drawString(font, title, titleAreaLeft + (titleAreaWidth - font.width(title)) / 2, top + 34, 0xFFFFE8AA, true);
         renderTabs(graphics, mouseX, mouseY);
         renderTree(graphics, mouseX, mouseY);
+        renderInfoPanel(graphics);
+        renderActionButtons(graphics, mouseX, mouseY, partialTick);
+        Component categoryTitle = tabTitle(selectedTab);
+        graphics.drawString(
+                font,
+                categoryTitle,
+                left + (windowWidth - font.width(categoryTitle)) / 2,
+                top + 32,
+                0xFFF0CE72,
+                true
+        );
         ResearchNode hovered = hoveredNode(mouseX, mouseY);
-        if (hovered == null) {
-            renderSelectionLine(graphics);
-        }
         renderResearchStatusNotice(graphics);
-        renderExtraBonus(graphics);
         if (hovered != null) {
             renderNodeTooltip(graphics, hovered, mouseX, mouseY);
         } else {
@@ -221,30 +230,53 @@ public final class ResearchScreen extends FactionScreen {
     }
 
     private void renderTabs(GuiGraphics graphics, int mouseX, int mouseY) {
-        ResourceLocation[] tabs = {TAB_SCIENCE, TAB_ECONOMIC, TAB_MILITARY, TAB_LEGACY};
-        for (int i = 0; i < tabs.length; i++) {
+        for (int i = 0; i < TAB_COUNT; i++) {
             int tabX = tabX(i);
             int tabY = tabY(i);
             boolean active = selectedTab == i;
             boolean hovered = mouseX >= tabX && mouseX < tabX + TAB_WIDTH && mouseY >= tabY && mouseY < tabY + TAB_HEIGHT;
-            int frame = active ? 0xFFFFCE4A : hovered ? 0xFFC9A24C : 0x663A3D47;
-            graphics.fill(tabX - 2, tabY - 2, tabX + TAB_WIDTH + 2, tabY - 1, frame);
-            graphics.fill(tabX - 2, tabY + TAB_HEIGHT + 1, tabX + TAB_WIDTH + 2, tabY + TAB_HEIGHT + 2, frame);
-            graphics.fill(tabX - 2, tabY - 2, tabX - 1, tabY + TAB_HEIGHT + 2, frame);
-            graphics.fill(tabX + TAB_WIDTH + 1, tabY - 2, tabX + TAB_WIDTH + 2, tabY + TAB_HEIGHT + 2, frame);
-            float alpha = active ? 1.0F : hovered ? 0.82F : 0.58F;
-            graphics.setColor(1.0F, 1.0F, 1.0F, alpha);
-            graphics.blit(tabs[i], tabX, tabY, TAB_WIDTH, TAB_HEIGHT, 0.0F, 0.0F, 128, 96, 128, 96);
-            graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+            int stateY = active ? TAB_HEIGHT * 2 : hovered ? TAB_HEIGHT : 0;
+            graphics.blit(
+                    TABS,
+                    tabX,
+                    tabY,
+                    TAB_WIDTH,
+                    TAB_HEIGHT,
+                    i * TAB_WIDTH,
+                    stateY,
+                    TAB_WIDTH,
+                    TAB_HEIGHT,
+                    TAB_WIDTH * TAB_COUNT,
+                    TAB_HEIGHT * 3
+            );
         }
     }
 
+    private void renderActionButtons(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        backButton.render(graphics, mouseX, mouseY, partialTick);
+        startButton.render(graphics, mouseX, mouseY, partialTick);
+        extraBonusButton.render(graphics, mouseX, mouseY, partialTick);
+        doneButton.render(graphics, mouseX, mouseY, partialTick);
+    }
+
     private void renderTree(GuiGraphics graphics, int mouseX, int mouseY) {
-        int clipLeft = left + TREE_LEFT;
-        int clipTop = top + TREE_TOP;
-        int clipRight = clipLeft + TREE_WIDTH;
-        int clipBottom = clipTop + TREE_HEIGHT;
+        drawNineSlice(
+                graphics,
+                TREE_FRAME,
+                treeFrameLeft(),
+                treeFrameTop(),
+                treeFrameWidth(),
+                treeFrameHeight(),
+                TREE_FRAME_BORDER,
+                16,
+                16
+        );
+        int clipLeft = treeLeft();
+        int clipTop = treeTop();
+        int clipRight = clipLeft + treeWidth();
+        int clipBottom = clipTop + treeHeight();
         graphics.enableScissor(clipLeft, clipTop, clipRight, clipBottom);
+        renderTreeTiles(graphics);
         List<ResearchNode> nodes = visibleNodes();
         for (ResearchNode node : nodes) {
             for (ResearchNode parent : node.prerequisites()) {
@@ -332,53 +364,70 @@ public final class ResearchScreen extends FactionScreen {
     }
 
     private void renderConnection(GuiGraphics graphics, ResearchNode parent, ResearchNode child) {
-        int color = connectionComplete(parent, child) ? 0xFFC9A24C : 0xFF4A4D58;
         int x1 = screenX(parent);
         int y1 = screenY(parent);
         int x2 = screenX(child);
         int y2 = screenY(child);
-        int steps = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1));
-        if (steps <= 0) {
+        int direction = Integer.compare(x2, x1);
+        if (direction == 0) {
+            direction = 1;
+        }
+        int startX = x1 + direction * (nodeSize(parent) / 2 + 1);
+        int endX = x2 - direction * (nodeSize(child) / 2 + 4);
+        if (direction > 0 && endX <= startX || direction < 0 && endX >= startX) {
             return;
         }
-        for (int i = 0; i <= steps; i += 3) {
-            float t = i / (float) steps;
-            int x = Math.round(x1 + (x2 - x1) * t);
-            int y = Math.round(y1 + (y2 - y1) * t);
-            graphics.fill(x - 1, y - 1, x + 2, y + 2, color);
-        }
+        int midX = (startX + endX) / 2;
+        int color = connectionColor(parent, child);
+        drawHorizontal(graphics, startX, midX, y1, 3, 0xFF080B11);
+        drawVertical(graphics, midX, y1, y2, 3, 0xFF080B11);
+        drawHorizontal(graphics, midX, endX, y2, 3, 0xFF080B11);
+        drawHorizontal(graphics, startX, midX, y1, 1, color);
+        drawVertical(graphics, midX, y1, y2, 1, color);
+        drawHorizontal(graphics, midX, endX, y2, 1, color);
+        drawArrow(graphics, endX, y2, direction, color);
     }
 
     private void renderNode(GuiGraphics graphics, ResearchNode node, boolean hovered) {
         NodeState nodeState = state(node);
         boolean bigRoot = node.root() && !node.legacy();
-        ResourceLocation texture = bigRoot
-                ? NODE_ROOT
-                : switch (nodeState) {
-                    case DONE -> NODE_DONE;
-                    case ACTIVE -> NODE_ACTIVE;
-                    case AVAILABLE -> NODE_AVAILABLE;
-                    case LOCKED -> NODE_LOCKED;
-                };
-        int size = bigRoot ? ROOT_SIZE : NODE_SIZE;
+        ResourceLocation texture = switch (nodeState) {
+            case DONE -> NODE_DONE;
+            case ACTIVE -> NODE_ACTIVE;
+            case AVAILABLE -> NODE_AVAILABLE;
+            case UNAVAILABLE -> NODE_UNAVAILABLE;
+            case LOCKED -> NODE_LOCKED;
+        };
+        int size = nodeSize(node);
         int x = screenX(node) - size / 2;
         int y = screenY(node) - size / 2;
-        if (hovered || node == selectedNode) {
-            drawSelectionFrame(graphics, x - 3, y - 3, size + 6, hovered ? 0xCCC9A24C : 0xCC6FE3D4);
+        if (bigRoot) {
+            graphics.blit(
+                    NODE_ROOT,
+                    x,
+                    y,
+                    ROOT_SIZE,
+                    ROOT_SIZE,
+                    0.0F,
+                    nodeState.ordinal() * ROOT_SIZE,
+                    ROOT_SIZE,
+                    ROOT_SIZE,
+                    ROOT_SIZE,
+                    ROOT_SIZE * NodeState.values().length
+            );
+        } else {
+            graphics.blit(texture, x, y, NODE_SIZE, NODE_SIZE, 0.0F, 0.0F, NODE_SIZE, NODE_SIZE, NODE_SIZE, NODE_SIZE);
         }
-        int sourceSize = 64;
-        graphics.blit(texture, x, y, size, size, 0.0F, 0.0F, sourceSize, sourceSize, sourceSize, sourceSize);
         FactionBonus legacyBonus = node.legacy() ? legacyBonus(node.legacySlot()) : null;
+        float iconAlpha = nodeState == NodeState.LOCKED ? 0.35F : nodeState == NodeState.UNAVAILABLE ? 0.62F : 1.0F;
+        graphics.setColor(1.0F, 1.0F, 1.0F, iconAlpha);
         if (legacyBonus != null) {
-            int iconSize = size - LEGACY_ICON_INSET * 2;
-            float alpha = nodeState == NodeState.LOCKED ? 0.45F : 1.0F;
-            graphics.setColor(1.0F, 1.0F, 1.0F, alpha);
             graphics.blit(
                     FactionCreateScreen.bonusIcon(legacyBonus),
-                    x + LEGACY_ICON_INSET,
-                    y + LEGACY_ICON_INSET,
-                    iconSize,
-                    iconSize,
+                    screenX(node) - 8,
+                    screenY(node) - 8,
+                    16,
+                    16,
                     0.0F,
                     0.0F,
                     64,
@@ -386,76 +435,145 @@ public final class ResearchScreen extends FactionScreen {
                     64,
                     64
             );
-            graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+        } else if (!node.legacy()) {
+            graphics.blit(
+                    NODE_ICONS,
+                    screenX(node) - NODE_ICON_SIZE / 2,
+                    screenY(node) - NODE_ICON_SIZE / 2,
+                    NODE_ICON_SIZE,
+                    NODE_ICON_SIZE,
+                    iconIndex(node) * NODE_ICON_SIZE,
+                    0.0F,
+                    NODE_ICON_SIZE,
+                    NODE_ICON_SIZE,
+                    NODE_ICON_SIZE * 20,
+                    NODE_ICON_SIZE
+            );
+        }
+        graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+        int overlayFrame = node == selectedNode
+                ? 1 + (int) ((System.currentTimeMillis() / 180L) % 3L)
+                : hovered ? 0 : -1;
+        if (overlayFrame >= 0) {
+            int overlaySize = bigRoot ? ROOT_OVERLAY_SIZE : NODE_OVERLAY_SIZE;
+            ResourceLocation overlay = bigRoot ? NODE_ROOT_OVERLAY : NODE_OVERLAY;
+            graphics.blit(
+                    overlay,
+                    screenX(node) - overlaySize / 2,
+                    screenY(node) - overlaySize / 2,
+                    overlaySize,
+                    overlaySize,
+                    overlayFrame * overlaySize,
+                    0.0F,
+                    overlaySize,
+                    overlaySize,
+                    overlaySize * 4,
+                    overlaySize
+            );
         }
         if (nodeState == NodeState.ACTIVE) {
             long remaining = Math.max(0L, snapshot.activeResearchEndMillis() - System.currentTimeMillis());
             long duration = Math.max(1L, effectiveDurationMillis(node));
             float fraction = Math.clamp((duration - remaining) / (float) duration, 0.0F, 1.0F);
-            int barWidth = 42;
+            int barWidth = 48;
             int barX = screenX(node) - barWidth / 2;
-            int barY = y + size + 6;
-            graphics.blit(BAR_EMPTY, barX, barY, barWidth, 5, 0.0F, 0.0F, 182, 5, 182, 5);
+            int barY = y + size + 4;
+            graphics.blit(PROGRESS, barX, barY, barWidth, 6, 0.0F, 0.0F, barWidth, 6, barWidth, 12);
             int fullWidth = Math.max(0, (int) (barWidth * fraction));
             if (fullWidth > 0) {
-                graphics.blit(BAR_FULL, barX, barY, fullWidth, 5, 0.0F, 0.0F, 182, 5, 182, 5);
+                graphics.blit(PROGRESS, barX, barY, fullWidth, 6, 0.0F, 6.0F, fullWidth, 6, barWidth, 12);
             }
         }
     }
 
-    private static void drawSelectionFrame(GuiGraphics graphics, int x, int y, int size, int color) {
-        graphics.fill(x, y, x + size, y + 2, color);
-        graphics.fill(x, y + size - 2, x + size, y + size, color);
-        graphics.fill(x, y, x + 2, y + size, color);
-        graphics.fill(x + size - 2, y, x + size, y + size, color);
-    }
-
-    private void renderSelectionLine(GuiGraphics graphics) {
+    private void renderInfoPanel(GuiGraphics graphics) {
+        drawNineSlice(
+                graphics,
+                INFO_FRAME,
+                footerLeft(),
+                footerTop(),
+                footerWidth(),
+                FOOTER_HEIGHT,
+                4,
+                16,
+                16
+        );
+        int sealX = footerLeft() + 5;
+        int sealY = footerTop() + 2;
+        graphics.blit(SEAL_FRAME, sealX, sealY, 20, 20, 0.0F, 0.0F, 20, 20, 20, 20);
+        EmblemTextures.Emblem emblem = EmblemTextures.resolve(
+                snapshot.factionId(),
+                snapshot.emblem(),
+                snapshot.emblemUrl(),
+                snapshot.color()
+        );
+        graphics.blit(
+                emblem.texture(),
+                sealX + 2,
+                sealY + 2,
+                16,
+                16,
+                0.0F,
+                0.0F,
+                emblem.width(),
+                emblem.height(),
+                emblem.width(),
+                emblem.height()
+        );
         if (selectedNode == null) {
             return;
         }
         List<InfluenceType> types = selectedNode.costTypes();
+        int rowY = footerTop() + 8;
         Component influence = text(
-                types.size() > 1
-                        ? "screen.kingdoms.research_cost_each_short"
-                        : "screen.kingdoms.research_cost_short",
-                influenceCostPerType(selectedNode),
+                "screen.kingdoms.research_cost_compact",
+                compactValue(influenceCostPerType(selectedNode)),
                 effectiveDurationHours(selectedNode)
         );
-        int cost = crystalCostPerType(selectedNode);
-        Component crystals = cost <= 0
-                ? null
-                : types.size() > 1
-                        ? text("screen.kingdoms.research_crystal_cost_each_line", cost, ownedCrystalsText(types))
-                        : text("screen.kingdoms.research_crystal_cost_line", cost, crystalsOf(types.getFirst()));
-        int costWidth = types.size() * 14 + 2 + font.width(influence);
-        if (crystals != null) {
-            costWidth += 8 + types.size() * 18 + 2 + font.width(crystals);
+        int crystalsPerType = crystalCostPerType(selectedNode);
+        Component crystals = Component.literal(compactValue(crystalsPerType));
+        int costWidth = types.size() * 10 + font.width(influence);
+        if (crystalsPerType > 0) {
+            costWidth += 6 + types.size() * 18 + font.width(crystals);
         }
-        int lineLeft = left + TREE_LEFT;
-        int lineRight = lineLeft + TREE_WIDTH;
-        int cursor = Math.max(lineLeft, lineRight - costWidth);
-        graphics.drawString(
-                font,
-                clipToWidth(selectionTitle(selectedNode), Math.max(0, cursor - 8 - lineLeft)),
-                lineLeft,
-                top + 218,
-                0xFFFFE8AA,
-                true
-        );
+        int costCursor = footerLeft() + footerWidth() - 5 - costWidth;
+        int walletCursor = sealX + 25;
+        FactionBonus bonus = selectedTab == LEGACY_TAB ? extraBonus() : null;
+        if (bonus != null && windowWidth >= 340) {
+            graphics.blit(FactionCreateScreen.bonusIcon(bonus), walletCursor, footerTop() + 4, 16, 16,
+                    0.0F, 0.0F, 64, 64, 64, 64);
+            walletCursor += 20;
+        }
         for (InfluenceType type : types) {
-            graphics.blit(iconFor(type), cursor, top + 216, 12, 12, 0.0F, 0.0F, 16, 16, 16, 16);
-            cursor += 14;
+            graphics.blit(iconFor(type), walletCursor, rowY - 1, 8, 8, 0.0F, 0.0F, 16, 16, 16, 16);
+            walletCursor += 10;
         }
-        cursor += 2;
-        graphics.drawString(font, influence, cursor, top + 218, 0xFFD7C57C, true);
-        cursor += font.width(influence) + 8;
-        if (crystals != null) {
+        Component owned = ownedInfluenceText(types);
+        int ownedWidth = Math.max(0, costCursor - 7 - walletCursor);
+        if (ownedWidth > font.width("…")) {
+            Component visibleOwned = clipToWidth(owned, ownedWidth);
+            graphics.drawString(font, visibleOwned, walletCursor, rowY, 0xFFB8D4D1, true);
+            walletCursor += font.width(visibleOwned);
+        }
+        int titleLeft = walletCursor + 5;
+        int titleWidth = Math.max(0, costCursor - 7 - titleLeft);
+        if (titleWidth > font.width("…")) {
+            Component selection = clipToWidth(selectionTitle(selectedNode), titleWidth);
+            graphics.drawString(font, selection, titleLeft + (titleWidth - font.width(selection)) / 2, rowY, 0xFFE7D18B, true);
+        }
+        for (InfluenceType type : types) {
+            graphics.blit(iconFor(type), costCursor, rowY - 1, 8, 8, 0.0F, 0.0F, 16, 16, 16, 16);
+            costCursor += 10;
+        }
+        graphics.drawString(font, influence, costCursor, rowY, 0xFFD1A84E, true);
+        costCursor += font.width(influence);
+        if (crystalsPerType > 0) {
+            costCursor += 6;
             for (InfluenceType type : types) {
-                graphics.renderItem(crystalStack(type), cursor, top + 214);
-                cursor += 18;
+                graphics.renderItem(crystalStack(type), costCursor, footerTop() + 3);
+                costCursor += 18;
             }
-            graphics.drawString(font, crystals, cursor + 2, top + 218, 0xFFB9CFF6, true);
+            graphics.drawString(font, crystals, costCursor, rowY, 0xFFB9CFF6, true);
         }
     }
 
@@ -483,8 +601,13 @@ public final class ResearchScreen extends FactionScreen {
         if (statusMessage == null || statusMessage.isBlank()) {
             return;
         }
-        String clipped = font.plainSubstrByWidth(statusMessage, WINDOW_WIDTH - 38);
-        graphics.drawString(font, clipped, left + 18, top + WINDOW_HEIGHT + 5, successful ? 0xFFB9F3A9 : 0xFFF2A7A7, true);
+        String clipped = font.plainSubstrByWidth(statusMessage, windowWidth - 48);
+        int boxWidth = font.width(clipped) + 14;
+        int boxLeft = left + (windowWidth - boxWidth) / 2;
+        int boxTop = treeTop() + 6;
+        drawNineSlice(graphics, INFO_FRAME, boxLeft, boxTop, boxWidth, 17, 4, 16, 16);
+        graphics.drawString(font, clipped, boxLeft + 7, boxTop + 5,
+                successful ? 0xFFB9F3A9 : 0xFFF2A7A7, true);
     }
 
     private void renderNodeTooltip(GuiGraphics graphics, ResearchNode node, int mouseX, int mouseY) {
@@ -508,30 +631,36 @@ public final class ResearchScreen extends FactionScreen {
                         crystalName(types.getFirst()),
                         crystalsOf(types.getFirst())
                 );
-        int boxWidth = Math.min(
-                Math.max(232, tooltipContentWidth(node, types, costLine, crystalLine)),
-                Math.max(232, width - 24)
-        );
-        List<FormattedCharSequence> desc = font.split(nodeDescription(node), boxWidth - 20);
+        int availableWidth = Math.max(120, width - 12);
+        int boxWidth = Math.min(Math.max(220, tooltipContentWidth(node, types, costLine, crystalLine)), availableWidth);
+        List<FormattedCharSequence> desc = new ArrayList<>(font.split(nodeDescription(node), boxWidth - 20));
         List<FormattedCharSequence> effect = new ArrayList<>();
         for (Component line : effectLines(node)) {
             effect.addAll(font.split(line, boxWidth - 20));
         }
+        boolean showCrystals = crystalCostPerType(node) > 0;
+        int baseHeight = showCrystals ? 90 : 71;
+        int maxHeight = Math.max(70, height - 12);
+        while (baseHeight + desc.size() * 11 + effect.size() * 11 > maxHeight && !effect.isEmpty()) {
+            effect.removeLast();
+        }
+        while (baseHeight + desc.size() * 11 + effect.size() * 11 > maxHeight && desc.size() > 1) {
+            desc.removeLast();
+        }
         int descBlock = desc.size() * 11;
         int effectBlock = effect.size() * 11;
-        boolean showCrystals = crystalCostPerType(node) > 0;
-        int boxHeight = (showCrystals ? 90 : 71) + descBlock + effectBlock;
-        int x = Math.min(mouseX + 14, width - boxWidth - 6);
-        int y = mouseY + 12;
-        int bottomLimit = top + TREE_TOP + TREE_HEIGHT;
-        if (y + boxHeight > bottomLimit) {
-            y = mouseY - boxHeight - 12;
+        int boxHeight = Math.min(maxHeight, baseHeight + descBlock + effectBlock);
+        int preferredX = mouseX < width / 2 ? mouseX + 14 : mouseX - boxWidth - 14;
+        int x = Math.clamp(preferredX, 6, Math.max(6, width - boxWidth - 6));
+        int preferredY = mouseY + 12;
+        if (preferredY + boxHeight > height - 6) {
+            preferredY = mouseY - boxHeight - 12;
         }
-        y = Math.clamp(y, top + 44, Math.max(top + 44, bottomLimit - boxHeight));
-        graphics.fill(x - 1, y - 1, x + boxWidth + 1, y + boxHeight + 1, 0xFF0B0D12);
-        graphics.fill(x, y, x + boxWidth, y + boxHeight, 0xFC15171D);
-        graphics.fill(x + 1, y + 1, x + boxWidth - 1, y + 2, 0xFFC9A24C);
-        graphics.fill(x + 1, y + boxHeight - 2, x + boxWidth - 1, y + boxHeight - 1, 0xFF3A3D47);
+        int y = Math.clamp(preferredY, 6, Math.max(6, height - boxHeight - 6));
+        graphics.pose().pushPose();
+        graphics.pose().translate(0.0F, 0.0F, 400.0F);
+        drawNineSlice(graphics, INFO_FRAME, x, y, boxWidth, boxHeight, 4, 16, 16);
+        graphics.fill(x + 4, y + 3, x + boxWidth - 4, y + 4, 0xFFA97D31);
         graphics.drawString(font, nodeTitle(node), x + 10, y + 8, colorFor(node), true);
         for (int i = 0; i < desc.size(); i++) {
             graphics.drawString(font, desc.get(i), x + 10, y + 23 + i * 11, 0xFFEFE0B4, true);
@@ -557,6 +686,7 @@ public final class ResearchScreen extends FactionScreen {
         for (int i = 0; i < effect.size(); i++) {
             graphics.drawString(font, effect.get(i), x + 10, statusY + 15 + i * 11, 0xFFCBD6F0, true);
         }
+        graphics.pose().popPose();
     }
 
     private int tooltipContentWidth(
@@ -920,14 +1050,11 @@ public final class ResearchScreen extends FactionScreen {
             return;
         }
         startButton.active = selectedNode != null && canStart(selectedNode);
+        layoutButtons();
     }
 
     private boolean canStart(ResearchNode node) {
-        return state(node) == NodeState.AVAILABLE
-                && (snapshot.canManage() || snapshot.isOfficer())
-                && snapshot.activeResearchNode().isEmpty()
-                && hasInfluenceFor(node)
-                && hasCrystalsFor(node);
+        return state(node) == NodeState.AVAILABLE;
     }
 
     private int crystalCostPerType(ResearchNode node) {
@@ -945,6 +1072,17 @@ public final class ResearchScreen extends FactionScreen {
                 owned.append('/');
             }
             owned.append(crystalsOf(type));
+        }
+        return Component.literal(owned.toString());
+    }
+
+    private Component ownedInfluenceText(List<InfluenceType> types) {
+        StringBuilder owned = new StringBuilder();
+        for (InfluenceType type : types) {
+            if (!owned.isEmpty()) {
+                owned.append('/');
+            }
+            owned.append(compactValue(influenceOf(type)));
         }
         return Component.literal(owned.toString());
     }
@@ -981,8 +1119,7 @@ public final class ResearchScreen extends FactionScreen {
                     selectedTab = i;
                     List<ResearchNode> nodes = visibleNodes();
                     selectedNode = nodes.isEmpty() ? null : nodes.getFirst();
-                    panX = 0.0F;
-                    panY = 0.0F;
+                    centerCamera = true;
                     rebuildWidgets();
                 }
                 return true;
@@ -1021,11 +1158,12 @@ public final class ResearchScreen extends FactionScreen {
     }
 
     private int tabX(int index) {
-        return left + TREE_LEFT + 4 + index * TAB_STEP;
+        int tabsWidth = TAB_COUNT * TAB_WIDTH + (TAB_COUNT - 1) * TAB_GAP;
+        return left + (windowWidth - tabsWidth) / 2 + index * (TAB_WIDTH + TAB_GAP);
     }
 
     private int tabY(int index) {
-        return top + (selectedTab == index ? 16 : 19);
+        return top + 5;
     }
 
     @Override
@@ -1035,6 +1173,7 @@ public final class ResearchScreen extends FactionScreen {
             panY += (float) ((mouseY - lastDragY) / zoom);
             lastDragX = mouseX;
             lastDragY = mouseY;
+            clampPan();
             return true;
         }
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
@@ -1052,12 +1191,13 @@ public final class ResearchScreen extends FactionScreen {
             return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
         }
         float previous = zoom;
-        zoom = Math.clamp(zoom + (float) scrollY * 0.08F, 0.62F, 1.35F);
+        zoom = Math.clamp(zoom + (float) scrollY * ZOOM_STEP, MIN_ZOOM, MAX_ZOOM);
         float factor = zoom / previous;
-        float centerX = (float) (mouseX - (left + TREE_LEFT + TREE_WIDTH / 2.0F));
-        float centerY = (float) (mouseY - (top + TREE_TOP + TREE_HEIGHT / 2.0F));
+        float centerX = (float) (mouseX - (treeLeft() + treeWidth() / 2.0F));
+        float centerY = (float) (mouseY - (treeTop() + treeHeight() / 2.0F));
         panX = panX - centerX / previous + centerX / (previous * factor);
         panY = panY - centerY / previous + centerY / (previous * factor);
+        clampPan();
         return true;
     }
 
@@ -1066,7 +1206,7 @@ public final class ResearchScreen extends FactionScreen {
             return null;
         }
         for (ResearchNode node : visibleNodes()) {
-            int size = node.root() && !node.legacy() ? ROOT_SIZE : NODE_SIZE;
+            int size = nodeSize(node);
             int x = screenX(node);
             int y = screenY(node);
             if (mouseX >= x - size / 2.0 && mouseX < x + size / 2.0
@@ -1078,16 +1218,16 @@ public final class ResearchScreen extends FactionScreen {
     }
 
     private boolean insideTree(double mouseX, double mouseY) {
-        return mouseX >= left + TREE_LEFT && mouseX < left + TREE_LEFT + TREE_WIDTH
-                && mouseY >= top + TREE_TOP && mouseY < top + TREE_TOP + TREE_HEIGHT;
+        return mouseX >= treeLeft() && mouseX < treeLeft() + treeWidth()
+                && mouseY >= treeTop() && mouseY < treeTop() + treeHeight();
     }
 
     private int screenX(ResearchNode node) {
-        return Math.round(left + TREE_LEFT + TREE_WIDTH / 2.0F + (node.treeX() + panX) * zoom);
+        return Math.round(treeLeft() + treeWidth() / 2.0F + (node.treeX() + panX) * zoom);
     }
 
     private int screenY(ResearchNode node) {
-        return Math.round(top + TREE_TOP + TREE_HEIGHT / 2.0F + (treeY(node) + panY) * zoom);
+        return Math.round(treeTop() + treeHeight() / 2.0F + (treeY(node) + panY) * zoom);
     }
 
     private int treeY(ResearchNode node) {
@@ -1097,8 +1237,174 @@ public final class ResearchScreen extends FactionScreen {
         return node.treeY() + LEGACY_ROW_SHIFT;
     }
 
-    private boolean connectionComplete(ResearchNode parent, ResearchNode child) {
-        return snapshot.completedResearch().contains(parent.name()) && snapshot.completedResearch().contains(child.name());
+    private void layoutButtons() {
+        if (backButton == null || startButton == null || doneButton == null || extraBonusButton == null) {
+            return;
+        }
+        int buttonY = footerTop() + 23;
+        if (extraBonusButton.visible) {
+            int firstX = footerLeft() + 5;
+            int available = footerWidth() - 10;
+            int gap = Math.max(2, (available - BUTTON_WIDTH * 4) / 3);
+            backButton.setX(firstX);
+            extraBonusButton.setX(firstX + BUTTON_WIDTH + gap);
+            startButton.setX(firstX + (BUTTON_WIDTH + gap) * 2);
+            doneButton.setX(firstX + (BUTTON_WIDTH + gap) * 3);
+        } else {
+            backButton.setX(footerLeft() + 5);
+            startButton.setX(left + (windowWidth - BUTTON_WIDTH) / 2);
+            doneButton.setX(footerLeft() + footerWidth() - BUTTON_WIDTH - 5);
+        }
+        backButton.setY(buttonY);
+        extraBonusButton.setY(buttonY);
+        startButton.setY(buttonY);
+        doneButton.setY(buttonY);
+    }
+
+    private int footerLeft() {
+        return left + TREE_FRAME_LEFT;
+    }
+
+    private int footerTop() {
+        return top + windowHeight - FOOTER_BOTTOM - FOOTER_HEIGHT;
+    }
+
+    private int footerWidth() {
+        return windowWidth - TREE_FRAME_LEFT * 2;
+    }
+
+    private int treeFrameLeft() {
+        return left + TREE_FRAME_LEFT;
+    }
+
+    private int treeFrameTop() {
+        return top + TREE_FRAME_TOP;
+    }
+
+    private int treeFrameWidth() {
+        return windowWidth - TREE_FRAME_LEFT * 2;
+    }
+
+    private int treeFrameHeight() {
+        return footerTop() - TREE_FOOTER_GAP - treeFrameTop();
+    }
+
+    private int treeLeft() {
+        return treeFrameLeft() + TREE_FRAME_BORDER;
+    }
+
+    private int treeTop() {
+        return treeFrameTop() + TREE_FRAME_BORDER;
+    }
+
+    private int treeWidth() {
+        return treeFrameWidth() - TREE_FRAME_BORDER * 2;
+    }
+
+    private int treeHeight() {
+        return treeFrameHeight() - TREE_FRAME_BORDER * 2;
+    }
+
+    private void renderTreeTiles(GuiGraphics graphics) {
+        int offsetX = Math.floorMod(Math.round(panX * zoom * 0.15F), 16);
+        int offsetY = Math.floorMod(Math.round(panY * zoom * 0.15F), 16);
+        int startX = treeLeft() - 16 + offsetX;
+        int startY = treeTop() - 16 + offsetY;
+        int row = 0;
+        for (int y = startY; y < treeTop() + treeHeight(); y += 16) {
+            int column = 0;
+            for (int x = startX; x < treeLeft() + treeWidth(); x += 16) {
+                int variant = Math.floorMod(column * 31 + row * 17 + selectedTab * 7, 4);
+                graphics.blit(TREE_TILES, x, y, 16, 16, variant * 16, 0.0F, 16, 16, 64, 16);
+                column++;
+            }
+            row++;
+        }
+    }
+
+    private void centerTree() {
+        List<ResearchNode> nodes = visibleNodes();
+        if (nodes.isEmpty()) {
+            panX = 0.0F;
+            panY = 0.0F;
+            return;
+        }
+        int minX = nodes.stream().mapToInt(ResearchNode::treeX).min().orElse(0);
+        int maxX = nodes.stream().mapToInt(ResearchNode::treeX).max().orElse(0);
+        int minY = nodes.stream().mapToInt(this::treeY).min().orElse(0);
+        int maxY = nodes.stream().mapToInt(this::treeY).max().orElse(0);
+        panX = -(minX + maxX) / 2.0F;
+        panY = -(minY + maxY) / 2.0F;
+        clampPan();
+    }
+
+    private void clampPan() {
+        List<ResearchNode> nodes = visibleNodes();
+        if (nodes.isEmpty() || treeWidth() <= 0 || treeHeight() <= 0) {
+            panX = 0.0F;
+            panY = 0.0F;
+            return;
+        }
+        float padding = CAMERA_PADDING / zoom;
+        float minX = nodes.stream().mapToInt(ResearchNode::treeX).min().orElse(0) - padding;
+        float maxX = nodes.stream().mapToInt(ResearchNode::treeX).max().orElse(0) + padding;
+        float minY = nodes.stream().mapToInt(this::treeY).min().orElse(0) - padding;
+        float maxY = nodes.stream().mapToInt(this::treeY).max().orElse(0) + padding;
+        panX = clampAxis(panX, minX, maxX, treeWidth() / (2.0F * zoom));
+        panY = clampAxis(panY, minY, maxY, treeHeight() / (2.0F * zoom));
+    }
+
+    private static float clampAxis(float pan, float contentMin, float contentMax, float viewHalf) {
+        if (contentMax - contentMin <= viewHalf * 2.0F) {
+            return -(contentMin + contentMax) / 2.0F;
+        }
+        float camera = -pan;
+        float minCamera = contentMin + viewHalf;
+        float maxCamera = contentMax - viewHalf;
+        return -Math.clamp(camera, minCamera, maxCamera);
+    }
+
+    private static int nodeSize(ResearchNode node) {
+        return node.root() && !node.legacy() ? ROOT_SIZE : NODE_SIZE;
+    }
+
+    private boolean startConditionsMet(ResearchNode node) {
+        return (snapshot.canManage() || snapshot.isOfficer())
+                && snapshot.activeResearchNode().isEmpty()
+                && hasInfluenceFor(node)
+                && hasCrystalsFor(node);
+    }
+
+    private int connectionColor(ResearchNode parent, ResearchNode child) {
+        NodeState childState = state(child);
+        if (childState == NodeState.DONE) {
+            return 0xFFC8C35B;
+        }
+        if (childState == NodeState.ACTIVE) {
+            return 0xFF7AEBDD;
+        }
+        if (snapshot.completedResearch().contains(parent.name())) {
+            return 0xFF318D8B;
+        }
+        return 0xFF3D4654;
+    }
+
+    private static void drawHorizontal(GuiGraphics graphics, int x1, int x2, int y, int thickness, int color) {
+        int half = thickness / 2;
+        graphics.fill(Math.min(x1, x2), y - half, Math.max(x1, x2) + 1, y - half + thickness, color);
+    }
+
+    private static void drawVertical(GuiGraphics graphics, int x, int y1, int y2, int thickness, int color) {
+        int half = thickness / 2;
+        graphics.fill(x - half, Math.min(y1, y2), x - half + thickness, Math.max(y1, y2) + 1, color);
+    }
+
+    private static void drawArrow(GuiGraphics graphics, int x, int y, int direction, int color) {
+        for (int offset = -2; offset <= 2; offset++) {
+            int distance = 2 - Math.abs(offset);
+            int pixelX = x - direction * distance;
+            graphics.fill(pixelX, y + offset, pixelX + 1, y + offset + 1, color);
+        }
     }
 
     private NodeState state(ResearchNode node) {
@@ -1110,7 +1416,10 @@ public final class ResearchScreen extends FactionScreen {
         }
         boolean prereqDone = node.prerequisites().stream()
                 .allMatch(prereq -> snapshot.completedResearch().contains(prereq.name()));
-        return prereqDone ? NodeState.AVAILABLE : NodeState.LOCKED;
+        if (!prereqDone) {
+            return NodeState.LOCKED;
+        }
+        return startConditionsMet(node) ? NodeState.AVAILABLE : NodeState.UNAVAILABLE;
     }
 
     private long influenceOf(InfluenceType type) {
@@ -1127,6 +1436,91 @@ public final class ResearchScreen extends FactionScreen {
             case ECONOMIC -> ICON_ECONOMIC;
             case MILITARY -> ICON_MILITARY;
         };
+    }
+
+    private static int iconIndex(ResearchNode node) {
+        String tag = canonicalTag(node.bonusTag().split("\\+")[0].trim().toUpperCase(Locale.ROOT));
+        return switch (tag) {
+            case "SMELT_SPEED" -> 0;
+            case "MINING_SPEED" -> 1;
+            case "DRILL_INTERVAL" -> 2;
+            case "DRILL_OUTPUT" -> 3;
+            case "CHUNK_SLOT" -> 4;
+            case "ORE_DROP" -> 5;
+            case "ENCHANT_BOOST" -> 6;
+            case "CRAFT_EXTRA" -> 7;
+            case "BUY_RATE" -> 8;
+            case "RAID_STEAL_RESIST" -> 9;
+            case "OUTPOST_DISCOUNT" -> 10;
+            case "CLAIM_DISCOUNT" -> 11;
+            case "VILLAGER_DISCOUNT" -> 12;
+            case "VILLAGER_EXTRA" -> 13;
+            case "RAID_WARNING" -> 14;
+            case "RAID_REWARD" -> 15;
+            case "WARRIOR_DAMAGE" -> 16;
+            case "FEWER_RAIDERS" -> 17;
+            case "ARMOR_BOOST" -> 18;
+            case "TNT_RESIST" -> 19;
+            default -> 0;
+        };
+    }
+
+    private static String compactValue(long value) {
+        if (value < 10_000L) {
+            return Long.toString(value);
+        }
+        if (value < 1_000_000L) {
+            return compactUnit(value, 1_000.0D, "K");
+        }
+        return compactUnit(value, 1_000_000.0D, "M");
+    }
+
+    private static String compactUnit(long value, double divisor, String suffix) {
+        double scaled = value / divisor;
+        return Math.abs(scaled - Math.rint(scaled)) < 0.05D
+                ? (long) Math.rint(scaled) + suffix
+                : String.format(Locale.ROOT, "%.1f%s", scaled, suffix);
+    }
+
+    private static void drawNineSlice(
+            GuiGraphics graphics,
+            ResourceLocation texture,
+            int x,
+            int y,
+            int width,
+            int height,
+            int border,
+            int textureWidth,
+            int textureHeight
+    ) {
+        int innerWidth = Math.max(0, width - border * 2);
+        int innerHeight = Math.max(0, height - border * 2);
+        int textureInnerWidth = textureWidth - border * 2;
+        int textureInnerHeight = textureHeight - border * 2;
+        graphics.blit(texture, x, y, border, border,
+                0, 0, border, border, textureWidth, textureHeight);
+        graphics.blit(texture, x + width - border, y, border, border,
+                textureWidth - border, 0, border, border, textureWidth, textureHeight);
+        graphics.blit(texture, x, y + height - border, border, border,
+                0, textureHeight - border, border, border, textureWidth, textureHeight);
+        graphics.blit(texture, x + width - border, y + height - border, border, border,
+                textureWidth - border, textureHeight - border, border, border, textureWidth, textureHeight);
+        if (innerWidth > 0) {
+            graphics.blit(texture, x + border, y, innerWidth, border,
+                    border, 0, textureInnerWidth, border, textureWidth, textureHeight);
+            graphics.blit(texture, x + border, y + height - border, innerWidth, border,
+                    border, textureHeight - border, textureInnerWidth, border, textureWidth, textureHeight);
+        }
+        if (innerHeight > 0) {
+            graphics.blit(texture, x, y + border, border, innerHeight,
+                    0, border, border, textureInnerHeight, textureWidth, textureHeight);
+            graphics.blit(texture, x + width - border, y + border, border, innerHeight,
+                    textureWidth - border, border, border, textureInnerHeight, textureWidth, textureHeight);
+        }
+        if (innerWidth > 0 && innerHeight > 0) {
+            graphics.blit(texture, x + border, y + border, innerWidth, innerHeight,
+                    border, border, textureInnerWidth, textureInnerHeight, textureWidth, textureHeight);
+        }
     }
 
     private static int colorFor(ResearchNode node) {
@@ -1158,6 +1552,7 @@ public final class ResearchScreen extends FactionScreen {
 
     private enum NodeState {
         LOCKED,
+        UNAVAILABLE,
         AVAILABLE,
         ACTIVE,
         DONE

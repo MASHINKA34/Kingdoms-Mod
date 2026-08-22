@@ -3,6 +3,8 @@ package com.geydev.kalfactions.command;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.dimension.DimensionControlEvents;
 import com.geydev.kalfactions.dimension.DimensionControlManager;
+import com.geydev.kalfactions.dimension.NetherPortalIgnition;
+import com.geydev.kalfactions.dimension.NetherSchedulePolicy;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.ResearchNode;
@@ -15,6 +17,7 @@ import com.geydev.kalfactions.outpost.trader.TraderWorldData;
 import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager;
 import com.geydev.kalfactions.outpost.cluster.distribution.ResourceZone;
 import com.geydev.kalfactions.quarry.QuarryManager;
+import com.geydev.kalfactions.registry.ModBlocks;
 import com.geydev.kalfactions.sanctuary.SanctuaryExecutionManager;
 import com.geydev.kalfactions.scout.ScoutManager;
 import com.geydev.kalfactions.scout.ScoutOrder;
@@ -26,6 +29,8 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 import java.util.Collection;
 import net.minecraft.commands.CommandSourceStack;
@@ -430,6 +435,8 @@ public final class KingdomsAdminCommands {
         if (Level.NETHER.equals(dimension)) {
             branch.then(Commands.literal("portal")
                     .then(Commands.literal("clear").executes(KingdomsAdminCommands::clearNetherPortal))
+                    .then(Commands.literal("ignite").executes(KingdomsAdminCommands::igniteNetherPortal))
+                    .then(Commands.literal("extinguish").executes(KingdomsAdminCommands::extinguishNetherPortal))
                     .then(Commands.literal("status").executes(KingdomsAdminCommands::netherPortalStatus)));
         } else {
             branch.then(Commands.literal("wipe")
@@ -448,7 +455,54 @@ public final class KingdomsAdminCommands {
         return 1;
     }
 
+    private static int igniteNetherPortal(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ServerLevel level = source.getLevel();
+        if (!Level.OVERWORLD.equals(level.dimension())) {
+            source.sendFailure(Component.translatable("commands.kingdoms.nether.portal.overworld_only"));
+            return 0;
+        }
+        BlockPos anchor = NetherPortalIgnition.findAnchor(level, BlockPos.containing(source.getPosition()))
+                .or(() -> DimensionControlManager.get(source.getServer()).netherPortalAnchor()
+                        .filter(stored -> level.getBlockState(stored).is(ModBlocks.NETHER_PORTAL_ANCHOR.get())))
+                .orElse(null);
+        if (anchor == null) {
+            source.sendFailure(Component.translatable(
+                    "commands.kingdoms.nether.portal.anchor_not_found", NetherPortalIgnition.ANCHOR_SEARCH_RADIUS
+            ));
+            return 0;
+        }
+        NetherPortalIgnition.Result result =
+                NetherPortalIgnition.ignite(level, anchor, source.getTextName(), Instant.now());
+        if (!result.ignited()) {
+            source.sendFailure(result.failure().message());
+            return 0;
+        }
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.nether.portal.ignited",
+                NetherSchedulePolicy.formatRemaining(Duration.between(Instant.now(), result.charge().expiresAt()))
+        ), true);
+        return 1;
+    }
+
+    private static int extinguishNetherPortal(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        DimensionControlManager control = DimensionControlManager.get(source.getServer());
+        if (control.netherPortalCharge().isEmpty() && control.netherPortal().isEmpty()) {
+            source.sendFailure(Component.translatable("commands.kingdoms.nether.portal.missing"));
+            return 0;
+        }
+        int moved = NetherPortalIgnition.extinguish(source.getServer(), "kingdoms.nether.portal.expired");
+        source.sendSuccess(
+                () -> Component.translatable("commands.kingdoms.nether.portal.extinguished", moved), true
+        );
+        return 1;
+    }
+
     private static int netherPortalStatus(CommandContext<CommandSourceStack> context) {
+        context.getSource().sendSuccess(
+                () -> NetherPortalIgnition.statusMessage(context.getSource().getServer(), Instant.now()), false
+        );
         DimensionControlManager.PortalBounds bounds = DimensionControlManager.get(context.getSource().getServer())
                 .netherPortal().orElse(null);
         if (bounds == null) {

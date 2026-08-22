@@ -20,6 +20,10 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/gui/drill/drill_gui.png");
     private static final ResourceLocation PROGRESS =
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/gui/drill/progress.png");
+    private static final ResourceLocation DRILL_MECHANISM =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/gui/drill/drill_mechanism.png");
+    private static final ResourceLocation DRILL_FOREGROUND =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "textures/gui/drill/drill_foreground.png");
     private static final int BACKGROUND_WIDTH = 370;
     private static final int BACKGROUND_HEIGHT = 188;
     private static final int PROGRESS_WIDTH = 162;
@@ -27,6 +31,13 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     private static final int SCREEN_HEIGHT = 244;
     private static final int PROGRESS_X = 116;
     private static final int PROGRESS_Y = 53;
+    private static final int DRILL_MECHANISM_X = 153;
+    private static final int DRILL_MECHANISM_Y = 7;
+    private static final int DRILL_MECHANISM_WIDTH = 64;
+    private static final int DRILL_MECHANISM_FRAME_HEIGHT = 58;
+    private static final int DRILL_MECHANISM_FRAMES = 8;
+    private static final int DRILL_MECHANISM_SHEET_HEIGHT = DRILL_MECHANISM_FRAME_HEIGHT * DRILL_MECHANISM_FRAMES;
+    private static final int DRILL_MECHANISM_TICKS_PER_FRAME = 2;
     private static final int FILL_WIDTH = 138;
     private static final int FILL_HEIGHT = 8;
     private static final float PROGRESS_SLICE_Y = 6.0F;
@@ -48,6 +59,8 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     private static final int STATUS_Y = READOUT_Y;
     private static final int STATUS_WIDTH = 70;
     private boolean openingSelector;
+    private boolean drillAnimationActive;
+    private long drillAnimationStartTick;
 
     public DrillScreen(DrillMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -131,6 +144,8 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
         graphics.blit(BACKGROUND, leftPos, topPos, 0.0F, 0.0F, BACKGROUND_WIDTH, BACKGROUND_HEIGHT, BACKGROUND_WIDTH, BACKGROUND_HEIGHT);
+        int drillFrame = updateDrillAnimationFrame();
+        renderDrillLayer(graphics, DRILL_MECHANISM, drillFrame);
         float fraction = menu.hasTarget() ? menu.progressFraction() : 0.0F;
         int fillWidth = Math.round(FILL_WIDTH * fraction);
         if (fillWidth > 0) {
@@ -149,10 +164,59 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
                     PROGRESS_HEIGHT
             );
         }
+        renderDrillLayer(graphics, DRILL_FOREGROUND, drillFrame);
         renderSelectedTarget(graphics);
         renderStatusBanner(graphics);
         renderDrillSlots(graphics);
         renderPlayerInventoryPanel(graphics);
+    }
+
+    private int updateDrillAnimationFrame() {
+        boolean active = isDrillingActive();
+        long gameTime = minecraft != null && minecraft.level != null ? minecraft.level.getGameTime() : 0L;
+        if (active && !drillAnimationActive) {
+            drillAnimationStartTick = gameTime;
+        }
+        drillAnimationActive = active;
+        return drillAnimationFrame(active, gameTime - drillAnimationStartTick);
+    }
+
+    private void renderDrillLayer(GuiGraphics graphics, ResourceLocation texture, int frame) {
+        graphics.blit(
+                texture,
+                leftPos + DRILL_MECHANISM_X,
+                topPos + DRILL_MECHANISM_Y,
+                0.0F,
+                frame * (float) DRILL_MECHANISM_FRAME_HEIGHT,
+                DRILL_MECHANISM_WIDTH,
+                DRILL_MECHANISM_FRAME_HEIGHT,
+                DRILL_MECHANISM_WIDTH,
+                DRILL_MECHANISM_SHEET_HEIGHT
+        );
+    }
+
+    private boolean isDrillingActive() {
+        DrillPayloads.TargetInfo selected = selectedTarget(ClientDrillTargets.get(menu.containerId));
+        return shouldAnimateDrill(
+                menu.hasTarget(),
+                menu.progress(),
+                menu.intervalTicks(),
+                selected != null && selected.depleted()
+        );
+    }
+
+    static boolean shouldAnimateDrill(boolean hasTarget, int progress, int interval, boolean depleted) {
+        return hasTarget && progress < interval && !depleted;
+    }
+
+    static int drillAnimationFrame(boolean active, long elapsedGameTicks) {
+        if (!active) {
+            return 0;
+        }
+        return 1 + (int) Math.floorMod(
+                Math.max(0L, elapsedGameTicks) / DRILL_MECHANISM_TICKS_PER_FRAME,
+                DRILL_MECHANISM_FRAMES - 1
+        );
     }
 
     private void renderStatusBanner(GuiGraphics graphics) {
