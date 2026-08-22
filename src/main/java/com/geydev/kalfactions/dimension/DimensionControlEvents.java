@@ -715,7 +715,7 @@ public final class DimensionControlEvents {
         Instant now = Instant.now();
         DimensionControlManager control = DimensionControlManager.get(server);
         control.applyScheduledNetherOpening(now);
-        NetherPortalIgnition.tick(server, now);
+        NetherPortalIgnition.reconcile(server, now);
         validateRegisteredPortal(server, control);
         FactionManager factions = FactionManager.get(server);
         List<EndedSession> ended = control.expireSessions(now, id -> factions.getFactionById(id).isPresent());

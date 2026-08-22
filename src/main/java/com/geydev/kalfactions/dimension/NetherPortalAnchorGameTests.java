@@ -90,6 +90,64 @@ public final class NetherPortalAnchorGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void aMinedGateCanBeLitAgainRightAway(GameTestHelper helper) {
+        BlockPos anchor = buildAnchoredFrame(helper);
+        DimensionControlManager control = resetControl(helper);
+        Instant now = Instant.now();
+        helper.assertTrue(
+                NetherPortalIgnition.ignite(helper.getLevel(), helper.absolutePos(anchor), "Tester", now).ignited(),
+                "The anchored frame refused the igniter"
+        );
+
+        helper.setBlock(FRAME_INTERIOR, Blocks.AIR);
+        helper.assertTrue(
+                !helper.getBlockState(FRAME_INTERIOR.above()).is(Blocks.NETHER_PORTAL),
+                "Mining one portal block left the rest of the gate burning"
+        );
+
+        NetherPortalIgnition.Result relit = NetherPortalIgnition.ignite(
+                helper.getLevel(), helper.absolutePos(anchor), "Tester", now
+        );
+        helper.assertTrue(
+                relit.ignited(),
+                "A mined gate still claimed to be burning: " + relit.failure()
+        );
+        helper.assertTrue(
+                helper.getBlockState(FRAME_INTERIOR).is(Blocks.NETHER_PORTAL),
+                "The relit gate stayed empty"
+        );
+
+        clear(helper);
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void aGateWhoseAnchorWasMinedCanBeLitAgain(GameTestHelper helper) {
+        BlockPos anchor = buildAnchoredFrame(helper);
+        DimensionControlManager control = resetControl(helper);
+        Instant now = Instant.now();
+        helper.assertTrue(
+                NetherPortalIgnition.ignite(helper.getLevel(), helper.absolutePos(anchor), "Tester", now).ignited(),
+                "The anchored frame refused the igniter"
+        );
+
+        helper.setBlock(anchor, Blocks.AIR);
+        helper.setBlock(anchor, ModBlocks.NETHER_PORTAL_ANCHOR.get());
+
+        NetherPortalIgnition.Result relit = NetherPortalIgnition.ignite(
+                helper.getLevel(), helper.absolutePos(anchor), "Tester", now
+        );
+        helper.assertTrue(
+                relit.ignited(),
+                "A gate whose anchor was replaced still claimed to be burning: " + relit.failure()
+        );
+        helper.assertTrue(control.isNetherPortalCharged(now), "The relit gate was not charged");
+
+        clear(helper);
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void anchorOutsideAFrameCannotBeLit(GameTestHelper helper) {
         for (int x = -1; x <= 1; x++) {
             for (int y = -1; y <= 1; y++) {
@@ -126,13 +184,13 @@ public final class NetherPortalAnchorGameTests {
         Instant expiry = result.charge().expiresAt();
         helper.assertTrue(control.isNetherPortalCharged(expiry.minusSeconds(1)), "The charge expired early");
 
-        NetherPortalIgnition.tick(helper.getLevel().getServer(), expiry.minusSeconds(1));
+        NetherPortalIgnition.reconcile(helper.getLevel().getServer(), expiry.minusSeconds(1));
         helper.assertTrue(
                 helper.getBlockState(FRAME_INTERIOR).is(Blocks.NETHER_PORTAL),
                 "A live portal was closed before its deadline"
         );
 
-        NetherPortalIgnition.tick(helper.getLevel().getServer(), expiry.plusSeconds(1));
+        NetherPortalIgnition.reconcile(helper.getLevel().getServer(), expiry.plusSeconds(1));
         helper.assertTrue(
                 !helper.getBlockState(FRAME_INTERIOR).is(Blocks.NETHER_PORTAL),
                 "An expired portal kept its portal blocks"

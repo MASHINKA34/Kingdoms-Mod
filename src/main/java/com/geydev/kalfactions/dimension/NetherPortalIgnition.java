@@ -69,6 +69,7 @@ public final class NetherPortalIgnition {
             return new Result(null, Failure.NO_ANCHOR);
         }
         DimensionControlManager control = DimensionControlManager.get(server);
+        reconcile(server, now);
         if (control.isNetherPortalCharged(now)) {
             return new Result(null, Failure.ALREADY_LIT);
         }
@@ -116,6 +117,7 @@ public final class NetherPortalIgnition {
     }
 
     public static Component statusMessage(MinecraftServer server, Instant now) {
+        reconcile(server, now);
         PortalCharge charge = DimensionControlManager.get(server).netherPortalCharge()
                 .filter(candidate -> candidate.expiresAt().isAfter(now))
                 .orElse(null);
@@ -124,8 +126,7 @@ public final class NetherPortalIgnition {
         }
         return Component.translatable(
                 "kingdoms.nether.portal.status.lit",
-                NetherSchedulePolicy.formatRemaining(Duration.between(now, charge.expiresAt())),
-                charge.ignitedBy()
+                NetherSchedulePolicy.formatRemaining(Duration.between(now, charge.expiresAt()))
         );
     }
 
@@ -146,7 +147,7 @@ public final class NetherPortalIgnition {
         return evacuated;
     }
 
-    public static void tick(MinecraftServer server, Instant now) {
+    public static void reconcile(MinecraftServer server, Instant now) {
         DimensionControlManager control = DimensionControlManager.get(server);
         PortalCharge charge = control.netherPortalCharge().orElse(null);
         if (charge == null) {

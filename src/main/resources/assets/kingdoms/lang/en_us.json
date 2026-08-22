@@ -1073,7 +1073,7 @@
   "kingdoms.nether.portal.opened": "%s lit the Nether gate. It closes at %s Moscow time, in %s.",
   "kingdoms.nether.portal.expired": "The Nether gate burned out: its lifetime is over.",
   "kingdoms.nether.portal.broken": "The Nether gate went out: its frame was destroyed.",
-  "kingdoms.nether.portal.status.lit": "The Nether gate is burning. Closes in: %s. Lit by: %s.",
+  "kingdoms.nether.portal.status.lit": "The Nether gate is burning. Closes in: %s.",
   "kingdoms.nether.portal.status.unlit": "The Nether gate is not lit. A Hellfire Igniter is needed.",
   "screen.kingdoms.nether_status.title": "Nether",
   "screen.kingdoms.nether_status.schedule": "Open daily from 18:00 to 23:00 Moscow time",

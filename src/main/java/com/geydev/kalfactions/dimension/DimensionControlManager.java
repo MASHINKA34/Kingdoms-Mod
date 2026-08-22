@@ -1021,7 +1021,6 @@ public final class DimensionControlManager {
     }
 
     private static State normalize(State state) {
-        // Worlds written before the anchor rework never had a lit portal, so they start unlit.
         boolean legacy = state.formatVersion < FORMAT_VERSION;
         state.formatVersion = FORMAT_VERSION;
         if (legacy) {

@@ -1073,7 +1073,7 @@
   "kingdoms.nether.portal.opened": "%s зажёг адские врата. Портал закроется %s по Москве, через %s.",
   "kingdoms.nether.portal.expired": "Адские врата погасли: время жизни портала истекло.",
   "kingdoms.nether.portal.broken": "Адские врата погасли: рама портала разрушена.",
-  "kingdoms.nether.portal.status.lit": "Адские врата горят. До закрытия: %s. Зажёг: %s.",
+  "kingdoms.nether.portal.status.lit": "Адские врата горят. До закрытия: %s.",
   "kingdoms.nether.portal.status.unlit": "Адские врата не зажжены. Нужно адское огниво.",
   "screen.kingdoms.nether_status.title": "Ад",
   "screen.kingdoms.nether_status.schedule": "Открыт ежедневно с 18:00 до 23:00 МСК",
