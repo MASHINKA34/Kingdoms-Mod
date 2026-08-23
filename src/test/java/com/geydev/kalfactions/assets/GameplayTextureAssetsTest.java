@@ -70,7 +70,7 @@ final class GameplayTextureAssetsTest {
         BufferedImage mapArchive = read("/assets/kingdoms/textures/item/xaero_map_archive.png");
         BufferedImage warArchive = read("/assets/kingdoms/textures/item/war_archive.png");
 
-        assertSquare(mapArchive, 256);
+        assertSquare(mapArchive, 16);
         assertSquare(warArchive, 256);
         assertTrue(mapArchive.getColorModel().hasAlpha());
         assertTrue(warArchive.getColorModel().hasAlpha());
