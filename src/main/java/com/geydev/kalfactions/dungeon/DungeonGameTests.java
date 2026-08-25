@@ -21,6 +21,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.RandomizableContainer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobSpawnType;
@@ -30,12 +31,16 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.VineBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.living.FinalizeSpawnEvent;
+import net.neoforged.neoforge.event.entity.player.BonemealEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.event.level.BlockGrowFeatureEvent;
+import net.neoforged.neoforge.event.level.block.CropGrowEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
@@ -372,6 +377,77 @@ public final class DungeonGameTests {
             manager.remove(dungeon.id());
         }
         helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "dungeon_growth", timeoutTicks = 600)
+    public static void plantsDoNotGrowInsideDungeon(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        DungeonManager manager = DungeonManager.get(level);
+        BlockPos anchor = blackZoneAnchor(level, 8);
+        DungeonManager.DungeonView dungeon = createDungeon(helper, level, manager, anchor, "Тест роста");
+        BlockPos inside = anchor.offset(8, 2, 8);
+        BlockPos outside = inside.offset(64, 0, 0);
+        try {
+            level.getChunk(new ChunkPos(outside).x, new ChunkPos(outside).z);
+            level.setBlockAndUpdate(inside.north(), Blocks.STONE.defaultBlockState());
+            level.setBlockAndUpdate(outside.north(), Blocks.STONE.defaultBlockState());
+            level.setBlockAndUpdate(
+                    inside,
+                    Blocks.VINE.defaultBlockState().setValue(VineBlock.NORTH, true)
+            );
+            level.setBlockAndUpdate(
+                    outside,
+                    Blocks.VINE.defaultBlockState().setValue(VineBlock.NORTH, true)
+            );
+
+            RandomSource insideRandom = RandomSource.create(42L);
+            RandomSource outsideRandom = RandomSource.create(42L);
+            for (int tick = 0; tick < 4096; tick++) {
+                level.getBlockState(inside).randomTick(level, inside, insideRandom);
+                level.getBlockState(outside).randomTick(level, outside, outsideRandom);
+            }
+
+            helper.assertTrue(countVines(level, inside) == 1L, "vines do not spread inside a dungeon");
+            helper.assertTrue(countVines(level, outside) > 1L, "vines still spread outside a dungeon");
+
+            CropGrowEvent.Pre crop = new CropGrowEvent.Pre(level, inside, Blocks.WHEAT.defaultBlockState());
+            NeoForge.EVENT_BUS.post(crop);
+            helper.assertTrue(
+                    crop.getResult() == CropGrowEvent.Pre.Result.DO_NOT_GROW,
+                    "crop growth is blocked inside a dungeon"
+            );
+
+            BonemealEvent bonemeal = new BonemealEvent(
+                    null,
+                    level,
+                    inside,
+                    Blocks.OAK_SAPLING.defaultBlockState(),
+                    new ItemStack(Items.BONE_MEAL)
+            );
+            NeoForge.EVENT_BUS.post(bonemeal);
+            helper.assertTrue(bonemeal.isCanceled(), "bonemeal is blocked inside a dungeon");
+
+            BlockGrowFeatureEvent feature = new BlockGrowFeatureEvent(level, level.random, inside, null);
+            NeoForge.EVENT_BUS.post(feature);
+            helper.assertTrue(feature.isCanceled(), "feature growth is blocked inside a dungeon");
+        } finally {
+            clearGrowthTestArea(level, inside);
+            clearGrowthTestArea(level, outside);
+            manager.remove(dungeon.id());
+        }
+        helper.succeed();
+    }
+
+    private static long countVines(ServerLevel level, BlockPos center) {
+        return BlockPos.betweenClosedStream(center.offset(-4, -1, -4), center.offset(4, 1, 4))
+                .filter(pos -> level.getBlockState(pos).is(Blocks.VINE))
+                .count();
+    }
+
+    private static void clearGrowthTestArea(ServerLevel level, BlockPos center) {
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-4, -1, -4), center.offset(4, 1, 4))) {
+            level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+        }
     }
 
     private static boolean spawnCancelled(ServerLevel level, BlockPos pos, MobSpawnType type) {

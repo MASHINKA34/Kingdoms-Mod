@@ -9,16 +9,22 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.piston.PistonStructureResolver;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.util.BlockSnapshot;
 import net.neoforged.neoforge.event.entity.EntityMobGriefingEvent;
+import net.neoforged.neoforge.event.entity.player.BonemealEvent;
+import net.neoforged.neoforge.event.entity.player.UseItemOnBlockEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.event.level.BlockGrowFeatureEvent;
 import net.neoforged.neoforge.event.level.ExplosionEvent;
 import net.neoforged.neoforge.event.level.PistonEvent;
+import net.neoforged.neoforge.event.level.block.CropGrowEvent;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class DungeonProtectionEvents {
@@ -146,6 +152,44 @@ public final class DungeonProtectionEvents {
         }
         if (DungeonProtection.nearDungeon(level, entity.blockPosition(), GRIEF_RADIUS_BLOCKS)) {
             event.setCanGrief(false);
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onCropGrow(CropGrowEvent.Pre event) {
+        if (event.getLevel() instanceof ServerLevel level
+                && DungeonProtection.isDungeon(level, event.getPos())) {
+            event.setResult(CropGrowEvent.Pre.Result.DO_NOT_GROW);
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onBlockGrowFeature(BlockGrowFeatureEvent event) {
+        if (event.getLevel() instanceof ServerLevel level
+                && DungeonProtection.isDungeon(level, event.getPos())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onBonemeal(BonemealEvent event) {
+        if (event.getLevel() instanceof ServerLevel level
+                && DungeonProtection.isDungeon(level, event.getPos())) {
+            event.setSuccessful(false);
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onBonemealUse(UseItemOnBlockEvent event) {
+        if (event.getUsePhase() != UseItemOnBlockEvent.UsePhase.ITEM_AFTER_BLOCK
+                || !event.getItemStack().is(Items.BONE_MEAL)
+                || !(event.getLevel() instanceof ServerLevel level)) {
+            return;
+        }
+        BlockPos target = event.getFace() == null ? event.getPos() : event.getPos().relative(event.getFace());
+        if (DungeonProtection.isDungeon(level, event.getPos())
+                || DungeonProtection.isDungeon(level, target)) {
+            event.cancelWithResult(ItemInteractionResult.FAIL);
         }
     }
 
