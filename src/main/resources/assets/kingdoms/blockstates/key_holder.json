@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "kingdoms:block/key_holder" },
+    "facing=east": { "model": "kingdoms:block/key_holder", "y": 90 },
+    "facing=south": { "model": "kingdoms:block/key_holder", "y": 180 },
+    "facing=west": { "model": "kingdoms:block/key_holder", "y": 270 }
+  }
+}

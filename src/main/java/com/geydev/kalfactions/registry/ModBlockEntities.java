@@ -9,6 +9,7 @@ import com.geydev.kalfactions.block.FactionTableBlockEntity;
 import com.geydev.kalfactions.block.GuideBoardBlockEntity;
 import com.geydev.kalfactions.block.KeyForgeBlockEntity;
 import com.geydev.kalfactions.block.KeyForgeType;
+import com.geydev.kalfactions.block.KeyHolderBlockEntity;
 import com.geydev.kalfactions.block.MusicBlockEntity;
 import com.geydev.kalfactions.block.ResearchBenchBlockEntity;
 import com.geydev.kalfactions.block.StatueScienceBlockEntity;
@@ -90,6 +91,11 @@ public final class ModBlockEntities {
                     Registries.BLOCK_ENTITY_TYPE,
                     DUNGEON_KEY_PEDESTAL_ID
             );
+
+    public static final ResourceLocation KEY_HOLDER_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "key_holder");
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<KeyHolderBlockEntity>> KEY_HOLDER =
+            DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, KEY_HOLDER_ID);
 
     @SubscribeEvent
     public static void register(RegisterEvent event) {
@@ -245,6 +251,15 @@ public final class ModBlockEntities {
                 );
             }
             return BlockEntityType.Builder.of(DungeonKeyPedestalBlockEntity::new, block).build(null);
+        });
+        event.register(Registries.BLOCK_ENTITY_TYPE, KEY_HOLDER_ID, () -> {
+            Block block = BuiltInRegistries.BLOCK.get(KEY_HOLDER_ID);
+            if (block == Blocks.AIR) {
+                throw new IllegalStateException(
+                        "kingdoms:key_holder must be registered before its block entity type"
+                );
+            }
+            return BlockEntityType.Builder.of(KeyHolderBlockEntity::new, block).build(null);
         });
     }
 

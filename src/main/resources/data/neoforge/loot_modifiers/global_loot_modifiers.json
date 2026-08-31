@@ -1,6 +1,7 @@
 {
   "replace": false,
   "entries": [
-    "kingdoms:remove_raid_flares"
+    "kingdoms:remove_raid_flares",
+    "kingdoms:boss_key_drop"
   ]
 }

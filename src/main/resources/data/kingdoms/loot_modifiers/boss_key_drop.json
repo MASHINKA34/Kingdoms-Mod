@@ -1,0 +1,5 @@
+{
+  "type": "kingdoms:boss_key_drop",
+  "chance": 1.0,
+  "conditions": []
+}

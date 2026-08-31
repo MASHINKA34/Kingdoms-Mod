@@ -25,6 +25,7 @@ import com.geydev.kalfactions.block.StoneGodStatueCollisionBlock;
 import com.geydev.kalfactions.block.WarArchiveBlock;
 import com.geydev.kalfactions.block.WarGodStatueBlock;
 import com.geydev.kalfactions.block.XaeroMapArchiveBlock;
+import com.geydev.kalfactions.block.KeyHolderBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -298,6 +299,15 @@ public final class ModBlocks {
                     .strength(50.0F, 1200.0F)
                     .sound(SoundType.ANCIENT_DEBRIS)
                     .lightLevel(state -> 7))
+    );
+
+    public static final DeferredBlock<KeyHolderBlock> KEY_HOLDER = BLOCKS.register(
+            "key_holder",
+            () -> new KeyHolderBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .strength(3.5F, 12.0F)
+                    .sound(SoundType.METAL)
+                    .lightLevel(state -> state.getValue(KeyHolderBlock.POWERED) ? 9 : 0))
     );
 
     public static void register(IEventBus bus) {

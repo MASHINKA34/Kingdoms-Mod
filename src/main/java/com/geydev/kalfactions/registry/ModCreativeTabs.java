@@ -107,7 +107,9 @@ public final class ModCreativeTabs {
                 ModItems.MOSSY_KEY.get(),
                 ModItems.DUNGEON_KEY_PEDESTAL.get(),
                 ModItems.NETHER_PORTAL_ANCHOR.get(),
-                ModItems.NETHER_IGNITER.get()
+                ModItems.NETHER_IGNITER.get(),
+                ModItems.BOSS_KEY.get(),
+                ModItems.KEY_HOLDER.get()
         );
     }
 

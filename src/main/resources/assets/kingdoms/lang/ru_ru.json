@@ -1562,5 +1562,22 @@
   "screen.kingdoms.dungeon_key_pedestal.save": "Сохранить",
   "message.kingdoms.dungeon_key_pedestal.not_configured": "Пьедестал ещё не настроен оператором.",
   "message.kingdoms.dungeon_key_pedestal.wrong_key": "Для этого пьедестала требуется: %s.",
-  "message.kingdoms.dungeon_key_pedestal.settings_saved": "Настройки пьедестала сохранены."
+  "message.kingdoms.dungeon_key_pedestal.settings_saved": "Настройки пьедестала сохранены.",
+  "block.kingdoms.key_holder": "Ключница",
+  "item.kingdoms.boss_key": "Ключ босса",
+  "item.kingdoms.boss_key.tooltip": "Тяжёлый ключ, выкованный из останков поверженного босса.",
+  "item.kingdoms.boss_key.tooltip.usage": "ПКМ по ключнице, чтобы подать сигнал.",
+  "screen.kingdoms.key_holder.title": "Настройка ключницы",
+  "screen.kingdoms.key_holder.operator_hint": "Доступно только операторам сервера",
+  "screen.kingdoms.key_holder.mode": "Режим: %s",
+  "screen.kingdoms.key_holder.mode.pulse": "Импульс",
+  "screen.kingdoms.key_holder.mode.toggle": "Переключатель",
+  "screen.kingdoms.key_holder.pulse_ticks": "Длительность импульса (тики)",
+  "screen.kingdoms.key_holder.consume_key": "Расходовать ключ: %s",
+  "screen.kingdoms.key_holder.consume_key.on": "Да",
+  "screen.kingdoms.key_holder.consume_key.off": "Нет",
+  "screen.kingdoms.key_holder.invalid_ticks": "Введите целое число от %s до %s",
+  "screen.kingdoms.key_holder.save": "Сохранить",
+  "message.kingdoms.key_holder.key_required": "Нужен ключ босса.",
+  "message.kingdoms.key_holder.settings_saved": "Настройки ключницы сохранены."
 }

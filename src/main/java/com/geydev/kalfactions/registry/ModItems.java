@@ -18,6 +18,7 @@ import com.geydev.kalfactions.item.SellerSpawnEggItem;
 import com.geydev.kalfactions.item.TraderRemoverItem;
 import com.geydev.kalfactions.item.TraderSpawnEggItem;
 import com.geydev.kalfactions.item.TraderPointToolItem;
+import com.geydev.kalfactions.item.BossKeyItem;
 import java.util.Optional;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -356,6 +357,16 @@ public final class ModItems {
                     new Item.Properties().stacksTo(16).rarity(net.minecraft.world.item.Rarity.RARE)
             )
     );
+
+    public static final DeferredItem<BossKeyItem> BOSS_KEY = ITEMS.register(
+            "boss_key",
+            () -> new BossKeyItem(
+                    new Item.Properties().stacksTo(16).rarity(net.minecraft.world.item.Rarity.EPIC)
+            )
+    );
+
+    public static final DeferredItem<BlockItem> KEY_HOLDER =
+            ITEMS.registerSimpleBlockItem(ModBlocks.KEY_HOLDER);
 
     public static Item crystalFor(InfluenceType type) {
         return switch (type) {

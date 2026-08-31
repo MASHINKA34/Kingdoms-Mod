@@ -1562,5 +1562,22 @@
   "screen.kingdoms.dungeon_key_pedestal.save": "Save",
   "message.kingdoms.dungeon_key_pedestal.not_configured": "This pedestal has not been configured by an operator yet.",
   "message.kingdoms.dungeon_key_pedestal.wrong_key": "This pedestal requires: %s.",
-  "message.kingdoms.dungeon_key_pedestal.settings_saved": "Key pedestal settings saved."
+  "message.kingdoms.dungeon_key_pedestal.settings_saved": "Key pedestal settings saved.",
+  "block.kingdoms.key_holder": "Key Holder",
+  "item.kingdoms.boss_key": "Boss Key",
+  "item.kingdoms.boss_key.tooltip": "A heavy key forged from the remains of a fallen boss.",
+  "item.kingdoms.boss_key.tooltip.usage": "Right-click a key holder to power it.",
+  "screen.kingdoms.key_holder.title": "Key Holder Settings",
+  "screen.kingdoms.key_holder.operator_hint": "Available to server operators only",
+  "screen.kingdoms.key_holder.mode": "Mode: %s",
+  "screen.kingdoms.key_holder.mode.pulse": "Pulse",
+  "screen.kingdoms.key_holder.mode.toggle": "Toggle",
+  "screen.kingdoms.key_holder.pulse_ticks": "Pulse length (ticks)",
+  "screen.kingdoms.key_holder.consume_key": "Consume the key: %s",
+  "screen.kingdoms.key_holder.consume_key.on": "Yes",
+  "screen.kingdoms.key_holder.consume_key.off": "No",
+  "screen.kingdoms.key_holder.invalid_ticks": "Enter a whole number from %s to %s",
+  "screen.kingdoms.key_holder.save": "Save",
+  "message.kingdoms.key_holder.key_required": "A boss key is required.",
+  "message.kingdoms.key_holder.settings_saved": "Key holder settings saved."
 }
