@@ -1,6 +1,7 @@
 {
 	"format_version": "1.9.0",
 	"credit": "Made with Blockbench",
+	"parent": "minecraft:block/block",
 	"textures": {
 		"0": "kingdoms:block/key_holder_front",
 		"1": "kingdoms:block/key_holder_side",
