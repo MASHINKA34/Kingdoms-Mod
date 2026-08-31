@@ -2,6 +2,7 @@ package com.geydev.kalfactions.safezone;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.client.ClientSafeZoneStore;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -22,11 +23,25 @@ public final class SafeZoneNetwork {
                 SafeZonePayloads.S2CSyncSafeZones.STREAM_CODEC,
                 SafeZoneNetwork::handleSync
         );
+        registrar.playToServer(
+                SafeZonePayloads.C2SAdjustSelection.TYPE,
+                SafeZonePayloads.C2SAdjustSelection.STREAM_CODEC,
+                SafeZoneNetwork::handleAdjustSelection
+        );
     }
 
     private static void handleSync(SafeZonePayloads.S2CSyncSafeZones payload, IPayloadContext context) {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientSafeZoneStore.handle(payload);
+        }
+    }
+
+    private static void handleAdjustSelection(
+            SafeZonePayloads.C2SAdjustSelection payload,
+            IPayloadContext context
+    ) {
+        if (context.player() instanceof ServerPlayer player) {
+            SafeZoneService.adjustSelection(player, payload.face(), payload.delta());
         }
     }
 

@@ -1615,5 +1615,6 @@
   "kingdoms.safezone.wand.missing": "Hold the safe zone wand, or pass both corners to the command.",
   "kingdoms.safezone.wand.incomplete": "Mark both corners in this dimension first.",
   "kingdoms.safezone.entered": "You are inside a safe zone.",
-  "kingdoms.safezone.left": "You have left the safe zone."
+  "kingdoms.safezone.left": "You have left the safe zone.",
+  "kingdoms.safezone.wand.tooltip.resize": "Ctrl + mouse wheel drags the face you are looking at."
 }

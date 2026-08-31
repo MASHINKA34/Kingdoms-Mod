@@ -3,10 +3,12 @@ package com.geydev.kalfactions.gametest;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.item.SafeZoneWandItem;
 import com.geydev.kalfactions.market.PlotSelection;
+import com.geydev.kalfactions.registry.ModDataComponents;
 import com.geydev.kalfactions.registry.ModItems;
 import com.geydev.kalfactions.safezone.SafeZone;
 import com.geydev.kalfactions.safezone.SafeZoneManager;
 import com.geydev.kalfactions.safezone.SafeZonePayloads;
+import com.geydev.kalfactions.safezone.SafeZoneService;
 import com.mojang.authlib.GameProfile;
 import io.netty.buffer.Unpooled;
 import java.util.List;
@@ -27,6 +29,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
@@ -222,6 +225,102 @@ public final class SafeZoneGameTests {
             buffer.release();
         }
         helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "safezone", timeoutTicks = 300)
+    public static void ctrlScrollDragsTheSelectionFace(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos first = helper.absolutePos(new BlockPos(0, 1, 0));
+        BlockPos second = helper.absolutePos(new BlockPos(2, 1, 2));
+        ServerPlayer visitor = mockPlayer(level, "kingdoms-drag-visitor", first, 0);
+        ServerPlayer operator = mockPlayer(level, "kingdoms-drag-operator", first, 4);
+        try {
+            ItemStack stack = new ItemStack(ModItems.SAFE_ZONE_WAND.get());
+            stack.set(
+                    ModDataComponents.SAFE_ZONE_SELECTION.get(),
+                    PlotSelection.start(level, first).withSecond(second)
+            );
+
+            visitor.setItemInHand(InteractionHand.MAIN_HAND, stack);
+            helper.assertFalse(
+                    SafeZoneService.adjustSelection(visitor, (byte) Direction.UP.ordinal(), (byte) 1),
+                    "a player without permissions cannot drag a face"
+            );
+
+            operator.setItemInHand(InteractionHand.MAIN_HAND, stack);
+            helper.assertTrue(
+                    SafeZoneService.adjustSelection(operator, (byte) Direction.UP.ordinal(), (byte) 1),
+                    "the operator drags the top face"
+            );
+            helper.assertValueEqual(spans(stack), new BlockPos(3, 2, 3), "the zone grew one block upwards");
+
+            helper.assertTrue(
+                    SafeZoneService.adjustSelection(operator, (byte) Direction.WEST.ordinal(), (byte) 1),
+                    "the operator drags the west face"
+            );
+            helper.assertValueEqual(spans(stack), new BlockPos(4, 2, 3), "the zone grew one block westwards");
+
+            helper.assertTrue(
+                    SafeZoneService.adjustSelection(operator, (byte) Direction.UP.ordinal(), (byte) -1),
+                    "the top face comes back"
+            );
+            helper.assertValueEqual(spans(stack), new BlockPos(4, 1, 3), "the zone shrank back down");
+
+            helper.assertTrue(
+                    SafeZoneService.adjustSelection(operator, (byte) Direction.UP.ordinal(), (byte) -1),
+                    "the top face is dragged past its floor"
+            );
+            helper.assertValueEqual(spans(stack), new BlockPos(4, 1, 3), "a side never shrinks below one block");
+
+            helper.assertFalse(
+                    SafeZoneService.adjustSelection(operator, (byte) 42, (byte) 1),
+                    "an unknown face is rejected"
+            );
+            helper.assertFalse(
+                    SafeZoneService.adjustSelection(operator, (byte) Direction.UP.ordinal(), (byte) 0),
+                    "a zero step is rejected"
+            );
+        } finally {
+            visitor.discard();
+            operator.discard();
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "safezone", timeoutTicks = 300)
+    public static void onlyZonesOfTheCurrentDimensionAreSynced(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        SafeZoneManager manager = SafeZoneManager.get(level);
+        BlockPos center = remotePos(level, 4);
+        String here = "kingdoms-test-here";
+        String elsewhere = "kingdoms-test-elsewhere";
+        try {
+            manager.remove(here);
+            manager.remove(elsewhere);
+            manager.add(here, level.dimension(), center, center.offset(3, 3, 3));
+            manager.add(elsewhere, Level.NETHER, center, center.offset(3, 3, 3));
+
+            List<SafeZonePayloads.ZoneEntry> entries = SafeZoneService.entriesFor(level, level.dimension());
+
+            helper.assertValueEqual(entries.size(), 1, "only the current dimension is synced");
+            SafeZonePayloads.ZoneEntry entry = entries.getFirst();
+            helper.assertValueEqual(entry.id(), here, "synced id");
+            helper.assertValueEqual(entry.minY(), center.getY(), "synced minimum height");
+            helper.assertValueEqual(entry.maxY(), center.getY() + 3, "synced maximum height");
+            helper.assertTrue(
+                    entry.contains(center.getX(), center.getY(), center.getZ()),
+                    "the synced entry covers the zone corner"
+            );
+        } finally {
+            manager.remove(here);
+            manager.remove(elsewhere);
+        }
+        helper.succeed();
+    }
+
+    private static BlockPos spans(ItemStack wand) {
+        BoundingBox box = SafeZoneWandItem.selectionOf(wand).box().orElseThrow();
+        return new BlockPos(box.getXSpan(), box.getYSpan(), box.getZSpan());
     }
 
     private static UseOnContext useContext(ServerPlayer player, BlockPos pos) {

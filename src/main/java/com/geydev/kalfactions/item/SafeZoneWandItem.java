@@ -77,6 +77,8 @@ public final class SafeZoneWandItem extends Item {
         tooltip.add(Component.translatable("kingdoms.safezone.wand.tooltip").withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.translatable("kingdoms.safezone.wand.tooltip.usage")
                 .withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.translatable("kingdoms.safezone.wand.tooltip.resize")
+                .withStyle(ChatFormatting.DARK_GRAY));
         PlotSelection selection = stack.get(ModDataComponents.SAFE_ZONE_SELECTION.get());
         if (selection == null) {
             return;

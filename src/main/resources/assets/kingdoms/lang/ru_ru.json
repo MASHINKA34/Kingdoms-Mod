@@ -1615,5 +1615,6 @@
   "kingdoms.safezone.wand.missing": "Возьмите жезл зоны неуязвимости или укажите оба угла в команде.",
   "kingdoms.safezone.wand.incomplete": "Сначала отметьте оба угла в этом измерении.",
   "kingdoms.safezone.entered": "Вы в зоне неуязвимости.",
-  "kingdoms.safezone.left": "Вы покинули зону неуязвимости."
+  "kingdoms.safezone.left": "Вы покинули зону неуязвимости.",
+  "kingdoms.safezone.wand.tooltip.resize": "Ctrl + колесо тянет грань, на которую смотришь."
 }

@@ -75,6 +75,22 @@ public final class SafeZonePayloads {
         }
     }
 
+    public record C2SAdjustSelection(byte face, byte delta) implements CustomPacketPayload {
+        public static final Type<C2SAdjustSelection> TYPE = payloadType("safezone_adjust_selection");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SAdjustSelection> STREAM_CODEC = StreamCodec.of(
+                (buffer, payload) -> {
+                    buffer.writeByte(payload.face);
+                    buffer.writeByte(payload.delta);
+                },
+                buffer -> new C2SAdjustSelection(buffer.readByte(), buffer.readByte())
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> payloadType(String path) {
         return new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, path));
     }
