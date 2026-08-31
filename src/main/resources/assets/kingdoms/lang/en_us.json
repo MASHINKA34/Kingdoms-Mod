@@ -1572,12 +1572,15 @@
   "screen.kingdoms.key_holder.mode": "Mode: %s",
   "screen.kingdoms.key_holder.mode.pulse": "Pulse",
   "screen.kingdoms.key_holder.mode.toggle": "Toggle",
-  "screen.kingdoms.key_holder.pulse_ticks": "Pulse length (ticks)",
+  "screen.kingdoms.key_holder.pulse_duration": "Pulse duration",
   "screen.kingdoms.key_holder.consume_key": "Consume the key: %s",
   "screen.kingdoms.key_holder.consume_key.on": "Yes",
   "screen.kingdoms.key_holder.consume_key.off": "No",
-  "screen.kingdoms.key_holder.invalid_ticks": "Enter a whole number from %s to %s",
+  "screen.kingdoms.key_holder.invalid_duration": "Enter a whole number from 1 to %s (%s)",
   "screen.kingdoms.key_holder.save": "Save",
   "message.kingdoms.key_holder.key_required": "A boss key is required.",
-  "message.kingdoms.key_holder.settings_saved": "Key holder settings saved."
+  "message.kingdoms.key_holder.settings_saved": "Key holder settings saved.",
+  "screen.kingdoms.key_holder.unit.seconds": "Seconds",
+  "screen.kingdoms.key_holder.unit.minutes": "Minutes",
+  "screen.kingdoms.key_holder.unit.hours": "Hours"
 }

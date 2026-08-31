@@ -14,7 +14,7 @@ import net.minecraft.world.level.block.state.BlockState;
 public final class KeyHolderBlockEntity extends BlockEntity {
     public static final int DEFAULT_PULSE_TICKS = 40;
     public static final int MIN_PULSE_TICKS = 2;
-    public static final int MAX_PULSE_TICKS = 1200;
+    public static final int MAX_PULSE_TICKS = 20 * 60 * 60 * 24;
 
     private static final String TAG_MODE = "Mode";
     private static final String TAG_PULSE_TICKS = "PulseTicks";

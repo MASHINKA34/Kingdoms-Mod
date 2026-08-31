@@ -212,10 +212,19 @@ public final class KeyHolderGameTests {
             assertSettings(helper, level, pos, KeyHolderMode.PULSE, 40, true, "after the distant packet");
 
             helper.assertTrue(
-                    KeyHolderNetwork.applySettings(operator, pos, "toggle", 200, false),
-                    "a nearby operator saves valid settings"
+                    KeyHolderNetwork.applySettings(
+                            operator, pos, "toggle", KeyHolderBlockEntity.MAX_PULSE_TICKS, false),
+                    "a nearby operator saves a duration up to the maximum"
             );
-            assertSettings(helper, level, pos, KeyHolderMode.TOGGLE, 200, false, "after the valid packet");
+            assertSettings(
+                    helper,
+                    level,
+                    pos,
+                    KeyHolderMode.TOGGLE,
+                    KeyHolderBlockEntity.MAX_PULSE_TICKS,
+                    false,
+                    "after the valid packet"
+            );
         } finally {
             visitor.discard();
             operator.discard();

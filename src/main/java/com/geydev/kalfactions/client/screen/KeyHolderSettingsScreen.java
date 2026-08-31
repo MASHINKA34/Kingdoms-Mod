@@ -20,8 +20,10 @@ public final class KeyHolderSettingsScreen extends Screen {
     private int panelLeft;
     private int panelTop;
     private KingdomsButton modeButton;
+    private KingdomsButton unitButton;
     private KingdomsButton consumeKeyButton;
-    private EditBox pulseTicksBox;
+    private EditBox pulseAmountBox;
+    private PulseTimeUnit timeUnit;
     private Component validationMessage = Component.empty();
 
     private KeyHolderSettingsScreen(KeyHolderPayloads.S2COpenSettings data) {
@@ -29,6 +31,7 @@ public final class KeyHolderSettingsScreen extends Screen {
         this.data = data;
         this.mode = KeyHolderMode.fromSerializedName(data.mode());
         this.consumeKey = data.consumeKey();
+        this.timeUnit = PulseTimeUnit.bestFor(KeyHolderBlockEntity.clampPulseTicks(data.pulseTicks()));
     }
 
     public static void handleOpen(KeyHolderPayloads.S2COpenSettings payload) {
@@ -50,17 +53,29 @@ public final class KeyHolderSettingsScreen extends Screen {
                 20
         ));
 
-        pulseTicksBox = addRenderableWidget(new EditBox(
+        pulseAmountBox = addRenderableWidget(new EditBox(
                 font,
                 panelLeft + 20,
                 panelTop + 91,
-                PANEL_WIDTH - 40,
+                130,
                 20,
-                Component.translatable("screen.kingdoms.key_holder.pulse_ticks")
+                Component.translatable("screen.kingdoms.key_holder.pulse_duration")
         ));
-        pulseTicksBox.setMaxLength(4);
-        pulseTicksBox.setFilter(value -> value.isEmpty() || value.chars().allMatch(Character::isDigit));
-        pulseTicksBox.setValue(Integer.toString(KeyHolderBlockEntity.clampPulseTicks(data.pulseTicks())));
+        pulseAmountBox.setMaxLength(5);
+        pulseAmountBox.setFilter(value -> value.isEmpty() || value.chars().allMatch(Character::isDigit));
+        pulseAmountBox.setValue(Integer.toString(
+                timeUnit.fromTicks(KeyHolderBlockEntity.clampPulseTicks(data.pulseTicks()))
+        ));
+        pulseAmountBox.setResponder(value -> validationMessage = Component.empty());
+
+        unitButton = addRenderableWidget(KingdomsButton.create(
+                unitButtonMessage(),
+                button -> cycleTimeUnit(),
+                panelLeft + 160,
+                panelTop + 91,
+                80,
+                20
+        ));
 
         consumeKeyButton = addRenderableWidget(KingdomsButton.create(
                 consumeKeyButtonMessage(),
@@ -101,6 +116,29 @@ public final class KeyHolderSettingsScreen extends Screen {
         );
     }
 
+    private void cycleTimeUnit() {
+        int currentTicks = enteredTicksOr(timeUnit.ticksPerUnit);
+        timeUnit = timeUnit.next();
+        pulseAmountBox.setValue(Integer.toString(timeUnit.fromTicksRoundedUp(currentTicks)));
+        unitButton.setMessage(unitButtonMessage());
+        validationMessage = Component.empty();
+    }
+
+    private Component unitButtonMessage() {
+        return Component.translatable(timeUnit.translationKey);
+    }
+
+    private int enteredTicksOr(int fallback) {
+        try {
+            int amount = Integer.parseInt(pulseAmountBox.getValue());
+            if (amount > 0 && amount <= timeUnit.maxAmount()) {
+                return amount * timeUnit.ticksPerUnit;
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        return fallback;
+    }
+
     private void toggleConsumeKey() {
         consumeKey = !consumeKey;
         consumeKeyButton.setMessage(consumeKeyButtonMessage());
@@ -116,15 +154,20 @@ public final class KeyHolderSettingsScreen extends Screen {
     }
 
     private void save() {
-        int pulseTicks;
+        int amount;
         try {
-            pulseTicks = Integer.parseInt(pulseTicksBox.getValue());
+            amount = Integer.parseInt(pulseAmountBox.getValue());
         } catch (NumberFormatException exception) {
-            showInvalidTicks();
+            showInvalidDuration();
             return;
         }
+        if (amount < 1 || amount > timeUnit.maxAmount()) {
+            showInvalidDuration();
+            return;
+        }
+        int pulseTicks = amount * timeUnit.ticksPerUnit;
         if (!KeyHolderBlockEntity.isValidPulseTicks(pulseTicks)) {
-            showInvalidTicks();
+            showInvalidDuration();
             return;
         }
         PacketDistributor.sendToServer(new KeyHolderPayloads.C2SUpdateSettings(
@@ -136,11 +179,11 @@ public final class KeyHolderSettingsScreen extends Screen {
         onClose();
     }
 
-    private void showInvalidTicks() {
+    private void showInvalidDuration() {
         validationMessage = Component.translatable(
-                "screen.kingdoms.key_holder.invalid_ticks",
-                KeyHolderBlockEntity.MIN_PULSE_TICKS,
-                KeyHolderBlockEntity.MAX_PULSE_TICKS
+                "screen.kingdoms.key_holder.invalid_duration",
+                timeUnit.maxAmount(),
+                Component.translatable(timeUnit.translationKey)
         );
     }
 
@@ -158,7 +201,7 @@ public final class KeyHolderSettingsScreen extends Screen {
         );
         graphics.drawString(
                 font,
-                Component.translatable("screen.kingdoms.key_holder.pulse_ticks"),
+                Component.translatable("screen.kingdoms.key_holder.pulse_duration"),
                 panelLeft + 20,
                 panelTop + 78,
                 0xFFE8DCC0,
@@ -191,5 +234,46 @@ public final class KeyHolderSettingsScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    private enum PulseTimeUnit {
+        SECONDS(20, "screen.kingdoms.key_holder.unit.seconds"),
+        MINUTES(20 * 60, "screen.kingdoms.key_holder.unit.minutes"),
+        HOURS(20 * 60 * 60, "screen.kingdoms.key_holder.unit.hours");
+
+        private final int ticksPerUnit;
+        private final String translationKey;
+
+        PulseTimeUnit(int ticksPerUnit, String translationKey) {
+            this.ticksPerUnit = ticksPerUnit;
+            this.translationKey = translationKey;
+        }
+
+        private static PulseTimeUnit bestFor(int ticks) {
+            if (ticks >= HOURS.ticksPerUnit && ticks % HOURS.ticksPerUnit == 0) {
+                return HOURS;
+            }
+            if (ticks >= MINUTES.ticksPerUnit && ticks % MINUTES.ticksPerUnit == 0) {
+                return MINUTES;
+            }
+            return SECONDS;
+        }
+
+        private PulseTimeUnit next() {
+            PulseTimeUnit[] values = values();
+            return values[(ordinal() + 1) % values.length];
+        }
+
+        private int fromTicks(int ticks) {
+            return Math.max(1, ticks / ticksPerUnit);
+        }
+
+        private int fromTicksRoundedUp(int ticks) {
+            return Math.max(1, (ticks + ticksPerUnit - 1) / ticksPerUnit);
+        }
+
+        private int maxAmount() {
+            return KeyHolderBlockEntity.MAX_PULSE_TICKS / ticksPerUnit;
+        }
     }
 }

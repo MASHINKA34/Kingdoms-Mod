@@ -1572,12 +1572,15 @@
   "screen.kingdoms.key_holder.mode": "Режим: %s",
   "screen.kingdoms.key_holder.mode.pulse": "Импульс",
   "screen.kingdoms.key_holder.mode.toggle": "Переключатель",
-  "screen.kingdoms.key_holder.pulse_ticks": "Длительность импульса (тики)",
+  "screen.kingdoms.key_holder.pulse_duration": "Длительность импульса",
   "screen.kingdoms.key_holder.consume_key": "Расходовать ключ: %s",
   "screen.kingdoms.key_holder.consume_key.on": "Да",
   "screen.kingdoms.key_holder.consume_key.off": "Нет",
-  "screen.kingdoms.key_holder.invalid_ticks": "Введите целое число от %s до %s",
+  "screen.kingdoms.key_holder.invalid_duration": "Введите целое число от 1 до %s (%s)",
   "screen.kingdoms.key_holder.save": "Сохранить",
   "message.kingdoms.key_holder.key_required": "Нужен ключ босса.",
-  "message.kingdoms.key_holder.settings_saved": "Настройки ключницы сохранены."
+  "message.kingdoms.key_holder.settings_saved": "Настройки ключницы сохранены.",
+  "screen.kingdoms.key_holder.unit.seconds": "Секунды",
+  "screen.kingdoms.key_holder.unit.minutes": "Минуты",
+  "screen.kingdoms.key_holder.unit.hours": "Часы"
 }
