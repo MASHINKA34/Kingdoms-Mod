@@ -50,6 +50,59 @@ public final class SafeZoneService {
         }
     }
 
+    public static Component failureMessage(SafeZoneManager.Reason reason, String id) {
+        return switch (reason) {
+            case DUPLICATE -> Component.translatable("kingdoms.safezone.duplicate", id);
+            case TOO_MANY -> Component.translatable("kingdoms.safezone.too_many", SafeZoneManager.MAX_ZONES);
+            case TOO_LARGE -> Component.translatable("kingdoms.safezone.too_large", SafeZoneManager.MAX_SIDE);
+            default -> Component.translatable("kingdoms.safezone.invalid_id", SafeZoneManager.MAX_ID_LENGTH);
+        };
+    }
+
+    public static boolean createFromSelection(ServerPlayer player, ItemStack wand, PlotSelection selection) {
+        ServerLevel level = player.serverLevel();
+        SafeZoneManager manager = SafeZoneManager.get(level);
+        String id = manager.suggestId();
+        SafeZoneManager.Reason reason = manager.add(
+                id,
+                level.dimension(),
+                selection.first(),
+                selection.second().orElseThrow()
+        );
+        if (reason != SafeZoneManager.Reason.OK) {
+            player.displayClientMessage(failureMessage(reason, id), true);
+            return false;
+        }
+        wand.remove(ModDataComponents.SAFE_ZONE_SELECTION.get());
+        syncAll(level.getServer());
+        SafeZone zone = manager.byId(id).orElseThrow();
+        BlockPos min = zone.min();
+        BlockPos max = zone.max();
+        player.displayClientMessage(Component.translatable(
+                "kingdoms.safezone.wand.created",
+                zone.id(),
+                max.getX() - min.getX() + 1,
+                max.getY() - min.getY() + 1,
+                max.getZ() - min.getZ() + 1
+        ), true);
+        return true;
+    }
+
+    public static boolean removeAt(ServerPlayer player, BlockPos pos) {
+        ServerLevel level = player.serverLevel();
+        SafeZoneManager manager = SafeZoneManager.get(level);
+        SafeZone zone = manager.zoneAt(level.dimension(), pos).orElse(null);
+        if (zone == null) {
+            player.displayClientMessage(Component.translatable("kingdoms.safezone.wand.no_zone"), true);
+            return false;
+        }
+        manager.remove(zone.id());
+        syncAll(level.getServer());
+        player.displayClientMessage(
+                Component.translatable("kingdoms.safezone.wand.removed", zone.id()), true);
+        return true;
+    }
+
     public static ItemStack heldWand(ServerPlayer player) {
         for (InteractionHand hand : InteractionHand.values()) {
             ItemStack stack = player.getItemInHand(hand);

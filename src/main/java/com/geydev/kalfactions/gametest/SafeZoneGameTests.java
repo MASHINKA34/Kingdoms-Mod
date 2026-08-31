@@ -6,6 +6,7 @@ import com.geydev.kalfactions.market.PlotSelection;
 import com.geydev.kalfactions.registry.ModDataComponents;
 import com.geydev.kalfactions.registry.ModItems;
 import com.geydev.kalfactions.safezone.SafeZone;
+import com.geydev.kalfactions.safezone.SafeZoneEvents;
 import com.geydev.kalfactions.safezone.SafeZoneManager;
 import com.geydev.kalfactions.safezone.SafeZonePayloads;
 import com.geydev.kalfactions.safezone.SafeZoneService;
@@ -18,6 +19,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -32,9 +34,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.common.CommonHooks;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.damagesource.DamageContainer;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
@@ -321,6 +325,102 @@ public final class SafeZoneGameTests {
     private static BlockPos spans(ItemStack wand) {
         BoundingBox box = SafeZoneWandItem.selectionOf(wand).box().orElseThrow();
         return new BlockPos(box.getXSpan(), box.getYSpan(), box.getZSpan());
+    }
+
+    @GameTest(template = "empty", batch = "safezone", timeoutTicks = 300)
+    public static void rightClickingInsideTheSelectionCreatesTheZone(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        SafeZoneManager manager = SafeZoneManager.get(level);
+        BlockPos first = helper.absolutePos(new BlockPos(0, 1, 0));
+        BlockPos second = helper.absolutePos(new BlockPos(3, 4, 3));
+        BlockPos inside = helper.absolutePos(new BlockPos(1, 2, 1));
+        ServerPlayer operator = mockPlayer(level, "kingdoms-create-operator", first, 4);
+        String created = null;
+        try {
+            ItemStack stack = new ItemStack(ModItems.SAFE_ZONE_WAND.get());
+            operator.setItemInHand(InteractionHand.MAIN_HAND, stack);
+            ModItems.SAFE_ZONE_WAND.get().useOn(useContext(operator, first));
+            ModItems.SAFE_ZONE_WAND.get().useOn(useContext(operator, second));
+            helper.assertTrue(
+                    SafeZoneWandItem.selectionOf(stack).isComplete(),
+                    "both corners are marked"
+            );
+
+            int before = manager.count();
+            ModItems.SAFE_ZONE_WAND.get().useOn(useContext(operator, inside));
+
+            helper.assertValueEqual(manager.count(), before + 1, "a zone was created");
+            SafeZone zone = manager.zoneAt(level.dimension(), inside).orElseThrow();
+            created = zone.id();
+            helper.assertValueEqual(zone.min(), first, "the zone keeps the first corner");
+            helper.assertValueEqual(zone.max(), second, "the zone keeps the second corner");
+            helper.assertTrue(
+                    SafeZoneWandItem.selectionOf(stack) == null,
+                    "creating the zone clears the selection"
+            );
+
+            helper.assertTrue(
+                    SafeZoneEvents.isProtected(operator),
+                    "the operator standing inside is protected"
+            );
+        } finally {
+            if (created != null) {
+                manager.remove(created);
+            }
+            operator.discard();
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "safezone", timeoutTicks = 300)
+    public static void sneakingLeftClickRemovesTheZoneUnderTheWand(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        SafeZoneManager manager = SafeZoneManager.get(level);
+        BlockPos center = remotePos(level, 5);
+        String id = "kingdoms-test-erase";
+        ServerPlayer operator = mockPlayer(level, "kingdoms-erase-operator", center, 4);
+        ServerPlayer visitor = mockPlayer(level, "kingdoms-erase-visitor", center, 0);
+        try {
+            addZone(helper, manager, id, level, center);
+            ItemStack stack = new ItemStack(ModItems.SAFE_ZONE_WAND.get());
+
+            operator.setItemInHand(InteractionHand.MAIN_HAND, stack);
+            operator.setShiftKeyDown(false);
+            helper.assertFalse(
+                    leftClick(operator, center).isCanceled(),
+                    "a plain left click leaves the zone alone"
+            );
+            helper.assertTrue(manager.byId(id).isPresent(), "the zone survived the plain click");
+
+            visitor.setItemInHand(InteractionHand.MAIN_HAND, stack);
+            visitor.setShiftKeyDown(true);
+            helper.assertFalse(
+                    leftClick(visitor, center).isCanceled(),
+                    "a player without permissions cannot remove a zone"
+            );
+            helper.assertTrue(manager.byId(id).isPresent(), "the zone survived the visitor");
+
+            operator.setShiftKeyDown(true);
+            helper.assertTrue(
+                    leftClick(operator, center).isCanceled(),
+                    "the sneaking click is consumed instead of breaking the block"
+            );
+            helper.assertTrue(manager.byId(id).isEmpty(), "the zone was removed");
+        } finally {
+            manager.remove(id);
+            operator.discard();
+            visitor.discard();
+        }
+        helper.succeed();
+    }
+
+    private static PlayerInteractEvent.LeftClickBlock leftClick(ServerPlayer player, BlockPos pos) {
+        return CommonHooks.onLeftClickBlock(
+                player,
+                pos,
+                Direction.UP,
+                ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK
+        );
     }
 
     private static UseOnContext useContext(ServerPlayer player, BlockPos pos) {

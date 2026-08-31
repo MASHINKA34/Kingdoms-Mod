@@ -1018,22 +1018,13 @@ public final class KingdomsAdminCommands {
         SafeZoneManager manager = SafeZoneManager.get(source.getServer());
         SafeZoneManager.Reason reason = manager.add(id, source.getLevel().dimension(), first, second);
         if (reason != SafeZoneManager.Reason.OK) {
-            source.sendFailure(safeZoneFailure(reason, id));
+            source.sendFailure(SafeZoneService.failureMessage(reason, id));
             return 0;
         }
         SafeZoneService.syncAll(source.getServer());
         SafeZone zone = manager.byId(id).orElseThrow();
         source.sendSuccess(() -> Component.translatable("kingdoms.safezone.added", zone.id(), describe(zone)), true);
         return 1;
-    }
-
-    private static Component safeZoneFailure(SafeZoneManager.Reason reason, String id) {
-        return switch (reason) {
-            case DUPLICATE -> Component.translatable("kingdoms.safezone.duplicate", id);
-            case TOO_MANY -> Component.translatable("kingdoms.safezone.too_many", SafeZoneManager.MAX_ZONES);
-            case TOO_LARGE -> Component.translatable("kingdoms.safezone.too_large", SafeZoneManager.MAX_SIDE);
-            default -> Component.translatable("kingdoms.safezone.invalid_id", SafeZoneManager.MAX_ID_LENGTH);
-        };
     }
 
     private static int safeZoneRemove(CommandContext<CommandSourceStack> context) {

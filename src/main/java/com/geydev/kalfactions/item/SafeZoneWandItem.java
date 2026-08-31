@@ -3,10 +3,12 @@ package com.geydev.kalfactions.item;
 import com.geydev.kalfactions.market.PlotSelection;
 import com.geydev.kalfactions.registry.ModDataComponents;
 import com.geydev.kalfactions.safezone.SafeZoneManager;
+import com.geydev.kalfactions.safezone.SafeZoneService;
 import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -14,6 +16,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 
 public final class SafeZoneWandItem extends Item {
@@ -25,6 +28,11 @@ public final class SafeZoneWandItem extends Item {
         return stack.getItem() instanceof SafeZoneWandItem
                 ? stack.get(ModDataComponents.SAFE_ZONE_SELECTION.get())
                 : null;
+    }
+
+    @Override
+    public boolean canAttackBlock(BlockState state, Level level, BlockPos pos, Player player) {
+        return false;
     }
 
     @Override
@@ -54,6 +62,13 @@ public final class SafeZoneWandItem extends Item {
         }
 
         PlotSelection selection = stack.get(ModDataComponents.SAFE_ZONE_SELECTION.get());
+        if (selection != null
+                && selection.matchesDimension(level)
+                && selection.box().map(box -> box.isInside(pos)).orElse(false)
+                && player instanceof ServerPlayer serverPlayer) {
+            SafeZoneService.createFromSelection(serverPlayer, stack, selection);
+            return InteractionResult.CONSUME;
+        }
         if (selection == null || selection.isComplete() || !selection.matchesDimension(level)) {
             stack.set(ModDataComponents.SAFE_ZONE_SELECTION.get(), PlotSelection.start(level, pos));
             player.displayClientMessage(Component.translatable(
@@ -78,6 +93,10 @@ public final class SafeZoneWandItem extends Item {
         tooltip.add(Component.translatable("kingdoms.safezone.wand.tooltip.usage")
                 .withStyle(ChatFormatting.DARK_GRAY));
         tooltip.add(Component.translatable("kingdoms.safezone.wand.tooltip.resize")
+                .withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.translatable("kingdoms.safezone.wand.tooltip.create")
+                .withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.translatable("kingdoms.safezone.wand.tooltip.remove")
                 .withStyle(ChatFormatting.DARK_GRAY));
         PlotSelection selection = stack.get(ModDataComponents.SAFE_ZONE_SELECTION.get());
         if (selection == null) {

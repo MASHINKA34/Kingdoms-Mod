@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.safezone;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.item.SafeZoneWandItem;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.EventPriority;
@@ -8,6 +9,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class SafeZoneEvents {
@@ -25,6 +27,19 @@ public final class SafeZoneEvents {
                 && isProtected(attacker)) {
             event.setCanceled(true);
         }
+    }
+
+    @SubscribeEvent
+    public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
+        if (event.getAction() != PlayerInteractEvent.LeftClickBlock.Action.START
+                || !(event.getEntity() instanceof ServerPlayer player)
+                || !(event.getItemStack().getItem() instanceof SafeZoneWandItem)
+                || !player.isShiftKeyDown()
+                || !player.hasPermissions(2)) {
+            return;
+        }
+        SafeZoneService.removeAt(player, event.getPos());
+        event.setCanceled(true);
     }
 
     @SubscribeEvent

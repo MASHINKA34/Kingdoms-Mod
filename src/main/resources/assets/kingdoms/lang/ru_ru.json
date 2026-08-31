@@ -1605,7 +1605,7 @@
   "kingdoms.safezone.list.empty": "Зон неуязвимости нет.",
   "item.kingdoms.safe_zone_wand": "Жезл зоны неуязвимости",
   "kingdoms.safezone.wand.tooltip": "Отмечает углы зоны неуязвимости.",
-  "kingdoms.safezone.wand.tooltip.usage": "ПКМ по двум блокам, затем /kingdoms admin safezone add <id>.",
+  "kingdoms.safezone.wand.tooltip.usage": "ПКМ по двум блокам — отметить углы.",
   "kingdoms.safezone.wand.tooltip.first": "Первый угол: %s, %s, %s",
   "kingdoms.safezone.wand.tooltip.selection": "Выделение: %s x %s x %s (сторона до %s)",
   "kingdoms.safezone.wand.no_permission": "Жезл зоны неуязвимости доступен только операторам.",
@@ -1616,5 +1616,10 @@
   "kingdoms.safezone.wand.incomplete": "Сначала отметьте оба угла в этом измерении.",
   "kingdoms.safezone.entered": "Вы в зоне неуязвимости.",
   "kingdoms.safezone.left": "Вы покинули зону неуязвимости.",
-  "kingdoms.safezone.wand.tooltip.resize": "Ctrl + колесо тянет грань, на которую смотришь."
+  "kingdoms.safezone.wand.tooltip.resize": "Ctrl + колесо тянет грань, на которую смотришь.",
+  "kingdoms.safezone.wand.created": "Зона неуязвимости «%s» создана: %s x %s x %s",
+  "kingdoms.safezone.wand.removed": "Зона неуязвимости «%s» удалена.",
+  "kingdoms.safezone.wand.no_zone": "Здесь нет зоны неуязвимости.",
+  "kingdoms.safezone.wand.tooltip.create": "ПКМ внутри выделения — создать зону.",
+  "kingdoms.safezone.wand.tooltip.remove": "Shift + ЛКМ по зоне — удалить её."
 }

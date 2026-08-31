@@ -10,12 +10,14 @@ import java.util.Optional;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
@@ -29,6 +31,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.joml.Vector3f;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID, value = Dist.CLIENT)
 public final class SafeZoneRenderer {
@@ -37,6 +40,12 @@ public final class SafeZoneRenderer {
     private static final float ZONE_RED = 0.20F;
     private static final float ZONE_GREEN = 0.84F;
     private static final float ZONE_BLUE = 0.78F;
+    private static final int PARTICLE_INTERVAL = 10;
+    private static final int MAX_PARTICLES = 64;
+    private static final double PARTICLE_STEP = 2.0D;
+    private static final double PARTICLE_DISTANCE = 24.0D;
+    private static final DustParticleOptions OUTLINE_DUST =
+            new DustParticleOptions(new Vector3f(1.0F, 1.0F, 1.0F), 1.0F);
 
     private static String lastActionBarZone;
 
@@ -152,6 +161,67 @@ public final class SafeZoneRenderer {
             lastActionBarZone = inside.id();
             player.displayClientMessage(Component.translatable("kingdoms.safezone.entered"), true);
         }
+    }
+
+    @SubscribeEvent
+    public static void onOutlineParticles(ClientTickEvent.Post event) {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        ClientLevel level = minecraft.level;
+        if (player == null || level == null || level.getGameTime() % PARTICLE_INTERVAL != 0L) {
+            return;
+        }
+        Vec3 eye = player.getEyePosition();
+        int budget = MAX_PARTICLES;
+        for (SafeZonePayloads.ZoneEntry zone : ClientSafeZoneStore.zonesIn(level.dimension().location())) {
+            double minX = zone.minX();
+            double minY = zone.minY();
+            double minZ = zone.minZ();
+            double maxX = zone.maxX() + 1.0D;
+            double maxY = zone.maxY() + 1.0D;
+            double maxZ = zone.maxZ() + 1.0D;
+            for (double y : new double[] {minY, maxY}) {
+                for (double z : new double[] {minZ, maxZ}) {
+                    budget = spawnAlongEdge(level, eye, budget, minX, y, z, maxX, y, z);
+                }
+                for (double x : new double[] {minX, maxX}) {
+                    budget = spawnAlongEdge(level, eye, budget, x, y, minZ, x, y, maxZ);
+                }
+            }
+            for (double x : new double[] {minX, maxX}) {
+                for (double z : new double[] {minZ, maxZ}) {
+                    budget = spawnAlongEdge(level, eye, budget, x, minY, z, x, maxY, z);
+                }
+            }
+            if (budget <= 0) {
+                return;
+            }
+        }
+    }
+
+    private static int spawnAlongEdge(
+            ClientLevel level,
+            Vec3 eye,
+            int budget,
+            double fromX, double fromY, double fromZ,
+            double toX, double toY, double toZ
+    ) {
+        double length = Math.sqrt((toX - fromX) * (toX - fromX)
+                + (toY - fromY) * (toY - fromY)
+                + (toZ - fromZ) * (toZ - fromZ));
+        int steps = Math.max(1, (int) Math.ceil(length / PARTICLE_STEP));
+        for (int index = 0; index <= steps && budget > 0; index++) {
+            double progress = (double) index / steps;
+            double x = fromX + (toX - fromX) * progress;
+            double y = fromY + (toY - fromY) * progress;
+            double z = fromZ + (toZ - fromZ) * progress;
+            if (eye.distanceToSqr(x, y, z) > PARTICLE_DISTANCE * PARTICLE_DISTANCE) {
+                continue;
+            }
+            level.addParticle(OUTLINE_DUST, x, y, z, 0.0D, 0.0D, 0.0D);
+            budget--;
+        }
+        return budget;
     }
 
     private static PlotSelection heldSelection(LocalPlayer player) {

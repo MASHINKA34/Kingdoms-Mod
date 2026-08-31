@@ -53,6 +53,26 @@ public final class SafeZoneManager extends SavedData {
         return Optional.ofNullable(zones.get(normalizeId(id)));
     }
 
+    public synchronized Optional<SafeZone> zoneAt(ResourceKey<Level> dimension, BlockPos pos) {
+        Vec3 center = Vec3.atCenterOf(pos);
+        for (SafeZone zone : zones.values()) {
+            if (zone.contains(dimension, center)) {
+                return Optional.of(zone);
+            }
+        }
+        return Optional.empty();
+    }
+
+    public synchronized String suggestId() {
+        for (int index = 1; index <= MAX_ZONES + 1; index++) {
+            String candidate = "zone_" + index;
+            if (!zones.containsKey(candidate)) {
+                return candidate;
+            }
+        }
+        return "zone_" + (zones.size() + 1);
+    }
+
     public synchronized Reason add(String id, ResourceKey<Level> dimension, BlockPos first, BlockPos second) {
         String normalized = normalizeId(id);
         if (!isValidId(normalized)) {
