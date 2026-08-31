@@ -19,6 +19,7 @@ import com.geydev.kalfactions.item.TraderRemoverItem;
 import com.geydev.kalfactions.item.TraderSpawnEggItem;
 import com.geydev.kalfactions.item.TraderPointToolItem;
 import com.geydev.kalfactions.item.BossKeyItem;
+import com.geydev.kalfactions.item.SafeZoneWandItem;
 import com.geydev.kalfactions.item.WarpScrollItem;
 import java.util.Optional;
 import net.minecraft.world.item.BlockItem;
@@ -377,6 +378,11 @@ public final class ModItems {
             () -> new WarpScrollItem(
                     new Item.Properties().stacksTo(1).rarity(net.minecraft.world.item.Rarity.RARE)
             )
+    );
+
+    public static final DeferredItem<SafeZoneWandItem> SAFE_ZONE_WAND = ITEMS.register(
+            "safe_zone_wand",
+            () -> new SafeZoneWandItem(new Item.Properties().stacksTo(1))
     );
 
     public static Item crystalFor(InfluenceType type) {

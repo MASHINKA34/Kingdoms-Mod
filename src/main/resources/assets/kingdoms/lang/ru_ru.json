@@ -1602,5 +1602,18 @@
   "kingdoms.safezone.bounds": "%s, %s %s %s — %s %s %s",
   "kingdoms.safezone.list.header": "Зон неуязвимости: %s",
   "kingdoms.safezone.list.entry": "«%s» · %s",
-  "kingdoms.safezone.list.empty": "Зон неуязвимости нет."
+  "kingdoms.safezone.list.empty": "Зон неуязвимости нет.",
+  "item.kingdoms.safe_zone_wand": "Жезл зоны неуязвимости",
+  "kingdoms.safezone.wand.tooltip": "Отмечает углы зоны неуязвимости.",
+  "kingdoms.safezone.wand.tooltip.usage": "ПКМ по двум блокам, затем /kingdoms admin safezone add <id>.",
+  "kingdoms.safezone.wand.tooltip.first": "Первый угол: %s, %s, %s",
+  "kingdoms.safezone.wand.tooltip.selection": "Выделение: %s x %s x %s (сторона до %s)",
+  "kingdoms.safezone.wand.no_permission": "Жезл зоны неуязвимости доступен только операторам.",
+  "kingdoms.safezone.wand.cleared": "Выделение сброшено.",
+  "kingdoms.safezone.wand.first_corner": "Первый угол: %s, %s, %s",
+  "kingdoms.safezone.wand.size": "Выделение: %s x %s x %s",
+  "kingdoms.safezone.wand.missing": "Возьмите жезл зоны неуязвимости или укажите оба угла в команде.",
+  "kingdoms.safezone.wand.incomplete": "Сначала отметьте оба угла в этом измерении.",
+  "kingdoms.safezone.entered": "Вы в зоне неуязвимости.",
+  "kingdoms.safezone.left": "Вы покинули зону неуязвимости."
 }

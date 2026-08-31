@@ -26,6 +26,7 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -155,9 +156,7 @@ public final class WarpGameTests {
         Teleports teleports = new Teleports();
         ServerPlayer player = mockPlayer(level, "kingdoms-warp-traveller", teleports);
         try {
-            level.setBlockAndUpdate(anchor, ModBlocks.WARP_ANCHOR.get().defaultBlockState());
-            level.setBlockAndUpdate(anchor.above(), Blocks.AIR.defaultBlockState());
-            level.setBlockAndUpdate(anchor.above(2), Blocks.AIR.defaultBlockState());
+            buildLandingPad(level, anchor);
             ItemStack scroll = boundScroll(level, anchor);
             player.setItemInHand(InteractionHand.MAIN_HAND, scroll);
             player.setPos(zone.getX() + 0.5D, zone.getY(), zone.getZ() + 0.5D);
@@ -170,15 +169,21 @@ public final class WarpGameTests {
             helper.assertValueEqual(scroll.getCount(), 0, "the scroll is consumed");
             helper.assertValueEqual(teleports.calls, 1, "the player was teleported once");
             helper.assertValueEqual(teleports.level, level, "teleport target level");
-            helper.assertValueEqual(
-                    teleports.position,
-                    new Vec3(anchor.getX() + 0.5D, anchor.getY() + 1.0D, anchor.getZ() + 0.5D),
-                    "teleport lands on top of the anchor"
+            BlockPos landing = BlockPos.containing(teleports.position);
+            helper.assertValueEqual(landing.getY(), anchor.getY(), "the landing keeps the anchor height");
+            helper.assertFalse(
+                    landing.getX() == anchor.getX() && landing.getZ() == anchor.getZ(),
+                    "the player does not land in the anchor column"
+            );
+            helper.assertTrue(
+                    Math.abs(landing.getX() - anchor.getX()) <= 1
+                            && Math.abs(landing.getZ() - anchor.getZ()) <= 1,
+                    "the player lands right next to the anchor"
             );
             helper.assertValueEqual(player.getRespawnPosition(), respawn, "respawn position is untouched");
             helper.assertValueEqual(player.getRespawnDimension(), Level.OVERWORLD, "respawn dimension is untouched");
         } finally {
-            level.setBlockAndUpdate(anchor, Blocks.AIR.defaultBlockState());
+            clear(level, anchor.offset(-2, -1, -2), anchor.offset(2, 2, 2));
             player.discard();
             manager.remove(dungeon.id());
         }
@@ -186,26 +191,64 @@ public final class WarpGameTests {
     }
 
     @GameTest(template = "empty", batch = "warp", timeoutTicks = 300)
-    public static void theLandingSkipsBlockedSpaceAboveTheAnchor(GameTestHelper helper) {
+    public static void theLandingStandsBesideTheAnchor(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        BlockPos anchor = helper.absolutePos(new BlockPos(0, 1, 0));
+        BlockPos anchor = helper.absolutePos(new BlockPos(1, 8, 1));
         try {
-            level.setBlockAndUpdate(anchor, ModBlocks.WARP_ANCHOR.get().defaultBlockState());
-            level.setBlockAndUpdate(anchor.above(), Blocks.STONE.defaultBlockState());
-            level.setBlockAndUpdate(anchor.above(2), Blocks.STONE.defaultBlockState());
-            level.setBlockAndUpdate(anchor.above(3), Blocks.AIR.defaultBlockState());
-            level.setBlockAndUpdate(anchor.above(4), Blocks.AIR.defaultBlockState());
-            helper.assertValueEqual(
-                    WarpScrollItem.findLanding(level, anchor),
-                    anchor.above(3),
-                    "the landing skips blocked space above the anchor"
+            buildLandingPad(level, anchor);
+
+            BlockPos landing = WarpScrollItem.findLanding(level, anchor);
+
+            helper.assertValueEqual(landing.getY(), anchor.getY(), "the landing keeps the anchor height");
+            helper.assertFalse(
+                    landing.getX() == anchor.getX() && landing.getZ() == anchor.getZ(),
+                    "the landing avoids the anchor column"
+            );
+            helper.assertTrue(
+                    Math.abs(landing.getX() - anchor.getX()) <= 1
+                            && Math.abs(landing.getZ() - anchor.getZ()) <= 1,
+                    "the landing touches the anchor"
             );
         } finally {
-            for (int offset = 0; offset <= 2; offset++) {
-                level.setBlockAndUpdate(anchor.above(offset), Blocks.AIR.defaultBlockState());
-            }
+            clear(level, anchor.offset(-2, -1, -2), anchor.offset(2, 2, 2));
         }
         helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "warp", timeoutTicks = 300)
+    public static void aBoxedInAnchorSendsThePlayerAbove(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos anchor = helper.absolutePos(new BlockPos(1, 12, 1));
+        try {
+            fill(level, anchor.offset(-1, -4, -1), anchor.offset(1, 3, 1), Blocks.STONE.defaultBlockState());
+            level.setBlockAndUpdate(anchor, ModBlocks.WARP_ANCHOR.get().defaultBlockState());
+            clear(level, anchor.above(), anchor.above(2));
+
+            helper.assertValueEqual(
+                    WarpScrollItem.findLanding(level, anchor),
+                    anchor.above(),
+                    "a boxed in anchor still lands the player above itself"
+            );
+        } finally {
+            clear(level, anchor.offset(-1, -4, -1), anchor.offset(1, 3, 1));
+        }
+        helper.succeed();
+    }
+
+    private static void buildLandingPad(ServerLevel level, BlockPos anchor) {
+        fill(level, anchor.offset(-2, -1, -2), anchor.offset(2, -1, 2), Blocks.STONE.defaultBlockState());
+        clear(level, anchor.offset(-2, 0, -2), anchor.offset(2, 2, 2));
+        level.setBlockAndUpdate(anchor, ModBlocks.WARP_ANCHOR.get().defaultBlockState());
+    }
+
+    private static void fill(ServerLevel level, BlockPos from, BlockPos to, BlockState state) {
+        for (BlockPos pos : BlockPos.betweenClosed(from, to)) {
+            level.setBlockAndUpdate(pos, state);
+        }
+    }
+
+    private static void clear(ServerLevel level, BlockPos from, BlockPos to) {
+        fill(level, from, to, Blocks.AIR.defaultBlockState());
     }
 
     private static ItemStack boundScroll(ServerLevel level, BlockPos anchor) {

@@ -111,7 +111,8 @@ public final class ModCreativeTabs {
                 ModItems.BOSS_KEY.get(),
                 ModItems.KEY_HOLDER.get(),
                 ModItems.WARP_ANCHOR.get(),
-                ModItems.WARP_SCROLL.get()
+                ModItems.WARP_SCROLL.get(),
+                ModItems.SAFE_ZONE_WAND.get()
         );
     }
 

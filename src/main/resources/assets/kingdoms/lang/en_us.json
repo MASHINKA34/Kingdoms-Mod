@@ -1602,5 +1602,18 @@
   "kingdoms.safezone.bounds": "%s, %s %s %s — %s %s %s",
   "kingdoms.safezone.list.header": "Safe zones: %s",
   "kingdoms.safezone.list.entry": "«%s» · %s",
-  "kingdoms.safezone.list.empty": "There are no safe zones."
+  "kingdoms.safezone.list.empty": "There are no safe zones.",
+  "item.kingdoms.safe_zone_wand": "Safe Zone Wand",
+  "kingdoms.safezone.wand.tooltip": "Marks the corners of a safe zone.",
+  "kingdoms.safezone.wand.tooltip.usage": "Right-click two blocks, then run /kingdoms admin safezone add <id>.",
+  "kingdoms.safezone.wand.tooltip.first": "First corner: %s, %s, %s",
+  "kingdoms.safezone.wand.tooltip.selection": "Selection: %s x %s x %s (max side %s)",
+  "kingdoms.safezone.wand.no_permission": "Only operators can use the safe zone wand.",
+  "kingdoms.safezone.wand.cleared": "Selection cleared.",
+  "kingdoms.safezone.wand.first_corner": "First corner: %s, %s, %s",
+  "kingdoms.safezone.wand.size": "Selection: %s x %s x %s",
+  "kingdoms.safezone.wand.missing": "Hold the safe zone wand, or pass both corners to the command.",
+  "kingdoms.safezone.wand.incomplete": "Mark both corners in this dimension first.",
+  "kingdoms.safezone.entered": "You are inside a safe zone.",
+  "kingdoms.safezone.left": "You have left the safe zone."
 }

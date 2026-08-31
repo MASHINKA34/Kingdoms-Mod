@@ -18,8 +18,11 @@ import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager;
 import com.geydev.kalfactions.outpost.cluster.distribution.ResourceZone;
 import com.geydev.kalfactions.quarry.QuarryManager;
 import com.geydev.kalfactions.registry.ModBlocks;
+import com.geydev.kalfactions.item.SafeZoneWandItem;
+import com.geydev.kalfactions.market.PlotSelection;
 import com.geydev.kalfactions.safezone.SafeZone;
 import com.geydev.kalfactions.safezone.SafeZoneManager;
+import com.geydev.kalfactions.safezone.SafeZoneService;
 import com.geydev.kalfactions.sanctuary.SanctuaryExecutionManager;
 import com.geydev.kalfactions.scout.ScoutManager;
 import com.geydev.kalfactions.scout.ScoutOrder;
@@ -44,6 +47,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.core.BlockPos;
@@ -202,6 +206,7 @@ public final class KingdomsAdminCommands {
                         .then(Commands.literal("safezone")
                                 .then(Commands.literal("add")
                                         .then(Commands.argument("id", StringArgumentType.word())
+                                                .executes(KingdomsAdminCommands::safeZoneAddFromWand)
                                                 .then(Commands.argument("pos1", BlockPosArgument.blockPos())
                                                         .then(Commands.argument("pos2", BlockPosArgument.blockPos())
                                                                 .executes(KingdomsAdminCommands::safeZoneAdd)))))
@@ -973,16 +978,50 @@ public final class KingdomsAdminCommands {
     }
 
     private static int safeZoneAdd(CommandContext<CommandSourceStack> context) {
+        return safeZoneAdd(
+                context.getSource(),
+                StringArgumentType.getString(context, "id"),
+                BlockPosArgument.getBlockPos(context, "pos1"),
+                BlockPosArgument.getBlockPos(context, "pos2")
+        );
+    }
+
+    private static int safeZoneAddFromWand(CommandContext<CommandSourceStack> context)
+            throws CommandSyntaxException {
         CommandSourceStack source = context.getSource();
-        String id = StringArgumentType.getString(context, "id");
-        BlockPos first = BlockPosArgument.getBlockPos(context, "pos1");
-        BlockPos second = BlockPosArgument.getBlockPos(context, "pos2");
+        ServerPlayer player = source.getPlayerOrException();
+        PlotSelection selection = null;
+        for (InteractionHand hand : InteractionHand.values()) {
+            PlotSelection held = SafeZoneWandItem.selectionOf(player.getItemInHand(hand));
+            if (held != null) {
+                selection = held;
+                break;
+            }
+        }
+        if (selection == null) {
+            source.sendFailure(Component.translatable("kingdoms.safezone.wand.missing"));
+            return 0;
+        }
+        if (!selection.isComplete() || !selection.matchesDimension(player.level())) {
+            source.sendFailure(Component.translatable("kingdoms.safezone.wand.incomplete"));
+            return 0;
+        }
+        return safeZoneAdd(
+                source,
+                StringArgumentType.getString(context, "id"),
+                selection.first(),
+                selection.second().orElseThrow()
+        );
+    }
+
+    private static int safeZoneAdd(CommandSourceStack source, String id, BlockPos first, BlockPos second) {
         SafeZoneManager manager = SafeZoneManager.get(source.getServer());
         SafeZoneManager.Reason reason = manager.add(id, source.getLevel().dimension(), first, second);
         if (reason != SafeZoneManager.Reason.OK) {
             source.sendFailure(safeZoneFailure(reason, id));
             return 0;
         }
+        SafeZoneService.syncAll(source.getServer());
         SafeZone zone = manager.byId(id).orElseThrow();
         source.sendSuccess(() -> Component.translatable("kingdoms.safezone.added", zone.id(), describe(zone)), true);
         return 1;
@@ -1004,6 +1043,7 @@ public final class KingdomsAdminCommands {
             source.sendFailure(Component.translatable("kingdoms.safezone.not_found", id));
             return 0;
         }
+        SafeZoneService.syncAll(source.getServer());
         source.sendSuccess(() -> Component.translatable("kingdoms.safezone.removed", id), true);
         return 1;
     }

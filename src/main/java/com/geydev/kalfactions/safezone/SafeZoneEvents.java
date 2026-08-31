@@ -7,6 +7,7 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class SafeZoneEvents {
@@ -23,6 +24,27 @@ public final class SafeZoneEvents {
                 && event.getSource().getEntity() instanceof ServerPlayer attacker
                 && isProtected(attacker)) {
             event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            SafeZoneService.syncTo(player);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            SafeZoneService.syncTo(player);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            SafeZoneService.syncTo(player);
         }
     }
 

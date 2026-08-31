@@ -38,6 +38,10 @@ public final class ModDataComponents {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "warp_target");
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<GlobalPos>> WARP_TARGET =
             DeferredHolder.create(Registries.DATA_COMPONENT_TYPE, WARP_TARGET_KEY);
+    public static final ResourceLocation SAFE_ZONE_SELECTION_KEY =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "safe_zone_selection");
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<PlotSelection>> SAFE_ZONE_SELECTION =
+            DeferredHolder.create(Registries.DATA_COMPONENT_TYPE, SAFE_ZONE_SELECTION_KEY);
 
     @SubscribeEvent
     public static void register(RegisterEvent event) {
@@ -83,6 +87,15 @@ public final class ModDataComponents {
                 () -> DataComponentType.<GlobalPos>builder()
                         .persistent(GlobalPos.CODEC)
                         .networkSynchronized(GlobalPos.STREAM_CODEC)
+                        .cacheEncoding()
+                        .build()
+        );
+        event.register(
+                Registries.DATA_COMPONENT_TYPE,
+                SAFE_ZONE_SELECTION_KEY,
+                () -> DataComponentType.<PlotSelection>builder()
+                        .persistent(PlotSelection.CODEC)
+                        .networkSynchronized(PlotSelection.STREAM_CODEC)
                         .cacheEncoding()
                         .build()
         );

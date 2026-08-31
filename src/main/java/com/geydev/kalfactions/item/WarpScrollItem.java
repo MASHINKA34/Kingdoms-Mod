@@ -28,6 +28,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 public final class WarpScrollItem extends Item {
+    private static final int MAX_LANDING_RADIUS = 3;
+    private static final int[] LANDING_HEIGHTS = {0, 1, -1, 2, -2, -3};
+
     public WarpScrollItem(Properties properties) {
         super(properties.stacksTo(1));
     }
@@ -131,6 +134,33 @@ public final class WarpScrollItem extends Item {
     }
 
     public static BlockPos findLanding(ServerLevel level, BlockPos anchor) {
+        for (int radius = 1; radius <= MAX_LANDING_RADIUS; radius++) {
+            for (int offsetX = -radius; offsetX <= radius; offsetX++) {
+                for (int offsetZ = -radius; offsetZ <= radius; offsetZ++) {
+                    if (Math.abs(offsetX) != radius && Math.abs(offsetZ) != radius) {
+                        continue;
+                    }
+                    BlockPos standing = standingSpot(level, anchor.offset(offsetX, 0, offsetZ));
+                    if (standing != null) {
+                        return standing;
+                    }
+                }
+            }
+        }
+        return aboveAnchor(level, anchor);
+    }
+
+    private static BlockPos standingSpot(ServerLevel level, BlockPos column) {
+        for (int offsetY : LANDING_HEIGHTS) {
+            BlockPos feet = column.above(offsetY);
+            if (isFree(level, feet) && isFree(level, feet.above()) && isStandable(level, feet.below())) {
+                return feet;
+            }
+        }
+        return null;
+    }
+
+    private static BlockPos aboveAnchor(ServerLevel level, BlockPos anchor) {
         BlockPos.MutableBlockPos cursor = anchor.mutable().move(Direction.UP);
         while (cursor.getY() < level.getMaxBuildHeight() - 1) {
             if (isFree(level, cursor) && isFree(level, cursor.above())) {
@@ -144,6 +174,10 @@ public final class WarpScrollItem extends Item {
     private static boolean isFree(ServerLevel level, BlockPos pos) {
         return level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()
                 && level.getFluidState(pos).isEmpty();
+    }
+
+    private static boolean isStandable(ServerLevel level, BlockPos pos) {
+        return !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty();
     }
 
     private static void playWarpEffects(ServerLevel level, Vec3 position) {
