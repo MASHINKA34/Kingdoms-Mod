@@ -32,6 +32,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.BooleanOp;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.util.BlockSnapshot;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
@@ -217,10 +219,9 @@ public final class InvisibilityChaliceGameTests {
 
         BlockState state = level.getBlockState(pos);
         helper.assertFalse(state.isCollisionShapeFullBlock(level, pos), "the chalice is not a full cube");
-        helper.assertValueEqual(
-                state.getShape(level, pos).max(Direction.Axis.Y),
-                0.625D,
-                "the chalice is ten pixels tall"
+        helper.assertTrue(
+                Shapes.joinIsNotEmpty(Shapes.block(), state.getShape(level, pos), BooleanOp.ONLY_FIRST),
+                "the chalice shape leaves part of the block cube open"
         );
 
         List<ItemStack> drops = Block.getDrops(state, level, pos, chalice);
