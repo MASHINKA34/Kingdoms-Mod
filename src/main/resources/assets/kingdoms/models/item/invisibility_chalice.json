@@ -1,11 +1,11 @@
 {
   "parent": "kingdoms:block/invisibility_chalice",
-  "gui_light": "side",
+  "gui_light": "front",
   "display": {
     "gui": {
-      "rotation": [30, 225, 0],
-      "translation": [0, 0, 0],
-      "scale": [0.75, 0.75, 0.75]
+      "rotation": [25, 225, 0],
+      "translation": [0, -1, 0],
+      "scale": [0.55, 0.55, 0.55]
     },
     "ground": {
       "translation": [0, 3, 0],

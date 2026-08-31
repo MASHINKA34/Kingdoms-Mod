@@ -29,9 +29,14 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 public final class InvisibilityChaliceBlock extends Block implements EntityBlock {
     private static final VoxelShape SHAPE = Shapes.or(
-            Block.box(5.0D, 0.0D, 5.0D, 11.0D, 1.0D, 11.0D),
-            Block.box(7.0D, 1.0D, 7.0D, 9.0D, 4.0D, 9.0D),
-            Block.box(4.0D, 4.0D, 4.0D, 12.0D, 10.0D, 12.0D)
+            Block.box(0.0D, 0.0D, 0.0D, 16.0D, 2.0D, 16.0D),
+            Block.box(6.0D, 2.0D, 6.0D, 10.0D, 12.0D, 10.0D),
+            Block.box(4.0D, 12.0D, 4.0D, 12.0D, 14.0D, 12.0D),
+            Block.box(2.0D, 14.0D, 2.0D, 14.0D, 19.0D, 14.0D),
+            Block.box(0.0D, 19.0D, 0.0D, 16.0D, 24.0D, 2.0D),
+            Block.box(0.0D, 19.0D, 14.0D, 16.0D, 24.0D, 16.0D),
+            Block.box(0.0D, 19.0D, 2.0D, 2.0D, 24.0D, 14.0D),
+            Block.box(14.0D, 19.0D, 2.0D, 16.0D, 24.0D, 14.0D)
     );
 
     public InvisibilityChaliceBlock(BlockBehaviour.Properties properties) {
