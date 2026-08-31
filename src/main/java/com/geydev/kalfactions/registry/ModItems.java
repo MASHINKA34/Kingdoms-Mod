@@ -19,6 +19,7 @@ import com.geydev.kalfactions.item.TraderRemoverItem;
 import com.geydev.kalfactions.item.TraderSpawnEggItem;
 import com.geydev.kalfactions.item.TraderPointToolItem;
 import com.geydev.kalfactions.item.BossKeyItem;
+import com.geydev.kalfactions.item.WarpScrollItem;
 import java.util.Optional;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -367,6 +368,16 @@ public final class ModItems {
 
     public static final DeferredItem<BlockItem> KEY_HOLDER =
             ITEMS.registerSimpleBlockItem(ModBlocks.KEY_HOLDER);
+
+    public static final DeferredItem<BlockItem> WARP_ANCHOR =
+            ITEMS.registerSimpleBlockItem(ModBlocks.WARP_ANCHOR);
+
+    public static final DeferredItem<WarpScrollItem> WARP_SCROLL = ITEMS.register(
+            "warp_scroll",
+            () -> new WarpScrollItem(
+                    new Item.Properties().stacksTo(1).rarity(net.minecraft.world.item.Rarity.RARE)
+            )
+    );
 
     public static Item crystalFor(InfluenceType type) {
         return switch (type) {

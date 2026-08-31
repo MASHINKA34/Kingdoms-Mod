@@ -5,6 +5,7 @@
     "kingdoms:ghost_key_forge",
     "kingdoms:infernal_key_forge",
     "kingdoms:sculk_key_forge",
-    "kingdoms:mossy_key_forge"
+    "kingdoms:mossy_key_forge",
+    "kingdoms:warp_anchor"
   ]
 }

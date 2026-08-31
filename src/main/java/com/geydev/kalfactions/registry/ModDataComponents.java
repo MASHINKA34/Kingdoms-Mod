@@ -5,6 +5,7 @@ import com.geydev.kalfactions.market.PlotSelection;
 import com.geydev.kalfactions.dimension.ReturnBinding;
 import com.geydev.kalfactions.outpost.trader.TraderPointToolMode;
 import java.util.UUID;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
@@ -33,6 +34,10 @@ public final class ModDataComponents {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "nether_return_binding");
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<ReturnBinding>> NETHER_RETURN_BINDING =
             DeferredHolder.create(Registries.DATA_COMPONENT_TYPE, NETHER_RETURN_BINDING_KEY);
+    public static final ResourceLocation WARP_TARGET_KEY =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "warp_target");
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<GlobalPos>> WARP_TARGET =
+            DeferredHolder.create(Registries.DATA_COMPONENT_TYPE, WARP_TARGET_KEY);
 
     @SubscribeEvent
     public static void register(RegisterEvent event) {
@@ -69,6 +74,15 @@ public final class ModDataComponents {
                 () -> DataComponentType.<ReturnBinding>builder()
                         .persistent(ReturnBinding.CODEC)
                         .networkSynchronized(ReturnBinding.STREAM_CODEC)
+                        .cacheEncoding()
+                        .build()
+        );
+        event.register(
+                Registries.DATA_COMPONENT_TYPE,
+                WARP_TARGET_KEY,
+                () -> DataComponentType.<GlobalPos>builder()
+                        .persistent(GlobalPos.CODEC)
+                        .networkSynchronized(GlobalPos.STREAM_CODEC)
                         .cacheEncoding()
                         .build()
         );

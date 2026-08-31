@@ -109,7 +109,9 @@ public final class ModCreativeTabs {
                 ModItems.NETHER_PORTAL_ANCHOR.get(),
                 ModItems.NETHER_IGNITER.get(),
                 ModItems.BOSS_KEY.get(),
-                ModItems.KEY_HOLDER.get()
+                ModItems.KEY_HOLDER.get(),
+                ModItems.WARP_ANCHOR.get(),
+                ModItems.WARP_SCROLL.get()
         );
     }
 

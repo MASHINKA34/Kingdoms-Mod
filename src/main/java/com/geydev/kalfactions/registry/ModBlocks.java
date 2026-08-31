@@ -310,6 +310,15 @@ public final class ModBlocks {
                     .lightLevel(state -> state.getValue(KeyHolderBlock.POWERED) ? 9 : 0))
     );
 
+    public static final DeferredBlock<Block> WARP_ANCHOR = BLOCKS.register(
+            "warp_anchor",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_PURPLE)
+                    .strength(50.0F, 1200.0F)
+                    .sound(SoundType.STONE)
+                    .requiresCorrectToolForDrops())
+    );
+
     public static void register(IEventBus bus) {
         BLOCKS.register(bus);
     }

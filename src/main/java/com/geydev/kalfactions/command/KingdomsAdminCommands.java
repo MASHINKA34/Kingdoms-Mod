@@ -18,6 +18,8 @@ import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager;
 import com.geydev.kalfactions.outpost.cluster.distribution.ResourceZone;
 import com.geydev.kalfactions.quarry.QuarryManager;
 import com.geydev.kalfactions.registry.ModBlocks;
+import com.geydev.kalfactions.safezone.SafeZone;
+import com.geydev.kalfactions.safezone.SafeZoneManager;
 import com.geydev.kalfactions.sanctuary.SanctuaryExecutionManager;
 import com.geydev.kalfactions.scout.ScoutManager;
 import com.geydev.kalfactions.scout.ScoutOrder;
@@ -64,6 +66,12 @@ public final class KingdomsAdminCommands {
             SharedSuggestionProvider.suggest(
                     FactionManager.get(context.getSource().getServer()).factions().stream()
                             .map(com.geydev.kalfactions.faction.Faction::name),
+                    builder
+            );
+
+    private static final SuggestionProvider<CommandSourceStack> SAFE_ZONE_SUGGESTIONS = (context, builder) ->
+            SharedSuggestionProvider.suggest(
+                    SafeZoneManager.get(context.getSource().getServer()).all().stream().map(SafeZone::id),
                     builder
             );
 
@@ -188,7 +196,21 @@ public final class KingdomsAdminCommands {
                                                 .executes(KingdomsAdminCommands::resetDailyScience)))))
                 .then(ClusterCommands.build())
                 .then(BlackZoneCommands.build())
-                .then(com.geydev.kalfactions.dungeon.DungeonCommands.build()));
+                .then(com.geydev.kalfactions.dungeon.DungeonCommands.build())
+                .then(Commands.literal("admin")
+                        .requires(source -> source.hasPermission(2))
+                        .then(Commands.literal("safezone")
+                                .then(Commands.literal("add")
+                                        .then(Commands.argument("id", StringArgumentType.word())
+                                                .then(Commands.argument("pos1", BlockPosArgument.blockPos())
+                                                        .then(Commands.argument("pos2", BlockPosArgument.blockPos())
+                                                                .executes(KingdomsAdminCommands::safeZoneAdd)))))
+                                .then(Commands.literal("remove")
+                                        .then(Commands.argument("id", StringArgumentType.word())
+                                                .suggests(SAFE_ZONE_SUGGESTIONS)
+                                                .executes(KingdomsAdminCommands::safeZoneRemove)))
+                                .then(Commands.literal("list")
+                                        .executes(KingdomsAdminCommands::safeZoneList)))));
     }
 
     private static int discoveries(CommandContext<CommandSourceStack> context, String factionName) {
@@ -948,6 +970,74 @@ public final class KingdomsAdminCommands {
         manager.clearAllResearch(factionId);
         source.sendSuccess(() -> Component.literal("Все исследования фракции сброшены."), true);
         return 1;
+    }
+
+    private static int safeZoneAdd(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        String id = StringArgumentType.getString(context, "id");
+        BlockPos first = BlockPosArgument.getBlockPos(context, "pos1");
+        BlockPos second = BlockPosArgument.getBlockPos(context, "pos2");
+        SafeZoneManager manager = SafeZoneManager.get(source.getServer());
+        SafeZoneManager.Reason reason = manager.add(id, source.getLevel().dimension(), first, second);
+        if (reason != SafeZoneManager.Reason.OK) {
+            source.sendFailure(safeZoneFailure(reason, id));
+            return 0;
+        }
+        SafeZone zone = manager.byId(id).orElseThrow();
+        source.sendSuccess(() -> Component.translatable("kingdoms.safezone.added", zone.id(), describe(zone)), true);
+        return 1;
+    }
+
+    private static Component safeZoneFailure(SafeZoneManager.Reason reason, String id) {
+        return switch (reason) {
+            case DUPLICATE -> Component.translatable("kingdoms.safezone.duplicate", id);
+            case TOO_MANY -> Component.translatable("kingdoms.safezone.too_many", SafeZoneManager.MAX_ZONES);
+            case TOO_LARGE -> Component.translatable("kingdoms.safezone.too_large", SafeZoneManager.MAX_SIDE);
+            default -> Component.translatable("kingdoms.safezone.invalid_id", SafeZoneManager.MAX_ID_LENGTH);
+        };
+    }
+
+    private static int safeZoneRemove(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        String id = StringArgumentType.getString(context, "id");
+        if (!SafeZoneManager.get(source.getServer()).remove(id)) {
+            source.sendFailure(Component.translatable("kingdoms.safezone.not_found", id));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.translatable("kingdoms.safezone.removed", id), true);
+        return 1;
+    }
+
+    private static int safeZoneList(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        java.util.List<SafeZone> zones = SafeZoneManager.get(source.getServer()).all();
+        if (zones.isEmpty()) {
+            source.sendSuccess(() -> Component.translatable("kingdoms.safezone.list.empty"), false);
+            return 0;
+        }
+        source.sendSuccess(() -> Component.translatable("kingdoms.safezone.list.header", zones.size()), false);
+        for (SafeZone zone : zones) {
+            source.sendSuccess(
+                    () -> Component.translatable("kingdoms.safezone.list.entry", zone.id(), describe(zone)),
+                    false
+            );
+        }
+        return zones.size();
+    }
+
+    private static Component describe(SafeZone zone) {
+        BlockPos min = zone.min();
+        BlockPos max = zone.max();
+        return Component.translatable(
+                "kingdoms.safezone.bounds",
+                zone.dimension().location().toString(),
+                min.getX(),
+                min.getY(),
+                min.getZ(),
+                max.getX(),
+                max.getY(),
+                max.getZ()
+        );
     }
 
     private KingdomsAdminCommands() {
