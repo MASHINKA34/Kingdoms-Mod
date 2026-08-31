@@ -1621,5 +1621,17 @@
   "kingdoms.safezone.wand.removed": "Safe zone «%s» removed.",
   "kingdoms.safezone.wand.no_zone": "There is no safe zone here.",
   "kingdoms.safezone.wand.tooltip.create": "Right-click inside the selection to create the zone.",
-  "kingdoms.safezone.wand.tooltip.remove": "Shift + left-click a zone to remove it."
+  "kingdoms.safezone.wand.tooltip.remove": "Shift + left-click a zone to remove it.",
+  "block.kingdoms.invisibility_chalice": "Chalice of Invisibility",
+  "effect.kingdoms.true_invisibility": "True Invisibility",
+  "effect.kingdoms.true_invisibility.description": "Hides you completely until you attack, break or place a block.",
+  "screen.kingdoms.invisibility_chalice.title": "Chalice of Invisibility",
+  "screen.kingdoms.invisibility_chalice.operator_hint": "These settings are visible to operators only.",
+  "screen.kingdoms.invisibility_chalice.duration": "Duration, seconds",
+  "screen.kingdoms.invisibility_chalice.range": "From %s to %s seconds.",
+  "screen.kingdoms.invisibility_chalice.invalid_duration": "Enter a value between %s and %s seconds.",
+  "screen.kingdoms.invisibility_chalice.save": "Save",
+  "message.kingdoms.invisibility_chalice.granted": "Invisibility for %s s.",
+  "message.kingdoms.invisibility_chalice.settings_saved": "Settings saved.",
+  "message.kingdoms.true_invisibility.broken": "Invisibility has worn off."
 }

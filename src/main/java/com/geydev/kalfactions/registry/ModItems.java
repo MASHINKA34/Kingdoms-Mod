@@ -385,6 +385,9 @@ public final class ModItems {
             () -> new SafeZoneWandItem(new Item.Properties().stacksTo(1))
     );
 
+    public static final DeferredItem<BlockItem> INVISIBILITY_CHALICE =
+            ITEMS.registerSimpleBlockItem(ModBlocks.INVISIBILITY_CHALICE);
+
     public static Item crystalFor(InfluenceType type) {
         return switch (type) {
             case SCIENCE -> CRYSTAL_SCIENCE.get();

@@ -1621,5 +1621,17 @@
   "kingdoms.safezone.wand.removed": "Зона неуязвимости «%s» удалена.",
   "kingdoms.safezone.wand.no_zone": "Здесь нет зоны неуязвимости.",
   "kingdoms.safezone.wand.tooltip.create": "ПКМ внутри выделения — создать зону.",
-  "kingdoms.safezone.wand.tooltip.remove": "Shift + ЛКМ по зоне — удалить её."
+  "kingdoms.safezone.wand.tooltip.remove": "Shift + ЛКМ по зоне — удалить её.",
+  "block.kingdoms.invisibility_chalice": "Чаша невидимости",
+  "effect.kingdoms.true_invisibility": "Абсолютная невидимость",
+  "effect.kingdoms.true_invisibility.description": "Скрывает вас целиком, пока вы не ударите, не сломаете или не поставите блок.",
+  "screen.kingdoms.invisibility_chalice.title": "Чаша невидимости",
+  "screen.kingdoms.invisibility_chalice.operator_hint": "Настройки видны только операторам.",
+  "screen.kingdoms.invisibility_chalice.duration": "Длительность, секунды",
+  "screen.kingdoms.invisibility_chalice.range": "От %s до %s секунд.",
+  "screen.kingdoms.invisibility_chalice.invalid_duration": "Укажите значение от %s до %s секунд.",
+  "screen.kingdoms.invisibility_chalice.save": "Сохранить",
+  "message.kingdoms.invisibility_chalice.granted": "Невидимость на %s с.",
+  "message.kingdoms.invisibility_chalice.settings_saved": "Настройки сохранены.",
+  "message.kingdoms.true_invisibility.broken": "Невидимость спала."
 }

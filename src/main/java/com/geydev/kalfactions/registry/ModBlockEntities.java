@@ -7,6 +7,7 @@ import com.geydev.kalfactions.block.DungeonKeyPedestalBlockEntity;
 import com.geydev.kalfactions.block.EconomyGodStatueBlockEntity;
 import com.geydev.kalfactions.block.FactionTableBlockEntity;
 import com.geydev.kalfactions.block.GuideBoardBlockEntity;
+import com.geydev.kalfactions.block.InvisibilityChaliceBlockEntity;
 import com.geydev.kalfactions.block.KeyForgeBlockEntity;
 import com.geydev.kalfactions.block.KeyForgeType;
 import com.geydev.kalfactions.block.KeyHolderBlockEntity;
@@ -96,6 +97,14 @@ public final class ModBlockEntities {
             ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "key_holder");
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<KeyHolderBlockEntity>> KEY_HOLDER =
             DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, KEY_HOLDER_ID);
+
+    public static final ResourceLocation INVISIBILITY_CHALICE_ID =
+            ResourceLocation.fromNamespaceAndPath(KalFactions.MOD_ID, "invisibility_chalice");
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<InvisibilityChaliceBlockEntity>>
+            INVISIBILITY_CHALICE = DeferredHolder.create(
+                    Registries.BLOCK_ENTITY_TYPE,
+                    INVISIBILITY_CHALICE_ID
+            );
 
     @SubscribeEvent
     public static void register(RegisterEvent event) {
@@ -260,6 +269,15 @@ public final class ModBlockEntities {
                 );
             }
             return BlockEntityType.Builder.of(KeyHolderBlockEntity::new, block).build(null);
+        });
+        event.register(Registries.BLOCK_ENTITY_TYPE, INVISIBILITY_CHALICE_ID, () -> {
+            Block block = BuiltInRegistries.BLOCK.get(INVISIBILITY_CHALICE_ID);
+            if (block == Blocks.AIR) {
+                throw new IllegalStateException(
+                        "kingdoms:invisibility_chalice must be registered before its block entity type"
+                );
+            }
+            return BlockEntityType.Builder.of(InvisibilityChaliceBlockEntity::new, block).build(null);
         });
     }
 

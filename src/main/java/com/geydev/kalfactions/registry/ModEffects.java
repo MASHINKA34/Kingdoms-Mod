@@ -2,6 +2,7 @@ package com.geydev.kalfactions.registry;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.faith.FaithGod;
+import com.geydev.kalfactions.invisibility.TrueInvisibilityEffect;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.effect.MobEffect;
@@ -22,6 +23,9 @@ public final class ModEffects {
 
     public static final DeferredHolder<MobEffect, MobEffect> FAITH_ECONOMY =
             EFFECTS.register("faith_economy", () -> new FaithBlessingEffect(0xF0C24A));
+
+    public static final DeferredHolder<MobEffect, MobEffect> TRUE_INVISIBILITY =
+            EFFECTS.register("true_invisibility", () -> new TrueInvisibilityEffect(0x8FA8C8));
 
     public static Holder<MobEffect> forGod(FaithGod god) {
         return switch (god) {

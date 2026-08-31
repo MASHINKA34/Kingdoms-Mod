@@ -112,7 +112,8 @@ public final class ModCreativeTabs {
                 ModItems.KEY_HOLDER.get(),
                 ModItems.WARP_ANCHOR.get(),
                 ModItems.WARP_SCROLL.get(),
-                ModItems.SAFE_ZONE_WAND.get()
+                ModItems.SAFE_ZONE_WAND.get(),
+                ModItems.INVISIBILITY_CHALICE.get()
         );
     }
 

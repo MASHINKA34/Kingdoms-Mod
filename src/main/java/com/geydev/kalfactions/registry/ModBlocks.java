@@ -11,6 +11,7 @@ import com.geydev.kalfactions.block.FactionTableBlock;
 import com.geydev.kalfactions.block.GuideBoardBlock;
 import com.geydev.kalfactions.block.GhostKeyForgeBlock;
 import com.geydev.kalfactions.block.InfernalKeyForgeBlock;
+import com.geydev.kalfactions.block.InvisibilityChaliceBlock;
 import com.geydev.kalfactions.block.MossyKeyForgeBlock;
 import com.geydev.kalfactions.block.MusicBlock;
 import com.geydev.kalfactions.block.NetherPortalAnchorBlock;
@@ -319,6 +320,16 @@ public final class ModBlocks {
                     .sound(SoundType.STONE)
                     .noOcclusion()
                     .requiresCorrectToolForDrops())
+    );
+
+    public static final DeferredBlock<InvisibilityChaliceBlock> INVISIBILITY_CHALICE = BLOCKS.register(
+            "invisibility_chalice",
+            () -> new InvisibilityChaliceBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_LIGHT_BLUE)
+                    .strength(3.0F, 12.0F)
+                    .sound(SoundType.LANTERN)
+                    .lightLevel(state -> 5)
+                    .noOcclusion())
     );
 
     public static void register(IEventBus bus) {
