@@ -114,16 +114,23 @@ public final class MarketPlotService {
         if (price <= 0L || price > MAX_PRICE) {
             return;
         }
+        UUID previousOwner = plot.owner();
+        String previousOwnerName = plot.ownerName();
+        BankAccount sellerAccount = state == MarketPlot.State.RESALE && previousOwner != null
+                ? Numismatics.BANK.getOrCreateAccount(previousOwner, BankAccount.Type.PLAYER)
+                : null;
+        if (sellerAccount != null
+                && (sellerAccount.getBalance() < 0 || price > Integer.MAX_VALUE - (long) sellerAccount.getBalance())) {
+            player.displayClientMessage(Component.translatable("kingdoms.plot.buy.seller_bank_full"), false);
+            return;
+        }
         if (!charge(player, price)) {
             player.displayClientMessage(Component.translatable(
                     "kingdoms.plot.buy.insufficient", NumismaticsEconomy.format(price)), false);
             return;
         }
-        UUID previousOwner = plot.owner();
-        String previousOwnerName = plot.ownerName();
-        if (state == MarketPlot.State.RESALE && previousOwner != null) {
-            BankAccount account = Numismatics.BANK.getOrCreateAccount(previousOwner, BankAccount.Type.PLAYER);
-            account.deposit((int) price);
+        if (sellerAccount != null) {
+            sellerAccount.deposit((int) price);
             ServerPlayer seller = level.getServer().getPlayerList().getPlayer(previousOwner);
             if (seller != null) {
                 seller.displayClientMessage(Component.translatable(

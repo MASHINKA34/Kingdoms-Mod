@@ -1633,5 +1633,7 @@
   "screen.kingdoms.invisibility_chalice.save": "Save",
   "message.kingdoms.invisibility_chalice.granted": "Invisibility for %s s.",
   "message.kingdoms.invisibility_chalice.settings_saved": "Settings saved.",
-  "message.kingdoms.true_invisibility.broken": "Invisibility has worn off."
+  "message.kingdoms.true_invisibility.broken": "Invisibility has worn off.",
+  "kingdoms.plot.buy.seller_bank_full": "The seller's bank account cannot hold this payment.",
+  "kingdoms.music.error.download_busy": "Too many music downloads are pending. Try again shortly."
 }

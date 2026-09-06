@@ -76,9 +76,6 @@ public final class DrillService {
     ) {
         ClaimKey drillClaim = ClaimKey.of(level, drill.getBlockPos());
         if (!DrillTerritory.owns(faction, drillClaim)) {
-            if (drill.targetClusterChunk() != null) {
-                drill.releaseTarget(level);
-            }
             return List.of();
         }
         Set<ClaimKey> territory = DrillTerritory.of(faction, drillClaim);
@@ -88,11 +85,8 @@ public final class DrillService {
         if (selected != null) {
             ChunkPos selectedChunk = new ChunkPos(selected);
             boolean valid = territory.contains(ClaimKey.of(level, selectedChunk))
-                    && clusters.clusterAt(selectedChunk).isPresent()
-                    && (clusters.isBoundDrill(selectedChunk, drill.getBlockPos())
-                            || clusters.bindDrill(selectedChunk, drill.getBlockPos()));
+                    && clusters.clusterAt(selectedChunk).isPresent();
             if (!valid) {
-                drill.releaseTarget(level);
                 selected = null;
             }
         }
@@ -102,10 +96,9 @@ public final class DrillService {
             if (targets.size() >= DrillPayloads.MAX_TARGETS) {
                 break;
             }
-            boolean isSelected = selected != null && selected == cluster.chunk();
             boolean available = cluster.boundDrill() == null
-                    || cluster.boundDrill() == drillPos
-                    || isSelected;
+                    || cluster.boundDrill() == drillPos;
+            boolean isSelected = available && selected != null && selected == cluster.chunk();
             targets.add(new DrillPayloads.TargetInfo(
                     cluster.chunk(),
                     cluster.pos(),

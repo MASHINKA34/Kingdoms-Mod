@@ -1116,6 +1116,16 @@ public final class WarManager extends SavedData {
         return war != null && war.isActive() ? war : null;
     }
 
+    public synchronized boolean restoresBlock(ServerLevel level, BlockPos pos, BlockState state) {
+        ClaimKey key = ClaimKey.of(level, pos);
+        for (War war : wars.values()) {
+            if (war.restoresBlock(key, pos, state)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static Component factionName(MinecraftServer server, UUID factionId) {
         return FactionManager.get(server).getFactionById(factionId)
             .map(faction -> (Component) Component.literal(faction.name()))

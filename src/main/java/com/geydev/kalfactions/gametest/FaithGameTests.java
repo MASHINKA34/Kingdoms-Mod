@@ -5,6 +5,7 @@ import com.geydev.kalfactions.faith.FaithBonuses;
 import com.geydev.kalfactions.faith.FaithEffects;
 import com.geydev.kalfactions.faith.FaithGod;
 import com.geydev.kalfactions.faith.FaithManager;
+import com.geydev.kalfactions.faith.FaithPayloads;
 import com.geydev.kalfactions.faith.FaithQuest;
 import com.geydev.kalfactions.faith.FaithQuests;
 import com.geydev.kalfactions.faith.FaithRequirement;
@@ -29,6 +30,20 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @GameTestHolder(KalFactions.MOD_ID)
 @PrefixGameTestTemplate(false)
 public final class FaithGameTests {
+    @GameTest(template = "empty")
+    public static void distantActionsDoNotLoadChunks(GameTestHelper helper) {
+        var level = helper.getLevel();
+        BlockPos remote = new BlockPos(25_000_000, 70, 25_000_000);
+        var fixture = RegressionPlayers.create(level, helper.absolutePos(BlockPos.ZERO), 0);
+        helper.assertFalse(level.hasChunkAt(remote), "remote chunk starts unloaded");
+        FaithService.handleAction(fixture.player(), remote, FaithPayloads.ACTION_OFFER_QUEST);
+        helper.assertFalse(level.hasChunkAt(remote), "rejected action must not load remote chunk");
+        helper.assertTrue(FaithService.resolveStatue(level, remote).isEmpty(), "unloaded statue is unavailable");
+        helper.assertFalse(level.hasChunkAt(remote), "statue lookup must not generate remote chunk");
+        helper.assertTrue(!fixture.packets().isEmpty(), "rejected request returns a notice");
+        helper.succeed();
+    }
+
     @GameTest(template = "empty")
     public static void levelRisesOnlyWithTheWholeQuest(GameTestHelper helper) {
         FaithManager manager = new FaithManager();

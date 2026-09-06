@@ -74,6 +74,11 @@ public final class DrillRuntimeGameTests {
             helper.assertTrue(clusters.isBoundDrill(mainClusters.get(1), firstPos), "new cluster bound");
             helper.assertTrue(!clusters.isBoundDrill(mainClusters.get(0), firstPos), "old cluster released");
             helper.assertTrue(second.selectTarget(level, firstCluster), "released cluster selectable");
+            long productionStarted = first.lastProduceMillis();
+            helper.assertTrue(DrillService.targetsFor(level, null, first).isEmpty(), "visitor has no selectable targets");
+            helper.assertValueEqual(first.targetClusterChunk().longValue(), secondCluster, "visitor preserves selected target");
+            helper.assertValueEqual(first.lastProduceMillis(), productionStarted, "visitor preserves production clock");
+            helper.assertTrue(clusters.isBoundDrill(mainClusters.get(1), firstPos), "visitor preserves cluster binding");
 
             ChunkPos outpostCluster = findAndGenerateOutpostCluster(level, clusters, faction.claims());
             FactionManager.OperationResult attached = factions.attachOutpost(

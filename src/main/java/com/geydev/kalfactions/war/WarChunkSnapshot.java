@@ -96,6 +96,14 @@ public final class WarChunkSnapshot {
         sections.get(index).set(pos.getX() & 15, pos.getY() & 15, pos.getZ() & 15, state);
     }
 
+    public boolean restoresBlock(BlockPos pos, BlockState state) {
+        int index = SectionPos.blockToSectionCoord(pos.getY()) - minSection;
+        if (state.isAir() || index < 0 || index >= sections.size()) {
+            return false;
+        }
+        return sections.get(index).get(pos.getX() & 15, pos.getY() & 15, pos.getZ() & 15).is(state.getBlock());
+    }
+
     /** Drops a captured block-entity tag (paired with {@link #setBlockState} when reverting a placement). */
     public void removeBlockEntity(BlockPos pos) {
         blockEntities.remove(pos.immutable());

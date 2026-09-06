@@ -1633,5 +1633,7 @@
   "screen.kingdoms.invisibility_chalice.save": "Сохранить",
   "message.kingdoms.invisibility_chalice.granted": "Невидимость на %s с.",
   "message.kingdoms.invisibility_chalice.settings_saved": "Настройки сохранены.",
-  "message.kingdoms.true_invisibility.broken": "Невидимость спала."
+  "message.kingdoms.true_invisibility.broken": "Невидимость спала.",
+  "kingdoms.plot.buy.seller_bank_full": "На банковском счёте продавца недостаточно места для этой суммы.",
+  "kingdoms.music.error.download_busy": "Слишком много треков ожидают скачивания. Попробуйте чуть позже."
 }

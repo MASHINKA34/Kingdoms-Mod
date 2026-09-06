@@ -45,6 +45,7 @@ public final class MusicEvents {
     @SubscribeEvent
     public static void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            MusicService.forget(player.getUUID());
             MusicRadius.stopFor(player);
             MusicRadius.refresh(player);
         }
@@ -53,6 +54,7 @@ public final class MusicEvents {
     @SubscribeEvent
     public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            MusicService.forget(player.getUUID());
             MusicRadius.stopFor(player);
             MusicRadius.refresh(player);
         }

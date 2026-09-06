@@ -95,10 +95,10 @@ public final class ProtectionHandler {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onBlockDrops(BlockDropsEvent event) {
-        if (!(event.getBreaker() instanceof ServerPlayer player)) {
-            return;
-        }
-        if (isWarBreak(player, event.getLevel(), event.getPos(), WarManager.get(event.getLevel()))) {
+        WarManager wars = WarManager.get(event.getLevel());
+        if (wars.restoresBlock(event.getLevel(), event.getPos(), event.getState())
+                || event.getBreaker() instanceof ServerPlayer player
+                && isWarBreak(player, event.getLevel(), event.getPos(), wars)) {
             event.getDrops().clear();
             event.setDroppedExperience(0);
         }

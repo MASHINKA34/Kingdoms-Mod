@@ -2,10 +2,8 @@ package com.geydev.kalfactions.market;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderGetter;
 import net.minecraft.core.Vec3i;
@@ -20,6 +18,7 @@ import net.minecraft.world.Containers;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
@@ -36,7 +35,7 @@ public final class PlotSnapshots {
                 false,
                 null
         );
-        return template.save(new CompoundTag());
+        return withoutContainerContents(level, box, template.save(new CompoundTag()));
     }
 
     public static boolean restore(ServerLevel level, BoundingBox box, CompoundTag snapshot) {
@@ -44,7 +43,7 @@ public final class PlotSnapshots {
             return false;
         }
         StructureTemplate template = new StructureTemplate();
-        template.load(level.holderLookup(Registries.BLOCK), snapshot);
+        template.load(level.holderLookup(Registries.BLOCK), withoutContainerContents(level, box, snapshot));
 
         AABB bounds = AABB.of(box);
         for (Entity entity : level.getEntities((Entity) null, bounds, entity -> !(entity instanceof Player))) {
@@ -64,23 +63,43 @@ public final class PlotSnapshots {
         );
     }
 
-    /**
-     * Returns the owner's investment before the snapshot overwrites it: every block
-     * that differs from the original build drops as loot, and the contents of
-     * player-placed containers spill out. Containers that were part of the original
-     * build keep snapshot semantics (silently reset) so buy-sell cycles cannot farm
-     * the original stock.
-     */
+    private static CompoundTag withoutContainerContents(ServerLevel level, BoundingBox box, CompoundTag snapshot) {
+        CompoundTag sanitized = snapshot.copy();
+        BlockPos origin = new BlockPos(box.minX(), box.minY(), box.minZ());
+        Map<BlockPos, BlockState> states = new HashMap<>();
+        readSnapshotStates(level, sanitized, origin, states);
+        ListTag blocks = sanitized.getList("blocks", Tag.TAG_COMPOUND);
+        for (int index = 0; index < blocks.size(); index++) {
+            CompoundTag entry = blocks.getCompound(index);
+            ListTag coordinates = entry.getList("pos", Tag.TAG_INT);
+            if (!entry.contains("nbt", Tag.TAG_COMPOUND) || coordinates.size() != 3) {
+                continue;
+            }
+            BlockPos pos = origin.offset(coordinates.getInt(0), coordinates.getInt(1), coordinates.getInt(2));
+            BlockState state = states.get(pos);
+            if (state == null) {
+                continue;
+            }
+            CompoundTag data = entry.getCompound("nbt");
+            data.remove("LootTable");
+            data.remove("LootTableSeed");
+            BlockEntity blockEntity = BlockEntity.loadStatic(pos, state, data, level.registryAccess());
+            if (blockEntity instanceof Container container) {
+                container.clearContent();
+                entry.put("nbt", blockEntity.saveWithFullMetadata(level.registryAccess()));
+            }
+        }
+        return sanitized;
+    }
+
     private static void dropModifiedBlocks(ServerLevel level, BoundingBox box, CompoundTag snapshot) {
         BlockPos origin = new BlockPos(box.minX(), box.minY(), box.minZ());
         Map<BlockPos, BlockState> expected = new HashMap<>();
-        Set<BlockPos> originalNbtPositions = new HashSet<>();
-        readSnapshotStates(level, snapshot, origin, expected, originalNbtPositions);
+        readSnapshotStates(level, snapshot, origin, expected);
 
         for (BlockPos pos : BlockPos.betweenClosed(
                 box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ())) {
-            if (level.getBlockEntity(pos) instanceof Container container
-                    && !originalNbtPositions.contains(pos)) {
+            if (level.getBlockEntity(pos) instanceof Container container) {
                 Containers.dropContents(level, pos, container);
                 container.clearContent();
             }
@@ -99,8 +118,7 @@ public final class PlotSnapshots {
             ServerLevel level,
             CompoundTag snapshot,
             BlockPos origin,
-            Map<BlockPos, BlockState> expected,
-            Set<BlockPos> withNbt
+            Map<BlockPos, BlockState> expected
     ) {
         HolderGetter<Block> blocks = level.holderLookup(Registries.BLOCK);
         ListTag paletteTag = snapshot.getList("palette", Tag.TAG_COMPOUND);
@@ -118,9 +136,6 @@ public final class PlotSnapshots {
             }
             BlockPos pos = origin.offset(posTag.getInt(0), posTag.getInt(1), posTag.getInt(2));
             expected.put(pos, palette.get(stateIndex));
-            if (entryTag.contains("nbt", Tag.TAG_COMPOUND)) {
-                withNbt.add(pos);
-            }
         }
     }
 

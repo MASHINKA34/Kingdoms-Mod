@@ -127,7 +127,7 @@ public final class RaidManager extends SavedData {
                     dirty = true;
                 }
                 if (raid.warningRemainingMillis() <= 0L) {
-                    if (!faction.hasClaim(raid.targetClaim()) || !activateRaid(server, raid, faction, nowEpochMillis)) {
+                    if (!ownsTarget(faction, raid) || !activateRaid(server, raid, faction, nowEpochMillis)) {
                         notifyFaction(
                             server,
                             faction.id(),
@@ -187,6 +187,17 @@ public final class RaidManager extends SavedData {
         if (dirty) {
             setDirty();
         }
+    }
+
+    static boolean ownsTarget(Faction faction, Raid raid) {
+        if (raid.targetType() == Raid.TargetType.OUTPOST) {
+            return faction.outpost(raid.outpostId())
+                    .filter(outpost -> outpost.dimension().equals(raid.targetClaim().dimension()))
+                    .filter(outpost -> outpost.core().equals(raid.targetPos()))
+                    .filter(outpost -> outpost.chunks().contains(raid.targetClaim()))
+                    .isPresent();
+        }
+        return faction.hasClaim(raid.targetClaim());
     }
 
     public synchronized ForceOutcome forceRaid(MinecraftServer server, UUID factionId) {

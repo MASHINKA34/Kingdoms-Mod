@@ -37,9 +37,15 @@ public final class FaithService {
     }
 
     public static Optional<StatueRef> resolveStatue(ServerLevel level, BlockPos pos) {
+        if (!level.hasChunkAt(pos)) {
+            return Optional.empty();
+        }
         BlockState state = level.getBlockState(pos);
         if (state.getBlock() instanceof StoneGodStatueCollisionBlock) {
             BlockPos anchor = StoneGodStatueCollisionBlock.anchorOf(pos, state);
+            if (!level.hasChunkAt(anchor)) {
+                return Optional.empty();
+            }
             BlockState anchorState = level.getBlockState(anchor);
             return FaithGod.ofStatue(anchorState).map(god -> new StatueRef(anchor, god, true));
         }
@@ -132,7 +138,8 @@ public final class FaithService {
 
     public static void handleAction(ServerPlayer player, BlockPos pos, byte action) {
         ServerLevel level = player.serverLevel();
-        if (!player.isAlive() || player.isSpectator()) {
+        if (!player.isAlive() || player.isSpectator()
+                || action < FaithPayloads.ACTION_OFFER_QUEST || action > FaithPayloads.ACTION_ACTIVATE_BUFF) {
             return;
         }
         long now = level.getGameTime();
@@ -142,9 +149,13 @@ public final class FaithService {
                     player, Component.translatable("kingdoms.error.action_rate_limited"), false);
             return;
         }
+        if (player.distanceToSqr(pos.getCenter()) > MAX_STATUE_DISTANCE_SQR || !level.hasChunkAt(pos)) {
+            FactionServerHooks.sendNotice(
+                    player, Component.translatable("kingdoms.faith.notice.too_far"), false);
+            return;
+        }
         StatueRef statue = resolveStatue(level, pos).orElse(null);
-        if (statue == null || player.distanceToSqr(
-                pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D) > MAX_STATUE_DISTANCE_SQR) {
+        if (statue == null) {
             FactionServerHooks.sendNotice(
                     player, Component.translatable("kingdoms.faith.notice.too_far"), false);
             return;

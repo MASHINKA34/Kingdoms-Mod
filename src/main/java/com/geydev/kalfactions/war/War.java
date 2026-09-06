@@ -9,9 +9,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * A single war between two sides plus the lazily captured chunk snapshots taken while it was active.
@@ -280,6 +282,11 @@ public final class War {
 
     public void putSnapshot(ClaimKey key, WarChunkSnapshot snapshot) {
         snapshots.put(key, snapshot);
+    }
+
+    public boolean restoresBlock(ClaimKey key, BlockPos pos, BlockState state) {
+        WarChunkSnapshot snapshot = snapshots.get(key);
+        return snapshot != null && snapshot.restoresBlock(pos, state);
     }
 
     public WarChunkSnapshot removeSnapshot(ClaimKey key) {
