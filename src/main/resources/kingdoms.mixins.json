@@ -30,6 +30,7 @@
     "ScorchedBeamMiningMixin",
     "ScorchedFlarePistolMixin",
     "DisabledRaidFlareRecipesMixin",
+    "ScorchedOptionalTagsMixin",
     "SculkCatalystListenerMixin",
     "ScorchedGunBenchResultSlotMixin",
     "ProtectionPixelZongMenuMixin",

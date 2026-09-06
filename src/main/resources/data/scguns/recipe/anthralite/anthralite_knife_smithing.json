@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:smithing_transform",
+  "addition": {
+    "item": "scguns:anthralite_ingot"
+  },
+  "base": {
+    "item": "farmersdelight:iron_knife"
+  },
+  "result": {
+    "id": "scguns:anthralite_knife"
+  },
+  "template": {
+    "item": "minecraft:leather"
+  },
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:item_exists",
+      "item": "farmersdelight:iron_knife"
+    },
+    {
+      "type": "neoforge:item_exists",
+      "item": "scguns:anthralite_knife"
+    }
+  ]
+}

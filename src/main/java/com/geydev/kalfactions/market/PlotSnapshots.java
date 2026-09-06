@@ -1,5 +1,7 @@
 package com.geydev.kalfactions.market;
 
+import com.geydev.kalfactions.data.SnapshotBlockEntities;
+import com.geydev.kalfactions.integration.BlockInventories;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,6 +19,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.Containers;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -24,6 +27,7 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.AABB;
+import net.neoforged.neoforge.items.IItemHandler;
 
 public final class PlotSnapshots {
     public static CompoundTag capture(ServerLevel level, BoundingBox box) {
@@ -80,12 +84,9 @@ public final class PlotSnapshots {
             if (state == null) {
                 continue;
             }
-            CompoundTag data = entry.getCompound("nbt");
-            data.remove("LootTable");
-            data.remove("LootTableSeed");
-            BlockEntity blockEntity = BlockEntity.loadStatic(pos, state, data, level.registryAccess());
-            if (blockEntity instanceof Container container) {
-                container.clearContent();
+            BlockEntity blockEntity = SnapshotBlockEntities.loadEmpty(
+                    pos, state, entry.getCompound("nbt"), level.registryAccess());
+            if (blockEntity != null) {
                 entry.put("nbt", blockEntity.saveWithFullMetadata(level.registryAccess()));
             }
         }
@@ -99,9 +100,18 @@ public final class PlotSnapshots {
 
         for (BlockPos pos : BlockPos.betweenClosed(
                 box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ())) {
-            if (level.getBlockEntity(pos) instanceof Container container) {
+            BlockEntity entity = level.getBlockEntity(pos);
+            if (entity instanceof Container container) {
                 Containers.dropContents(level, pos, container);
                 container.clearContent();
+            } else if (entity != null) {
+                IItemHandler handler = BlockInventories.localHandler(level, entity);
+                if (handler != null) {
+                    for (int slot = 0; slot < handler.getSlots(); slot++) {
+                        ItemStack stack = handler.extractItem(slot, Integer.MAX_VALUE, false);
+                        Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), stack);
+                    }
+                }
             }
             BlockState current = level.getBlockState(pos);
             if (current.isAir()) {

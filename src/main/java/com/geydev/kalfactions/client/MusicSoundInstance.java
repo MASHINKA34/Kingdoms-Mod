@@ -3,10 +3,12 @@ package com.geydev.kalfactions.client;
 import com.geydev.kalfactions.KalFactions;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import javax.sound.sampled.AudioFormat;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
@@ -30,6 +32,7 @@ public final class MusicSoundInstance extends AbstractTickableSoundInstance {
     private final Path file;
     private final float speakerVolume;
     private final int speakerRadius;
+    private volatile boolean reachedEnd;
 
     public MusicSoundInstance(BlockPos speakerPos, String hash, Path file, float volume, int radius, boolean loop) {
         super(
@@ -83,9 +86,30 @@ public final class MusicSoundInstance extends AbstractTickableSoundInstance {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 InputStream input = Files.newInputStream(file);
-                return looping
-                        ? (AudioStream) new LoopingAudioStream(JOrbisAudioStream::new, input)
-                        : new JOrbisAudioStream(input);
+                if (looping) {
+                    return (AudioStream) new LoopingAudioStream(JOrbisAudioStream::new, input);
+                }
+                AudioStream stream = new JOrbisAudioStream(input);
+                return new AudioStream() {
+                    @Override
+                    public AudioFormat getFormat() {
+                        return stream.getFormat();
+                    }
+
+                    @Override
+                    public ByteBuffer read(int size) throws IOException {
+                        ByteBuffer data = stream.read(size);
+                        if (size > 0 && !data.hasRemaining()) {
+                            reachedEnd = true;
+                        }
+                        return data;
+                    }
+
+                    @Override
+                    public void close() throws IOException {
+                        stream.close();
+                    }
+                };
             } catch (IOException exception) {
                 throw new CompletionException(exception);
             }
@@ -113,6 +137,10 @@ public final class MusicSoundInstance extends AbstractTickableSoundInstance {
 
     public void requestStop() {
         stop();
+    }
+
+    public boolean reachedEnd() {
+        return reachedEnd;
     }
 
     private float computeVolume() {

@@ -28,6 +28,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -84,6 +85,10 @@ public final class BonusHandler {
         for (ItemEntity drop : event.getDrops()) {
             ItemStack bonusStack = drop.getItem().copy();
             if (bonusStack.isEmpty()) {
+                continue;
+            }
+            if (isOre && bonusStack.getItem() instanceof BlockItem blockItem
+                    && blockItem.getBlock().defaultBlockState().is(Tags.Blocks.ORES)) {
                 continue;
             }
             int count = rolledBonus ? bonusStack.getCount() * bonusUnits + faithOreUnits : faithOreUnits;
@@ -176,7 +181,8 @@ public final class BonusHandler {
                 .orElse(0);
         double chance = Math.min(1.0D, Math.min(0.5D, 0.1D * levels)
                 + FaithBonuses.scienceCraftChance(FaithBonuses.activeLevel(player, FaithGod.SCIENCE)));
-        if (chance <= 0.0D || player.serverLevel().getRandom().nextDouble() >= chance) {
+        if (chance <= 0.0D || player.serverLevel().getRandom().nextDouble() >= chance
+                || !CraftBonusPolicy.allows(player.serverLevel(), crafted)) {
             return;
         }
         ItemStack bonus = crafted.copy();

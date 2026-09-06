@@ -8,6 +8,7 @@ import com.geydev.kalfactions.menu.DrillMenu;
 import com.geydev.kalfactions.outpost.cluster.DrillService;
 import com.geydev.kalfactions.outpost.cluster.DrillTerritory;
 import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager;
+import com.geydev.kalfactions.protection.ProtectionHandler;
 import com.geydev.kalfactions.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -15,6 +16,7 @@ import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.Containers;
@@ -349,8 +351,13 @@ public final class DrillBlockEntity extends BlockEntity implements Container, Me
     @Override
     public boolean stillValid(Player player) {
         return level != null
+                && player.level() == level
                 && level.getBlockEntity(worldPosition) == this
-                && player.distanceToSqr(worldPosition.getX() + 0.5D, worldPosition.getY() + 0.5D, worldPosition.getZ() + 0.5D) <= 64.0D;
+                && player.distanceToSqr(worldPosition.getX() + 0.5D, worldPosition.getY() + 0.5D, worldPosition.getZ() + 0.5D) <= 64.0D
+                && (!(level instanceof ServerLevel serverLevel)
+                    || player instanceof ServerPlayer serverPlayer
+                    && ProtectionHandler.canAccessContainer(
+                            serverPlayer, serverLevel, worldPosition));
     }
 
     @Override

@@ -27,6 +27,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
@@ -46,6 +47,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockDropsEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.level.ExplosionEvent;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class ProtectionHandler {
@@ -220,24 +222,27 @@ public final class ProtectionHandler {
 
     @SubscribeEvent
     public static void onContainerOpen(PlayerContainerEvent.Open event) {
-        if (!(event.getEntity() instanceof ServerPlayer player)
-                || !(player.level() instanceof ServerLevel level)) {
-            return;
+        if (event.getEntity() instanceof ServerPlayer player) {
+            validateOpenContainer(player, event.getContainer());
         }
+    }
 
-        for (Slot slot : event.getContainer().slots) {
-            if (!(slot.container instanceof BlockEntity blockEntity)) {
+    @SubscribeEvent
+    public static void onPlayerTick(PlayerTickEvent.Post event) {
+        if (event.getEntity() instanceof ServerPlayer player && player.containerMenu != player.inventoryMenu) {
+            validateOpenContainer(player, player.containerMenu);
+        }
+    }
+
+    private static void validateOpenContainer(ServerPlayer player, AbstractContainerMenu menu) {
+        ServerLevel level = player.serverLevel();
+        BlockEntity previous = null;
+        for (Slot slot : menu.slots) {
+            if (!(slot.container instanceof BlockEntity blockEntity) || blockEntity == previous) {
                 continue;
             }
+            previous = blockEntity;
             BlockPos containerPos = blockEntity.getBlockPos();
-            if (SanctuaryManager.get(level).isSanctuary(level, containerPos)) {
-                if (isPlotProtectedContainer(player, level, containerPos)) {
-                    player.closeContainer();
-                    deny(player, "kingdoms.protection.no_container");
-                    return;
-                }
-                continue;
-            }
             if (!canAccessContainer(player, level, containerPos)) {
                 player.closeContainer();
                 deny(player, "kingdoms.protection.no_container");
@@ -446,7 +451,10 @@ public final class ProtectionHandler {
         }
     }
 
-    private static boolean canAccessContainer(ServerPlayer player, ServerLevel level, BlockPos pos) {
+    public static boolean canAccessContainer(ServerPlayer player, ServerLevel level, BlockPos pos) {
+        if (SanctuaryManager.get(level).isSanctuary(level, pos)) {
+            return !isPlotProtectedContainer(player, level, pos);
+        }
         return player.hasPermissions(2)
                 || FactionManager.get(level).canAccessContainer(player.getUUID(), level, pos);
     }

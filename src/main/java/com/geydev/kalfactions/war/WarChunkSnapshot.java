@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.war;
 
+import com.geydev.kalfactions.data.SnapshotBlockEntities;
 import com.mojang.serialization.Codec;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -15,7 +16,6 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.Container;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -119,7 +119,7 @@ public final class WarChunkSnapshot {
         LevelChunk chunk = level.getChunk(chunkPos.x, chunkPos.z);
         int baseX = chunkPos.getMinBlockX();
         int baseZ = chunkPos.getMinBlockZ();
-        Set<BlockPos> changed = new HashSet<>();
+        Set<BlockPos> replaced = new HashSet<>();
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int index = 0; index < sections.size(); index++) {
             PalettedContainer<BlockState> container = sections.get(index);
@@ -133,8 +133,11 @@ public final class WarChunkSnapshot {
                             continue;
                         }
                         BlockPos pos = cursor.immutable();
-                        level.setBlock(pos, snapshotState, RESTORE_FLAGS);
-                        changed.add(pos);
+                        BlockEntity previous = chunk.getBlockEntity(pos);
+                        if (level.setBlock(pos, snapshotState, RESTORE_FLAGS)
+                                && (previous == null || chunk.getBlockEntity(pos) != previous)) {
+                            replaced.add(pos);
+                        }
                     }
                 }
             }
@@ -142,15 +145,13 @@ public final class WarChunkSnapshot {
 
         for (Map.Entry<BlockPos, CompoundTag> entry : blockEntities.entrySet()) {
             BlockPos pos = entry.getKey();
-            if (!changed.contains(pos)) {
+            if (!replaced.contains(pos)) {
                 continue; // surviving block entity: keep its current contents untouched
             }
-            BlockEntity blockEntity = BlockEntity.loadStatic(pos, level.getBlockState(pos), entry.getValue(), registries);
+            BlockEntity blockEntity = SnapshotBlockEntities.loadEmpty(
+                    pos, level.getBlockState(pos), entry.getValue(), registries);
             if (blockEntity == null) {
                 continue;
-            }
-            if (blockEntity instanceof Container container) {
-                container.clearContent(); // destroyed container is restored empty, never refilled from the snapshot
             }
             level.setBlockEntity(blockEntity);
             blockEntity.setChanged();

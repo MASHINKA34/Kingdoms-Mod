@@ -211,7 +211,9 @@ public final class ClientMusicPlayer {
 
     private static void startOrDownload(Speaker speaker) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null || minecraft.player == null) {
+        if (minecraft.level == null || minecraft.player == null || speaker.playback.completed()
+                || MusicClientSettings.muted()
+                || minecraft.options.getSoundSourceVolume(SoundSource.RECORDS) <= 0.0F) {
             return;
         }
         if (MusicClientSettings.isMuted(minecraft.level.dimension(), speaker.pos)) {
@@ -282,6 +284,7 @@ public final class ClientMusicPlayer {
         private final float volume;
         private final int radius;
         private final boolean loop;
+        private final MusicPlaybackState playback;
         private MusicSoundInstance instance;
 
         private Speaker(BlockPos pos, String hash, float volume, int radius, boolean loop) {
@@ -290,6 +293,7 @@ public final class ClientMusicPlayer {
             this.volume = volume;
             this.radius = radius;
             this.loop = loop;
+            this.playback = new MusicPlaybackState(loop);
         }
 
         private void start(Minecraft minecraft, Path file) {
@@ -310,9 +314,9 @@ public final class ClientMusicPlayer {
 
         private boolean needsRestart(Minecraft minecraft) {
             if (instance == null) {
-                return !DOWNLOADS.containsKey(hash);
+                return !playback.completed() && !DOWNLOADS.containsKey(hash);
             }
-            if (minecraft.getSoundManager().isActive(instance)) {
+            if (!playback.shouldRestart(minecraft.getSoundManager().isActive(instance), instance.reachedEnd())) {
                 return false;
             }
             instance = null;
@@ -320,10 +324,16 @@ public final class ClientMusicPlayer {
         }
 
         private boolean isHandled(Minecraft minecraft) {
+            if (playback.completed() || MusicClientSettings.muted()
+                    || minecraft.options.getSoundSourceVolume(SoundSource.RECORDS) <= 0.0F
+                    || minecraft.level != null && MusicClientSettings.isMuted(minecraft.level.dimension(), pos)) {
+                return true;
+            }
             if (DOWNLOADS.containsKey(hash)) {
                 return true;
             }
-            return instance != null && minecraft.getSoundManager().isActive(instance);
+            return instance != null && !playback.shouldRestart(
+                    minecraft.getSoundManager().isActive(instance), instance.reachedEnd());
         }
     }
 

@@ -19,8 +19,6 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
 
 public final class EmblemTextures {
-    private static final int MAX_URL_BYTES = 2 * 1024 * 1024;
-    private static final int MAX_URL_IMAGE_SIZE = 1024;
     private static final long FAILED_RETRY_MILLIS = 60_000L;
     private static final Map<UUID, PixelEntry> PIXEL_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, UrlEntry> URL_CACHE = new ConcurrentHashMap<>();
@@ -91,13 +89,11 @@ public final class EmblemTextures {
                 connection.setInstanceFollowRedirects(true);
                 connection.setRequestProperty("User-Agent", "KingdomsMod");
                 try (InputStream in = connection.getInputStream()) {
-                    data = in.readNBytes(MAX_URL_BYTES + 1);
+                    data = in.readNBytes(EmblemImageLimits.MAX_BYTES + 1);
                 }
-                if (data.length > MAX_URL_BYTES) {
-                    throw new IOException("Emblem larger than " + MAX_URL_BYTES + " bytes");
-                }
+                EmblemImageLimits.validate(data);
                 NativeImage image = NativeImage.read(new ByteArrayInputStream(data));
-                if (image.getWidth() > MAX_URL_IMAGE_SIZE || image.getHeight() > MAX_URL_IMAGE_SIZE) {
+                if (image.getWidth() > EmblemImageLimits.MAX_DIMENSION || image.getHeight() > EmblemImageLimits.MAX_DIMENSION) {
                     image.close();
                     throw new IOException("Emblem image dimensions too large");
                 }

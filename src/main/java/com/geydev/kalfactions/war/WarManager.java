@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.war;
 
+import com.geydev.kalfactions.integration.BlockInventories;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.command.NumismaticsEconomy;
 import com.geydev.kalfactions.config.ModConfigSpec;
@@ -43,7 +44,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.items.IItemHandler;
 import org.slf4j.Logger;
 
@@ -671,11 +671,7 @@ public final class WarManager extends SavedData {
                 if (blockEntity instanceof Container container) {
                     collectContainerResources(container, buckets);
                 } else {
-                    IItemHandler handler = level.getCapability(
-                            Capabilities.ItemHandler.BLOCK,
-                            blockEntity.getBlockPos(),
-                            null
-                    );
+                    IItemHandler handler = BlockInventories.localHandler(level, blockEntity);
                     if (handler != null) {
                         collectHandlerResources(handler, buckets);
                     }
