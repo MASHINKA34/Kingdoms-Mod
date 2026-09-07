@@ -6,6 +6,7 @@ import com.geydev.kalfactions.chest.ChestAccessMode;
 import com.geydev.kalfactions.chest.ChestLinks;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.data.SavedDataFormat;
 import com.geydev.kalfactions.economy.PriceMath;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import com.geydev.kalfactions.territory.WorldZonePolicy;
@@ -54,8 +55,7 @@ public final class FactionManager extends SavedData {
     public static final Factory<FactionManager> FACTORY = new Factory<>(FactionManager::new, FactionManager::load);
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final int DATA_VERSION = 2;
-    private static final String TAG_VERSION = "version";
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(2, "version");
     private static final String TAG_FACTIONS = "factions";
     private static final String TAG_CHESTS = "chests";
     private static final String TAG_LAST_INFLUENCE_DECAY = "lastInfluenceDecay";
@@ -1356,7 +1356,7 @@ public final class FactionManager extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-        tag.putInt(TAG_VERSION, DATA_VERSION);
+        FORMAT.stamp(tag);
         tag.putLong(TAG_LAST_INFLUENCE_DECAY, lastInfluenceDecayMillis);
         tag.putBoolean(TAG_CHUNK_TICKETS_MIGRATED, chunkTicketsMigrated);
 
@@ -1382,7 +1382,7 @@ public final class FactionManager extends SavedData {
             ? tag.getLong(TAG_LAST_INFLUENCE_DECAY)
             : -1L;
         manager.chunkTicketsMigrated = tag.getBoolean(TAG_CHUNK_TICKETS_MIGRATED);
-        boolean repaired = tag.getInt(TAG_VERSION) != DATA_VERSION;
+        boolean repaired = FORMAT.outdated(tag);
 
         ListTag factionsTag = tag.getList(TAG_FACTIONS, Tag.TAG_COMPOUND);
         for (int index = 0; index < factionsTag.size(); index++) {

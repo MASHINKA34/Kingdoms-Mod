@@ -7,12 +7,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.geydev.kalfactions.blackzone.BlackZoneData;
 import com.geydev.kalfactions.dungeon.ChestTemplateManager;
 import com.geydev.kalfactions.dungeon.DungeonManager;
+import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.faction.ScienceLedger;
 import com.geydev.kalfactions.faith.FaithManager;
 import com.geydev.kalfactions.market.MarketPlotManager;
 import com.geydev.kalfactions.music.MusicManager;
 import com.geydev.kalfactions.news.NewsManager;
 import com.geydev.kalfactions.outpost.RogueOutpostManager;
+import com.geydev.kalfactions.outpost.cluster.ResourceClusterManager;
+import com.geydev.kalfactions.outpost.trader.SellerOfferRotation;
+import com.geydev.kalfactions.outpost.trader.TraderWorldData;
 import com.geydev.kalfactions.quarry.QuarryManager;
+import com.geydev.kalfactions.raid.RaidManager;
+import com.geydev.kalfactions.safezone.SafeZoneManager;
 import com.geydev.kalfactions.sanctuary.SanctuaryExecutionManager;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import com.geydev.kalfactions.scout.ScoutManager;
@@ -41,8 +48,17 @@ import org.junit.jupiter.api.TestFactory;
 final class SavedDataVersioningTest {
     private static HolderLookup.Provider registries;
 
+    private static final String LEGACY_KEY = "version";
+
     private static final Map<String, SavedData.Factory<? extends SavedData>> VERSIONED = Map.ofEntries(
             Map.entry("BlackZoneData", BlackZoneData.FACTORY),
+            Map.entry("FactionManager", FactionManager.FACTORY),
+            Map.entry("RaidManager", RaidManager.FACTORY),
+            Map.entry("ResourceClusterManager", ResourceClusterManager.FACTORY),
+            Map.entry("SafeZoneManager", SafeZoneManager.FACTORY),
+            Map.entry("ScienceLedger", ScienceLedger.FACTORY),
+            Map.entry("SellerOfferRotation", SellerOfferRotation.FACTORY),
+            Map.entry("TraderWorldData", TraderWorldData.FACTORY),
             Map.entry("ChestTemplateManager", ChestTemplateManager.FACTORY),
             Map.entry("DungeonManager", DungeonManager.FACTORY),
             Map.entry("FaithManager", FaithManager.FACTORY),
@@ -71,8 +87,25 @@ final class SavedDataVersioningTest {
     @TestFactory
     List<DynamicTest> everyVersionedClassReadsLegacyAndCurrentTagsAlike() {
         return VERSIONED.entrySet().stream()
-                .map(entry -> DynamicTest.dynamicTest(entry.getKey(), () -> assertVersioned(entry.getValue())))
+                .map(entry -> DynamicTest.dynamicTest(
+                        entry.getKey(),
+                        () -> assertVersioned(entry.getValue(), versionKeyOf(entry.getKey()))))
                 .toList();
+    }
+
+    @Test
+    void everySavedDataClassIsCoveredHere() {
+        assertEquals(
+                SavedDataInventory.CLASS_NAMES,
+                VERSIONED.keySet().stream().sorted().toList(),
+                "every SavedData subclass must be checked for version stamping"
+        );
+    }
+
+    private static String versionKeyOf(String className) {
+        return "FactionManager".equals(className) || "RaidManager".equals(className)
+                ? LEGACY_KEY
+                : SavedDataFormat.TAG_VERSION;
     }
 
     @Test
@@ -138,24 +171,32 @@ final class SavedDataVersioningTest {
         assertReadsAlike(OfflineNoticeQueue.FACTORY, legacy);
     }
 
-    private static <T extends SavedData> void assertVersioned(SavedData.Factory<T> factory) {
+    private static <T extends SavedData> void assertVersioned(SavedData.Factory<T> factory, String versionKey) {
         CompoundTag legacy = factory.constructor().get().save(new CompoundTag(), registries);
         assertTrue(
-                legacy.contains(SavedDataFormat.TAG_VERSION, Tag.TAG_INT),
-                "saving must stamp " + SavedDataFormat.TAG_VERSION
+                legacy.contains(versionKey, Tag.TAG_INT),
+                "saving must stamp " + versionKey
         );
-        legacy.remove(SavedDataFormat.TAG_VERSION);
+        legacy.remove(versionKey);
 
-        assertReadsAlike(factory, legacy);
+        assertReadsAlike(factory, legacy, versionKey);
     }
 
     private static <T extends SavedData> void assertReadsAlike(SavedData.Factory<T> factory, CompoundTag legacy) {
+        assertReadsAlike(factory, legacy, SavedDataFormat.TAG_VERSION);
+    }
+
+    private static <T extends SavedData> void assertReadsAlike(
+            SavedData.Factory<T> factory,
+            CompoundTag legacy,
+            String versionKey
+    ) {
         T fromLegacy = factory.deserializer().apply(legacy.copy(), registries);
         CompoundTag rewritten = fromLegacy.save(new CompoundTag(), registries);
 
         assertTrue(
-                rewritten.contains(SavedDataFormat.TAG_VERSION, Tag.TAG_INT),
-                "saving must stamp " + SavedDataFormat.TAG_VERSION
+                rewritten.contains(versionKey, Tag.TAG_INT),
+                "saving must stamp " + versionKey
         );
         assertTrue(fromLegacy.isDirty(), "a legacy read must be queued for a rewrite");
 
@@ -165,7 +206,7 @@ final class SavedDataVersioningTest {
         assertFalse(fromCurrent.isDirty(), "a current read must not be queued for a rewrite");
 
         CompoundTag stamped = legacy.copy();
-        stamped.putInt(SavedDataFormat.TAG_VERSION, SavedDataFormat.LEGACY_VERSION);
+        stamped.putInt(versionKey, SavedDataFormat.LEGACY_VERSION);
         T fromZero = factory.deserializer().apply(stamped, registries);
 
         assertEquals(rewritten, fromZero.save(new CompoundTag(), registries));

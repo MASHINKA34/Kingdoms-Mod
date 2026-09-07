@@ -61,7 +61,7 @@ class TraderWorldDataTest {
         CompoundTag saved = data.save(new CompoundTag(), null);
         TraderWorldData loaded = TraderWorldData.load(saved, null);
 
-        assertEquals(TraderWorldData.FORMAT_VERSION, saved.getInt("formatVersion"));
+        assertEquals(2, saved.getInt(com.geydev.kalfactions.data.SavedDataFormat.TAG_VERSION));
         assertEquals(List.of(point), loaded.points());
         assertEquals(active, loaded.contraband().orElseThrow());
         assertEquals(wandering, loaded.wandering(factionId).orElseThrow());

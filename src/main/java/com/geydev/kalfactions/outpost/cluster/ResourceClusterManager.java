@@ -3,6 +3,7 @@ package com.geydev.kalfactions.outpost.cluster;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.data.SavedDataFormat;
 import com.geydev.kalfactions.outpost.cluster.distribution.ResourceZone;
 import com.geydev.kalfactions.outpost.cluster.distribution.SurfaceClusterDistribution;
 import com.geydev.kalfactions.worldgen.ZonedOreFeature;
@@ -47,8 +48,7 @@ public final class ResourceClusterManager extends SavedData {
     private static final int MAX_PLACEMENTS_PER_TICK = 16;
     private static final String TAG_CLUSTERS = "clusters";
     private static final String TAG_REMOVED = "removed";
-    private static final int DATA_VERSION = 5;
-    private static final String TAG_VERSION = "formatVersion";
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(5);
     private static final String TAG_DRILL_BINDINGS = "drillBindings";
     private static final String TAG_PENDING_CHUNKS = "pendingChunks";
     private static final String TAG_GENERATION = "generation";
@@ -852,7 +852,7 @@ public final class ResourceClusterManager extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-        tag.putInt(TAG_VERSION, DATA_VERSION);
+        FORMAT.stamp(tag);
         tag.putInt(TAG_GENERATION, generation);
         ListTag list = new ListTag();
         for (ResourceCluster cluster : clusters.values()) {
@@ -941,7 +941,7 @@ public final class ResourceClusterManager extends SavedData {
                 );
             }
         }
-        if (tag.getInt(TAG_VERSION) < DATA_VERSION) {
+        if (FORMAT.versionOf(tag) < FORMAT.currentVersion()) {
             manager.setDirty();
         }
         return manager;

@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.outpost.trader;
 
+import com.geydev.kalfactions.data.SavedDataFormat;
 import com.geydev.kalfactions.claim.ClaimKey;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -22,12 +23,12 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
 
 public final class TraderWorldData extends SavedData {
-    public static final int FORMAT_VERSION = 2;
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(2);
     public static final int MAX_POINTS = 128;
     public static final int MAX_WANDERING_EVENTS = 2048;
     public static final int MAX_ROLLED_OFFERS = 16;
     private static final String DATA_NAME = "kingdoms_trader_world";
-    private static final SavedData.Factory<TraderWorldData> FACTORY =
+    public static final SavedData.Factory<TraderWorldData> FACTORY =
             new SavedData.Factory<>(TraderWorldData::new, TraderWorldData::load);
 
     private final Map<UUID, SpawnPoint> points = new LinkedHashMap<>();
@@ -179,7 +180,7 @@ public final class TraderWorldData extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-        tag.putInt("formatVersion", FORMAT_VERSION);
+        FORMAT.stamp(tag);
         tag.putLong("contrabandCooldownUntil", contrabandCooldownUntil);
         tag.putLong("wanderingNextRollAt", wanderingNextRollAt);
         tag.putInt("wanderingRollCursor", wanderingRollCursor);
@@ -204,7 +205,7 @@ public final class TraderWorldData extends SavedData {
 
     static TraderWorldData load(CompoundTag tag, HolderLookup.Provider registries) {
         TraderWorldData data = new TraderWorldData();
-        boolean repaired = tag.getInt("formatVersion") != FORMAT_VERSION;
+        boolean repaired = FORMAT.outdated(tag);
         data.contrabandCooldownUntil = Math.max(0L, tag.getLong("contrabandCooldownUntil"));
         data.wanderingNextRollAt = Math.max(0L, tag.getLong("wanderingNextRollAt"));
         data.wanderingRollCursor = Math.max(0, tag.getInt("wanderingRollCursor"));

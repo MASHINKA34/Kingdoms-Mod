@@ -3,6 +3,7 @@ package com.geydev.kalfactions.raid;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.command.NumismaticsEconomy;
 import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.data.SavedDataFormat;
 import com.geydev.kalfactions.economy.PriceMath;
 import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
@@ -57,12 +58,11 @@ public final class RaidManager extends SavedData {
     public static final Factory<RaidManager> FACTORY = new Factory<>(RaidManager::new, RaidManager::load);
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final String TAG_VERSION = "version";
     private static final String TAG_RAIDS = "raids";
     private static final String TAG_NEXT_ROLLS = "nextRolls";
     private static final String TAG_FACTION = "faction";
     private static final String TAG_TIME = "time";
-    private static final int DATA_VERSION = 1;
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(1, "version");
     private static final long TICK_INTERVAL_MILLIS = 1_000L;
     private static final double RAIDER_SPEED = 1.1D;
     private static final int GARRISON_LEASH_RADIUS = 12;
@@ -1170,7 +1170,7 @@ public final class RaidManager extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-        tag.putInt(TAG_VERSION, DATA_VERSION);
+        FORMAT.stamp(tag);
         ListTag raidsTag = new ListTag();
         for (Raid raid : raids.values()) {
             raidsTag.add(raid.save());
@@ -1191,7 +1191,7 @@ public final class RaidManager extends SavedData {
 
     private static RaidManager load(CompoundTag tag, HolderLookup.Provider registries) {
         RaidManager manager = new RaidManager();
-        boolean repaired = tag.getInt(TAG_VERSION) != DATA_VERSION;
+        boolean repaired = FORMAT.outdated(tag);
         ListTag raidsTag = tag.getList(TAG_RAIDS, Tag.TAG_COMPOUND);
         for (int index = 0; index < raidsTag.size(); index++) {
             Optional<Raid> loaded = Raid.load(raidsTag.getCompound(index));

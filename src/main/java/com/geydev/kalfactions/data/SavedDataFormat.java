@@ -11,13 +11,26 @@ public final class SavedDataFormat {
     public static final int LEGACY_VERSION = 0;
 
     private final int currentVersion;
+    private final String versionKey;
     private final List<Migration> migrations = new ArrayList<>();
 
     public SavedDataFormat(int currentVersion) {
+        this(currentVersion, TAG_VERSION);
+    }
+
+    public SavedDataFormat(int currentVersion, String versionKey) {
         if (currentVersion < 1) {
             throw new IllegalArgumentException("Saved data version must start at 1");
         }
+        if (versionKey == null || versionKey.isBlank()) {
+            throw new IllegalArgumentException("Saved data version key must not be blank");
+        }
         this.currentVersion = currentVersion;
+        this.versionKey = versionKey;
+    }
+
+    public String versionKey() {
+        return versionKey;
     }
 
     public SavedDataFormat migration(int fromVersion, UnaryOperator<CompoundTag> step) {
@@ -33,7 +46,7 @@ public final class SavedDataFormat {
     }
 
     public int versionOf(CompoundTag tag) {
-        return tag.contains(TAG_VERSION, Tag.TAG_INT) ? tag.getInt(TAG_VERSION) : LEGACY_VERSION;
+        return tag.contains(versionKey, Tag.TAG_INT) ? tag.getInt(versionKey) : LEGACY_VERSION;
     }
 
     public boolean outdated(CompoundTag tag) {
@@ -41,7 +54,7 @@ public final class SavedDataFormat {
     }
 
     public CompoundTag stamp(CompoundTag tag) {
-        tag.putInt(TAG_VERSION, currentVersion);
+        tag.putInt(versionKey, currentVersion);
         return tag;
     }
 

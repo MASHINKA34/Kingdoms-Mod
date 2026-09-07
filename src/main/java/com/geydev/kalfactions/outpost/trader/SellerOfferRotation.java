@@ -1,5 +1,6 @@
 package com.geydev.kalfactions.outpost.trader;
 
+import com.geydev.kalfactions.data.SavedDataFormat;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -30,8 +31,7 @@ public final class SellerOfferRotation extends SavedData {
             new Factory<>(SellerOfferRotation::new, SellerOfferRotation::load);
 
     private static final ZoneId REFRESH_ZONE = ZoneId.of("Europe/Moscow");
-    private static final int DATA_VERSION = 2;
-    private static final String TAG_VERSION = "formatVersion";
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(2);
     private static final String TAG_SHOPS = "shops";
     private static final String TAG_TRADER = "trader";
     private static final String TAG_INDEX = "index";
@@ -207,7 +207,7 @@ public final class SellerOfferRotation extends SavedData {
 
     @Override
     public synchronized CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-        tag.putInt(TAG_VERSION, DATA_VERSION);
+        FORMAT.stamp(tag);
         ListTag shopsTag = new ListTag();
         for (Map.Entry<UUID, TraderShop> entry : shops.entrySet()) {
             CompoundTag shopTag = entry.getValue().save();
@@ -220,6 +220,9 @@ public final class SellerOfferRotation extends SavedData {
 
     private static SellerOfferRotation load(CompoundTag tag, HolderLookup.Provider registries) {
         SellerOfferRotation rotation = new SellerOfferRotation();
+        if (FORMAT.outdated(tag)) {
+            rotation.setDirty();
+        }
         ListTag shopsTag = tag.getList(TAG_SHOPS, Tag.TAG_COMPOUND);
         for (int index = 0; index < shopsTag.size(); index++) {
             CompoundTag shopTag = shopsTag.getCompound(index);
