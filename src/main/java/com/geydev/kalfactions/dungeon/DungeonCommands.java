@@ -119,20 +119,22 @@ public final class DungeonCommands {
         ChestTemplateManager manager = ChestTemplateManager.get(level);
         List<ChestTemplate> templates = manager.all();
         if (templates.isEmpty()) {
-            source.sendSuccess(() -> Component.literal("Шаблонов сундуков нет."), false);
+            source.sendSuccess(() -> Component.translatable("commands.kingdoms.dungeon.template.none"), false);
             return 0;
         }
         for (ChestTemplate template : templates) {
-            source.sendSuccess(() -> Component.literal(
-                    "«" + template.name() + "» — предметов: " + template.filledSlots()
-                            + ", автор: " + template.author()
-                            + ", интервал: " + (template.cooldownHours() < 0
-                                    ? "общий"
-                                    : template.cooldownHours() + " ч.")), false);
+            Component interval = template.cooldownHours() < 0
+                    ? Component.translatable("commands.kingdoms.dungeon.template.shared_cooldown")
+                    : Component.translatable(
+                            "commands.kingdoms.dungeon.template.hours", template.cooldownHours());
+            source.sendSuccess(() -> Component.translatable(
+                    "commands.kingdoms.dungeon.template.line",
+                    template.name(), template.filledSlots(), template.author(), interval), false);
         }
-        source.sendSuccess(() -> Component.literal(
-                "Всего: " + templates.size() + ", занято байт: "
-                        + manager.totalBytes(source.getServer().registryAccess())), false);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.dungeon.template.total",
+                templates.size(),
+                manager.totalBytes(source.getServer().registryAccess())), false);
         return templates.size();
     }
 
@@ -141,7 +143,7 @@ public final class DungeonCommands {
         ServerPlayer player = source.getPlayerOrException();
         DungeonChestBlockEntity chest = chestNear(player);
         if (chest == null) {
-            source.sendFailure(Component.literal("Встаньте перед сундуком данжа или посмотрите на него."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.look_at_chest"));
             return 0;
         }
         String name = StringArgumentType.getString(context, "name");
@@ -161,9 +163,9 @@ public final class DungeonCommands {
             return 0;
         }
         ChestTemplateService.syncOpenScreens(source.getServer());
-        source.sendSuccess(() -> Component.literal(
-                "Шаблон «" + result.template().name() + "» сохранён: предметов "
-                        + result.template().filledSlots() + "."), true);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.dungeon.template.saved",
+                result.template().name(), result.template().filledSlots()), true);
         return 1;
     }
 
@@ -172,17 +174,17 @@ public final class DungeonCommands {
         ServerPlayer player = source.getPlayerOrException();
         DungeonChestBlockEntity chest = chestNear(player);
         if (chest == null) {
-            source.sendFailure(Component.literal("Встаньте перед сундуком данжа или посмотрите на него."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.look_at_chest"));
             return 0;
         }
         ChestTemplate template = findTemplate(context, player.serverLevel());
         if (template == null) {
-            source.sendFailure(Component.literal("Шаблон не найден."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.template.not_found"));
             return 0;
         }
         template.applyTo(chest, true);
-        source.sendSuccess(() -> Component.literal(
-                "Шаблон «" + template.name() + "» применён к сундуку."), true);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.dungeon.template.applied", template.name()), true);
         return 1;
     }
 
@@ -194,7 +196,7 @@ public final class DungeonCommands {
                 .byName(StringArgumentType.getString(context, "name"))
                 .orElse(null);
         if (template == null) {
-            source.sendFailure(Component.literal("Шаблон не найден."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.template.not_found"));
             return 0;
         }
         String newName = StringArgumentType.getString(context, "newName");
@@ -205,8 +207,8 @@ public final class DungeonCommands {
         }
         ChestTemplateService.syncOpenScreens(source.getServer());
         String applied = manager.byId(template.id()).map(ChestTemplate::name).orElse(newName);
-        source.sendSuccess(() -> Component.literal(
-                "Шаблон «" + template.name() + "» переименован в «" + applied + "»."), true);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.dungeon.template.renamed", template.name(), applied), true);
         return 1;
     }
 
@@ -216,11 +218,11 @@ public final class DungeonCommands {
         ChestTemplateManager manager = ChestTemplateManager.get(level);
         ChestTemplate template = findTemplate(context, level);
         if (template == null || !manager.delete(template.id())) {
-            source.sendFailure(Component.literal("Шаблон не найден."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.template.not_found"));
             return 0;
         }
         ChestTemplateService.syncOpenScreens(source.getServer());
-        source.sendSuccess(() -> Component.literal("Шаблон «" + template.name() + "» удалён."), true);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.dungeon.template.deleted", template.name()), true);
         return 1;
     }
 
@@ -229,7 +231,7 @@ public final class DungeonCommands {
         ServerLevel level = source.getPlayerOrException().serverLevel();
         ChestTemplate template = findTemplate(context, level);
         if (template == null) {
-            source.sendFailure(Component.literal("Шаблон не найден."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.template.not_found"));
             return 0;
         }
         try {
@@ -238,12 +240,12 @@ public final class DungeonCommands {
                     template,
                     source.getServer().registryAccess()
             );
-            source.sendSuccess(() -> Component.literal(
-                    "Шаблон «" + template.name() + "» выгружен в "
-                            + written.getFileName() + " (kingdoms/chest_templates)."), true);
+            source.sendSuccess(() -> Component.translatable(
+                    "commands.kingdoms.dungeon.template.exported",
+                    template.name(), written.getFileName().toString()), true);
             return 1;
         } catch (java.io.IOException exception) {
-            source.sendFailure(Component.literal("Не удалось записать файл шаблона."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.template.write_failed"));
             return 0;
         }
     }
@@ -256,7 +258,7 @@ public final class DungeonCommands {
                 .resolve(source.getServer(), requested)
                 .orElse(null);
         if (file == null) {
-            source.sendFailure(Component.literal("Недопустимое имя файла."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.template.bad_file_name"));
             return 0;
         }
         ChestTemplate imported;
@@ -265,11 +267,11 @@ public final class DungeonCommands {
                     .read(file, source.getServer().registryAccess())
                     .orElse(null);
         } catch (java.io.IOException exception) {
-            source.sendFailure(Component.literal("Не удалось прочитать файл шаблона."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.template.read_failed"));
             return 0;
         }
         if (imported == null) {
-            source.sendFailure(Component.literal("Файл шаблона не найден или повреждён."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.template.file_missing"));
             return 0;
         }
         ChestTemplateManager.SaveResult result =
@@ -279,9 +281,9 @@ public final class DungeonCommands {
             return 0;
         }
         ChestTemplateService.syncOpenScreens(source.getServer());
-        source.sendSuccess(() -> Component.literal(
-                "Шаблон «" + result.template().name() + "» загружен из файла: предметов "
-                        + result.template().filledSlots() + "."), true);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.dungeon.template.imported",
+                result.template().name(), result.template().filledSlots()), true);
         return 1;
     }
 
@@ -332,9 +334,8 @@ public final class DungeonCommands {
                 true
         );
         ClaimSyncManager.resyncAll(level.getServer());
-        source.sendSuccess(() -> Component.literal(
-                "Данж «" + dungeon.name() + "» создан (#" + dungeon.id() + "), текущий чанк отмечен. "
-                        + "Остальные чанки — через краеугольный камень данжа."), true);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.dungeon.created", dungeon.name(), dungeon.id()), true);
         return 1;
     }
 
@@ -344,12 +345,12 @@ public final class DungeonCommands {
         DungeonManager manager = DungeonManager.get(level);
         DungeonManager.DungeonView dungeon = find(context, manager);
         if (dungeon == null) {
-            source.sendFailure(Component.literal("Данж не найден."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.not_found"));
             return 0;
         }
         manager.remove(dungeon.id());
         ClaimSyncManager.resyncAll(level.getServer());
-        source.sendSuccess(() -> Component.literal("Данж «" + dungeon.name() + "» удалён."), true);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.dungeon.removed", dungeon.name()), true);
         return 1;
     }
 
@@ -361,7 +362,7 @@ public final class DungeonCommands {
                 .byName(StringArgumentType.getString(context, "name"))
                 .orElse(null);
         if (dungeon == null) {
-            source.sendFailure(Component.literal("Данж не найден."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.not_found"));
             return 0;
         }
         String newName = StringArgumentType.getString(context, "newName");
@@ -372,8 +373,8 @@ public final class DungeonCommands {
         }
         ClaimSyncManager.resyncAll(level.getServer());
         String applied = manager.byId(dungeon.id()).map(DungeonManager.DungeonView::name).orElse(newName);
-        source.sendSuccess(() -> Component.literal(
-                "Данж «" + dungeon.name() + "» переименован в «" + applied + "»."), true);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.dungeon.renamed", dungeon.name(), applied), true);
         return 1;
     }
 
@@ -382,16 +383,16 @@ public final class DungeonCommands {
         ServerLevel level = source.getPlayerOrException().serverLevel();
         List<DungeonManager.DungeonView> dungeons = DungeonManager.get(level).all();
         if (dungeons.isEmpty()) {
-            source.sendSuccess(() -> Component.literal("Данжей нет."), false);
+            source.sendSuccess(() -> Component.translatable("commands.kingdoms.dungeon.list_empty"), false);
             return 0;
         }
         for (DungeonManager.DungeonView dungeon : dungeons) {
             BlockPos core = dungeon.corePos();
-            source.sendSuccess(() -> Component.literal(
-                    "#" + dungeon.id() + " «" + dungeon.name() + "» — чанков: " + dungeon.chunks().size()
-                            + ", контейнеров: " + dungeon.containerCount()
-                            + ", кор [" + core.getX() + " " + core.getY() + " " + core.getZ() + "] "
-                            + dungeon.dimension().location()), false);
+            source.sendSuccess(() -> Component.translatable(
+                    "commands.kingdoms.dungeon.list_line",
+                    dungeon.id(), dungeon.name(), dungeon.chunks().size(), dungeon.containerCount(),
+                    core.getX(), core.getY(), core.getZ(),
+                    dungeon.dimension().location().toString()), false);
         }
         return dungeons.size();
     }
@@ -402,12 +403,12 @@ public final class DungeonCommands {
         DungeonManager manager = DungeonManager.get(player.serverLevel());
         DungeonManager.DungeonView dungeon = find(context, manager);
         if (dungeon == null) {
-            source.sendFailure(Component.literal("Данж не найден."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.not_found"));
             return 0;
         }
         ServerLevel target = player.getServer().getLevel(dungeon.dimension());
         if (target == null) {
-            source.sendFailure(Component.literal("Измерение данжа недоступно."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.dimension_missing"));
             return 0;
         }
         BlockPos core = dungeon.corePos();
@@ -419,7 +420,7 @@ public final class DungeonCommands {
                 player.getYRot(),
                 player.getXRot()
         );
-        source.sendSuccess(() -> Component.literal("Телепорт к данжу «" + dungeon.name() + "»."), false);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.dungeon.teleported", dungeon.name()), false);
         return 1;
     }
 
@@ -428,19 +429,19 @@ public final class DungeonCommands {
         ServerPlayer player = source.getPlayerOrException();
         ServerLevel level = player.serverLevel();
         DungeonManager manager = DungeonManager.get(level);
-        source.sendSuccess(() -> Component.literal(
-                "Данжей: " + manager.count()
-                        + ", кулдаун лута: " + ModConfigSpec.DUNGEON_LOOT_COOLDOWN_HOURS.getAsInt() + " ч."), false);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.dungeon.status",
+                manager.count(), ModConfigSpec.DUNGEON_LOOT_COOLDOWN_HOURS.getAsInt()), false);
         DungeonManager.DungeonView here = manager
                 .dungeonAt(ClaimKey.of(level, player.blockPosition()))
                 .orElse(null);
         if (here == null) {
-            source.sendSuccess(() -> Component.literal("Текущий чанк не принадлежит данжу."), false);
+            source.sendSuccess(() -> Component.translatable("commands.kingdoms.dungeon.status_outside"), false);
             return 1;
         }
-        source.sendSuccess(() -> Component.literal(
-                "Здесь: «" + here.name() + "» (#" + here.id() + "), чанков: " + here.chunks().size()
-                        + ", контейнеров: " + here.containerCount()), false);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.dungeon.status_here",
+                here.name(), here.id(), here.chunks().size(), here.containerCount()), false);
         return 1;
     }
 
@@ -451,31 +452,30 @@ public final class DungeonCommands {
         ServerLevel level = player.serverLevel();
         BlockPos pos = lookingAt(player);
         if (pos == null) {
-            source.sendFailure(Component.literal("Смотрите на контейнер."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.look_at_container"));
             return 0;
         }
         DungeonManager manager = DungeonManager.get(level);
         if (!manager.isDungeon(level, pos)) {
-            source.sendFailure(Component.literal("Этот блок не в чанках данжа."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.outside_chunks"));
             return 0;
         }
         RandomizableContainer container = DungeonLoot.containerAt(level, pos);
         if (container == null) {
-            source.sendFailure(Component.literal("Этот контейнер не поддерживает лут-таблицы."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.no_loot_support"));
             return 0;
         }
         ResourceLocation table = requestedTable != null
                 ? requestedTable
                 : DungeonLoot.pendingTable(container).orElse(null);
         if (table == null) {
-            source.sendFailure(Component.literal(
-                    "У контейнера нет лут-таблицы — укажите её аргументом команды."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.no_loot_table"));
             return 0;
         }
         manager.markLoot(level, pos, table, DungeonClock.now());
-        source.sendSuccess(() -> Component.literal(
-                "Контейнер [" + pos.getX() + " " + pos.getY() + " " + pos.getZ() + "] зарегистрирован: "
-                        + table + "."), true);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.dungeon.loot_marked",
+                pos.getX(), pos.getY(), pos.getZ(), table.toString()), true);
         return 1;
     }
 
@@ -484,10 +484,10 @@ public final class DungeonCommands {
         ServerPlayer player = source.getPlayerOrException();
         BlockPos pos = lookingAt(player);
         if (pos == null || !DungeonManager.get(player.serverLevel()).unmarkLoot(player.serverLevel(), pos)) {
-            source.sendFailure(Component.literal("Смотрите на зарегистрированный контейнер данжа."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.look_at_marked"));
             return 0;
         }
-        source.sendSuccess(() -> Component.literal("Контейнер снят с учёта."), true);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.dungeon.loot_unmarked"), true);
         return 1;
     }
 
@@ -500,15 +500,15 @@ public final class DungeonCommands {
                 && level.getBlockEntity(pos) instanceof com.geydev.kalfactions.block.DungeonChestBlockEntity chest) {
             chest.resetCooldown();
             chest.refillIfDue();
-            source.sendSuccess(() -> Component.literal("Сундук данжа перезаполнен."), true);
+            source.sendSuccess(() -> Component.translatable("commands.kingdoms.dungeon.chest_refilled"), true);
             return 1;
         }
         if (pos == null || !DungeonManager.get(level).touchLoot(level, pos, 0L)) {
-            source.sendFailure(Component.literal("Смотрите на зарегистрированный контейнер данжа."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.look_at_marked"));
             return 0;
         }
         DungeonLoot.refreshIfDue(level, pos);
-        source.sendSuccess(() -> Component.literal("Кулдаун контейнера сброшен, лут перезаполнен."), true);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.dungeon.loot_reset_one"), true);
         return 1;
     }
 
@@ -518,12 +518,12 @@ public final class DungeonCommands {
         DungeonManager manager = DungeonManager.get(level);
         DungeonManager.DungeonView dungeon = find(context, manager);
         if (dungeon == null) {
-            source.sendFailure(Component.literal("Данж не найден."));
+            source.sendFailure(Component.translatable("commands.kingdoms.dungeon.not_found"));
             return 0;
         }
         int reset = manager.resetLoot(dungeon.id());
-        source.sendSuccess(() -> Component.literal(
-                "Сброшен кулдаун контейнеров: " + reset + " (данж «" + dungeon.name() + "»)."), true);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.dungeon.loot_reset_many", reset, dungeon.name()), true);
         return reset;
     }
 
@@ -532,7 +532,7 @@ public final class DungeonCommands {
         ModConfigSpec.DUNGEON_LOOT_COOLDOWN_HOURS.set(hours);
         ModConfigSpec.DUNGEON_LOOT_COOLDOWN_HOURS.save();
         context.getSource().sendSuccess(
-                () -> Component.literal("Кулдаун лута данжей: " + hours + " ч."),
+                () -> Component.translatable("commands.kingdoms.dungeon.cooldown_set", hours),
                 true
         );
         return 1;
@@ -554,16 +554,16 @@ public final class DungeonCommands {
 
     private static Component failure(DungeonManager.Reason reason) {
         return switch (reason) {
-            case NOT_BLACK -> Component.literal("Данж можно ставить только в чёрной зоне.");
-            case NAME_TAKEN -> Component.literal("Данж с таким названием уже есть.");
-            case NAME_EMPTY -> Component.literal("Название не может быть пустым.");
-            case TOO_MANY -> Component.literal("Достигнут предел количества данжей.");
-            case TOO_MANY_CHUNKS -> Component.literal("Достигнут предел чанков в данже.");
-            case NOT_FOUND -> Component.literal("Данж не найден.");
-            case SANCTUARY -> Component.literal("Чанк относится к спавну.");
-            case CLAIMED -> Component.literal("Чанк занят фракцией.");
-            case OTHER_DUNGEON -> Component.literal("Чанк занят другим данжем.");
-            case OK -> Component.literal("Готово.");
+            case NOT_BLACK -> Component.translatable("commands.kingdoms.dungeon.reason.not_black");
+            case NAME_TAKEN -> Component.translatable("commands.kingdoms.dungeon.reason.name_taken");
+            case NAME_EMPTY -> Component.translatable("commands.kingdoms.dungeon.reason.name_empty");
+            case TOO_MANY -> Component.translatable("commands.kingdoms.dungeon.reason.too_many");
+            case TOO_MANY_CHUNKS -> Component.translatable("commands.kingdoms.dungeon.reason.too_many_chunks");
+            case NOT_FOUND -> Component.translatable("commands.kingdoms.dungeon.not_found");
+            case SANCTUARY -> Component.translatable("commands.kingdoms.dungeon.reason.sanctuary");
+            case CLAIMED -> Component.translatable("commands.kingdoms.dungeon.reason.claimed");
+            case OTHER_DUNGEON -> Component.translatable("commands.kingdoms.dungeon.reason.other_dungeon");
+            case OK -> Component.translatable("commands.kingdoms.dungeon.reason.ok");
         };
     }
 
