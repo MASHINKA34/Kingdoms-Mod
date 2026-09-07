@@ -557,6 +557,14 @@ public final class Faction {
         emblemUrl = EmblemUrls.sanitize(url);
     }
 
+    private void loadEmblem(int[] pixels, String url) {
+        emblem = pixels != null && isValidEmblemLength(pixels.length) ? pixels.clone() : new int[0];
+        String cleaned = url == null ? "" : url.strip();
+        emblemUrl = cleaned.length() > MAX_EMBLEM_URL_LENGTH
+            ? cleaned.substring(0, MAX_EMBLEM_URL_LENGTH)
+            : cleaned;
+    }
+
     void setInternalPvp(boolean enabled) {
         internalPvp = enabled;
     }
@@ -822,7 +830,7 @@ public final class Faction {
             } catch (IllegalArgumentException ignored) {
             }
         }
-        faction.setEmblem(
+        faction.loadEmblem(
             tag.contains(TAG_EMBLEM, Tag.TAG_INT_ARRAY) ? tag.getIntArray(TAG_EMBLEM) : null,
             tag.getString(TAG_EMBLEM_URL)
         );
