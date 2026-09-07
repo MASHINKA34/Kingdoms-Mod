@@ -48,6 +48,7 @@ import net.neoforged.neoforge.event.level.BlockDropsEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.level.ExplosionEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class ProtectionHandler {
@@ -251,6 +252,11 @@ public final class ProtectionHandler {
         if (player.tickCount % CONTAINER_RECHECK_TICKS == 0) {
             validateOpenContainer(player, player.containerMenu);
         }
+    }
+
+    @SubscribeEvent
+    public static void onServerTick(ServerTickEvent.Post event) {
+        MachineProtection.clearProjectileContext();
     }
 
     /**

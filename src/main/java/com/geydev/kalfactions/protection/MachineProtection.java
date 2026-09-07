@@ -32,7 +32,6 @@ public final class MachineProtection {
 
     private static final ThreadLocal<ProjectileContext> PROJECTILE_CONTEXT =
         ThreadLocal.withInitial(ProjectileContext::new);
-    private static volatile boolean projectileContextActive;
 
     public static void beginProjectileContext(Entity shooter, long gameTime) {
         ProjectileContext context = PROJECTILE_CONTEXT.get();
@@ -42,7 +41,6 @@ public final class MachineProtection {
         context.depth++;
         context.gameTime = gameTime;
         context.shooter = shooter;
-        projectileContextActive = true;
     }
 
     public static void endProjectileContext() {
@@ -52,26 +50,20 @@ public final class MachineProtection {
         }
         if (--context.depth == 0) {
             context.clear();
-            projectileContextActive = false;
         }
     }
 
     public static void clearProjectileContext() {
         PROJECTILE_CONTEXT.get().clear();
-        projectileContextActive = false;
     }
 
     public static boolean blocksProjectileGrief(Level level, BlockPos target) {
-        if (!projectileContextActive) {
-            return false;
-        }
         ProjectileContext context = PROJECTILE_CONTEXT.get();
         if (context.depth <= 0) {
             return false;
         }
         if (context.gameTime != level.getGameTime()) {
             context.clear();
-            projectileContextActive = false;
             return false;
         }
         return !canProjectileBreak(level, target, context.shooter);
