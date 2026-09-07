@@ -668,7 +668,12 @@ public final class WarManager extends SavedData {
             if (level == null) {
                 continue;
             }
-            LevelChunk chunk = level.getChunk(claim.x(), claim.z());
+            // Spoils only sweep chunks that are already resident; forcing a load here would stall
+            // the server for one tick per claim of a large faction.
+            LevelChunk chunk = level.getChunkSource().getChunkNow(claim.x(), claim.z());
+            if (chunk == null) {
+                continue;
+            }
             for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
                 if (blockEntity instanceof Container container) {
                     collectContainerResources(container, buckets);
