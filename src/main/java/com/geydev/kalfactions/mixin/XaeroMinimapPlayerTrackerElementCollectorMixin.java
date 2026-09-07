@@ -17,7 +17,7 @@ public abstract class XaeroMinimapPlayerTrackerElementCollectorMixin {
     @Shadow
     private Map<UUID, PlayerTrackerMinimapElement<?>> elements;
 
-    @Inject(method = "update(Lnet/minecraft/client/Minecraft;)V", at = @At("RETURN"), remap = false)
+    @Inject(method = "update(Lnet/minecraft/client/Minecraft;)V", at = @At("RETURN"), remap = false, require = 0)
     private void kingdoms$removeNonFactionPlayers(Minecraft minecraft, CallbackInfo ci) {
         if (elements != null) {
             elements.keySet().removeIf(XaeroPlayerVisibility::shouldHide);

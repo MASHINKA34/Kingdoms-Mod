@@ -18,7 +18,8 @@ public abstract class XaeroMinimapPlayerTrackerIconRendererMixin {
             method = "renderIcon(Lnet/minecraft/client/Minecraft;Lxaero/common/graphics/renderer/multitexture/MultiTextureRenderTypeRenderer;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/resources/ResourceLocation;F)V",
             at = @At("HEAD"),
             cancellable = true,
-            remap = false
+            remap = false,
+            require = 0
     )
     private void kingdoms$hideNonFactionTrackedPlayerIcon(
             Minecraft minecraft,

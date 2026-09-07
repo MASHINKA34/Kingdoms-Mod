@@ -15,7 +15,8 @@ public abstract class XaeroRadarElementReaderMixin {
             method = "isHidden(Lnet/minecraft/world/entity/Entity;Lxaero/hud/minimap/radar/render/element/RadarRenderContext;)Z",
             at = @At("HEAD"),
             cancellable = true,
-            remap = false
+            remap = false,
+            require = 0
     )
     private void kingdoms$hideNonFactionPlayers(
             Entity entity,

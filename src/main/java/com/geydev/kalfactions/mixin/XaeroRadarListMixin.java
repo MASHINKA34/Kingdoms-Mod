@@ -22,7 +22,8 @@ public abstract class XaeroRadarListMixin {
             method = "add(Lnet/minecraft/world/entity/Entity;)Z",
             at = @At("HEAD"),
             cancellable = true,
-            remap = false
+            remap = false,
+            require = 0
     )
     private void kingdoms$skipNonFactionPlayers(Entity entity, CallbackInfoReturnable<Boolean> cir) {
         if (entity instanceof Player player && XaeroPlayerVisibility.shouldHide(player.getUUID())) {
@@ -30,17 +31,17 @@ public abstract class XaeroRadarListMixin {
         }
     }
 
-    @Inject(method = "get(I)Lnet/minecraft/world/entity/Entity;", at = @At("HEAD"), remap = false)
+    @Inject(method = "get(I)Lnet/minecraft/world/entity/Entity;", at = @At("HEAD"), remap = false, require = 0)
     private void kingdoms$pruneBeforeGet(int index, CallbackInfoReturnable<Entity> cir) {
         kingdoms$pruneHiddenPlayers();
     }
 
-    @Inject(method = "size()I", at = @At("HEAD"), remap = false)
+    @Inject(method = "size()I", at = @At("HEAD"), remap = false, require = 0)
     private void kingdoms$pruneBeforeSize(CallbackInfoReturnable<Integer> cir) {
         kingdoms$pruneHiddenPlayers();
     }
 
-    @Inject(method = "getEntities()Ljava/lang/Iterable;", at = @At("HEAD"), remap = false)
+    @Inject(method = "getEntities()Ljava/lang/Iterable;", at = @At("HEAD"), remap = false, require = 0)
     private void kingdoms$pruneBeforeGetEntities(CallbackInfoReturnable<Iterable<Entity>> cir) {
         kingdoms$pruneHiddenPlayers();
     }

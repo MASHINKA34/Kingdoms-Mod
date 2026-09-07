@@ -16,7 +16,7 @@ public abstract class ScorchedBlueprintScreenMixin {
     private void loadActiveRecipeAsCurrentPage() {
     }
 
-    @Inject(method = "init", at = @At("HEAD"), remap = false)
+    @Inject(method = "init", at = @At("HEAD"), remap = false, require = 0)
     private void kingdoms$reloadSyncedRecipes(CallbackInfo callback) {
         loadAvailableRecipes();
         loadActiveRecipeAsCurrentPage();

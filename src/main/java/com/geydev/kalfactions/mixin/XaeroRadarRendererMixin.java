@@ -21,7 +21,8 @@ public abstract class XaeroRadarRendererMixin {
             method = "renderElement(Lnet/minecraft/world/entity/Entity;ZZDFDDLxaero/hud/minimap/element/render/MinimapElementRenderInfo;Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/renderer/MultiBufferSource$BufferSource;)Z",
             at = @At("HEAD"),
             cancellable = true,
-            remap = false
+            remap = false,
+            require = 0
     )
     private void kingdoms$hideNonFactionRadarPlayers(
             Entity entity,
@@ -45,7 +46,8 @@ public abstract class XaeroRadarRendererMixin {
             method = "renderSingleEntity(Lnet/minecraft/world/entity/Entity;ZZFZZLxaero/hud/minimap/element/render/MinimapElementRenderLocation;Lcom/mojang/blaze3d/pipeline/RenderTarget;Lnet/minecraft/client/gui/GuiGraphics;)V",
             at = @At("HEAD"),
             cancellable = true,
-            remap = false
+            remap = false,
+            require = 0
     )
     private void kingdoms$hideNonFactionSingleRadarPlayers(
             Entity entity,

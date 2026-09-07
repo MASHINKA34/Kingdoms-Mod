@@ -27,7 +27,8 @@ public abstract class XaeroWorldMapSyncedTrackedPlayerManagerMixin {
             method = "update(Ljava/util/UUID;DDDLnet/minecraft/resources/ResourceKey;)V",
             at = @At("HEAD"),
             cancellable = true,
-            remap = false
+            remap = false,
+            require = 0
     )
     private void kingdoms$skipNonFactionPlayers(
             UUID playerId,
@@ -43,7 +44,7 @@ public abstract class XaeroWorldMapSyncedTrackedPlayerManagerMixin {
         }
     }
 
-    @Inject(method = "getPlayers()Ljava/lang/Iterable;", at = @At("HEAD"), remap = false)
+    @Inject(method = "getPlayers()Ljava/lang/Iterable;", at = @At("HEAD"), remap = false, require = 0)
     private void kingdoms$pruneNonFactionPlayers(
             CallbackInfoReturnable<Iterable<xaero.map.server.radar.tracker.SyncedTrackedPlayer>> cir
     ) {

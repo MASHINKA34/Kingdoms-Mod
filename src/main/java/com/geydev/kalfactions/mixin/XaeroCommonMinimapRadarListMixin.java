@@ -12,7 +12,7 @@ import xaero.common.minimap.radar.MinimapRadarList;
 
 @Mixin(value = MinimapRadarList.class, remap = false)
 public abstract class XaeroCommonMinimapRadarListMixin {
-    @Inject(method = "getEntities()Ljava/util/List;", at = @At("RETURN"), remap = false)
+    @Inject(method = "getEntities()Ljava/util/List;", at = @At("RETURN"), remap = false, require = 0)
     private void kingdoms$pruneHiddenPlayers(CallbackInfoReturnable<List<Entity>> cir) {
         cir.getReturnValue().removeIf(entity -> entity instanceof Player player
                 && XaeroPlayerVisibility.shouldHide(player.getUUID()));

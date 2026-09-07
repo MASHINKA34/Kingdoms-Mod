@@ -72,7 +72,7 @@ config="${mod_id}.mixins.json"
 [[dependencies.${mod_id}]]
     modId="numismatics"
     type="required"
-    versionRange="[1,)"
+    versionRange="[1,2)"
     ordering="AFTER"
     side="BOTH"
 
@@ -100,35 +100,35 @@ config="${mod_id}.mixins.json"
 [[dependencies.${mod_id}]]
     modId="curios"
     type="optional"
-    versionRange="[9,)"
+    versionRange="[9,10)"
     ordering="AFTER"
     side="BOTH"
 
 [[dependencies.${mod_id}]]
     modId="scguns"
     type="optional"
-    versionRange="[1.5,)"
+    versionRange="[1.5,1.6)"
     ordering="AFTER"
     side="BOTH"
 
 [[dependencies.${mod_id}]]
     modId="create"
     type="optional"
-    versionRange="[6,)"
+    versionRange="[6,7)"
     ordering="AFTER"
     side="BOTH"
 
 [[dependencies.${mod_id}]]
     modId="protection_pixel"
     type="optional"
-    versionRange="[1,)"
+    versionRange="[2,3)"
     ordering="AFTER"
     side="BOTH"
 
 [[dependencies.${mod_id}]]
     modId="jei"
     type="optional"
-    versionRange="[19,)"
+    versionRange="[19,20)"
     ordering="AFTER"
     side="CLIENT"
 

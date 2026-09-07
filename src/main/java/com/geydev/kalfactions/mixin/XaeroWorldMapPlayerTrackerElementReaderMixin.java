@@ -15,7 +15,8 @@ public abstract class XaeroWorldMapPlayerTrackerElementReaderMixin {
             method = "isHidden(Lxaero/map/radar/tracker/PlayerTrackerMapElement;Lxaero/map/radar/tracker/PlayerTrackerMapElementRenderContext;)Z",
             at = @At("HEAD"),
             cancellable = true,
-            remap = false
+            remap = false,
+            require = 0
     )
     private void kingdoms$hideNonFactionPlayers(
             PlayerTrackerMapElement<?> element,

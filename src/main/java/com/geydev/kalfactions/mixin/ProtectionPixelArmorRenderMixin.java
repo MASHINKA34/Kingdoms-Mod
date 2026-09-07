@@ -20,7 +20,8 @@ public abstract class ProtectionPixelArmorRenderMixin {
 
     @Redirect(
             method = "execute(Lnet/neoforged/bus/api/Event;Lnet/minecraft/world/level/LevelAccessor;)V",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Options;getEffectiveRenderDistance()I")
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Options;getEffectiveRenderDistance()I"),
+            require = 0
     )
     private static int kingdoms$limitHangerScanRange(Options options) {
         return Math.min(options.getEffectiveRenderDistance(), KINGDOMS$MAX_HANGER_SCAN_CHUNKS);
@@ -32,7 +33,8 @@ public abstract class ProtectionPixelArmorRenderMixin {
                     value = "NEW",
                     target = "(Lnet/minecraft/world/entity/EntityType;Lnet/minecraft/world/level/Level;)"
                             + "Lnet/mcreator/protectionpixel/entity/ArmorentityEntity;"
-            )
+            ),
+            require = 0
     )
     private static ArmorentityEntity kingdoms$reuseArmorStand(EntityType<ArmorentityEntity> type, Level level) {
         ArmorentityEntity cached = kingdoms$reusedArmorStand;

@@ -15,7 +15,8 @@ public abstract class XaeroMinimapPlayerTrackerElementReaderMixin {
             method = "isHidden(Lxaero/hud/minimap/player/tracker/PlayerTrackerMinimapElement;Lxaero/hud/minimap/player/tracker/PlayerTrackerMinimapElementRenderContext;)Z",
             at = @At("HEAD"),
             cancellable = true,
-            remap = false
+            remap = false,
+            require = 0
     )
     private void kingdoms$hideNonFactionPlayers(
             PlayerTrackerMinimapElement<?> element,
