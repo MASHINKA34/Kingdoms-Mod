@@ -1277,7 +1277,7 @@ public final class FactionManager extends SavedData {
     }
 
     public synchronized Optional<ChestAccess> getChestAccess(Level level, BlockPos position) {
-        return getChestAccess(ChestAccess.Key.of(level, position));
+        return Optional.ofNullable(liveChestAccess(level, position));
     }
 
     public synchronized Collection<ChestAccess> chestAccessEntries() {
@@ -1320,6 +1320,20 @@ public final class FactionManager extends SavedData {
         return true;
     }
 
+    private ChestAccess liveChestAccess(Level level, BlockPos position) {
+        ChestAccess.Key key = ChestAccess.Key.of(level, position);
+        ChestAccess access = chestAccess.get(key);
+        if (access == null) {
+            return null;
+        }
+        if (level.isLoaded(position) && level.getBlockEntity(position) == null) {
+            chestAccess.remove(key);
+            setDirty();
+            return null;
+        }
+        return access;
+    }
+
     public synchronized boolean canAccessChest(UUID playerId, ChestAccess.Key key) {
         ChestAccess access = chestAccess.get(key);
         if (access == null) {
@@ -1340,11 +1354,11 @@ public final class FactionManager extends SavedData {
         if (claimFactionId == null) {
             return true;
         }
-        ChestAccess access = chestAccess.get(ChestAccess.Key.of(level, position));
+        ChestAccess access = liveChestAccess(level, position);
         if (access == null) {
             BlockPos linked = ChestLinks.linkedPosition(level, position);
             if (linked != null) {
-                access = chestAccess.get(ChestAccess.Key.of(level, linked));
+                access = liveChestAccess(level, linked);
             }
         }
         UUID playerFactionId = memberIndex.get(playerId);
