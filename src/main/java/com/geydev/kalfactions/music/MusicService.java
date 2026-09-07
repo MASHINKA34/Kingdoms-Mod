@@ -6,6 +6,7 @@ import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.integration.xaero.archive.ArchiveHashing;
+import com.geydev.kalfactions.net.ActionCooldown;
 import com.geydev.kalfactions.registry.ModBlocks;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import java.util.ArrayList;
@@ -527,7 +528,8 @@ public final class MusicService {
 
     private static boolean rateLimited(ServerPlayer player) {
         long now = player.level().getGameTime();
-        Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+        Long previous = ActionCooldown.mark(
+                LAST_ACTION_TICK, player.getUUID(), now, MusicLimits.ACTION_COOLDOWN_TICKS);
         return previous != null && now - previous < MusicLimits.ACTION_COOLDOWN_TICKS;
     }
 

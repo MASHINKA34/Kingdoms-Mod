@@ -134,7 +134,8 @@ public final class FactionServerHooks {
             return;
         }
         long now = player.level().getGameTime();
-        Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+        Long previous = ActionCooldown.mark(
+                LAST_ACTION_TICK, player.getUUID(), now, ACTION_COOLDOWN_TICKS);
         if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
             sendNotice(player, Component.translatable("kingdoms.error.action_rate_limited"), false);
             return;
@@ -163,7 +164,8 @@ public final class FactionServerHooks {
             return;
         }
         long now = player.level().getGameTime();
-        Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+        Long previous = ActionCooldown.mark(
+                LAST_ACTION_TICK, player.getUUID(), now, ACTION_COOLDOWN_TICKS);
         if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
             sendNotice(player, Component.translatable("kingdoms.error.action_rate_limited"), false);
             return;
@@ -194,7 +196,8 @@ public final class FactionServerHooks {
             return;
         }
         long now = player.level().getGameTime();
-        Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+        Long previous = ActionCooldown.mark(
+                LAST_ACTION_TICK, player.getUUID(), now, ACTION_COOLDOWN_TICKS);
         if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
             sendNotice(player, Component.translatable("kingdoms.error.action_rate_limited"), false);
             return;
@@ -582,7 +585,8 @@ public final class FactionServerHooks {
             return;
         }
         long now = player.level().getGameTime();
-        Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+        Long previous = ActionCooldown.mark(
+                LAST_ACTION_TICK, player.getUUID(), now, ACTION_COOLDOWN_TICKS);
         if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
             sendNotice(player, Component.translatable("kingdoms.error.action_rate_limited"), false);
             return;
@@ -620,7 +624,8 @@ public final class FactionServerHooks {
             return;
         }
         long now = player.level().getGameTime();
-        Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+        Long previous = ActionCooldown.mark(
+                LAST_ACTION_TICK, player.getUUID(), now, ACTION_COOLDOWN_TICKS);
         if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
             sendNotice(player, Component.translatable("kingdoms.error.action_rate_limited"), false);
             return;
@@ -641,7 +646,8 @@ public final class FactionServerHooks {
             return;
         }
         long now = player.level().getGameTime();
-        Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+        Long previous = ActionCooldown.mark(
+                LAST_ACTION_TICK, player.getUUID(), now, ACTION_COOLDOWN_TICKS);
         if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
             sendNotice(player, Component.translatable("kingdoms.error.action_rate_limited"), false);
             return;
@@ -1057,7 +1063,8 @@ public final class FactionServerHooks {
         }
         if (rateLimited) {
             long now = player.level().getGameTime();
-            Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+            Long previous = ActionCooldown.mark(
+                LAST_ACTION_TICK, player.getUUID(), now, ACTION_COOLDOWN_TICKS);
             if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
                 return Validation.deny(Component.translatable("kingdoms.error.action_rate_limited"));
             }
@@ -1081,7 +1088,8 @@ public final class FactionServerHooks {
         }
         if (rateLimited) {
             long now = player.level().getGameTime();
-            Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+            Long previous = ActionCooldown.mark(
+                LAST_ACTION_TICK, player.getUUID(), now, ACTION_COOLDOWN_TICKS);
             if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
                 return Validation.deny(Component.translatable("kingdoms.error.action_rate_limited"));
             }

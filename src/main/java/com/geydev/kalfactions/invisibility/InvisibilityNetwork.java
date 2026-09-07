@@ -4,6 +4,7 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.InvisibilityChaliceBlockEntity;
 import com.geydev.kalfactions.client.ClientTrueInvisibility;
 import com.geydev.kalfactions.client.screen.InvisibilityChaliceSettingsScreen;
+import com.geydev.kalfactions.net.ActionCooldown;
 import com.geydev.kalfactions.registry.ModBlocks;
 import java.util.Map;
 import java.util.UUID;
@@ -132,7 +133,8 @@ public final class InvisibilityNetwork {
 
     private static boolean rateLimited(Player player) {
         long now = player.level().getGameTime();
-        Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+        Long previous = ActionCooldown.mark(
+                LAST_ACTION_TICK, player.getUUID(), now, ACTION_COOLDOWN_TICKS);
         return previous != null && now - previous < ACTION_COOLDOWN_TICKS;
     }
 

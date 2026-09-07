@@ -2,6 +2,7 @@ package com.geydev.kalfactions.dungeon;
 
 import com.geydev.kalfactions.block.DungeonChestBlockEntity;
 import com.geydev.kalfactions.claim.ClaimKey;
+import com.geydev.kalfactions.net.ActionCooldown;
 import com.geydev.kalfactions.net.ClaimSyncManager;
 import com.geydev.kalfactions.net.FactionServerHooks;
 import com.geydev.kalfactions.registry.ModBlocks;
@@ -342,7 +343,8 @@ public final class DungeonService {
 
     private static boolean rateLimit(ServerPlayer player, long cooldownTicks) {
         long now = player.level().getGameTime();
-        Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+        Long previous = ActionCooldown.mark(
+                LAST_ACTION_TICK, player.getUUID(), now, cooldownTicks);
         if (previous != null && now - previous < cooldownTicks) {
             FactionServerHooks.sendNotice(
                     player,

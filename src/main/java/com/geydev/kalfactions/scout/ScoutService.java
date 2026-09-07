@@ -9,6 +9,7 @@ import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.FactionMember;
 import com.geydev.kalfactions.faction.FactionRole;
 import com.geydev.kalfactions.integration.xaero.archive.XaeroArchiveStore;
+import com.geydev.kalfactions.net.ActionCooldown;
 import com.geydev.kalfactions.net.FactionServerHooks;
 import com.geydev.kalfactions.tax.OfflineNoticeQueue;
 import java.io.IOException;
@@ -89,7 +90,8 @@ public final class ScoutService {
             return;
         }
         long now = player.level().getGameTime();
-        Long previous = LAST_ACTION_TICK.put(player.getUUID(), now);
+        Long previous = ActionCooldown.mark(
+                LAST_ACTION_TICK, player.getUUID(), now, ACTION_COOLDOWN_TICKS);
         if (previous != null && now - previous < ACTION_COOLDOWN_TICKS) {
             FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.error.action_rate_limited"), false);
             return;
