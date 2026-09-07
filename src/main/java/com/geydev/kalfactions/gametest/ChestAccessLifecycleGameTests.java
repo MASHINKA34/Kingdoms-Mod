@@ -40,12 +40,36 @@ public final class ChestAccessLifecycleGameTests {
                     manager.getChestAccess(ChestAccess.Key.of(level, pos)).isPresent(),
                     "the rule exists before the break");
 
-            ChestAccessCleanup.onBlockBreak(new BlockEvent.BreakEvent(
-                    level, pos, level.getBlockState(pos), player));
+            level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+            ChestAccessCleanup.forgetIfContainerIsGone(level, pos);
 
             helper.assertTrue(
                     manager.getChestAccess(ChestAccess.Key.of(level, pos)).isEmpty(),
                     "breaking the chest forgets its access rule");
+        } finally {
+            level.getServer().overworld().getDataStorage().set(FactionManager.DATA_NAME, original);
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "chest_access_lifecycle")
+    public static void aCancelledBreakKeepsTheRule(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos pos = helper.absolutePos(new BlockPos(1, 2, 1));
+        ServerPlayer player = RegressionPlayers.create(level, pos, 0).player();
+        FactionManager original = FactionManager.get(level);
+        FactionManager manager = new FactionManager();
+        Faction owner = faction(manager, player.getUUID(), ClaimKey.of(level, pos));
+        level.getServer().overworld().getDataStorage().set(FactionManager.DATA_NAME, manager);
+        try {
+            level.setBlockAndUpdate(pos, Blocks.CHEST.defaultBlockState());
+            protect(manager, level, pos, owner.id(), player.getUUID());
+
+            ChestAccessCleanup.forgetIfContainerIsGone(level, pos);
+
+            helper.assertTrue(
+                    manager.getChestAccess(ChestAccess.Key.of(level, pos)).isPresent(),
+                    "a chest that survived the break keeps its rule");
         } finally {
             level.getServer().overworld().getDataStorage().set(FactionManager.DATA_NAME, original);
         }
