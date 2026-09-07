@@ -60,5 +60,10 @@ __pycache__/
 *.pyc
 
 ### Third-party mod jars used for compilation and dev runs ###
-# Not redistributable; see libs/README.md for where to get each one.
-libs/*.jar
+# Xaero's mods and the hookah mod are All Rights Reserved and must never be committed. The rest of
+# libs/ is GPL, LGPL, MIT or AFL, so those jars are checked in on purpose and a clone builds without
+# any downloads. See libs/README.md for the licence of each one.
+libs/xaerominimap-*.jar
+libs/xaeroworldmap-*.jar
+libs/xaerolib-*.jar
+libs/hookahmod-*.jar

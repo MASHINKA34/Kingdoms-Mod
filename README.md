@@ -7,9 +7,10 @@ logical server; client payloads are requests and are re-validated before anythin
 
 ## Building
 
-Java 21, Gradle wrapper included. Third-party mod jars are not redistributable and are not fetched
-for you — put them in `libs/` first, see [libs/README.md](libs/README.md). `compileJava` names the
-missing ones instead of failing inside the mixins.
+Java 21, Gradle wrapper included. A clone builds as it is: the third-party jars the mixins compile
+against are in `libs/` where their licence allows it, and Xaero's three, which it does not, resolve
+from Xaero's Maven. See [libs/README.md](libs/README.md). `compileJava` names any missing file
+instead of failing inside the mixins.
 
 ```text
 gradlew build                  compile and run the unit tests

@@ -35,7 +35,10 @@ repositories {
     maven { url = 'https://maven.ithundxr.dev/snapshots' }
     maven { url = 'https://maven.theillusivec4.top/' }
     maven { url = 'https://repo.bluecolored.de/releases' }
-    maven { url = 'https://chocolateminecraft.com/maven' }
+    maven {
+        url = 'https://chocolateminecraft.com/maven'
+        content { includeGroupByRegex 'xaero\\..*' }
+    }
 }
 
 base {
@@ -138,6 +141,17 @@ sourceSets.test {
     runtimeClasspath += sourceSets.main.runtimeClasspath
 }
 
+// Xaero's mods are All Rights Reserved, so their jars are the one thing here that may not be
+// committed. Each resolves to a local libs/ download when one is present and to Xaero's own Maven
+// otherwise, which is how a clean checkout and CI get them.
+var xaeroArtifact = { String group, String artifact, String artifactVersion ->
+    var local = layout.projectDirectory.file("libs/${artifact}-${artifactVersion}.jar").asFile
+    return local.exists() ? files(local) : "${group}:${artifact}:${artifactVersion}"
+}
+var xaeroMinimap = xaeroArtifact('xaero.minimap', "xaerominimap-neoforge-${minecraft_version}", xaero_minimap_version)
+var xaeroWorldMap = xaeroArtifact('xaero.map', "xaeroworldmap-neoforge-${minecraft_version}", xaero_worldmap_version)
+var xaeroLib = xaeroArtifact('xaero.lib', "xaerolib-neoforge-${minecraft_version}", xaero_lib_version)
+
 dependencies {
     compileOnly files("libs/CreateNumismatics-${numismatics_version}.jar")
 
@@ -153,12 +167,14 @@ dependencies {
 
     compileOnly files("libs/ScorchedGuns-1.5.jar")
     compileOnly files("libs/protection_pixel-${protection_pixel_version}-neoforge-${minecraft_version}.jar")
-    compileOnly files("libs/xaerominimap-neoforge-${minecraft_version}-${xaero_minimap_version}.jar")
-    compileOnly files("libs/xaeroworldmap-neoforge-${minecraft_version}-${xaero_worldmap_version}.jar")
-    compileOnly files("libs/xaerolib-neoforge-${minecraft_version}-${xaero_lib_version}.jar")
     compileOnly files("libs/jei-${minecraft_version}-neoforge-${jei_version}.jar")
-    localRuntime files("libs/xaerominimap-neoforge-${minecraft_version}-${xaero_minimap_version}.jar")
-    localRuntime files("libs/xaeroworldmap-neoforge-${minecraft_version}-${xaero_worldmap_version}.jar")
+
+    compileOnly xaeroMinimap
+    compileOnly xaeroWorldMap
+    compileOnly xaeroLib
+    localRuntime xaeroMinimap
+    localRuntime xaeroWorldMap
+    localRuntime xaeroLib
     localRuntime files("libs/ScorchedGuns-1.5.jar")
     localRuntime files("libs/protection_pixel-${protection_pixel_version}-neoforge-${minecraft_version}.jar")
     localRuntime files("libs/framework-neoforge-${minecraft_version}-0.13.11.jar")
@@ -247,16 +263,13 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
 }
 
-// The mixins and integrations compile against other people's mods, which are not redistributable
-// and so are not fetched for you. Without this the build fails with a wall of "cannot find symbol"
-// far away from the actual cause.
+// The mixins and integrations compile against other people's mods that have no usable Maven, so
+// these four are read straight from libs/. Without this check the build fails with a wall of
+// "cannot find symbol" far away from the actual cause. See libs/README.md for each one's licence.
 var requiredLibJars = [
         "CreateNumismatics-${numismatics_version}.jar",
         "ScorchedGuns-1.5.jar",
         "protection_pixel-${protection_pixel_version}-neoforge-${minecraft_version}.jar",
-        "xaerominimap-neoforge-${minecraft_version}-${xaero_minimap_version}.jar",
-        "xaeroworldmap-neoforge-${minecraft_version}-${xaero_worldmap_version}.jar",
-        "xaerolib-neoforge-${minecraft_version}-${xaero_lib_version}.jar",
         "jei-${minecraft_version}-neoforge-${jei_version}.jar",
 ]
 
