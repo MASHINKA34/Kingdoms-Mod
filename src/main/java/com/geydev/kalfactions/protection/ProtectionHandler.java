@@ -22,7 +22,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.Container;
@@ -34,7 +33,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.EventPriority;
@@ -137,15 +135,13 @@ public final class ProtectionHandler {
         boolean denied = false;
         if (event instanceof BlockEvent.EntityMultiPlaceEvent multiPlaceEvent) {
             for (BlockSnapshot snapshot : multiPlaceEvent.getReplacedBlockSnapshots()) {
-                if (!FactionAccess.canBuild(player, level, snapshot.getPos())) {
+                if (!canPlaceAt(player, level, wars, snapshot.getPos(), event.getPlacedBlock())) {
                     denied = true;
                     break;
                 }
                 placed.put(snapshot.getPos().immutable(), snapshot.getState());
             }
-        } else if (FactionAccess.canBuild(player, level, event.getPos())
-                || (event.getPlacedBlock().is(Blocks.TNT)
-                        && wars.canBuildInWar(player, level, event.getPos()))) {
+        } else if (canPlaceAt(player, level, wars, event.getPos(), event.getPlacedBlock())) {
             placed.put(event.getPos().immutable(), event.getBlockSnapshot().getState());
         } else {
             denied = true;
@@ -404,14 +400,23 @@ public final class ProtectionHandler {
     private static final ResourceLocation GRAVESTONE_BLOCK_ID =
             ResourceLocation.fromNamespaceAndPath("gravestone", "gravestone");
 
+    private static boolean canPlaceAt(
+            ServerPlayer player,
+            ServerLevel level,
+            WarManager wars,
+            BlockPos pos,
+            BlockState placedBlock
+    ) {
+        return FactionAccess.canBuild(player, level, pos)
+                || placedBlock.is(Blocks.TNT) && wars.canBuildInWar(player, level, pos);
+    }
+
+    /**
+     * Single source of truth for the doors, gates and switches outsiders may still use inside a
+     * claim; servers narrow or widen it through the {@code kingdoms:interactable} block tag.
+     */
     private static boolean isAlwaysAllowed(BlockState state) {
-        return state.is(INTERACTABLE)
-                || state.is(BlockTags.DOORS)
-                || state.is(BlockTags.TRAPDOORS)
-                || state.is(BlockTags.BUTTONS)
-                || state.is(BlockTags.PRESSURE_PLATES)
-                || state.is(BlockTags.FENCE_GATES)
-                || state.getBlock() instanceof LeverBlock;
+        return state.is(INTERACTABLE);
     }
 
     private static boolean isContainer(ServerLevel level, BlockPos pos) {
