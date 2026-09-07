@@ -6,6 +6,7 @@ import com.geydev.kalfactions.market.PlotSnapshots;
 import com.geydev.kalfactions.protection.ProtectionHandler;
 import com.geydev.kalfactions.war.War;
 import com.geydev.kalfactions.war.WarChunkSnapshot;
+import com.geydev.kalfactions.war.WarSnapshotStore;
 import com.geydev.kalfactions.war.WarManager;
 import com.geydev.kalfactions.war.WarType;
 import java.util.ArrayList;
@@ -108,6 +109,7 @@ public final class SnapshotSafetyGameTests {
         War war = new War(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 WarType.DEFAULT, "regression", War.State.ACTIVE, 0);
         war.putSnapshot(ClaimKey.of(level, pos), snapshot);
+        WarSnapshotStore.write(level.getServer(), war.id(), ClaimKey.of(level, pos), snapshot);
         saved.getList("wars", Tag.TAG_COMPOUND).add(war.save());
         WarManager testManager = WarManager.FACTORY.deserializer().apply(saved, level.registryAccess());
         level.getServer().overworld().getDataStorage().set(WarManager.DATA_NAME, testManager);
@@ -130,6 +132,7 @@ public final class SnapshotSafetyGameTests {
             snapshot.restore(level, new ChunkPos(pos), level.registryAccess());
             helper.assertTrue(level.getBlockState(pos).is(Blocks.DIAMOND_BLOCK), "original block restored");
         } finally {
+            WarSnapshotStore.deleteWar(level.getServer(), war.id());
             level.getServer().overworld().getDataStorage().set(WarManager.DATA_NAME, original);
         }
         BlockDropsEvent ordinary = drops(level, pos, diamond, player);

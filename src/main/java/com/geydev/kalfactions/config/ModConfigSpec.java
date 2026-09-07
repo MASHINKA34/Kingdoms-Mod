@@ -524,8 +524,9 @@ public final class ModConfigSpec {
             .defineInRange("rollbackChunksPerTick", 8, 1, 4096);
         WAR_MAX_SNAPSHOT_CHUNKS = builder
             .comment(
-                "Chunks a single war may snapshot for rollback. Every snapshot is a full chunk copy kept in",
-                "the war save file and rewritten on each world save, so an unbounded war would stall autosaves.",
+                "Chunks a single war may snapshot for rollback. Every snapshot is a full chunk copy, written",
+                "once to kingdoms/wars/<war id>/ when the chunk is first touched and held in memory until the",
+                "war ends, so the cap bounds heap rather than autosave time.",
                 "Chunks past the cap are still fought over, they are simply not reverted when the war ends.")
             .defineInRange("maxSnapshotChunks", 512, 0, 65536);
         WAR_AUTO_END_TICKS = builder

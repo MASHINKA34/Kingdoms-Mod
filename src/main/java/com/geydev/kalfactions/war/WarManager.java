@@ -60,7 +60,7 @@ public final class WarManager extends SavedData {
     public static final Factory<WarManager> FACTORY = new Factory<>(WarManager::new, WarManager::load);
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final SavedDataFormat FORMAT = new SavedDataFormat(1);
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(2);
     private static final String TAG_WARS = "wars";
     private static final String TAG_PENDING_SPOILS = "pendingSpoils";
     private static final String TAG_COOLDOWNS = "declareCooldowns";
@@ -77,14 +77,39 @@ public final class WarManager extends SavedData {
     private final transient Map<UUID, long[]> blockPointWindows = new HashMap<>();
     private final transient Map<UUID, long[]> killPointWindows = new HashMap<>();
     private transient int bossSyncCounter;
+    private transient boolean snapshotsHydrated;
 
     public static WarManager get(MinecraftServer server) {
         Objects.requireNonNull(server, "server");
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
+        WarManager manager = server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
+        if (!manager.snapshotsHydrated) {
+            manager.hydrateSnapshots(server);
+        }
+        return manager;
     }
 
     public static WarManager get(ServerLevel level) {
         return get(Objects.requireNonNull(level, "level").getServer());
+    }
+
+    private synchronized void hydrateSnapshots(MinecraftServer server) {
+        if (snapshotsHydrated) {
+            return;
+        }
+        snapshotsHydrated = true;
+        for (War war : wars.values()) {
+            Map<ClaimKey, WarChunkSnapshot> legacy = war.loadedSnapshots();
+            if (!legacy.isEmpty()) {
+                legacy.forEach((key, snapshot) -> WarSnapshotStore.write(server, war.id(), key, snapshot));
+                LOGGER.info("Moved {} inline snapshot(s) of war {} out of the save file", legacy.size(), war.id());
+                setDirty();
+            }
+            Set<ClaimKey> unloaded = war.unloadedSnapshots();
+            if (!unloaded.isEmpty()) {
+                war.hydrateSnapshots(WarSnapshotStore.readAll(server, war.id(), unloaded));
+            }
+        }
+        WarSnapshotStore.pruneOrphans(server, Set.copyOf(wars.keySet()));
     }
 
     // ------------------------------------------------------------------ queries
@@ -340,6 +365,7 @@ public final class WarManager extends SavedData {
                 continue;
             }
             WarChunkSnapshot snapshot = war.removeSnapshot(key);
+            WarSnapshotStore.delete(server, war.id(), key);
             if (snapshot == null) {
                 continue;
             }
@@ -821,7 +847,9 @@ public final class WarManager extends SavedData {
         if (war == null || war.hasSnapshot(key) || !reserveSnapshot(war)) {
             return;
         }
-        war.putSnapshot(key, WarChunkSnapshot.capture(level, chunkPos, level.registryAccess()));
+        WarChunkSnapshot snapshot = WarChunkSnapshot.capture(level, chunkPos, level.registryAccess());
+        war.putSnapshot(key, snapshot);
+        WarSnapshotStore.write(level.getServer(), war.id(), key, snapshot);
         setDirty();
     }
 
@@ -853,6 +881,7 @@ public final class WarManager extends SavedData {
                 snapshot.removeBlockEntity(placed.getKey());
             }
             war.putSnapshot(key, snapshot);
+            WarSnapshotStore.write(level.getServer(), war.id(), key, snapshot);
             dirty = true;
         }
         if (dirty) {
@@ -999,6 +1028,7 @@ public final class WarManager extends SavedData {
                 continue;
             }
             WarChunkSnapshot snapshot = war.removeSnapshot(task.key());
+            WarSnapshotStore.delete(server, task.warId(), task.key());
             if (snapshot != null) {
                 ServerLevel level = server.getLevel(task.key().dimension());
                 if (level != null) {
@@ -1017,6 +1047,7 @@ public final class WarManager extends SavedData {
     private void finalizeWar(MinecraftServer server, War war) {
         war.setState(War.State.ENDED);
         wars.remove(war.id());
+        WarSnapshotStore.deleteWar(server, war.id());
         for (UUID participant : war.participants()) {
             factionToWar.remove(participant, war.id());
             blockPointWindows.remove(participant);

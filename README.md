@@ -32,7 +32,7 @@ touching anything:
 | `faction` | `FactionManager`, the overworld-attached `SavedData` holding factions, members and the claim index |
 | `net` | Payload definitions, the registrars, and `FactionServerHooks`, the single validation gate every faction C2S goes through |
 | `protection` | Claim, sanctuary and machine protection; `ClaimBoundary` decides whether two positions may interact |
-| `war` | `WarManager` plus the copy-on-write `WarChunkSnapshot` that reverts a war's terrain |
+| `war` | `WarManager` plus the copy-on-write `WarChunkSnapshot` that reverts a war's terrain; snapshots live in `kingdoms/wars/` via `WarSnapshotStore`, not in the save file |
 | `data` | `SavedDataFormat`, the shared version stamp every persisted manager uses |
 | `mixin` | Vanilla and third-party patches; `KingdomsMixinPlugin` skips the ones whose target mod is absent |
 | `gametest` | In-world tests, excluded from the published jar |

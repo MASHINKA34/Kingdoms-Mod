@@ -49,6 +49,7 @@ public final class War {
     private final long startGameTime;
     private final long startEpochMillis;
     private final Map<ClaimKey, WarChunkSnapshot> snapshots;
+    private final Set<ClaimKey> unloadedSnapshots = new LinkedHashSet<>();
     private State state;
     private long attackerPoints;
     private long defenderPoints;
@@ -273,11 +274,11 @@ public final class War {
     }
 
     public int snapshotCount() {
-        return snapshots.size();
+        return snapshots.size() + unloadedSnapshots.size();
     }
 
     public boolean hasSnapshot(ClaimKey key) {
-        return snapshots.containsKey(key);
+        return snapshots.containsKey(key) || unloadedSnapshots.contains(key);
     }
 
     public void putSnapshot(ClaimKey key, WarChunkSnapshot snapshot) {
@@ -290,16 +291,32 @@ public final class War {
     }
 
     public WarChunkSnapshot removeSnapshot(ClaimKey key) {
+        unloadedSnapshots.remove(key);
         return snapshots.remove(key);
     }
 
     public boolean snapshotsEmpty() {
-        return snapshots.isEmpty();
+        return snapshots.isEmpty() && unloadedSnapshots.isEmpty();
+    }
+
+    Set<ClaimKey> unloadedSnapshots() {
+        return Set.copyOf(unloadedSnapshots);
+    }
+
+    void hydrateSnapshots(Map<ClaimKey, WarChunkSnapshot> loaded) {
+        unloadedSnapshots.clear();
+        snapshots.putAll(loaded);
+    }
+
+    Map<ClaimKey, WarChunkSnapshot> loadedSnapshots() {
+        return Map.copyOf(snapshots);
     }
 
     /** Snapshot keys, copied so callers can iterate while the underlying map is drained during rollback. */
     public Set<ClaimKey> snapshotKeys() {
-        return Set.copyOf(snapshots.keySet());
+        Set<ClaimKey> keys = new LinkedHashSet<>(snapshots.keySet());
+        keys.addAll(unloadedSnapshots);
+        return Set.copyOf(keys);
     }
 
     public CompoundTag save() {
@@ -318,10 +335,9 @@ public final class War {
         tag.putLong(TAG_DEFENDER_POINTS, defenderPoints);
 
         ListTag snapshotsTag = new ListTag();
-        for (Map.Entry<ClaimKey, WarChunkSnapshot> entry : snapshots.entrySet()) {
+        for (ClaimKey key : snapshotKeys()) {
             CompoundTag entryTag = new CompoundTag();
-            entryTag.put(TAG_SNAPSHOT_KEY, entry.getKey().save());
-            entryTag.put(TAG_SNAPSHOT_DATA, entry.getValue().save());
+            entryTag.put(TAG_SNAPSHOT_KEY, key.save());
             snapshotsTag.add(entryTag);
         }
         tag.put(TAG_SNAPSHOTS, snapshotsTag);
@@ -358,6 +374,7 @@ public final class War {
         }
 
         Map<ClaimKey, WarChunkSnapshot> snapshots = new LinkedHashMap<>();
+        Set<ClaimKey> unloaded = new LinkedHashSet<>();
         ListTag snapshotsTag = tag.getList(TAG_SNAPSHOTS, Tag.TAG_COMPOUND);
         for (int index = 0; index < snapshotsTag.size(); index++) {
             CompoundTag entryTag = snapshotsTag.getCompound(index);
@@ -365,7 +382,11 @@ public final class War {
             if (key.isEmpty()) {
                 return Optional.empty();
             }
-            snapshots.put(key.get(), WarChunkSnapshot.load(entryTag.getCompound(TAG_SNAPSHOT_DATA)));
+            if (entryTag.contains(TAG_SNAPSHOT_DATA, Tag.TAG_COMPOUND)) {
+                snapshots.put(key.get(), WarChunkSnapshot.load(entryTag.getCompound(TAG_SNAPSHOT_DATA)));
+            } else {
+                unloaded.add(key.get());
+            }
         }
 
         UUID attacker = tag.getUUID(TAG_ATTACKER);
@@ -384,6 +405,7 @@ public final class War {
             snapshots
         );
         war.setPointsRaw(tag.getLong(TAG_ATTACKER_POINTS), tag.getLong(TAG_DEFENDER_POINTS));
+        war.unloadedSnapshots.addAll(unloaded);
         return Optional.of(war);
     }
 
