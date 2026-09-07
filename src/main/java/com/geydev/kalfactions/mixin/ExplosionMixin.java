@@ -1,6 +1,8 @@
 package com.geydev.kalfactions.mixin;
 
 import com.geydev.kalfactions.protection.ProtectionHandler;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.mojang.datafixers.util.Pair;
 import java.util.List;
 import net.minecraft.core.BlockPos;
@@ -18,14 +20,18 @@ public abstract class ExplosionMixin {
     @Unique
     private static final ThreadLocal<Explosion> kingdoms$currentExplosion = new ThreadLocal<>();
 
-    @Inject(method = "finalizeExplosion", at = @At("HEAD"))
-    private void kingdoms$trackExplosion(boolean spawnParticles, CallbackInfo ci) {
+    /**
+     * Wrapped rather than injected so a throwing drop handler cannot leave the tracked explosion
+     * behind and make every later drop consult a stale one.
+     */
+    @WrapMethod(method = "finalizeExplosion")
+    private void kingdoms$trackExplosion(boolean spawnParticles, Operation<Void> original) {
         kingdoms$currentExplosion.set((Explosion) (Object) this);
-    }
-
-    @Inject(method = "finalizeExplosion", at = @At("RETURN"))
-    private void kingdoms$clearExplosion(boolean spawnParticles, CallbackInfo ci) {
-        kingdoms$currentExplosion.remove();
+        try {
+            original.call(spawnParticles);
+        } finally {
+            kingdoms$currentExplosion.remove();
+        }
     }
 
     @Inject(
