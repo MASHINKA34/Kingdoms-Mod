@@ -5,6 +5,7 @@ import com.geydev.kalfactions.config.ModConfigSpec;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
@@ -21,6 +22,11 @@ public final class WarTicker {
             ModConfigSpec.WAR_ROLLBACK_CHUNKS_PER_TICK.getAsInt(),
             ModConfigSpec.WAR_AUTO_END_TICKS.getAsLong()
         );
+    }
+
+    @SubscribeEvent
+    public static void onServerStopping(ServerStoppingEvent event) {
+        WarSnapshotStore.flush();
     }
 
     private WarTicker() {

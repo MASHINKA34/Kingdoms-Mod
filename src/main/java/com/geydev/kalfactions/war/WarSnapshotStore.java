@@ -13,16 +13,33 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
 
+/**
+ * Snapshot files for {@link WarManager}. The chunk is encoded to NBT on the server thread, where the
+ * palettes it copies are only ever touched by that thread; the compression and the disk write run on
+ * a single background thread so a war-time block break never blocks a tick. Every file operation
+ * goes through that one thread, so a write, its later delete and the war folder cleanup stay ordered.
+ */
 public final class WarSnapshotStore {
     private static final String DIRECTORY = "kingdoms";
     private static final String WARS = "wars";
     private static final String EXTENSION = ".nbt";
+    private static final long FLUSH_TIMEOUT_SECONDS = 60L;
+
+    private static final ExecutorService IO_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "kingdoms-war-snapshots");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     public static Path root(MinecraftServer server) {
         return server.getWorldPath(LevelResource.ROOT)
@@ -33,15 +50,24 @@ public final class WarSnapshotStore {
     }
 
     public static void write(MinecraftServer server, UUID warId, ClaimKey key, WarChunkSnapshot snapshot) {
-        write(root(server), warId, key, snapshot);
+        writeAsync(root(server), warId, key, snapshot);
+    }
+
+    static void writeAsync(Path root, UUID warId, ClaimKey key, WarChunkSnapshot snapshot) {
+        CompoundTag tag = snapshot.save();
+        submit(() -> writeTag(root, warId, key, tag));
     }
 
     static void write(Path root, UUID warId, ClaimKey key, WarChunkSnapshot snapshot) {
+        writeTag(root, warId, key, snapshot.save());
+    }
+
+    private static void writeTag(Path root, UUID warId, ClaimKey key, CompoundTag tag) {
         Path target = file(root, warId, key);
         Path temporary = target.resolveSibling(target.getFileName() + ".tmp");
         try {
             Files.createDirectories(target.getParent());
-            NbtIo.writeCompressed(snapshot.save(), temporary);
+            NbtIo.writeCompressed(tag, temporary);
             move(temporary, target);
         } catch (IOException exception) {
             discard(temporary);
@@ -50,7 +76,9 @@ public final class WarSnapshotStore {
     }
 
     public static Map<ClaimKey, WarChunkSnapshot> readAll(MinecraftServer server, UUID warId, Set<ClaimKey> keys) {
-        return readAll(root(server), warId, keys);
+        Path root = root(server);
+        flush();
+        return readAll(root, warId, keys);
     }
 
     static Map<ClaimKey, WarChunkSnapshot> readAll(Path root, UUID warId, Set<ClaimKey> keys) {
@@ -72,7 +100,11 @@ public final class WarSnapshotStore {
     }
 
     public static void delete(MinecraftServer server, UUID warId, ClaimKey key) {
-        delete(root(server), warId, key);
+        deleteAsync(root(server), warId, key);
+    }
+
+    static void deleteAsync(Path root, UUID warId, ClaimKey key) {
+        submit(() -> delete(root, warId, key));
     }
 
     static void delete(Path root, UUID warId, ClaimKey key) {
@@ -84,8 +116,10 @@ public final class WarSnapshotStore {
     }
 
     public static void deleteWar(MinecraftServer server, UUID warId) {
-        deleteWar(root(server), warId);
+        Path root = root(server);
+        submit(() -> deleteWar(root, warId));
     }
+
 
     static void deleteWar(Path root, UUID warId) {
         Path folder = warFolder(root, warId);
@@ -106,7 +140,33 @@ public final class WarSnapshotStore {
     }
 
     public static void pruneOrphans(MinecraftServer server, Set<UUID> knownWars) {
-        pruneOrphans(root(server), knownWars);
+        Path root = root(server);
+        Set<UUID> known = Set.copyOf(knownWars);
+        submit(() -> pruneOrphans(root, known));
+    }
+
+    public static void flush() {
+        CountDownLatch drained = new CountDownLatch(1);
+        if (!submit(drained::countDown)) {
+            return;
+        }
+        try {
+            if (!drained.await(FLUSH_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                KalFactions.LOGGER.warn("War snapshot writes did not drain within {}s", FLUSH_TIMEOUT_SECONDS);
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private static boolean submit(Runnable task) {
+        try {
+            IO_EXECUTOR.execute(task);
+            return true;
+        } catch (RuntimeException exception) {
+            KalFactions.LOGGER.error("War snapshot task was rejected", exception);
+            return false;
+        }
     }
 
     static void pruneOrphans(Path root, Set<UUID> knownWars) {

@@ -161,6 +161,27 @@ class WarSnapshotPersistenceTest {
     }
 
     @Test
+    void queuedWritesLandOnDiskOnceFlushed(@TempDir Path root) {
+        ClaimKey key = key(2, -3);
+
+        WarSnapshotStore.writeAsync(root, WAR_ID, key, WarChunkSnapshot.load(emptySnapshotTag()));
+        WarSnapshotStore.flush();
+
+        assertTrue(Files.isRegularFile(WarSnapshotStore.file(root, WAR_ID, key)));
+    }
+
+    @Test
+    void queuedWritesAndDeletesKeepTheirOrder(@TempDir Path root) {
+        ClaimKey key = key(7, 7);
+
+        WarSnapshotStore.writeAsync(root, WAR_ID, key, WarChunkSnapshot.load(emptySnapshotTag()));
+        WarSnapshotStore.deleteAsync(root, WAR_ID, key);
+        WarSnapshotStore.flush();
+
+        assertFalse(Files.exists(WarSnapshotStore.file(root, WAR_ID, key)));
+    }
+
+    @Test
     void fileNamesCannotEscapeTheWarFolder() {
         assertEquals("minecraft_overworld_3_-4.nbt", WarSnapshotStore.fileName(key(3, -4)));
 
