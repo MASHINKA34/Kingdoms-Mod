@@ -907,6 +907,14 @@ public final class FactionManager extends SavedData {
         return forceLoadSuspended.contains(factionId);
     }
 
+    synchronized boolean isForceLoadApplied(ClaimKey key, UUID factionId) {
+        return factionId.equals(appliedForceLoads.get(key));
+    }
+
+    synchronized int appliedForceLoadCount() {
+        return appliedForceLoads.size();
+    }
+
     public synchronized int forceLoadLimit(UUID factionId) {
         Faction faction = factions.get(factionId);
         return faction == null ? 0 : forceLoadLimit(faction);
