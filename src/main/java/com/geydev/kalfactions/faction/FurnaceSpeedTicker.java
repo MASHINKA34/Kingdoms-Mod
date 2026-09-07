@@ -42,7 +42,7 @@ public final class FurnaceSpeedTicker {
             refreshClaims(server);
         }
         rescan(server);
-        applyBoost();
+        applyBoost(server);
     }
 
     @SubscribeEvent
@@ -166,9 +166,17 @@ public final class FurnaceSpeedTicker {
         return furnaces.size();
     }
 
-    private static void applyBoost() {
-        for (Map<Long, List<AbstractFurnaceBlockEntity>> chunks : INDEX.values()) {
-            for (List<AbstractFurnaceBlockEntity> furnaces : chunks.values()) {
+    private static void applyBoost(MinecraftServer server) {
+        for (Map.Entry<ResourceKey<Level>, Map<Long, List<AbstractFurnaceBlockEntity>>> dimension : INDEX.entrySet()) {
+            ServerLevel level = server.getLevel(dimension.getKey());
+            if (level == null) {
+                continue;
+            }
+            for (Map.Entry<Long, List<AbstractFurnaceBlockEntity>> chunk : dimension.getValue().entrySet()) {
+                if (!level.shouldTickBlocksAt(chunk.getKey())) {
+                    continue;
+                }
+                List<AbstractFurnaceBlockEntity> furnaces = chunk.getValue();
                 for (int index = 0; index < furnaces.size(); index++) {
                     boost(furnaces.get(index));
                 }
@@ -177,14 +185,14 @@ public final class FurnaceSpeedTicker {
     }
 
     private static void boost(AbstractFurnaceBlockEntity furnace) {
-        if (furnace.isRemoved()) {
-            return;
-        }
-        BlockState state = furnace.getBlockState();
-        if (!state.hasProperty(BlockStateProperties.LIT) || !state.getValue(BlockStateProperties.LIT)) {
+        if (furnace.isRemoved() || !boostable(furnace.getBlockState())) {
             return;
         }
         furnace.cookingProgress = boostedProgress(furnace.cookingProgress, furnace.cookingTotalTime);
+    }
+
+    static boolean boostable(BlockState state) {
+        return state.hasProperty(BlockStateProperties.LIT) && state.getValue(BlockStateProperties.LIT);
     }
 
     static int boostedProgress(int cookingProgress, int cookingTotalTime) {
