@@ -230,6 +230,10 @@ public final class ReviewRegressionGameTests {
         FactionManager original = FactionManager.get(level);
         FactionManager manager = new FactionManager();
         Faction loser = faction(manager, UUID.randomUUID(), "Loser", ClaimKey.of(level, pos), Set.of());
+        ClaimKey secondChunk = ClaimKey.of(level, secondPos);
+        if (!secondChunk.equals(ClaimKey.of(level, pos))) {
+            manager.claim(loser.id(), secondChunk);
+        }
         var receiver = RegressionPlayers.create(level, pos, 0).player();
         Faction winner = faction(manager, receiver.getUUID(), "Winner", ClaimKey.of(level, pos.offset(160, 0, 0)), Set.of());
         UUID id = UUID.randomUUID();
