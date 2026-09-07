@@ -363,6 +363,7 @@ public final class XaeroArchiveSessions {
         });
         DOWNLOAD_RESERVATIONS.clear();
         LAST_STATS_REQUEST.clear();
+        XaeroArchiveStore.reset();
     }
 
     private static void authorizeUploadCommit(

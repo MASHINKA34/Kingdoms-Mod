@@ -27,6 +27,11 @@ public final class XaeroArchiveStore {
     private static final Map<Path, Object> LOCKS = new ConcurrentHashMap<>();
     private static final Map<Path, Integer> ACTIVE_BLOBS = new ConcurrentHashMap<>();
 
+    public static void reset() {
+        LOCKS.clear();
+        ACTIVE_BLOBS.clear();
+    }
+
     public static ArchiveLocation location(MinecraftServer server, UUID factionId, ResourceLocation dimension) throws IOException {
         Path worldRoot = server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize();
         String serverIdentity = serverIdentity(server, worldRoot);
