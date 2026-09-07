@@ -17,9 +17,15 @@ import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 
+@EventBusSubscriber(modid = KalFactions.MOD_ID, value = Dist.CLIENT)
 public final class EmblemTextures {
     private static final long FAILED_RETRY_MILLIS = 60_000L;
+    private static final int MAX_REDIRECTS = 4;
     private static final Map<UUID, PixelEntry> PIXEL_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, UrlEntry> URL_CACHE = new ConcurrentHashMap<>();
     private static final Map<Integer, Emblem> FALLBACK_CACHE = new ConcurrentHashMap<>();
@@ -62,6 +68,25 @@ public final class EmblemTextures {
         return count == 256 || count == 1024;
     }
 
+    @SubscribeEvent
+    public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        release();
+    }
+
+    public static void release() {
+        var textures = Minecraft.getInstance().getTextureManager();
+        URL_CACHE.values().stream()
+                .map(entry -> entry.emblem)
+                .filter(java.util.Objects::nonNull)
+                .forEach(emblem -> textures.release(emblem.texture()));
+        PIXEL_CACHE.values().stream()
+                .map(entry -> entry.emblem)
+                .filter(java.util.Objects::nonNull)
+                .forEach(emblem -> textures.release(emblem.texture()));
+        URL_CACHE.clear();
+        PIXEL_CACHE.clear();
+    }
+
     private static Emblem uploadPixels(UUID factionId, List<Integer> pixels) {
         int size = (int) Math.sqrt(pixels.size());
         NativeImage image = new NativeImage(size, size, true);
@@ -83,12 +108,7 @@ public final class EmblemTextures {
         CompletableFuture.runAsync(() -> {
             byte[] data;
             try {
-                HttpURLConnection connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
-                connection.setConnectTimeout(4000);
-                connection.setReadTimeout(4000);
-                connection.setInstanceFollowRedirects(true);
-                connection.setRequestProperty("User-Agent", "KingdomsMod");
-                try (InputStream in = connection.getInputStream()) {
+                try (InputStream in = open(url)) {
                     data = in.readNBytes(EmblemImageLimits.MAX_BYTES + 1);
                 }
                 EmblemImageLimits.validate(data);
@@ -114,6 +134,35 @@ public final class EmblemTextures {
                 URL_CACHE.put(url, new UrlEntry(UrlState.FAILED, null, System.currentTimeMillis()));
             }
         }, Util.ioPool());
+    }
+
+    /**
+     * Redirects are followed by hand so every hop is checked against the host allowlist; letting
+     * {@link HttpURLConnection} follow them would let an allowed host bounce the client anywhere.
+     */
+    private static InputStream open(String url) throws IOException {
+        String target = url;
+        for (int hop = 0; hop <= MAX_REDIRECTS; hop++) {
+            if (!com.geydev.kalfactions.faction.EmblemUrls.isAllowed(target)) {
+                throw new IOException("Emblem host is not allowed");
+            }
+            HttpURLConnection connection = (HttpURLConnection) URI.create(target).toURL().openConnection();
+            connection.setConnectTimeout(4000);
+            connection.setReadTimeout(4000);
+            connection.setInstanceFollowRedirects(false);
+            connection.setRequestProperty("User-Agent", "KingdomsMod");
+            int status = connection.getResponseCode();
+            if (status < 300 || status > 399) {
+                return connection.getInputStream();
+            }
+            String location = connection.getHeaderField("Location");
+            connection.disconnect();
+            if (location == null || location.isBlank()) {
+                throw new IOException("Emblem redirect without a target");
+            }
+            target = URI.create(target).resolve(location).toString();
+        }
+        throw new IOException("Emblem redirect chain is too long");
     }
 
     private static String textureKey(String url) {
