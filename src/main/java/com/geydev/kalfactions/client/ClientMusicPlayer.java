@@ -33,6 +33,7 @@ public final class ClientMusicPlayer {
     private static final int HEALTH_CHECK_TICKS = 40;
     private static final int STATUS_REPORT_TICKS = 100;
     private static final long DOWNLOAD_TIMEOUT_MILLIS = 20_000L;
+    private static final int SHORT_HASH_CHARS = 8;
 
     private static final Map<Long, Speaker> SPEAKERS = new LinkedHashMap<>();
     private static final Map<String, Download> DOWNLOADS = new HashMap<>();
@@ -226,7 +227,7 @@ public final class ClientMusicPlayer {
         }
         speaker.start(minecraft, file);
         KalFactions.LOGGER.info("Playing music track {} from speaker {}",
-                speaker.hash.substring(0, 8), speaker.pos.toShortString());
+                shortHash(speaker.hash), speaker.pos.toShortString());
     }
 
     private static void requestTrack(String hash) {
@@ -238,6 +239,9 @@ public final class ClientMusicPlayer {
     }
 
     private static void writeCache(String hash, byte[] data) {
+        if (!ArchiveHashing.isSha256(hash)) {
+            return;
+        }
         Path target = cacheFile(hash);
         CompletableFuture.runAsync(() -> {
             try {
@@ -263,12 +267,23 @@ public final class ClientMusicPlayer {
     }
 
     private static Path cacheFile(String hash) {
-        return Minecraft.getInstance().gameDirectory.toPath()
+        if (!ArchiveHashing.isSha256(hash)) {
+            throw new IllegalArgumentException("Invalid music track hash");
+        }
+        Path root = Minecraft.getInstance().gameDirectory.toPath()
                 .toAbsolutePath()
                 .normalize()
                 .resolve(KalFactions.MOD_ID)
-                .resolve(CACHE_DIRECTORY)
-                .resolve(hash + ".ogg");
+                .resolve(CACHE_DIRECTORY);
+        Path file = root.resolve(hash + ".ogg").normalize();
+        if (!file.startsWith(root)) {
+            throw new IllegalArgumentException("Music track hash escapes the cache folder");
+        }
+        return file;
+    }
+
+    private static String shortHash(String hash) {
+        return hash.length() <= SHORT_HASH_CHARS ? hash : hash.substring(0, SHORT_HASH_CHARS);
     }
 
     private static void notice(String messageKey) {

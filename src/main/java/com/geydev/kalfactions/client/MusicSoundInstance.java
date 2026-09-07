@@ -84,8 +84,9 @@ public final class MusicSoundInstance extends AbstractTickableSoundInstance {
     @Override
     public CompletableFuture<AudioStream> getStream(SoundBufferLibrary buffers, Sound sound, boolean looping) {
         return CompletableFuture.supplyAsync(() -> {
+            InputStream input = null;
             try {
-                InputStream input = Files.newInputStream(file);
+                input = Files.newInputStream(file);
                 if (looping) {
                     return (AudioStream) new LoopingAudioStream(JOrbisAudioStream::new, input);
                 }
@@ -110,10 +111,21 @@ public final class MusicSoundInstance extends AbstractTickableSoundInstance {
                         stream.close();
                     }
                 };
-            } catch (IOException exception) {
+            } catch (IOException | RuntimeException exception) {
+                closeQuietly(input);
                 throw new CompletionException(exception);
             }
         }, Util.nonCriticalIoPool());
+    }
+
+    private static void closeQuietly(InputStream input) {
+        if (input == null) {
+            return;
+        }
+        try {
+            input.close();
+        } catch (IOException ignored) {
+        }
     }
 
     @Override
