@@ -21,6 +21,7 @@ import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -62,7 +63,26 @@ public abstract class BucketItemMixin extends Item {
                 || com.geydev.kalfactions.dungeon.DungeonProtection.isDungeon(
                         serverLevel, pos.relative(direction))) {
             cir.setReturnValue(InteractionResultHolder.fail(player.getItemInHand(hand)));
+            return;
         }
+        if (player instanceof ServerPlayer serverPlayer
+                && kingdoms$blocksBucket(serverLevel, serverPlayer, pos, pos.relative(direction))) {
+            cir.setReturnValue(InteractionResultHolder.fail(player.getItemInHand(hand)));
+        }
+    }
+
+    @Unique
+    private static boolean kingdoms$blocksBucket(
+            ServerLevel level,
+            ServerPlayer player,
+            BlockPos hit,
+            BlockPos adjacent
+    ) {
+        if (!com.geydev.kalfactions.config.ModConfigSpec.PROTECT_FLUIDS.get()) {
+            return false;
+        }
+        return !com.geydev.kalfactions.protection.FactionAccess.canBuild(player, level, hit)
+                || !com.geydev.kalfactions.protection.FactionAccess.canBuild(player, level, adjacent);
     }
 
     @Inject(method = "emptyContents", at = @At("HEAD"), cancellable = true)
@@ -79,6 +99,12 @@ public abstract class BucketItemMixin extends Item {
         }
         if (QuarryManager.get(serverLevel).isQuarry(serverLevel, pos)
                 || com.geydev.kalfactions.dungeon.DungeonProtection.isDungeon(serverLevel, pos)) {
+            cir.setReturnValue(false);
+            return;
+        }
+        if (entity instanceof ServerPlayer player
+                && com.geydev.kalfactions.config.ModConfigSpec.PROTECT_FLUIDS.get()
+                && !com.geydev.kalfactions.protection.FactionAccess.canBuild(player, serverLevel, pos)) {
             cir.setReturnValue(false);
         }
     }

@@ -313,6 +313,10 @@ public final class ProtectionHandler {
             if (owner == null) {
                 return false; // unclaimed land: vanilla explosion
             }
+            if (owner.equals(exploderFaction) || factions.areAllied(owner, exploderFaction)) {
+                wars.onChunkModified(level, new ChunkPos(pos));
+                return false; // the claim owner (or an ally) blasting its own land
+            }
             if (exploderFaction != null && wars.areAtWar(owner, exploderFaction)) {
                 if (isWarProtectedBlock(level, pos)) {
                     return true; // storages stay protected even from war explosions

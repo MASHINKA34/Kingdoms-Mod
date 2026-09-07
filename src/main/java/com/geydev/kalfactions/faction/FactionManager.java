@@ -163,6 +163,10 @@ public final class FactionManager extends SavedData {
         return Optional.ofNullable(claimIndex.get(key));
     }
 
+    public synchronized boolean hasClaims() {
+        return !claimIndex.isEmpty();
+    }
+
     public synchronized OperationResult createFaction(UUID ownerId, String name, ClaimKey center) {
         return createFaction(
             ownerId,

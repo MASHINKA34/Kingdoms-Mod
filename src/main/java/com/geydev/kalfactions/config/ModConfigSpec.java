@@ -35,6 +35,9 @@ public final class ModConfigSpec {
     public static final IntValue ENCHANTER_ANVIL_MAX_COST;
     public static final IntValue ENCHANTER_PRIOR_WORK_MAX_COST;
     public static final IntValue ENCHANTER_LEVEL_COST_CAP;
+    public static final BooleanValue PROTECT_PISTONS;
+    public static final BooleanValue PROTECT_MOB_GRIEFING;
+    public static final BooleanValue PROTECT_FLUIDS;
     public static final IntValue WAR_ROLLBACK_CHUNKS_PER_TICK;
     public static final IntValue WAR_MAX_SNAPSHOT_CHUNKS;
     public static final LongValue WAR_AUTO_END_TICKS;
@@ -306,6 +309,15 @@ public final class ModConfigSpec {
         ENCHANTER_ANVIL_MAX_COST = builder.defineInRange("enchanterAnvilMaxCost", 60, 1, Integer.MAX_VALUE);
         ENCHANTER_PRIOR_WORK_MAX_COST = builder.defineInRange("enchanterPriorWorkMaxCost", 12, 0, Integer.MAX_VALUE);
         ENCHANTER_LEVEL_COST_CAP = builder.defineInRange("enchanterLevelCostCap", 12, 1, Integer.MAX_VALUE);
+        PROTECT_PISTONS = builder
+            .comment("Stop pistons from pushing, pulling or breaking blocks across a claim boundary.")
+            .define("protectPistons", true);
+        PROTECT_MOB_GRIEFING = builder
+            .comment("Stop mob griefing (enderman block theft, and the like) inside and next to claims.")
+            .define("protectMobGriefing", true);
+        PROTECT_FLUIDS = builder
+            .comment("Stop water and lava from flowing across a claim boundary, and buckets from reaching in.")
+            .define("protectFluids", true);
         builder.pop();
 
         builder.push("research");

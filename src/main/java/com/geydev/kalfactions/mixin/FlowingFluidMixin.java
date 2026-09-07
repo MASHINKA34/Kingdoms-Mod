@@ -33,6 +33,11 @@ public abstract class FlowingFluidMixin {
             return;
         }
         BlockPos source = pos.relative(direction.getOpposite());
+        if (com.geydev.kalfactions.config.ModConfigSpec.PROTECT_FLUIDS.get()
+                && com.geydev.kalfactions.protection.ClaimBoundary.crossesClaimBoundary(serverLevel, source, pos)) {
+            ci.cancel();
+            return;
+        }
         if (QuarryManager.get(serverLevel).isQuarry(serverLevel, pos)) {
             ci.cancel();
             return;
