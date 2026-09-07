@@ -14,12 +14,15 @@ public abstract class ScorchedKrahgProjectileMixin {
     private void kingdoms$beginKrahgTick(CallbackInfo callback) {
         ProjectileEntity self = (ProjectileEntity) (Object) this;
         if (!self.level().isClientSide()) {
-            MachineProtection.beginProjectileContext(self.getShooter());
+            MachineProtection.beginProjectileContext(self.getShooter(), self.level().getGameTime());
         }
     }
 
     @Inject(method = "tick()V", at = @At("RETURN"), remap = false)
     private void kingdoms$endKrahgTick(CallbackInfo callback) {
-        MachineProtection.endProjectileContext();
+        ProjectileEntity self = (ProjectileEntity) (Object) this;
+        if (!self.level().isClientSide()) {
+            MachineProtection.endProjectileContext();
+        }
     }
 }

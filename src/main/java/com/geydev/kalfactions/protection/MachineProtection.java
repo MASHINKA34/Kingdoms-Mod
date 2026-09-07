@@ -19,28 +19,59 @@ import net.minecraft.world.level.LevelReader;
 
 public final class MachineProtection {
     private static final class ProjectileContext {
-        private boolean active;
+        private int depth;
+        private long gameTime;
         private Entity shooter;
+
+        private void clear() {
+            depth = 0;
+            gameTime = 0L;
+            shooter = null;
+        }
     }
 
     private static final ThreadLocal<ProjectileContext> PROJECTILE_CONTEXT =
         ThreadLocal.withInitial(ProjectileContext::new);
+    private static volatile boolean projectileContextActive;
 
-    public static void beginProjectileContext(Entity shooter) {
+    public static void beginProjectileContext(Entity shooter, long gameTime) {
         ProjectileContext context = PROJECTILE_CONTEXT.get();
-        context.active = true;
+        if (context.depth > 0 && context.gameTime != gameTime) {
+            context.clear();
+        }
+        context.depth++;
+        context.gameTime = gameTime;
         context.shooter = shooter;
+        projectileContextActive = true;
     }
 
     public static void endProjectileContext() {
         ProjectileContext context = PROJECTILE_CONTEXT.get();
-        context.active = false;
-        context.shooter = null;
+        if (context.depth <= 0) {
+            return;
+        }
+        if (--context.depth == 0) {
+            context.clear();
+            projectileContextActive = false;
+        }
+    }
+
+    public static void clearProjectileContext() {
+        PROJECTILE_CONTEXT.get().clear();
+        projectileContextActive = false;
     }
 
     public static boolean blocksProjectileGrief(Level level, BlockPos target) {
+        if (!projectileContextActive) {
+            return false;
+        }
         ProjectileContext context = PROJECTILE_CONTEXT.get();
-        if (!context.active) {
+        if (context.depth <= 0) {
+            return false;
+        }
+        if (context.gameTime != level.getGameTime()) {
+            context.clear();
+            projectileContextActive = false;
             return false;
         }
         return !canProjectileBreak(level, target, context.shooter);

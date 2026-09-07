@@ -21,18 +21,11 @@ public final class KingdomsMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName.contains(".Create")) {
             return classExists(targetClassName);
         }
-        if (mixinClassName.endsWith("ScorchedProjectileMixin")
-                || mixinClassName.endsWith("ScorchedKrahgProjectileMixin")
-                || mixinClassName.endsWith("ScorchedOsborneProjectileMixin")
-                || mixinClassName.endsWith("ScorchedBeamMiningMixin")
-                || mixinClassName.endsWith("ScorchedFlarePistolMixin")
-                || mixinClassName.endsWith("ScorchedGunBenchResultSlotMixin")
-                || mixinClassName.endsWith("ScorchedGunnerMobSpawnerMixin")
-                || mixinClassName.contains(".ProtectionPixel")) {
+        if (targetClassName.startsWith("top.ribs.scguns.") || mixinClassName.contains(".ProtectionPixel")) {
             return classExists(targetClassName);
         }
-        if (mixinClassName.endsWith("XaeroCommonMinimapRadarListMixin")
-                || mixinClassName.endsWith("ScorchedBlueprintScreenMixin")
+        if (mixinClassName.endsWith("ScorchedBlueprintScreenMixin")
+                || mixinClassName.endsWith("XaeroCommonMinimapRadarListMixin")
                 || mixinClassName.endsWith("XaeroCommonRadarRendererMixin")
                 || mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementReaderMixin")
                 || mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementCollectorMixin")

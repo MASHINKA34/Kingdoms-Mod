@@ -143,7 +143,7 @@ public final class DungeonGameTests {
                     "beam mining cannot break a dungeon block"
             );
 
-            MachineProtection.beginProjectileContext(shooter);
+            MachineProtection.beginProjectileContext(shooter, level.getGameTime());
             try {
                 helper.assertTrue(
                         MachineProtection.blocksProjectileGrief(level, target),
