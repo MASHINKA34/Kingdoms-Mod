@@ -69,13 +69,13 @@ public final class FaithCommands {
         } else {
             Faction faction = FactionManager.get(server).getFactionByName(factionName).orElse(null);
             if (faction == null) {
-                source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+                source.sendFailure(Component.translatable("commands.kingdoms.admin.faction_not_found", factionName));
                 return 0;
             }
             targets.add(faction);
         }
         if (targets.isEmpty()) {
-            source.sendSuccess(() -> Component.literal("Фракций нет."), false);
+            source.sendSuccess(() -> Component.translatable("commands.kingdoms.admin.no_factions"), false);
             return 0;
         }
         long now = System.currentTimeMillis();
@@ -84,11 +84,15 @@ public final class FaithCommands {
             for (FaithGod god : FaithGod.VALUES) {
                 int level = manager.level(faction.id(), god);
                 long remaining = Math.max(0L, manager.buffEndMillis(faction.id(), god) - now);
-                String buff = remaining > 0L
-                        ? String.format(Locale.ROOT, "баф %d:%02d", remaining / 60_000L, remaining / 1000L % 60L)
-                        : "бафа нет";
-                source.sendSuccess(() -> Component.literal(
-                        "  " + god.id() + ": уровень " + level + "/" + FaithGod.MAX_LEVEL + ", " + buff), false);
+                Component buff = remaining > 0L
+                        ? Component.translatable(
+                                "commands.kingdoms.faith.buff_left",
+                                String.format(Locale.ROOT, "%d:%02d",
+                                        remaining / 60_000L, remaining / 1000L % 60L))
+                        : Component.translatable("commands.kingdoms.faith.buff_none");
+                source.sendSuccess(() -> Component.translatable(
+                        "commands.kingdoms.faith.status_line",
+                        god.id(), level, FaithGod.MAX_LEVEL, buff), false);
             }
         }
         return targets.size();
@@ -105,8 +109,8 @@ public final class FaithCommands {
         FaithManager manager = FaithManager.get(source.getServer());
         manager.setLevel(faction.id(), god, level);
         FaithService.refreshMembers(source.getServer(), faction);
-        source.sendSuccess(() -> Component.literal(
-                "Вера " + god.id() + " у " + faction.name() + " теперь " + level + "."), true);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.faith.level_set", god.id(), faction.name(), level), true);
         return 1;
     }
 
@@ -131,8 +135,8 @@ public final class FaithCommands {
                 ),
                 true
         );
-        source.sendSuccess(() -> Component.literal(
-                "Баф " + god.id() + " выдан фракции " + faction.name() + " на " + minutes + " мин."), true);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.faith.buff_granted", god.id(), faction.name(), minutes), true);
         return 1;
     }
 
@@ -144,8 +148,8 @@ public final class FaithCommands {
             return 0;
         }
         int nonce = FaithManager.get(source.getServer()).reroll(faction.id(), god);
-        source.sendSuccess(() -> Component.literal(
-                "Квест " + god.id() + " у " + faction.name() + " перекатан (попытка " + nonce + ")."), true);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.faith.quest_rerolled", god.id(), faction.name(), nonce), true);
         return 1;
     }
 
@@ -155,7 +159,7 @@ public final class FaithCommands {
                 .getFactionByName(name)
                 .orElse(null);
         if (faction == null) {
-            context.getSource().sendFailure(Component.literal("Фракция не найдена: " + name));
+            context.getSource().sendFailure(Component.translatable("commands.kingdoms.admin.faction_not_found", name));
         }
         return faction;
     }
@@ -164,7 +168,7 @@ public final class FaithCommands {
         String id = StringArgumentType.getString(context, "god");
         FaithGod god = FaithGod.parse(id).orElse(null);
         if (god == null) {
-            context.getSource().sendFailure(Component.literal("Бог не найден: " + id));
+            context.getSource().sendFailure(Component.translatable("commands.kingdoms.faith.god_not_found", id));
         }
         return god;
     }

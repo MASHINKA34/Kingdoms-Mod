@@ -53,13 +53,13 @@ public final class MarketPlotCommands {
         ItemStack wand = wandWithSelection(player);
         PlotSelection selection = wand.isEmpty() ? null : wand.get(ModDataComponents.PLOT_SELECTION);
         if (selection == null || !selection.isComplete() || !selection.matchesDimension(level)) {
-            source.sendFailure(Component.literal("Сначала выделите область жезлом в текущем измерении."));
+            source.sendFailure(Component.translatable("commands.kingdoms.plot.select_area_first"));
             return 0;
         }
         BoundingBox box = selection.box().orElseThrow();
         long volume = (long) box.getXSpan() * box.getYSpan() * box.getZSpan();
         if (volume > 8_000_000L) {
-            source.sendFailure(Component.literal("Объём экспорта больше 8000000 блоков."));
+            source.sendFailure(Component.translatable("commands.kingdoms.plot.export_too_large", 8_000_000));
             return 0;
         }
         int cores = 0;
@@ -70,9 +70,7 @@ public final class MarketPlotCommands {
             }
         }
         if (cores != 1) {
-            source.sendFailure(Component.literal(
-                    "В выделении должен находиться ровно один блок kingdoms:quarry_core."
-            ));
+            source.sendFailure(Component.translatable("commands.kingdoms.plot.export_needs_core"));
             return 0;
         }
         StructureTemplateManager manager = level.getStructureManager();
@@ -87,15 +85,15 @@ public final class MarketPlotCommands {
         );
         template.setAuthor(player.getGameProfile().getName());
         if (!manager.save(id)) {
-            source.sendFailure(Component.literal("Не удалось сохранить NBT-файл."));
+            source.sendFailure(Component.translatable("commands.kingdoms.plot.export_save_failed"));
             return 0;
         }
         String path = manager.createAndValidatePathToGeneratedStructure(id, ".nbt")
                 .toAbsolutePath()
                 .toString();
-        source.sendSuccess(() -> Component.literal(
-                "Структура " + box.getXSpan() + "×" + box.getYSpan() + "×" + box.getZSpan()
-                        + " сохранена: " + path
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.plot.export_saved",
+                box.getXSpan(), box.getYSpan(), box.getZSpan(), path
         ), false);
         return 1;
     }
@@ -107,11 +105,11 @@ public final class MarketPlotCommands {
         ItemStack wand = wandWithSelection(player);
         PlotSelection selection = wand.isEmpty() ? null : wand.get(ModDataComponents.PLOT_SELECTION);
         if (selection == null || !selection.isComplete()) {
-            source.sendFailure(Component.literal("Сначала выделите оба угла жезлом участка."));
+            source.sendFailure(Component.translatable("commands.kingdoms.plot.select_corners_first"));
             return 0;
         }
         if (!selection.matchesDimension(level)) {
-            source.sendFailure(Component.literal("Выделение сделано в другом измерении."));
+            source.sendFailure(Component.translatable("commands.kingdoms.plot.selection_other_dimension"));
             return 0;
         }
         BoundingBox box = selection.box().orElseThrow();
@@ -123,10 +121,9 @@ public final class MarketPlotCommands {
         long price = LongArgumentType.getLong(context, "price");
         MarketPlot plot = MarketPlotService.create(level, box, price);
         wand.remove(ModDataComponents.PLOT_SELECTION);
-        source.sendSuccess(() -> Component.literal(
-                "Торговый участок #" + plot.id() + " создан: "
-                        + box.getXSpan() + "x" + box.getYSpan() + "x" + box.getZSpan()
-                        + ", цена " + price + "."), true);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.plot.created",
+                plot.id(), box.getXSpan(), box.getYSpan(), box.getZSpan(), price), true);
         return 1;
     }
 
@@ -135,11 +132,11 @@ public final class MarketPlotCommands {
         ServerLevel level = source.getPlayerOrException().serverLevel();
         int id = IntegerArgumentType.getInteger(context, "id");
         if (!MarketPlotManager.get(level).remove(id)) {
-            source.sendFailure(Component.literal("Участок #" + id + " не найден."));
+            source.sendFailure(Component.translatable("commands.kingdoms.plot.not_found", id));
             return 0;
         }
         MarketPlotService.syncAll(level.getServer());
-        source.sendSuccess(() -> Component.literal("Участок #" + id + " удалён (постройка не тронута)."), true);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.plot.removed", id), true);
         return 1;
     }
 
@@ -150,13 +147,13 @@ public final class MarketPlotCommands {
         long price = LongArgumentType.getLong(context, "price");
         MarketPlot plot = MarketPlotManager.get(level).byId(id).orElse(null);
         if (plot == null) {
-            source.sendFailure(Component.literal("Участок #" + id + " не найден."));
+            source.sendFailure(Component.translatable("commands.kingdoms.plot.not_found", id));
             return 0;
         }
         plot.setBasePrice(price);
         MarketPlotManager.get(level).markChanged();
         MarketPlotService.syncAll(level.getServer());
-        source.sendSuccess(() -> Component.literal("Базовая цена участка #" + id + " теперь " + price + "."), true);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.plot.price_set", id, price), true);
         return 1;
     }
 
@@ -166,12 +163,11 @@ public final class MarketPlotCommands {
         int id = IntegerArgumentType.getInteger(context, "id");
         MarketPlot plot = MarketPlotManager.get(level).byId(id).orElse(null);
         if (plot == null) {
-            source.sendFailure(Component.literal("Участок #" + id + " не найден."));
+            source.sendFailure(Component.translatable("commands.kingdoms.plot.not_found", id));
             return 0;
         }
         MarketPlotService.release(level, plot);
-        source.sendSuccess(() -> Component.literal(
-                "Участок #" + id + " изъят: постройка сброшена, снова выставлен на продажу."), true);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.plot.reclaimed", id), true);
         return 1;
     }
 
@@ -180,19 +176,25 @@ public final class MarketPlotCommands {
         ServerLevel level = source.getPlayerOrException().serverLevel();
         var plots = MarketPlotManager.get(level).all();
         if (plots.isEmpty()) {
-            source.sendSuccess(() -> Component.literal("Торговых участков нет."), false);
+            source.sendSuccess(() -> Component.translatable("commands.kingdoms.plot.none"), false);
             return 0;
         }
         for (MarketPlot plot : plots) {
             BoundingBox box = plot.box();
-            String status = switch (plot.state()) {
-                case FOR_SALE -> "продаётся за " + plot.basePrice();
-                case OWNED -> "владелец " + plot.ownerName();
-                case RESALE -> "владелец " + plot.ownerName() + ", перепродажа за " + plot.resalePrice();
+            Component status = switch (plot.state()) {
+                case FOR_SALE -> Component.translatable(
+                        "commands.kingdoms.plot.status.for_sale", plot.basePrice());
+                case OWNED -> Component.translatable(
+                        "commands.kingdoms.plot.status.owned", plot.ownerName());
+                case RESALE -> Component.translatable(
+                        "commands.kingdoms.plot.status.resale", plot.ownerName(), plot.resalePrice());
             };
-            source.sendSuccess(() -> Component.literal(
-                    "#" + plot.id() + " [" + box.minX() + " " + box.minY() + " " + box.minZ()
-                            + " -> " + box.maxX() + " " + box.maxY() + " " + box.maxZ() + "] " + status), false);
+            source.sendSuccess(() -> Component.translatable(
+                    "commands.kingdoms.plot.list_line",
+                    plot.id(),
+                    box.minX(), box.minY(), box.minZ(),
+                    box.maxX(), box.maxY(), box.maxZ(),
+                    status), false);
         }
         return plots.size();
     }

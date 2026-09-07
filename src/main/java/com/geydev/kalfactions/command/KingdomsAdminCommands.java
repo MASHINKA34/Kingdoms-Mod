@@ -127,8 +127,8 @@ public final class KingdomsAdminCommands {
                                                 .suggests(BONUS_SUGGESTIONS)
                                                 .executes(KingdomsAdminCommands::setFactionBonuses)))))
                 .then(Commands.literal("dimension")
-                        .then(dimensionBranch("nether", Level.NETHER, "Ад"))
-                        .then(dimensionBranch("end", Level.END, "Энд")))
+                        .then(dimensionBranch("nether", Level.NETHER, "kingdoms.dimension.nether"))
+                        .then(dimensionBranch("end", Level.END, "kingdoms.dimension.end")))
                 .then(Commands.literal("news")
                         .then(Commands.literal("publish")
                                 .then(Commands.argument("faction", StringArgumentType.string())
@@ -227,7 +227,7 @@ public final class KingdomsAdminCommands {
         } else {
             Faction faction = factions.getFactionByName(factionName).orElse(null);
             if (faction == null) {
-                source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+                source.sendFailure(Component.translatable("commands.kingdoms.admin.faction_not_found", factionName));
                 return 0;
             }
             targets = java.util.List.of(faction);
@@ -235,15 +235,20 @@ public final class KingdomsAdminCommands {
         ScienceLedger ledger = ScienceLedger.get(source.getServer());
         long now = System.currentTimeMillis();
         long cap = ModConfigSpec.SCIENCE_DAILY_CAP.getAsLong();
-        String capText = cap > 0L ? String.valueOf(cap) : "без лимита";
+        Component capText = cap > 0L
+                ? Component.literal(String.valueOf(cap))
+                : Component.translatable("commands.kingdoms.admin.science.no_cap");
         for (Faction faction : targets) {
-            String line = faction.name()
-                    + " · открыто предметов: " + ledger.discoveryCount(faction.id())
-                    + " · наука за сегодня: " + ledger.grantedToday(faction.id(), now) + "/" + capText;
-            source.sendSuccess(() -> Component.literal(line), false);
+            Component line = Component.translatable(
+                    "commands.kingdoms.admin.science.line",
+                    faction.name(),
+                    ledger.discoveryCount(faction.id()),
+                    ledger.grantedToday(faction.id(), now),
+                    capText);
+            source.sendSuccess(() -> line, false);
         }
         if (targets.isEmpty()) {
-            source.sendSuccess(() -> Component.literal("Фракций нет."), false);
+            source.sendSuccess(() -> Component.translatable("commands.kingdoms.admin.no_factions"), false);
         }
         return targets.size();
     }
@@ -253,11 +258,11 @@ public final class KingdomsAdminCommands {
         String factionName = StringArgumentType.getString(context, "faction");
         Faction faction = FactionManager.get(source.getServer()).getFactionByName(factionName).orElse(null);
         if (faction == null) {
-            source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.faction_not_found", factionName));
             return 0;
         }
         ScienceLedger.get(source.getServer()).resetDiscoveries(faction.id());
-        source.sendSuccess(() -> Component.literal("Открытия фракции " + faction.name() + " сброшены."), true);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.admin.science.discoveries_reset", faction.name()), true);
         return 1;
     }
 
@@ -266,12 +271,12 @@ public final class KingdomsAdminCommands {
         String factionName = StringArgumentType.getString(context, "faction");
         Faction faction = FactionManager.get(source.getServer()).getFactionByName(factionName).orElse(null);
         if (faction == null) {
-            source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.faction_not_found", factionName));
             return 0;
         }
         ScienceLedger.get(source.getServer()).resetDaily(faction.id());
         source.sendSuccess(
-                () -> Component.literal("Дневной счётчик науки фракции " + faction.name() + " сброшен."),
+                () -> Component.translatable("commands.kingdoms.admin.science.daily_reset", faction.name()),
                 true
         );
         return 1;
@@ -283,10 +288,10 @@ public final class KingdomsAdminCommands {
         ServerLevel level = player.serverLevel();
         float facing = net.minecraft.util.Mth.wrapDegrees(player.getYRot() + 180.0F);
         if (!ScoutService.spawn(level, player.getX(), player.getY(), player.getZ(), facing)) {
-            source.sendFailure(Component.literal("Не удалось создать разведчика карт."));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.scout.spawn_failed"));
             return 0;
         }
-        source.sendSuccess(() -> Component.literal("Разведчик карт создан."), true);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.admin.scout.spawned"), true);
         return 1;
     }
 
@@ -299,7 +304,7 @@ public final class KingdomsAdminCommands {
         if (factionName != null) {
             Faction faction = factions.getFactionByName(factionName).orElse(null);
             if (faction == null) {
-                source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+                source.sendFailure(Component.translatable("commands.kingdoms.admin.faction_not_found", factionName));
                 return 0;
             }
             filter = faction.id();
@@ -311,18 +316,24 @@ public final class KingdomsAdminCommands {
             }
             ScoutOrder order = entry.getValue();
             String name = factions.getFactionById(entry.getKey()).map(Faction::name).orElse(entry.getKey().toString());
-            String line = name
-                    + " · " + order.sizeChunks() + "x" + order.sizeChunks()
-                    + " · центр " + order.centerChunkX() + ", " + order.centerChunkZ()
-                    + " · " + order.dimension().location()
-                    + " · разведано " + order.progressPercent() + "%"
-                    + " · осталось " + ScoutService.formatRemaining(order.remainingMillis(System.currentTimeMillis()))
-                    + (order.scanned() ? " · данные готовы" : "");
-            source.sendSuccess(() -> Component.literal(line), false);
+            Component line = Component.translatable(
+                    "commands.kingdoms.admin.scout.line",
+                    name,
+                    order.sizeChunks(),
+                    order.sizeChunks(),
+                    order.centerChunkX(),
+                    order.centerChunkZ(),
+                    order.dimension().location().toString(),
+                    order.progressPercent(),
+                    ScoutService.formatRemaining(order.remainingMillis(System.currentTimeMillis())),
+                    order.scanned()
+                            ? Component.translatable("commands.kingdoms.admin.scout.ready")
+                            : Component.empty());
+            source.sendSuccess(() -> line, false);
             shown++;
         }
         if (shown == 0) {
-            source.sendSuccess(() -> Component.literal("Активных заказов разведки нет."), false);
+            source.sendSuccess(() -> Component.translatable("commands.kingdoms.admin.scout.none"), false);
         }
         return shown;
     }
@@ -332,14 +343,14 @@ public final class KingdomsAdminCommands {
         String factionName = StringArgumentType.getString(context, "faction");
         Faction faction = FactionManager.get(source.getServer()).getFactionByName(factionName).orElse(null);
         if (faction == null) {
-            source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.faction_not_found", factionName));
             return 0;
         }
         if (!ScoutService.cancel(source.getServer(), faction.id())) {
-            source.sendFailure(Component.literal("У фракции нет активного заказа разведки."));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.scout.no_order"));
             return 0;
         }
-        source.sendSuccess(() -> Component.literal("Заказ разведки отменён, деньги возвращены в казну."), true);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.admin.scout.cancelled"), true);
         return 1;
     }
 
@@ -348,14 +359,14 @@ public final class KingdomsAdminCommands {
         String factionName = StringArgumentType.getString(context, "faction");
         Faction faction = FactionManager.get(source.getServer()).getFactionByName(factionName).orElse(null);
         if (faction == null) {
-            source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.faction_not_found", factionName));
             return 0;
         }
         if (!ScoutService.completeNow(source.getServer(), faction.id())) {
-            source.sendFailure(Component.literal("У фракции нет активного заказа разведки."));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.scout.no_order"));
             return 0;
         }
-        source.sendSuccess(() -> Component.literal("Заказ разведки завершён досрочно."), true);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.admin.scout.completed"), true);
         return 1;
     }
 
@@ -554,17 +565,20 @@ public final class KingdomsAdminCommands {
         CommandSourceStack source = context.getSource();
         DimensionControlManager control = DimensionControlManager.get(source.getServer());
         if (!control.setClosed(dimension, closed)) {
-            source.sendFailure(Component.literal(displayName + (closed ? " уже закрыт." : " уже открыт.")));
+            source.sendFailure(Component.translatable(closed
+                    ? "commands.kingdoms.admin.dimension.already_closed"
+                    : "commands.kingdoms.admin.dimension.already_open",
+                    Component.translatable(displayName)));
             return 0;
         }
         if (!closed) {
             DimensionControlEvents.broadcastOpened(source.getServer(), dimension);
-            source.sendSuccess(() -> Component.literal(displayName + " открыт."), true);
+            source.sendSuccess(() -> Component.translatable("commands.kingdoms.admin.dimension.opened", Component.translatable(displayName)), true);
             return 1;
         }
         int moved = DimensionControlEvents.evacuateForClosure(source.getServer(), dimension);
         source.sendSuccess(
-                () -> Component.literal(displayName + " закрыт. Игроков перемещено на спавн: " + moved + "."),
+                () -> Component.translatable("commands.kingdoms.admin.dimension.closed", Component.translatable(displayName), moved),
                 true
         );
         return 1;
@@ -578,18 +592,23 @@ public final class KingdomsAdminCommands {
         CommandSourceStack source = context.getSource();
         DimensionControlManager control = DimensionControlManager.get(source.getServer());
         if (!control.setWipePending(dimension, true)) {
-            source.sendFailure(Component.literal("Вайп уже запланирован: " + displayName
-                    + " будет очищен при следующем запуске сервера."));
+            source.sendFailure(Component.translatable(
+                    "commands.kingdoms.admin.dimension.wipe_already_scheduled",
+                    Component.translatable(displayName)));
             return 0;
         }
         int moved = DimensionControlEvents.evacuate(source.getServer(), dimension);
-        String hint = control.isClosed(dimension)
-                ? ""
-                : " Совет: закройте измерение до рестарта — /kingdoms dimension "
-                        + dimension.location().getPath().replace("the_", "") + " close.";
+        Component hint = control.isClosed(dimension)
+                ? Component.empty()
+                : Component.translatable(
+                        "commands.kingdoms.admin.dimension.wipe_hint",
+                        dimension.location().getPath().replace("the_", ""));
         source.sendSuccess(
-                () -> Component.literal(displayName + " будет очищен при следующем запуске сервера."
-                        + " Игроков перемещено на спавн: " + moved + "." + hint),
+                () -> Component.translatable(
+                        "commands.kingdoms.admin.dimension.wipe_scheduled",
+                        Component.translatable(displayName),
+                        moved,
+                        hint),
                 true
         );
         return 1;
@@ -603,10 +622,10 @@ public final class KingdomsAdminCommands {
         CommandSourceStack source = context.getSource();
         DimensionControlManager control = DimensionControlManager.get(source.getServer());
         if (!control.setWipePending(dimension, false)) {
-            source.sendFailure(Component.literal("Вайп " + displayName + " не запланирован."));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.dimension.wipe_not_scheduled", Component.translatable(displayName)));
             return 0;
         }
-        source.sendSuccess(() -> Component.literal("Вайп отменён: " + displayName + " не будет очищен."), true);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.admin.dimension.wipe_cancelled", Component.translatable(displayName)), true);
         return 1;
     }
 
@@ -620,9 +639,16 @@ public final class KingdomsAdminCommands {
         ServerLevel level = source.getServer().getLevel(dimension);
         int inside = level == null ? 0 : level.players().size();
         source.sendSuccess(
-                () -> Component.literal(displayName + ": " + (control.isClosed(dimension) ? "закрыт" : "открыт")
-                        + "; вайп при следующем запуске: " + (control.isWipePending(dimension) ? "да" : "нет")
-                        + "; игроков внутри: " + inside + "."),
+                () -> Component.translatable(
+                        "commands.kingdoms.admin.dimension.status",
+                        Component.translatable(displayName),
+                        Component.translatable(control.isClosed(dimension)
+                                ? "commands.kingdoms.admin.dimension.state_closed"
+                                : "commands.kingdoms.admin.dimension.state_open"),
+                        Component.translatable(control.isWipePending(dimension)
+                                ? "commands.kingdoms.admin.yes"
+                                : "commands.kingdoms.admin.no"),
+                        inside),
                 false
         );
         return 1;
@@ -634,22 +660,22 @@ public final class KingdomsAdminCommands {
         com.geydev.kalfactions.faction.Faction faction =
                 FactionManager.get(source.getServer()).getFactionByName(factionName).orElse(null);
         if (faction == null) {
-            source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.faction_not_found", factionName));
             return 0;
         }
         String text = StringArgumentType.getString(context, "text");
         int separator = text.indexOf('|');
         if (separator <= 0 || separator >= text.length() - 1) {
-            source.sendFailure(Component.literal("Формат: /kingdoms news publish <фракция> <заголовок>|<текст>"));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.news.usage"));
             return 0;
         }
         String title = text.substring(0, separator).strip();
         String body = text.substring(separator + 1).strip();
         if (!NewsService.adminPublish(source.getServer(), faction, title, body, source.getTextName())) {
-            source.sendFailure(Component.literal("Заголовок и текст не могут быть пустыми."));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.news.empty"));
             return 0;
         }
-        source.sendSuccess(() -> Component.literal("Новость опубликована от фракции " + faction.name() + "."), true);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.admin.news.published", faction.name()), true);
         return 1;
     }
 
@@ -659,15 +685,15 @@ public final class KingdomsAdminCommands {
         com.geydev.kalfactions.faction.Faction faction =
                 FactionManager.get(source.getServer()).getFactionByName(factionName).orElse(null);
         if (faction == null) {
-            source.sendFailure(Component.literal("Фракция не найдена: " + factionName));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.faction_not_found", factionName));
             return 0;
         }
         java.util.List<NewsManager.Article> articles = NewsManager.get(source.getServer()).articles(faction.id());
         if (articles.isEmpty()) {
-            source.sendSuccess(() -> Component.literal("У фракции " + faction.name() + " нет новостей."), false);
+            source.sendSuccess(() -> Component.translatable("commands.kingdoms.admin.news.none", faction.name()), false);
             return 0;
         }
-        source.sendSuccess(() -> Component.literal("Новостей у " + faction.name() + ": " + articles.size()), false);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.admin.news.count", faction.name(), articles.size()), false);
         for (NewsManager.Article article : articles) {
             source.sendSuccess(() -> Component.literal("- [" + article.publishedAtMillis() + "] "
                     + article.title() + " (" + article.author() + ")"), false);
@@ -682,12 +708,12 @@ public final class KingdomsAdminCommands {
         String name = StringArgumentType.getString(context, "name");
         com.geydev.kalfactions.faction.Faction faction = manager.getFactionByName(name).orElse(null);
         if (faction == null) {
-            source.sendFailure(Component.literal("Фракция не найдена: " + name));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.faction_not_found", name));
             return 0;
         }
         com.geydev.kalfactions.war.WarManager wars = com.geydev.kalfactions.war.WarManager.get(source.getServer());
         if (wars.warForFaction(faction.id()).filter(com.geydev.kalfactions.war.War::isActive).isPresent()) {
-            source.sendFailure(Component.literal("Фракция в активной войне — сначала завершите войну."));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.move.war_active"));
             return 0;
         }
         ResourceKey<Level> targetDimension = player.level().dimension();
@@ -703,16 +729,15 @@ public final class KingdomsAdminCommands {
         );
         switch (result.status()) {
             case FACTION_NOT_FOUND -> {
-                source.sendFailure(Component.literal("Фракция не найдена: " + name));
+                source.sendFailure(Component.translatable("commands.kingdoms.admin.faction_not_found", name));
                 return 0;
             }
             case NO_CLAIMS -> {
-                source.sendFailure(Component.literal("У фракции нет клеймов для переноса."));
+                source.sendFailure(Component.translatable("commands.kingdoms.admin.move.no_claims"));
                 return 0;
             }
             case OBSTRUCTED -> {
-                source.sendFailure(Component.literal(
-                        "Место занято: в целевой области чужие клеймы или спавн. Отойдите и повторите."));
+                source.sendFailure(Component.translatable("commands.kingdoms.admin.move.obstructed"));
                 return 0;
             }
             case SUCCESS -> {
@@ -723,8 +748,7 @@ public final class KingdomsAdminCommands {
         manager.reconcileForceLoads(source.getServer());
         com.geydev.kalfactions.integration.IntegrationManager.refreshFromServer(source.getServer());
         com.geydev.kalfactions.net.ClaimSyncManager.resyncAll(source.getServer());
-        Component notice = Component.literal(
-                "Территория фракции перенесена администратором. Проверьте карту — постройки нужно перевозить самим.");
+        Component notice = Component.translatable("commands.kingdoms.admin.move.notice");
         for (UUID memberId : faction.members().keySet()) {
             ServerPlayer member = source.getServer().getPlayerList().getPlayer(memberId);
             if (member != null) {
@@ -733,10 +757,12 @@ public final class KingdomsAdminCommands {
             }
         }
         int moved = result.mapping().size();
-        source.sendSuccess(() -> Component.literal(
-                "Перенесено чанков: " + moved + " → центр [" + player.chunkPosition().x * 16 + ", "
-                        + player.chunkPosition().z * 16 + "] " + targetDimension.location().getPath()
-                        + ". Казна, влияние, исследования и таймеры прогрузки сохранены."), true);
+        source.sendSuccess(() -> Component.translatable(
+                "commands.kingdoms.admin.move.done",
+                moved,
+                player.chunkPosition().x * 16,
+                player.chunkPosition().z * 16,
+                targetDimension.location().getPath()), true);
         return 1;
     }
 
@@ -828,7 +854,7 @@ public final class KingdomsAdminCommands {
             ServerPlayer player = context.getSource().getPlayerOrException();
             Faction faction = manager.getFactionForMember(player.getUUID()).orElse(null);
             if (faction == null) {
-                context.getSource().sendFailure(Component.literal("Вы не состоите во фракции."));
+                context.getSource().sendFailure(Component.translatable("kingdoms.error.not_in_faction"));
                 return null;
             }
             return faction.id();
@@ -836,7 +862,7 @@ public final class KingdomsAdminCommands {
         String name = StringArgumentType.getString(context, "faction");
         Faction faction = manager.getFactionByName(name).orElse(null);
         if (faction == null) {
-            context.getSource().sendFailure(Component.literal("Фракция не найдена: " + name));
+            context.getSource().sendFailure(Component.translatable("commands.kingdoms.admin.faction_not_found", name));
             return null;
         }
         return faction.id();
@@ -867,16 +893,16 @@ public final class KingdomsAdminCommands {
                 .setVulnerableUntilDeath(target.getUUID());
         if (!changed) {
             source.sendSuccess(
-                    () -> Component.literal(target.getGameProfile().getName() + " уже уязвим на спавне до смерти."),
+                    () -> Component.translatable("commands.kingdoms.admin.vulnerable.already", target.getGameProfile().getName()),
                     false
             );
             return 0;
         }
         source.sendSuccess(
-                () -> Component.literal(target.getGameProfile().getName() + " теперь уязвим на спавне до первой смерти."),
+                () -> Component.translatable("commands.kingdoms.admin.vulnerable.set", target.getGameProfile().getName()),
                 true
         );
-        target.displayClientMessage(Component.literal("Защита спавна отключена до вашей первой смерти."), false);
+        target.displayClientMessage(Component.translatable("commands.kingdoms.admin.vulnerable.notice"), false);
         return 1;
     }
 
@@ -886,18 +912,20 @@ public final class KingdomsAdminCommands {
         FactionManager manager = FactionManager.get(player.serverLevel());
         UUID factionId = manager.getFactionIdForMember(player.getUUID()).orElse(null);
         if (factionId == null) {
-            source.sendFailure(Component.literal("Вы не состоите во фракции."));
+            source.sendFailure(Component.translatable("kingdoms.error.not_in_faction"));
             return 0;
         }
         String nodeId = StringArgumentType.getString(context, "node");
         ResearchNode node = ResearchNode.parse(nodeId).orElse(null);
         if (node == null) {
-            source.sendFailure(Component.literal("Неизвестное исследование: " + nodeId));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.research.unknown", nodeId));
             return 0;
         }
         boolean changed = manager.grantResearch(factionId, node);
         source.sendSuccess(
-                () -> Component.literal((changed ? "Изучено: " : "Уже изучено: ") + node.id()),
+                () -> Component.translatable(changed
+                        ? "commands.kingdoms.admin.research.granted"
+                        : "commands.kingdoms.admin.research.already", node.id()),
                 true
         );
         return 1;
@@ -909,7 +937,7 @@ public final class KingdomsAdminCommands {
         FactionManager manager = FactionManager.get(player.serverLevel());
         UUID factionId = manager.getFactionIdForMember(player.getUUID()).orElse(null);
         if (factionId == null) {
-            source.sendFailure(Component.literal("Вы не состоите во фракции."));
+            source.sendFailure(Component.translatable("kingdoms.error.not_in_faction"));
             return 0;
         }
         int granted = 0;
@@ -919,7 +947,7 @@ public final class KingdomsAdminCommands {
             }
         }
         int total = granted;
-        source.sendSuccess(() -> Component.literal("Изучено узлов: " + total), true);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.admin.research.granted_count", total), true);
         return 1;
     }
 
@@ -929,22 +957,22 @@ public final class KingdomsAdminCommands {
         FactionManager manager = FactionManager.get(player.serverLevel());
         UUID factionId = manager.getFactionIdForMember(player.getUUID()).orElse(null);
         if (factionId == null) {
-            source.sendFailure(Component.literal("Вы не состоите во фракции."));
+            source.sendFailure(Component.translatable("kingdoms.error.not_in_faction"));
             return 0;
         }
         com.geydev.kalfactions.faction.FactionBonus first = parseBonus(context, "first");
         com.geydev.kalfactions.faction.FactionBonus second = parseBonus(context, "second");
         if (first == null || second == null) {
-            source.sendFailure(Component.literal("Неизвестный бонус."));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.bonus.unknown"));
             return 0;
         }
         if (first == second) {
-            source.sendFailure(Component.literal("Бонусы должны быть разными."));
+            source.sendFailure(Component.translatable("commands.kingdoms.admin.bonus.duplicate"));
             return 0;
         }
         manager.setFactionBonuses(factionId, java.util.Set.of(first, second));
         source.sendSuccess(
-                () -> Component.literal("Бонусы фракции: " + first.name() + ", " + second.name()),
+                () -> Component.translatable("commands.kingdoms.admin.bonus.set", first.name(), second.name()),
                 true
         );
         return 1;
@@ -969,11 +997,11 @@ public final class KingdomsAdminCommands {
         FactionManager manager = FactionManager.get(player.serverLevel());
         UUID factionId = manager.getFactionIdForMember(player.getUUID()).orElse(null);
         if (factionId == null) {
-            source.sendFailure(Component.literal("Вы не состоите во фракции."));
+            source.sendFailure(Component.translatable("kingdoms.error.not_in_faction"));
             return 0;
         }
         manager.clearAllResearch(factionId);
-        source.sendSuccess(() -> Component.literal("Все исследования фракции сброшены."), true);
+        source.sendSuccess(() -> Component.translatable("commands.kingdoms.admin.research.reset"), true);
         return 1;
     }
 

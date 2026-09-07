@@ -81,20 +81,12 @@ public enum ResourceClusterType {
         return name().toLowerCase(Locale.ROOT);
     }
 
-    public String displayName() {
-        return switch (this) {
-            case SCIENCE -> "Кластер науки";
-            case ECONOMIC -> "Кластер экономики";
-            case MILITARY -> "Кластер войны";
-            case DIAMOND -> "Алмазный кластер";
-            case COAL -> "Угольный кластер";
-            case IRON -> "Железный кластер";
-            case COPPER -> "Медный кластер";
-            case ZINC -> "Цинковый кластер";
-            case GOLD -> "Золотой кластер";
-            case LAPIS -> "Лазуритовый кластер";
-            case REDSTONE -> "Редстоуновый кластер";
-        };
+    public String translationKey() {
+        return "kingdoms.cluster.type." + id();
+    }
+
+    public net.minecraft.network.chat.Component displayName() {
+        return net.minecraft.network.chat.Component.translatable(translationKey());
     }
 
     public Block block() {

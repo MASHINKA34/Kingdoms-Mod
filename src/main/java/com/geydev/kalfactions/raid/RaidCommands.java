@@ -24,13 +24,13 @@ public final class RaidCommands {
         event.getDispatcher().register(
             Commands.literal("kingdoms")
                 .then(Commands.literal("raid")
-                    .then(raidSub("force", RaidManager::forceRaid, "Рейд принудительно запущен для "))
-                    .then(raidSub("warn", RaidManager::forceWarning, "Предупреждение о рейде запущено для "))
-                    .then(raidSub("outpost", RaidManager::forceOutpostRaid, "Рейд на форпост запущен для ")))
+                    .then(raidSub("force", RaidManager::forceRaid, "commands.kingdoms.raid.forced"))
+                    .then(raidSub("warn", RaidManager::forceWarning, "commands.kingdoms.raid.warned"))
+                    .then(raidSub("outpost", RaidManager::forceOutpostRaid, "commands.kingdoms.raid.outpost_forced")))
         );
     }
 
-    private static ArgumentBuilder<CommandSourceStack, ?> raidSub(String name, RaidAction action, String successPrefix) {
+    private static ArgumentBuilder<CommandSourceStack, ?> raidSub(String name, RaidAction action, String successKey) {
         return Commands.literal(name)
             .requires(source -> source.hasPermission(2))
             .then(Commands.argument("faction", StringArgumentType.greedyString())
@@ -39,47 +39,48 @@ public final class RaidCommands {
                         .map(Faction::name),
                     builder
                 ))
-                .executes(context -> runRaid(context, action, successPrefix)));
+                .executes(context -> runRaid(context, action, successKey)));
     }
 
-    private static int runRaid(CommandContext<CommandSourceStack> context, RaidAction action, String successPrefix) {
+    private static int runRaid(CommandContext<CommandSourceStack> context, RaidAction action, String successKey) {
         MinecraftServer server = context.getSource().getServer();
         String factionName = StringArgumentType.getString(context, "faction").trim();
         Faction faction = FactionManager.get(server).getFactionByName(factionName).orElse(null);
         if (faction == null) {
-            context.getSource().sendFailure(Component.literal("Фракция не найдена."));
+            context.getSource().sendFailure(Component.translatable("commands.kingdoms.raid.faction_not_found"));
             return 0;
         }
         RaidManager.ForceOutcome outcome = action.run(RaidManager.get(server), server, faction.id());
         return switch (outcome.status()) {
             case STARTED -> {
                 Raid raid = outcome.raid();
-                String where = "";
+                Component where = Component.empty();
                 if (raid != null) {
                     BlockPos pos = raid.targetPos();
-                    where = " у " + pos.getX() + " " + pos.getY() + " " + pos.getZ();
+                    where = Component.translatable(
+                        "commands.kingdoms.raid.at", pos.getX(), pos.getY(), pos.getZ());
                 }
-                String location = where;
+                Component location = where;
                 context.getSource().sendSuccess(
-                    () -> Component.literal(successPrefix + faction.name() + location + "."),
+                    () -> Component.translatable(successKey, faction.name(), location),
                     true
                 );
                 yield Command.SINGLE_SUCCESS;
             }
             case ALREADY_ACTIVE -> {
-                context.getSource().sendFailure(Component.literal("У фракции уже есть активный рейд."));
+                context.getSource().sendFailure(Component.translatable("commands.kingdoms.raid.already_active"));
                 yield 0;
             }
             case NO_TARGET -> {
-                context.getSource().sendFailure(Component.literal("У фракции нет доступной цели (территории или форпоста)."));
+                context.getSource().sendFailure(Component.translatable("commands.kingdoms.raid.no_target"));
                 yield 0;
             }
             case SPAWN_FAILED -> {
-                context.getSource().sendFailure(Component.literal("Не удалось создать рейдеров."));
+                context.getSource().sendFailure(Component.translatable("commands.kingdoms.raid.spawn_failed"));
                 yield 0;
             }
             case FACTION_NOT_FOUND -> {
-                context.getSource().sendFailure(Component.literal("Фракция больше не существует."));
+                context.getSource().sendFailure(Component.translatable("commands.kingdoms.raid.faction_gone"));
                 yield 0;
             }
         };

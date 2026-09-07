@@ -120,7 +120,7 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
         ChunkPos chunk = new ChunkPos(selected.chunk());
         List<Component> tooltip = new java.util.ArrayList<>(List.of(
                 ResourceClusterType.parse(selected.type())
-                        .map(type -> (Component) Component.literal(type.displayName()))
+                        .map(type -> (Component) type.displayName())
                         .orElse(Component.literal(selected.type())),
                 Component.translatable(
                         "screen.kingdoms.drill.selector_details",
@@ -341,7 +341,7 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
 
         Component name = type == null
                 ? Component.translatable("screen.kingdoms.drill.no_target")
-                : Component.literal(type.displayName());
+                : type.displayName();
         List<net.minecraft.util.FormattedCharSequence> lines = font.split(name, READOUT_WIDTH - 8);
         int color = type == null ? 0xFF9AA6B2 : 0xFFF0D99D;
         for (int index = 0; index < Math.min(2, lines.size()); index++) {

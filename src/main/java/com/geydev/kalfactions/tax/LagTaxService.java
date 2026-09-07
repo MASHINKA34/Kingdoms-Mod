@@ -22,6 +22,7 @@ import java.util.UUID;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -732,25 +733,22 @@ public final class LagTaxService {
         return top;
     }
 
-    private static String describeChunks(List<ChunkProfiler.ChunkSample> samples) {
+    private static Component describeChunks(List<ChunkProfiler.ChunkSample> samples) {
         if (samples.isEmpty()) {
-            return "-";
+            return Component.literal("-");
         }
-        StringBuilder builder = new StringBuilder();
+        MutableComponent text = Component.empty();
         for (ChunkProfiler.ChunkSample sample : samples) {
-            if (!builder.isEmpty()) {
-                builder.append("; ");
+            if (!text.getSiblings().isEmpty()) {
+                text.append("; ");
             }
             ChunkPos pos = new ChunkPos(sample.packedChunk());
-            builder.append('[')
-                    .append(pos.x * 16 + 8)
-                    .append(", ")
-                    .append(pos.z * 16 + 8)
-                    .append("] ")
-                    .append(formatMs(sample.loadMs()))
-                    .append(" мс");
+            text.append(Component.literal(
+                            "[" + (pos.x * 16 + 8) + ", " + (pos.z * 16 + 8) + "] " + formatMs(sample.loadMs())))
+                    .append(" ")
+                    .append(Component.translatable("kingdoms.time.ms"));
         }
-        return builder.toString();
+        return text;
     }
 
     private static void notifyRoles(
@@ -818,10 +816,14 @@ public final class LagTaxService {
         return String.format(Locale.ROOT, "%.2f", ms);
     }
 
-    private static String formatDuration(long millis) {
+    private static Component formatDuration(long millis) {
         long hours = millis / HOUR_MILLIS;
         long minutes = millis % HOUR_MILLIS / 60_000L;
-        return hours + " ч " + minutes + " мин";
+        return Component.literal(String.valueOf(hours))
+            .append(Component.translatable("kingdoms.time.h"))
+            .append(" ")
+            .append(String.valueOf(minutes))
+            .append(Component.translatable("kingdoms.time.m"));
     }
 
     private LagTaxService() {

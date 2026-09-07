@@ -619,7 +619,7 @@ public final class ResourceClusterManager extends SavedData {
 
     private static Component displayText(ResourceCluster cluster) {
         ReserveView reserve = reserveOf(cluster);
-        net.minecraft.network.chat.MutableComponent text = Component.literal(cluster.type().displayName())
+        net.minecraft.network.chat.MutableComponent text = Component.empty().append(cluster.type().displayName())
                 .append(Component.literal("\n"))
                 .append(Component.translatable("kingdoms.cluster.display.richness", cluster.richness()));
         if (reserve.exhausted()) {

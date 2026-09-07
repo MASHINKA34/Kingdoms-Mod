@@ -103,7 +103,7 @@ public final class DrillTargetScreen extends Screen {
         }
         Component name = type == null
                 ? Component.literal(target.type())
-                : Component.literal(type.displayName());
+                : type.displayName();
         graphics.drawString(font, name, card.left() + 32, card.top() + 6, 0xFFF0D99D, false);
         ChunkPos chunk = new ChunkPos(target.chunk());
         graphics.drawString(
@@ -176,7 +176,7 @@ public final class DrillTargetScreen extends Screen {
                         : "screen.kingdoms.drill.target_busy";
         ChunkPos chunk = new ChunkPos(target.chunk());
         Component name = ResourceClusterType.parse(target.type())
-                .map(type -> Component.literal(type.displayName()))
+                .map(type -> (Component) type.displayName())
                 .orElse(Component.literal(target.type()));
         List<Component> tooltip = new java.util.ArrayList<>(List.of(
                 name,
