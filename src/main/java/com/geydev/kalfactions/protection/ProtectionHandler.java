@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
@@ -43,6 +44,7 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.common.util.BlockSnapshot;
 import net.neoforged.neoforge.common.util.TriState;
 import net.neoforged.neoforge.event.entity.player.PlayerContainerEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockDropsEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
@@ -52,6 +54,7 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class ProtectionHandler {
     private static final int CONTAINER_RECHECK_TICKS = 10;
+    private static final Map<UUID, GlobalPos> OPEN_CONTAINERS = new HashMap<>();
 
     @SubscribeEvent
     public static void onBlockBreak(BlockEvent.BreakEvent event) {
@@ -199,6 +202,7 @@ public final class ProtectionHandler {
                 }
                 handleAccessTool(event, player, level, pos);
             }
+            OPEN_CONTAINERS.put(player.getUUID(), GlobalPos.of(level.dimension(), pos.immutable()));
             return;
         }
 
@@ -230,16 +234,43 @@ public final class ProtectionHandler {
     }
 
     @SubscribeEvent
+    public static void onContainerClose(PlayerContainerEvent.Close event) {
+        OPEN_CONTAINERS.remove(event.getEntity().getUUID());
+    }
+
+    @SubscribeEvent
+    public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        OPEN_CONTAINERS.remove(event.getEntity().getUUID());
+    }
+
+    @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
-        if (event.getEntity() instanceof ServerPlayer player
-                && player.containerMenu != player.inventoryMenu
-                && player.tickCount % CONTAINER_RECHECK_TICKS == 0) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        if (player.containerMenu == player.inventoryMenu) {
+            OPEN_CONTAINERS.remove(player.getUUID());
+            return;
+        }
+        if (player.tickCount % CONTAINER_RECHECK_TICKS == 0) {
             validateOpenContainer(player, player.containerMenu);
         }
     }
 
+    /**
+     * Re-checks the container the player still has open. Slot containers only expose a block
+     * position for single block entities, so double chests and capability-backed menus are covered
+     * by the position recorded when the container was opened.
+     */
     private static void validateOpenContainer(ServerPlayer player, AbstractContainerMenu menu) {
         ServerLevel level = player.serverLevel();
+        GlobalPos opened = OPEN_CONTAINERS.get(player.getUUID());
+        if (opened != null
+                && (!opened.dimension().equals(level.dimension())
+                        || !canAccessContainer(player, level, opened.pos()))) {
+            closeProtectedContainer(player);
+            return;
+        }
         BlockEntity previous = null;
         for (Slot slot : menu.slots) {
             if (!(slot.container instanceof BlockEntity blockEntity) || blockEntity == previous) {
@@ -248,11 +279,16 @@ public final class ProtectionHandler {
             previous = blockEntity;
             BlockPos containerPos = blockEntity.getBlockPos();
             if (!canAccessContainer(player, level, containerPos)) {
-                player.closeContainer();
-                deny(player, "kingdoms.protection.no_container");
+                closeProtectedContainer(player);
                 return;
             }
         }
+    }
+
+    private static void closeProtectedContainer(ServerPlayer player) {
+        OPEN_CONTAINERS.remove(player.getUUID());
+        player.closeContainer();
+        deny(player, "kingdoms.protection.no_container");
     }
 
     @SubscribeEvent
