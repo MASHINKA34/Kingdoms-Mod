@@ -143,9 +143,8 @@ public final class FactionMeterScreen extends Screen {
                 LagTaxPayloads.MeterChunk chunk = chunks.get(scroll + i);
                 int y = top + LIST_TOP + i * ROW_HEIGHT;
                 graphics.fill(left + CONTENT_LEFT, y, left + CONTENT_RIGHT, y + ROW_HEIGHT - 2, 0x24A8783D);
-                String label = String.format(
-                        Locale.ROOT,
-                        "%s мс [%d, %d] %s",
+                String label = net.minecraft.client.resources.language.I18n.get(
+                        "screen.kingdoms.meter.row_chunk",
                         AdminAnalyzerScreen.formatMs(chunk.nanosPerTick()),
                         chunk.chunkX() * 16 + 8,
                         chunk.chunkZ() * 16 + 8,

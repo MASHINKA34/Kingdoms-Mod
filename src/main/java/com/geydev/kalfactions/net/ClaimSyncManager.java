@@ -30,8 +30,8 @@ public final class ClaimSyncManager {
     private static final int CHECK_INTERVAL_TICKS = 20;
     private static final int RESEND_MOVE_CHUNKS = 8;
     private static final int ROGUE_COLOR = 0x111111;
-    private static final String ROGUE_NAME = "Форпост захвачен рейдерами";
-    private static final String SANCTUARY_NAME = "Спавн";
+    private static final String ROGUE_NAME = "kingdoms.claim.rogue_outpost";
+    private static final String SANCTUARY_NAME = "kingdoms.claim.sanctuary";
 
     private static final Map<UUID, SyncState> STATES = new HashMap<>();
     private static int ticksUntilCheck;

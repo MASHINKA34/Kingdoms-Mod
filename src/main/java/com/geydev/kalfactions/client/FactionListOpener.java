@@ -66,7 +66,7 @@ public final class FactionListOpener {
                     20
             ));
             event.addListener(InviteBadgeButton.create(
-                    Component.literal("Н"),
+                    Component.translatable("kingdoms.button.news"),
                     button -> NewsScreen.open(),
                     screen.getGuiLeft() + screen.getXSize() - 42,
                     screen.getGuiTop() - 22,
@@ -75,7 +75,7 @@ public final class FactionListOpener {
                     ClientNewsState::unreadNews
             ));
             event.addListener(InviteBadgeButton.create(
-                    Component.literal("А"),
+                    Component.translatable("kingdoms.button.nether"),
                     button -> NetherStatusScreen.open(),
                     screen.getGuiLeft() + screen.getXSize() - 64,
                     screen.getGuiTop() - 22,

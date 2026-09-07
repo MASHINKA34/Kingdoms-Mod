@@ -131,7 +131,7 @@ public final class RaidManager extends SavedData {
                         notifyFaction(
                             server,
                             faction.id(),
-                            Component.literal("Рейд отменён: не удалось подготовить точку появления."),
+                            Component.translatable("kingdoms.raid.cancelled_no_spawn"),
                             false
                         );
                         removeRaid(server, raid, nowEpochMillis);
@@ -332,22 +332,16 @@ public final class RaidManager extends SavedData {
         factionToRaid.put(faction.id(), raid.id());
         setDirty();
         BlockPos pos = target.position();
-        String where = target.type() == Raid.TargetType.OUTPOST ? "форпост" : "основная территория";
         notifyFaction(
             server,
             faction.id(),
-            Component.literal(
-                "На вашу фракцию готовится нападение! Цель: "
-                    + where
-                    + " ("
-                    + pos.getX()
-                    + ", "
-                    + pos.getY()
-                    + ", "
-                    + pos.getZ()
-                    + "). Рейд начнётся через "
-                    + warningSeconds
-                    + " сек."
+            Component.translatable(
+                "kingdoms.raid.incoming",
+                targetName(target.type(), true),
+                pos.getX(),
+                pos.getY(),
+                pos.getZ(),
+                warningSeconds
             ),
             false
         );
@@ -398,12 +392,10 @@ public final class RaidManager extends SavedData {
         notifyFaction(
             server,
             faction.id(),
-            Component.literal(
-                "Рейд начался. Рейдеров: "
-                    + spawned
-                    + ". На защиту: "
-                    + formatDuration(raid.activeSecondsRemaining())
-                    + "."
+            Component.translatable(
+                "kingdoms.raid.started",
+                spawned,
+                formatDuration(raid.activeSecondsRemaining())
             ),
             false
         );
@@ -625,10 +617,13 @@ public final class RaidManager extends SavedData {
         bar.setColor(net.minecraft.world.BossEvent.BossBarColor.YELLOW);
         bar.setOverlay(net.minecraft.world.BossEvent.BossBarOverlay.PROGRESS);
         BlockPos pos = raid.targetPos();
-        String where = raid.targetType() == Raid.TargetType.OUTPOST ? "форпост" : "город";
-        bar.setName(Component.literal(
-            "Нападение на " + where + " через " + formatDuration(remaining)
-                + " | Цель: " + pos.getX() + ", " + pos.getY() + ", " + pos.getZ()
+        bar.setName(Component.translatable(
+            "kingdoms.raid.bossbar.warning",
+            targetName(raid.targetType(), false),
+            formatDuration(remaining),
+            pos.getX(),
+            pos.getY(),
+            pos.getZ()
         ));
         bar.setProgress(Math.clamp((float) remaining / total, 0.0F, 1.0F));
         syncBossBarPlayers(bar, onlineMembers(server, faction));
@@ -647,10 +642,11 @@ public final class RaidManager extends SavedData {
         );
         bar.setColor(net.minecraft.world.BossEvent.BossBarColor.RED);
         bar.setOverlay(net.minecraft.world.BossEvent.BossBarOverlay.NOTCHED_10);
-        String where = raid.targetType() == Raid.TargetType.OUTPOST ? "форпост" : "город";
-        bar.setName(Component.literal(
-            "Рейд на " + where + ": рейдеров " + raid.remainingRaiderCount()
-                + " | до поражения " + formatDuration(remaining)
+        bar.setName(Component.translatable(
+            "kingdoms.raid.bossbar.active",
+            targetName(raid.targetType(), false),
+            raid.remainingRaiderCount(),
+            formatDuration(remaining)
         ));
         bar.setProgress(Math.clamp((float) remaining / total, 0.0F, 1.0F));
         syncBossBarPlayers(bar, onlineMembers(server, faction));
@@ -723,9 +719,8 @@ public final class RaidManager extends SavedData {
         if (deposited > 0L) {
             FactionManager.get(server).deposit(faction.id(), deposited);
         }
-        MutableComponent message = Component.literal("Рейд отражён. Награда в казну: ")
-            .append(NumismaticsEconomy.format(deposited))
-            .append(Component.literal("."));
+        MutableComponent message = Component.translatable(
+            "kingdoms.raid.won", NumismaticsEconomy.format(deposited));
         notifyFaction(server, faction.id(), message, true);
         LOGGER.info("Raid {} won by faction {}; reward {}", raid.id(), faction.name(), deposited);
         removeRaid(server, raid, nowEpochMillis);
@@ -774,10 +769,10 @@ public final class RaidManager extends SavedData {
                 ClaimSyncManager.resync(player);
             }
         }
-        MutableComponent message = Component.literal(
-            "Рейд проигран. Потеряно крайних чанков: " + lostClaims + ". Украдено: "
-        ).append(NumismaticsEconomy.format(saturatedAdd(treasuryStolen, inventoryStolen)))
-            .append(Component.literal("."));
+        MutableComponent message = Component.translatable(
+            "kingdoms.raid.lost",
+            lostClaims,
+            NumismaticsEconomy.format(saturatedAdd(treasuryStolen, inventoryStolen)));
         notifyFaction(server, faction.id(), message, false);
         LOGGER.info(
             "Raid {} lost by faction {}; claims {}, treasury {}, inventories {}",
@@ -856,9 +851,8 @@ public final class RaidManager extends SavedData {
         notifyFaction(
             server,
             faction.id(),
-            Component.literal(
-                "Форпост потерян! Его захватили разбойники: "
-                    + core.getX() + ", " + core.getY() + ", " + core.getZ() + "."
+            Component.translatable(
+                "kingdoms.raid.outpost_lost", core.getX(), core.getY(), core.getZ()
             ),
             false
         );
@@ -1094,6 +1088,14 @@ public final class RaidManager extends SavedData {
             .orElse(null);
     }
 
+    private static Component targetName(Raid.TargetType type, boolean warning) {
+        if (type == Raid.TargetType.OUTPOST) {
+            return Component.translatable("kingdoms.raid.target.outpost");
+        }
+        return Component.translatable(
+            warning ? "kingdoms.raid.target.territory" : "kingdoms.raid.target.town");
+    }
+
     private static void notifyFaction(
         MinecraftServer server,
         UUID factionId,
@@ -1110,13 +1112,18 @@ public final class RaidManager extends SavedData {
         });
     }
 
-    private static String formatDuration(int seconds) {
+    private static Component formatDuration(int seconds) {
         int minutes = seconds / 60;
         int remainingSeconds = seconds % 60;
+        MutableComponent tail = Component.literal(String.valueOf(remainingSeconds))
+            .append(Component.translatable("kingdoms.time.s"));
         if (minutes <= 0) {
-            return remainingSeconds + " сек";
+            return tail;
         }
-        return minutes + " мин " + remainingSeconds + " сек";
+        return Component.literal(String.valueOf(minutes))
+            .append(Component.translatable("kingdoms.time.m"))
+            .append(" ")
+            .append(tail);
     }
 
     private UUID uniqueRaidId() {

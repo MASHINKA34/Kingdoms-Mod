@@ -189,6 +189,16 @@ public final class ClientFactionPayloadHandler {
         });
     }
 
+    private static String claimDisplayName(FactionPayloads.ClaimEntry entry) {
+        if (com.geydev.kalfactions.sanctuary.SanctuaryManager.SANCTUARY_FACTION_ID.equals(entry.factionId())) {
+            return net.minecraft.client.resources.language.I18n.get("kingdoms.claim.sanctuary");
+        }
+        if (com.geydev.kalfactions.outpost.RogueOutpostManager.ROGUE_FACTION_ID.equals(entry.factionId())) {
+            return net.minecraft.client.resources.language.I18n.get("kingdoms.claim.rogue_outpost");
+        }
+        return entry.name();
+    }
+
     static void mergeClaim(
             Map<Long, ClientClaimStore.ClaimInfo> claims,
             FactionPayloads.ClaimEntry entry
@@ -196,7 +206,7 @@ public final class ClientFactionPayloadHandler {
         long chunk = ChunkPos.asLong(entry.chunkX(), entry.chunkZ());
         ClientClaimStore.ClaimInfo incoming = new ClientClaimStore.ClaimInfo(
                 entry.color(),
-                entry.name(),
+                claimDisplayName(entry),
                 entry.factionId(),
                 entry.outpost(),
                 entry.forceLoaded(),

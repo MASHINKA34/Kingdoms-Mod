@@ -17,17 +17,19 @@ import net.minecraft.world.level.Level;
 public final class ClientClaimStore {
     public static final UUID BLACK_ZONE_ID =
             new UUID(0x424C_4143_4B5F_5A4FL, 0x4E45_5F4B_494E_4744L);
-    private static final ClaimInfo BLACK_ZONE = new ClaimInfo(
-            0x101010,
-            "Чёрная зона",
-            BLACK_ZONE_ID,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false
-    );
+    private static ClaimInfo blackZone() {
+        return new ClaimInfo(
+                0x101010,
+                net.minecraft.client.resources.language.I18n.get("kingdoms.claim.black_zone"),
+                BLACK_ZONE_ID,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+        );
+    }
 
     public record ClaimInfo(
             int color,
@@ -97,7 +99,7 @@ public final class ClientClaimStore {
         if (explicit != null) {
             return explicit;
         }
-        return isBlack(dimension, chunkX, chunkZ) ? BLACK_ZONE : null;
+        return isBlack(dimension, chunkX, chunkZ) ? blackZone() : null;
     }
 
     public static void setForceLoaded(ResourceKey<Level> dimension, long packedChunk, boolean forceLoaded) {

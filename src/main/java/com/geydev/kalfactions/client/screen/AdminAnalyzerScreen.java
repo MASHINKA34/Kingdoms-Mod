@@ -179,9 +179,8 @@ public final class AdminAnalyzerScreen extends Screen {
             String faction = entry.factionName().isBlank()
                     ? Component.translatable("screen.kingdoms.analyzer.wild").getString()
                     : entry.factionName();
-            String label = String.format(
-                    Locale.ROOT,
-                    "%s мс [%d, %d] %s %s%s",
+            String label = net.minecraft.client.resources.language.I18n.get(
+                    "screen.kingdoms.analyzer.row_chunk",
                     formatMs(entry.nanosPerTick()),
                     entry.chunkX() * 16 + 8,
                     entry.chunkZ() * 16 + 8,
@@ -218,9 +217,8 @@ public final class AdminAnalyzerScreen extends Screen {
             String name = entry.name().isBlank()
                     ? Component.translatable("screen.kingdoms.analyzer.wild").getString()
                     : entry.name();
-            String label = String.format(
-                    Locale.ROOT,
-                    "%s мс — %s%s",
+            String label = net.minecraft.client.resources.language.I18n.get(
+                    "screen.kingdoms.analyzer.row_faction",
                     formatMs(entry.nanosPerTick()),
                     name,
                     entry.frozen() ? " ❄" : ""
@@ -261,9 +259,8 @@ public final class AdminAnalyzerScreen extends Screen {
             LagTaxPayloads.DetailEntry entry = entries.get(detailScroll + i);
             int y = top + LIST_TOP + i * ROW_HEIGHT;
             graphics.fill(left + CONTENT_LEFT, y, left + CONTENT_RIGHT, y + ROW_HEIGHT - 2, 0x24A8783D);
-            String label = String.format(
-                    Locale.ROOT,
-                    "%s мс %s (%d, %d, %d)",
+            String label = net.minecraft.client.resources.language.I18n.get(
+                    "screen.kingdoms.analyzer.row_block",
                     formatMs(entry.nanosPerTick()),
                     blockName(entry.blockId()),
                     entry.pos().getX(),
