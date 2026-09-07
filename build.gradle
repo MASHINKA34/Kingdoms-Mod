@@ -266,3 +266,28 @@ idea {
         downloadJavadoc = true
     }
 }
+
+// runGameTestServer exits 0 even when the game never reaches the test phase, so a loading failure
+// would otherwise pass CI silently. This task turns the run log into an actual gate.
+tasks.register('verifyGameTestServer') {
+    description = 'Fails unless the last gametest run reported a passing suite.'
+    group = 'verification'
+    dependsOn tasks.named('runGameTestServer')
+    outputs.upToDateWhen { false }
+    def logFile = layout.projectDirectory.file('runGameTest/logs/latest.log').asFile
+    doLast {
+        if (!logFile.exists()) {
+            throw new GradleException("Gametest log ${logFile} is missing; the server never started.")
+        }
+        def text = logFile.getText('UTF-8')
+        def failure = (text =~ /(Missing or unsupported mandatory dependencies|Error during pre-loading phase)/)
+        if (failure.find()) {
+            throw new GradleException("The gametest server failed to load (${failure.group(1)}); see ${logFile}.")
+        }
+        def passed = (text =~ /All (\d+) required tests passed/)
+        if (!passed.find()) {
+            throw new GradleException("The gametest run reported no passing suite; see ${logFile}.")
+        }
+        logger.lifecycle("Gametest suite reported ${passed.group(1)} passing tests.")
+    }
+}
