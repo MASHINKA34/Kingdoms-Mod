@@ -33,6 +33,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.AABB;
@@ -72,7 +73,14 @@ public final class ResourceClusterManager extends SavedData {
     private int generation;
     private int sinceResetScan;
 
+    public static boolean supports(ServerLevel level) {
+        return level.dimension().equals(Level.OVERWORLD);
+    }
+
     public static ResourceClusterManager get(ServerLevel level) {
+        if (!supports(level)) {
+            return new ResourceClusterManager();
+        }
         return level.getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
     }
 
