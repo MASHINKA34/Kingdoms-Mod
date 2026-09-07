@@ -3,7 +3,7 @@ package com.geydev.kalfactions.music;
 import com.geydev.kalfactions.config.ModConfigSpec;
 
 public final class MusicLimits {
-    public static final String PROTOCOL_VERSION = "2";
+    public static final String PROTOCOL_VERSION = com.geydev.kalfactions.net.KingdomsProtocol.VERSION;
     public static final int CHUNK_SIZE = 24 * 1024;
     public static final int MAX_NAME_LENGTH = 48;
     public static final int MAX_TRACK_ENTRIES = 512;

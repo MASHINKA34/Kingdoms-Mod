@@ -36,6 +36,7 @@ public final class ModConfigSpec {
     public static final IntValue ENCHANTER_PRIOR_WORK_MAX_COST;
     public static final IntValue ENCHANTER_LEVEL_COST_CAP;
     public static final IntValue WAR_ROLLBACK_CHUNKS_PER_TICK;
+    public static final IntValue WAR_MAX_SNAPSHOT_CHUNKS;
     public static final LongValue WAR_AUTO_END_TICKS;
     public static final IntValue CLAIM_SYNC_RADIUS_CHUNKS;
     public static final IntValue RAID_GRACE_PERIOD_HOURS;
@@ -508,6 +509,12 @@ public final class ModConfigSpec {
         WAR_ROLLBACK_CHUNKS_PER_TICK = builder
             .comment("How many snapshotted chunks to roll back per server tick when a war ends.")
             .defineInRange("rollbackChunksPerTick", 8, 1, 4096);
+        WAR_MAX_SNAPSHOT_CHUNKS = builder
+            .comment(
+                "Chunks a single war may snapshot for rollback. Every snapshot is a full chunk copy kept in",
+                "the war save file and rewritten on each world save, so an unbounded war would stall autosaves.",
+                "Chunks past the cap are still fought over, they are simply not reverted when the war ends.")
+            .defineInRange("maxSnapshotChunks", 512, 0, 65536);
         WAR_AUTO_END_TICKS = builder
             .comment("Game-time ticks after which an active war ends automatically (0 disables auto-end).")
             .defineInRange("autoEndTicks", 0L, 0L, Long.MAX_VALUE);

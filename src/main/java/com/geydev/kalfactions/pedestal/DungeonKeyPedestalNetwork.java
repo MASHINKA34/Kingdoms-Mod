@@ -22,12 +22,11 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class DungeonKeyPedestalNetwork {
-    private static final String PROTOCOL_VERSION = "1";
     private static final double MAX_EDIT_DISTANCE_SQUARED = 64.0D;
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar(PROTOCOL_VERSION);
+        PayloadRegistrar registrar = event.registrar(com.geydev.kalfactions.net.KingdomsProtocol.VERSION);
         registrar.playToServer(
                 DungeonKeyPedestalPayloads.C2SUpdateSettings.TYPE,
                 DungeonKeyPedestalPayloads.C2SUpdateSettings.STREAM_CODEC,

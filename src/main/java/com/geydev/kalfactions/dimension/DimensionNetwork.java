@@ -25,12 +25,11 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class DimensionNetwork {
-    private static final String PROTOCOL_VERSION = "6";
     private static final Map<UUID, Long> LAST_STATUS_REQUEST = new HashMap<>();
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar(PROTOCOL_VERSION);
+        PayloadRegistrar registrar = event.registrar(com.geydev.kalfactions.net.KingdomsProtocol.VERSION);
         registrar.playToServer(
                 DimensionPayloads.C2SDimensionAction.TYPE,
                 DimensionPayloads.C2SDimensionAction.STREAM_CODEC,

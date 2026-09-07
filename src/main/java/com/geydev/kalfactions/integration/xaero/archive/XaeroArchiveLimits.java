@@ -2,7 +2,7 @@ package com.geydev.kalfactions.integration.xaero.archive;
 
 public final class XaeroArchiveLimits {
     public static final int FORMAT_VERSION = 1;
-    public static final String PROTOCOL_VERSION = "1";
+    public static final String PROTOCOL_VERSION = com.geydev.kalfactions.net.KingdomsProtocol.VERSION;
     public static final String XAERO_WORLD_MAP_VERSION = "1.43.0";
     public static final String XAERO_MINIMAP_VERSION = "26.3.0";
     public static final int PART_SIZE = 24 * 1024;

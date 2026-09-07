@@ -15,11 +15,10 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class FaithNetwork {
-    private static final String PROTOCOL_VERSION = "1";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar(PROTOCOL_VERSION);
+        PayloadRegistrar registrar = event.registrar(com.geydev.kalfactions.net.KingdomsProtocol.VERSION);
         registrar.playToClient(
                 FaithPayloads.S2CFaithState.TYPE,
                 FaithPayloads.S2CFaithState.STREAM_CODEC,

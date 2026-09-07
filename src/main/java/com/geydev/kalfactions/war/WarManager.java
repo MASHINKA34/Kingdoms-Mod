@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -71,6 +72,7 @@ public final class WarManager extends SavedData {
     private final Map<UUID, PendingSpoils> pendingSpoils = new LinkedHashMap<>();
     private final Map<UUID, Long> attackerCooldownUntil = new HashMap<>();
     private final Deque<RollbackTask> rollbackQueue = new ArrayDeque<>();
+    private final transient Set<UUID> snapshotLimitLogged = new HashSet<>();
     private final transient Map<UUID, ServerBossEvent> bossBars = new HashMap<>();
     private final transient Map<UUID, long[]> blockPointWindows = new HashMap<>();
     private final transient Map<UUID, long[]> killPointWindows = new HashMap<>();
@@ -811,7 +813,7 @@ public final class WarManager extends SavedData {
         }
         ClaimKey key = ClaimKey.of(level, chunkPos);
         War war = activeWarForClaim(level, key);
-        if (war == null || war.hasSnapshot(key)) {
+        if (war == null || war.hasSnapshot(key) || !reserveSnapshot(war)) {
             return;
         }
         war.putSnapshot(key, WarChunkSnapshot.capture(level, chunkPos, level.registryAccess()));
@@ -837,7 +839,7 @@ public final class WarManager extends SavedData {
         for (Map.Entry<ClaimKey, List<Map.Entry<BlockPos, BlockState>>> chunkEntry : byChunk.entrySet()) {
             ClaimKey key = chunkEntry.getKey();
             War war = activeWarForClaim(level, key);
-            if (war == null || war.hasSnapshot(key)) {
+            if (war == null || war.hasSnapshot(key) || !reserveSnapshot(war)) {
                 continue;
             }
             WarChunkSnapshot snapshot = WarChunkSnapshot.capture(level, key.chunk(), level.registryAccess());
@@ -851,6 +853,21 @@ public final class WarManager extends SavedData {
         if (dirty) {
             setDirty();
         }
+    }
+
+    private boolean reserveSnapshot(War war) {
+        int limit = ModConfigSpec.WAR_MAX_SNAPSHOT_CHUNKS.getAsInt();
+        if (war.snapshotCount() < limit) {
+            return true;
+        }
+        if (snapshotLimitLogged.add(war.id())) {
+            LOGGER.warn(
+                "War {} reached the {} chunk snapshot cap; further chunks will not be rolled back",
+                war.id(),
+                limit
+            );
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------ lifecycle

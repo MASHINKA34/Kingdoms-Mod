@@ -13,11 +13,10 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class OutpostNetwork {
-    private static final String PROTOCOL_VERSION = "3";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar(PROTOCOL_VERSION);
+        PayloadRegistrar registrar = event.registrar(com.geydev.kalfactions.net.KingdomsProtocol.VERSION);
         registrar.playToServer(
                 OutpostPayloads.C2SDismantleOutpost.TYPE,
                 OutpostPayloads.C2SDismantleOutpost.STREAM_CODEC,

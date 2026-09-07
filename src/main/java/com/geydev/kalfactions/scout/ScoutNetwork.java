@@ -14,11 +14,10 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class ScoutNetwork {
-    private static final String PROTOCOL_VERSION = "1";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar(PROTOCOL_VERSION);
+        PayloadRegistrar registrar = event.registrar(com.geydev.kalfactions.net.KingdomsProtocol.VERSION);
         registrar.playToServer(
                 ScoutPayloads.C2SScoutOrder.TYPE,
                 ScoutPayloads.C2SScoutOrder.STREAM_CODEC,

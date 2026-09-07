@@ -14,11 +14,10 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class DungeonNetwork {
-    private static final String PROTOCOL_VERSION = "6";
 
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar(PROTOCOL_VERSION);
+        PayloadRegistrar registrar = event.registrar(com.geydev.kalfactions.net.KingdomsProtocol.VERSION);
         registrar.playToServer(
                 DungeonPayloads.C2SRenameDungeon.TYPE,
                 DungeonPayloads.C2SRenameDungeon.STREAM_CODEC,
