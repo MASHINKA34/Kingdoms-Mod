@@ -58,3 +58,7 @@ repo/
 
 __pycache__/
 *.pyc
+
+### Third-party mod jars used for compilation and dev runs ###
+# Not redistributable; see libs/README.md for where to get each one.
+libs/*.jar

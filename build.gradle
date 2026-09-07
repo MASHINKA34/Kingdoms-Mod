@@ -139,7 +139,7 @@ sourceSets.test {
 }
 
 dependencies {
-    implementation files("libs/CreateNumismatics-${numismatics_version}.jar")
+    compileOnly files("libs/CreateNumismatics-${numismatics_version}.jar")
 
     compileOnly("com.simibubi.create:create-${minecraft_version}:${create_version}:slim") {
         transitive = false
