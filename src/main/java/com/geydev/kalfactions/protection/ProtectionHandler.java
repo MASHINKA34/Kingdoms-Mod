@@ -463,6 +463,19 @@ public final class ProtectionHandler {
                 || FactionManager.get(level).canAccessContainer(player.getUUID(), level, pos);
     }
 
+    public static boolean canModifyAt(ServerPlayer player, ServerLevel level, BlockPos pos) {
+        if (player.hasPermissions(2)) {
+            return true;
+        }
+        if (isSanctuaryProtected(player, level, pos)
+                || com.geydev.kalfactions.dungeon.DungeonProtection.isDungeon(level, pos)
+                || com.geydev.kalfactions.quarry.QuarryManager.get(level).isQuarry(level, pos)) {
+            return false;
+        }
+        return FactionAccess.canBuild(player, level, pos)
+                || WarManager.get(level).canBuildInWar(player, level, pos);
+    }
+
     private static boolean isSanctuaryProtected(ServerPlayer player, ServerLevel level, BlockPos pos) {
         return !player.hasPermissions(2)
                 && SanctuaryManager.get(level).isSanctuary(level, pos)
