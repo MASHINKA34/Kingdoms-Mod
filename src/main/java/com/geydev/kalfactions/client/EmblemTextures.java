@@ -39,15 +39,19 @@ public final class EmblemTextures {
 
     public static Emblem resolve(UUID factionId, List<Integer> pixels, String url, Integer fallbackColor) {
         if (url != null && !url.isBlank() && com.geydev.kalfactions.faction.EmblemUrls.isAllowed(url)) {
-            UrlEntry entry = URL_CACHE.compute(url, (key, existing) -> {
-                if (existing == null
-                        || (existing.state == UrlState.FAILED
-                                && System.currentTimeMillis() - existing.failedAt > FAILED_RETRY_MILLIS)) {
-                    download(key);
-                    return new UrlEntry(UrlState.LOADING, null, 0L);
+            UrlEntry entry = URL_CACHE.get(url);
+            if (entry == null
+                    || (entry.state == UrlState.FAILED
+                            && System.currentTimeMillis() - entry.failedAt > FAILED_RETRY_MILLIS)) {
+                UrlEntry loading = new UrlEntry(UrlState.LOADING, null, 0L);
+                boolean claimed = entry == null
+                        ? URL_CACHE.putIfAbsent(url, loading) == null
+                        : URL_CACHE.replace(url, entry, loading);
+                if (claimed) {
+                    download(url);
                 }
-                return existing;
-            });
+                entry = loading;
+            }
             if (entry.state == UrlState.READY) {
                 return entry.emblem;
             }

@@ -165,7 +165,7 @@ dependencies {
     localRuntime files("libs/curios-neoforge-9.5.1+${minecraft_version}.jar")
     localRuntime files("libs/geckolib-neoforge-${minecraft_version}-4.9.2.jar")
     localRuntime files("libs/jei-${minecraft_version}-neoforge-${jei_version}.jar")
-    localRuntime files("libs/hookahmod-${hookah_version}.jar")
+    localRuntime fileTree(dir: 'libs', include: "hookahmod-*.jar")
 
     localRuntime files("libs/CreateNumismatics-${numismatics_version}.jar")
     localRuntime("com.simibubi.create:create-${minecraft_version}:${create_version}:slim") {
@@ -245,6 +245,32 @@ publishing {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+}
+
+// The mixins and integrations compile against other people's mods, which are not redistributable
+// and so are not fetched for you. Without this the build fails with a wall of "cannot find symbol"
+// far away from the actual cause.
+var requiredLibJars = [
+        "CreateNumismatics-${numismatics_version}.jar",
+        "ScorchedGuns-1.5.jar",
+        "protection_pixel-${protection_pixel_version}-neoforge-${minecraft_version}.jar",
+        "xaerominimap-neoforge-${minecraft_version}-${xaero_minimap_version}.jar",
+        "xaeroworldmap-neoforge-${minecraft_version}-${xaero_worldmap_version}.jar",
+        "xaerolib-neoforge-${minecraft_version}-${xaero_lib_version}.jar",
+        "jei-${minecraft_version}-neoforge-${jei_version}.jar",
+]
+
+var requiredLibFiles = requiredLibJars.collectEntries { [(it): layout.projectDirectory.file("libs/$it").asFile] }
+
+tasks.named('compileJava', JavaCompile).configure {
+    doFirst {
+        var missing = requiredLibFiles.findAll { !it.value.exists() }.keySet()
+        if (!missing.isEmpty()) {
+            throw new GradleException(
+                    "Missing ${missing.size()} jar(s) under libs/: " + missing.join(', ')
+                            + ". See libs/README.md for where each one comes from.")
+        }
+    }
 }
 
 // Game tests live in the main source set so the dev runs can see them, but they have no business
