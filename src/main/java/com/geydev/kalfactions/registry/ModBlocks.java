@@ -109,7 +109,8 @@ public final class ModBlocks {
             () -> new OutpostCoreBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_GRAY)
                     .strength(50.0F, 1200.0F)
-                    .sound(SoundType.STONE))
+                    .sound(SoundType.STONE)
+                    .noLootTable())
     );
 
     public static final DeferredBlock<QuarryCoreBlock> QUARRY_CORE = BLOCKS.register(
