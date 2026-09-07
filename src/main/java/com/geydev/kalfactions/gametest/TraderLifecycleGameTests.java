@@ -16,12 +16,15 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.border.WorldBorder;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 @GameTestHolder(KalFactions.MOD_ID)
 @PrefixGameTestTemplate(false)
 public final class TraderLifecycleGameTests {
+    private static final double BORDER_TEST_SIZE = 4096.0D;
+
     @GameTest(template = "empty")
     public static void sellerRoleNbtRoundTrip(GameTestHelper helper) {
         SellerTraderEntity original = ModEntities.SELLER_TRADER.get().create(helper.getLevel());
@@ -45,32 +48,55 @@ public final class TraderLifecycleGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = "empty")
+    @GameTest(template = "empty_5")
     public static void spawnSafetyRejectsDangerousFloor(GameTestHelper helper) {
-        BlockPos floorRelative = new BlockPos(1, 1, 1);
-        helper.setBlock(floorRelative, Blocks.MAGMA_BLOCK);
-        BlockPos spawn = helper.absolutePos(floorRelative.above());
-        helper.assertTrue(!TraderSpawnSafety.isSafe(helper.getLevel(), spawn), "Dangerous floor was accepted");
+        BlockPos floor = new BlockPos(2, 1, 2);
+        clearSpawnBox(helper, floor);
+        helper.setBlock(floor, Blocks.MAGMA_BLOCK);
+        BlockPos spawn = helper.absolutePos(floor.above());
+        withBorderAround(helper, spawn, () -> helper.assertTrue(
+                !TraderSpawnSafety.isSafe(helper.getLevel(), spawn),
+                "Dangerous floor was accepted"
+        ));
         helper.succeed();
     }
 
-    @GameTest(template = "empty")
+    @GameTest(template = "empty_5")
     public static void spawnSafetyAcceptsClearedStonePlatform(GameTestHelper helper) {
         BlockPos floor = new BlockPos(2, 1, 2);
+        clearSpawnBox(helper, floor);
         helper.setBlock(floor, Blocks.STONE);
-        for (int x = 1; x <= 3; x++) {
-            for (int y = 2; y <= 4; y++) {
-                for (int z = 1; z <= 3; z++) {
+        BlockPos spawn = helper.absolutePos(floor.above());
+        withBorderAround(helper, spawn, () -> helper.assertTrue(
+                TraderSpawnSafety.isSafe(helper.getLevel(), spawn),
+                "Cleared stone platform was rejected"
+        ));
+        helper.succeed();
+    }
+
+    private static void clearSpawnBox(GameTestHelper helper, BlockPos floor) {
+        for (int x = floor.getX() - 1; x <= floor.getX() + 1; x++) {
+            for (int y = floor.getY(); y <= floor.getY() + 3; y++) {
+                for (int z = floor.getZ() - 1; z <= floor.getZ() + 1; z++) {
                     helper.setBlock(new BlockPos(x, y, z), Blocks.AIR);
                 }
             }
         }
+    }
 
-        helper.assertTrue(
-                TraderSpawnSafety.isSafe(helper.getLevel(), helper.absolutePos(floor.above())),
-                "Cleared stone platform was rejected"
-        );
-        helper.succeed();
+    private static void withBorderAround(GameTestHelper helper, BlockPos center, Runnable assertion) {
+        WorldBorder border = helper.getLevel().getWorldBorder();
+        double previousX = border.getCenterX();
+        double previousZ = border.getCenterZ();
+        double previousSize = border.getSize();
+        border.setCenter(center.getX() + 0.5D, center.getZ() + 0.5D);
+        border.setSize(BORDER_TEST_SIZE);
+        try {
+            assertion.run();
+        } finally {
+            border.setCenter(previousX, previousZ);
+            border.setSize(previousSize);
+        }
     }
 
     @GameTest(template = "empty")

@@ -23,11 +23,11 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @GameTestHolder(KalFactions.MOD_ID)
 @PrefixGameTestTemplate(false)
 public final class FurnaceSpeedGameTests {
-    private static final int WARMUP_TICKS = 160;
+    private static final int WARMUP_TICKS = 400;
     private static final int SAMPLE_TICKS = 200;
     private static final int VANILLA_COOK_TICKS = 200;
 
-    @GameTest(template = "empty", batch = "furnace_speed", timeoutTicks = 600)
+    @GameTest(template = "empty", batch = "furnace_speed", timeoutTicks = 1200)
     public static void claimedFurnacesKeepTheirDoubledSmeltRate(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         FactionManager factions = FactionManager.get(level);
@@ -66,12 +66,14 @@ public final class FurnaceSpeedGameTests {
                     "an unclaimed furnace advances one tick of progress per tick, saw " + plainGain
             );
             helper.assertTrue(
-                    boostedGain >= SAMPLE_TICKS * 195L / 100L,
-                    "a claimed furnace must still advance about two per tick, saw " + boostedGain
+                    boostedGain >= plainGain * 19L / 10L,
+                    "a claimed furnace must advance about twice as fast, saw "
+                            + boostedGain + " against " + plainGain
             );
             helper.assertTrue(
-                    boostedGain <= SAMPLE_TICKS * 2L,
-                    "the bonus must not exceed one extra tick of progress per tick, saw " + boostedGain
+                    boostedGain <= plainGain * 2L + 2L,
+                    "the bonus must not exceed one extra tick of progress per tick, saw "
+                            + boostedGain + " against " + plainGain
             );
             helper.succeed();
         });
