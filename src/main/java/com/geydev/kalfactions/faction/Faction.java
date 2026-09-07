@@ -554,8 +554,7 @@ public final class Faction {
 
     void setEmblem(int[] pixels, String url) {
         emblem = pixels != null && isValidEmblemLength(pixels.length) ? pixels.clone() : new int[0];
-        String cleaned = url == null ? "" : url.strip();
-        emblemUrl = cleaned.length() > MAX_EMBLEM_URL_LENGTH ? cleaned.substring(0, MAX_EMBLEM_URL_LENGTH) : cleaned;
+        emblemUrl = EmblemUrls.sanitize(url);
     }
 
     void setInternalPvp(boolean enabled) {

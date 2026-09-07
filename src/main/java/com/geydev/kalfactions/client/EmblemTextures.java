@@ -32,7 +32,7 @@ public final class EmblemTextures {
     }
 
     public static Emblem resolve(UUID factionId, List<Integer> pixels, String url, Integer fallbackColor) {
-        if (url != null && !url.isBlank()) {
+        if (url != null && !url.isBlank() && com.geydev.kalfactions.faction.EmblemUrls.isAllowed(url)) {
             UrlEntry entry = URL_CACHE.compute(url, (key, existing) -> {
                 if (existing == null
                         || (existing.state == UrlState.FAILED
@@ -100,7 +100,7 @@ public final class EmblemTextures {
                 Minecraft.getInstance().execute(() -> {
                     ResourceLocation location = ResourceLocation.fromNamespaceAndPath(
                             KalFactions.MOD_ID,
-                            "emblem/url/" + Integer.toHexString(url.hashCode())
+                            "emblem/url/" + textureKey(url)
                     );
                     Minecraft.getInstance().getTextureManager().register(location, new DynamicTexture(image));
                     URL_CACHE.put(url, new UrlEntry(
@@ -114,6 +114,12 @@ public final class EmblemTextures {
                 URL_CACHE.put(url, new UrlEntry(UrlState.FAILED, null, System.currentTimeMillis()));
             }
         }, Util.ioPool());
+    }
+
+    private static String textureKey(String url) {
+        return com.geydev.kalfactions.integration.xaero.archive.ArchiveHashing
+                .sha256(url.getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                .substring(0, 32);
     }
 
     private static int argbToAbgr(int argb) {

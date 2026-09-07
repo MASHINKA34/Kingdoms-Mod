@@ -275,6 +275,7 @@ public final class ModConfigSpec {
     public static final IntValue SMELT_BOOST_REFRESH_TICKS;
     public static final IntValue RESEARCH_BENCH_SECONDS_PER_ITEM;
     public static final IntValue RESEARCH_BENCH_CHECK_INTERVAL_TICKS;
+    public static final ConfigValue<java.util.List<? extends String>> EMBLEM_ALLOWED_HOSTS;
 
     static {
         Builder builder = new Builder();
@@ -942,6 +943,17 @@ public final class ModConfigSpec {
         RESEARCH_BENCH_CHECK_INTERVAL_TICKS = builder
             .comment("Server ticks between research bench checks; processing itself runs on real time and catches up.")
             .defineInRange("checkIntervalTicks", 20, 1, 1200);
+        builder.pop();
+
+        builder.push("emblems");
+        EMBLEM_ALLOWED_HOSTS = builder
+            .comment(
+                "Hosts a faction emblem may be linked from; subdomains of a listed host are allowed too.",
+                "Every client that views the faction list fetches these links, so an unlisted host would",
+                "let the faction owner collect the addresses of everyone who opens the screen.",
+                "Use \"*\" to accept any host.")
+            .defineList("allowedHosts", com.geydev.kalfactions.faction.EmblemUrls.DEFAULT_HOSTS,
+                value -> value instanceof String text && !text.isBlank());
         builder.pop();
         SPEC = builder.build();
     }

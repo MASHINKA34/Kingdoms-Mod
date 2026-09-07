@@ -360,24 +360,7 @@ public final class FactionManagerService implements FactionServerHooks.Service {
     }
 
     private static String sanitizeEmblemUrl(String url) {
-        if (url == null) {
-            return "";
-        }
-        String cleaned = url.strip();
-        if (cleaned.isEmpty()) {
-            return "";
-        }
-        String lower = cleaned.toLowerCase(Locale.ROOT);
-        if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
-            if (!cleaned.contains("://") && cleaned.contains(".")) {
-                cleaned = "https://" + cleaned;
-            } else {
-                return "";
-            }
-        }
-        return cleaned.length() > Faction.MAX_EMBLEM_URL_LENGTH
-                ? cleaned.substring(0, Faction.MAX_EMBLEM_URL_LENGTH)
-                : cleaned;
+        return com.geydev.kalfactions.faction.EmblemUrls.sanitize(url);
     }
 
     @Override
