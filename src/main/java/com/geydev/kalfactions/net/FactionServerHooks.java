@@ -729,8 +729,8 @@ public final class FactionServerHooks {
                             .map(Faction::name)
                             .sorted(String.CASE_INSENSITIVE_ORDER)
                             .toList(),
-                    FactionManagerService.bonusNames(faction),
-                    FactionManagerService.emblemPixels(faction),
+                    FactionSnapshotFactory.bonusNames(faction),
+                    FactionSnapshotFactory.emblemPixels(faction),
                     faction.emblemUrl(),
                     members
             ));
@@ -749,8 +749,8 @@ public final class FactionServerHooks {
                     faction.color(),
                     faction.memberCount(),
                     resolvePlayerName(player, invite.inviterId()),
-                    FactionManagerService.bonusNames(faction),
-                    FactionManagerService.emblemPixels(faction),
+                    FactionSnapshotFactory.bonusNames(faction),
+                    FactionSnapshotFactory.emblemPixels(faction),
                     faction.emblemUrl()
             ));
         }
@@ -769,7 +769,7 @@ public final class FactionServerHooks {
                         faction.color(),
                         faction.memberCount(),
                         resolvePlayerName(player, request.requesterId()),
-                        FactionManagerService.emblemPixels(faction),
+                        FactionSnapshotFactory.emblemPixels(faction),
                         faction.emblemUrl()
                 ));
             }

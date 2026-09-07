@@ -6,7 +6,7 @@ import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.FactionMember;
 import com.geydev.kalfactions.faction.FactionRole;
 import com.geydev.kalfactions.net.ActionCooldown;
-import com.geydev.kalfactions.net.FactionManagerService;
+import com.geydev.kalfactions.net.FactionSnapshotFactory;
 import com.geydev.kalfactions.net.FactionServerHooks;
 import com.geydev.kalfactions.tax.OfflineNoticeQueue;
 import java.util.ArrayList;
@@ -131,7 +131,7 @@ public final class NewsService {
                     faction.id(),
                     faction.name(),
                     faction.color(),
-                    FactionManagerService.emblemPixels(faction),
+                    FactionSnapshotFactory.emblemPixels(faction),
                     faction.emblemUrl(),
                     news.articleCount(factionId),
                     news.latestArticleMillis(factionId)
