@@ -15,6 +15,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -30,6 +31,8 @@ public final class FurnaceSpeedTicker {
     private static List<ClaimKey> scanOrder = List.of();
     private static int scanCursor;
     private static int ticksUntilRefresh;
+    private static int indexedFurnaces;
+    private static boolean furnaceCapLogged;
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
@@ -49,7 +52,7 @@ public final class FurnaceSpeedTicker {
         }
         Map<Long, List<AbstractFurnaceBlockEntity>> chunks = INDEX.get(level.dimension());
         if (chunks != null) {
-            chunks.remove(event.getChunk().getPos().toLong());
+            forget(chunks.remove(event.getChunk().getPos().toLong()));
         }
     }
 
@@ -59,6 +62,8 @@ public final class FurnaceSpeedTicker {
         scanOrder = List.of();
         scanCursor = 0;
         ticksUntilRefresh = 0;
+        indexedFurnaces = 0;
+        furnaceCapLogged = false;
     }
 
     private static void refreshClaims(MinecraftServer server) {
@@ -76,11 +81,29 @@ public final class FurnaceSpeedTicker {
                 }
             }
         }
-        INDEX.keySet().retainAll(boosted.keySet());
-        INDEX.forEach((dimension, chunks) -> chunks.keySet().retainAll(boosted.get(dimension)));
+        INDEX.keySet().removeIf(dimension -> {
+            if (boosted.containsKey(dimension)) {
+                return false;
+            }
+            INDEX.get(dimension).values().forEach(FurnaceSpeedTicker::forget);
+            return true;
+        });
+        INDEX.forEach((dimension, chunks) -> {
+            Set<Long> keep = boosted.get(dimension);
+            chunks.entrySet().removeIf(entry -> {
+                if (keep.contains(entry.getKey())) {
+                    return false;
+                }
+                forget(entry.getValue());
+                return true;
+            });
+        });
         scanOrder = List.copyOf(order);
         if (scanCursor >= scanOrder.size()) {
             scanCursor = 0;
+        }
+        if (indexedFurnaces < ModConfigSpec.SMELT_BOOST_MAX_FURNACES.getAsInt()) {
+            furnaceCapLogged = false;
         }
     }
 
@@ -115,11 +138,32 @@ public final class FurnaceSpeedTicker {
         }
         if (furnaces == null) {
             if (chunks != null) {
-                chunks.remove(key);
+                forget(chunks.remove(key));
             }
             return;
         }
-        INDEX.computeIfAbsent(claim.dimension(), dimension -> new HashMap<>()).put(key, List.copyOf(furnaces));
+        Map<Long, List<AbstractFurnaceBlockEntity>> target =
+                INDEX.computeIfAbsent(claim.dimension(), dimension -> new HashMap<>());
+        forget(target.remove(key));
+        int limit = ModConfigSpec.SMELT_BOOST_MAX_FURNACES.getAsInt();
+        if (indexedFurnaces + furnaces.size() > limit) {
+            if (!furnaceCapLogged) {
+                furnaceCapLogged = true;
+                KalFactions.LOGGER.warn(
+                        "Smelting bonus reached the {} furnace cap; further furnaces are not boosted", limit);
+            }
+            return;
+        }
+        indexedFurnaces += furnaces.size();
+        target.put(key, List.copyOf(furnaces));
+    }
+
+    private static int forget(List<AbstractFurnaceBlockEntity> furnaces) {
+        if (furnaces == null) {
+            return 0;
+        }
+        indexedFurnaces -= furnaces.size();
+        return furnaces.size();
     }
 
     private static void applyBoost() {
@@ -136,8 +180,8 @@ public final class FurnaceSpeedTicker {
         if (furnace.isRemoved()) {
             return;
         }
-        if (!furnace.getBlockState().hasProperty(BlockStateProperties.LIT)
-                || !furnace.getBlockState().getValue(BlockStateProperties.LIT)) {
+        BlockState state = furnace.getBlockState();
+        if (!state.hasProperty(BlockStateProperties.LIT) || !state.getValue(BlockStateProperties.LIT)) {
             return;
         }
         furnace.cookingProgress = boostedProgress(furnace.cookingProgress, furnace.cookingTotalTime);

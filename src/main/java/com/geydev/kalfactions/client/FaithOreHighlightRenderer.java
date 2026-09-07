@@ -13,7 +13,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -79,13 +78,13 @@ public final class FaithOreHighlightRenderer {
         int maxY = Math.min(level.getMaxBuildHeight() - 1, origin.getY() + radius);
         for (int x = origin.getX() - radius; x <= origin.getX() + radius; x++) {
             for (int z = origin.getZ() - radius; z <= origin.getZ() + radius; z++) {
+                cursor.set(x, origin.getY(), z);
+                if (!level.hasChunkAt(cursor)) {
+                    continue;
+                }
                 for (int y = minY; y <= maxY; y++) {
                     cursor.set(x, y, z);
-                    if (!level.hasChunkAt(cursor)) {
-                        continue;
-                    }
-                    BlockState state = level.getBlockState(cursor);
-                    if (state.is(FaithTags.HIGHLIGHTED_ORES)) {
+                    if (level.getBlockState(cursor).is(FaithTags.HIGHLIGHTED_ORES)) {
                         found.add(cursor.immutable());
                     }
                 }

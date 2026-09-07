@@ -74,7 +74,7 @@ public final class WarChunkSnapshot {
         LevelChunkSection[] source = chunk.getSections();
         List<PalettedContainer<BlockState>> copies = new ArrayList<>(source.length);
         for (LevelChunkSection section : source) {
-            copies.add(section.getStates().copy());
+            copies.add(section.hasOnlyAir() ? null : section.getStates().copy());
         }
         Map<BlockPos, CompoundTag> capturedBlockEntities = new LinkedHashMap<>();
         for (Map.Entry<BlockPos, BlockEntity> entry : chunk.getBlockEntities().entrySet()) {
@@ -93,12 +93,25 @@ public final class WarChunkSnapshot {
         if (index < 0 || index >= sections.size()) {
             return;
         }
+        if (sections.get(index) == null) {
+            if (state.isAir()) {
+                return;
+            }
+            sections.set(index, emptySection());
+        }
         sections.get(index).set(pos.getX() & 15, pos.getY() & 15, pos.getZ() & 15, state);
+    }
+
+    private static PalettedContainer<BlockState> emptySection() {
+        return new PalettedContainer<>(
+            Block.BLOCK_STATE_REGISTRY,
+            Blocks.AIR.defaultBlockState(),
+            PalettedContainer.Strategy.SECTION_STATES);
     }
 
     public boolean restoresBlock(BlockPos pos, BlockState state) {
         int index = SectionPos.blockToSectionCoord(pos.getY()) - minSection;
-        if (state.isAir() || index < 0 || index >= sections.size()) {
+        if (state.isAir() || index < 0 || index >= sections.size() || sections.get(index) == null) {
             return false;
         }
         return sections.get(index).get(pos.getX() & 15, pos.getY() & 15, pos.getZ() & 15).is(state.getBlock());
@@ -121,13 +134,19 @@ public final class WarChunkSnapshot {
         int baseZ = chunkPos.getMinBlockZ();
         Set<BlockPos> replaced = new HashSet<>();
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        LevelChunkSection[] live = chunk.getSections();
         for (int index = 0; index < sections.size(); index++) {
             PalettedContainer<BlockState> container = sections.get(index);
+            if (container == null && (index >= live.length || live[index].hasOnlyAir())) {
+                continue;
+            }
+            BlockState air = Blocks.AIR.defaultBlockState();
             int baseY = (minSection + index) << 4;
             for (int localY = 0; localY < 16; localY++) {
                 for (int localZ = 0; localZ < 16; localZ++) {
                     for (int localX = 0; localX < 16; localX++) {
-                        BlockState snapshotState = container.get(localX, localY, localZ);
+                        BlockState snapshotState =
+                            container == null ? air : container.get(localX, localY, localZ);
                         cursor.set(baseX + localX, baseY + localY, baseZ + localZ);
                         if (chunk.getBlockState(cursor) == snapshotState) {
                             continue;
@@ -164,7 +183,9 @@ public final class WarChunkSnapshot {
 
         ListTag sectionsTag = new ListTag();
         for (PalettedContainer<BlockState> container : sections) {
-            sectionsTag.add(BLOCK_STATE_CODEC.encodeStart(NbtOps.INSTANCE, container).getOrThrow());
+            sectionsTag.add(container == null
+                ? new CompoundTag()
+                : BLOCK_STATE_CODEC.encodeStart(NbtOps.INSTANCE, container).getOrThrow());
         }
         tag.put(TAG_SECTIONS, sectionsTag);
 
@@ -185,9 +206,12 @@ public final class WarChunkSnapshot {
         ListTag sectionsTag = tag.getList(TAG_SECTIONS, Tag.TAG_COMPOUND);
         List<PalettedContainer<BlockState>> sections = new ArrayList<>(sectionsTag.size());
         for (int index = 0; index < sectionsTag.size(); index++) {
-            sections.add(BLOCK_STATE_CODEC
-                .parse(NbtOps.INSTANCE, sectionsTag.getCompound(index))
-                .getOrThrow(message -> new IllegalStateException("Invalid war chunk section: " + message)));
+            CompoundTag sectionTag = sectionsTag.getCompound(index);
+            sections.add(sectionTag.isEmpty()
+                ? null
+                : BLOCK_STATE_CODEC
+                    .parse(NbtOps.INSTANCE, sectionTag)
+                    .getOrThrow(message -> new IllegalStateException("Invalid war chunk section: " + message)));
         }
 
         Map<BlockPos, CompoundTag> blockEntities = new LinkedHashMap<>();

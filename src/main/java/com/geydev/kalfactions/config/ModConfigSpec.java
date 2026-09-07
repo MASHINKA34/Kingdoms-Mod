@@ -277,6 +277,7 @@ public final class ModConfigSpec {
     public static final BooleanValue MUSIC_REDSTONE_CONTROL;
     public static final IntValue SMELT_BOOST_CHUNKS_PER_TICK;
     public static final IntValue SMELT_BOOST_REFRESH_TICKS;
+    public static final IntValue SMELT_BOOST_MAX_FURNACES;
     public static final IntValue RESEARCH_BENCH_SECONDS_PER_ITEM;
     public static final IntValue RESEARCH_BENCH_CHECK_INTERVAL_TICKS;
     public static final ConfigValue<java.util.List<? extends String>> EMBLEM_ALLOWED_HOSTS;
@@ -888,8 +889,11 @@ public final class ModConfigSpec {
             .comment("Faith level at which the economy buff starts outlining nearby ores.")
             .defineInRange("economyHighlightLevel", 10, 1, 10);
         FAITH_ECONOMY_HIGHLIGHT_RADIUS = builder
-            .comment("Radius in blocks scanned for kingdoms:highlighted_ores while the outline is lit.")
-            .defineInRange("economyHighlightRadius", 12, 1, 64);
+            .comment(
+                "Radius in blocks scanned for kingdoms:highlighted_ores while the outline is lit.",
+                "The scan is a cube, so the cost grows with the cube of this value; 32 already reads",
+                "a quarter of a million blocks in a single client frame.")
+            .defineInRange("economyHighlightRadius", 12, 1, 32);
         FAITH_ECONOMY_HIGHLIGHT_MAX_BLOCKS = builder
             .comment("Hard cap on outlined ore blocks; the nearest ones win.")
             .defineInRange("economyHighlightMaxBlocks", 256, 1, 4096);
@@ -953,6 +957,11 @@ public final class ModConfigSpec {
         SMELT_BOOST_REFRESH_TICKS = builder
             .comment("Server ticks between rebuilds of the claimed chunk list the smelting research bonus walks.")
             .defineInRange("boostRefreshTicks", 100, 1, 12000);
+        SMELT_BOOST_MAX_FURNACES = builder
+            .comment(
+                "Furnaces the smelting research bonus keeps indexed. Every indexed furnace is touched",
+                "on every server tick, so this is the ceiling on that per-tick cost.")
+            .defineInRange("boostMaxFurnaces", 4096, 0, 1_000_000);
         builder.pop();
 
         builder.push("researchBench");

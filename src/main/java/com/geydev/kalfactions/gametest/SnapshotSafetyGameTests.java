@@ -65,6 +65,35 @@ public final class SnapshotSafetyGameTests {
     }
 
     @GameTest(template = "empty", batch = "snapshot_safety")
+    public static void snapshotsSurviveTheirNbtRoundTripWithEmptySections(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos pos = helper.absolutePos(new BlockPos(1, 2, 1));
+        BlockPos sky = new BlockPos(pos.getX(), level.getMaxBuildHeight() - 8, pos.getZ());
+        level.setBlockAndUpdate(pos, Blocks.DIAMOND_BLOCK.defaultBlockState());
+        level.setBlockAndUpdate(sky, Blocks.AIR.defaultBlockState());
+
+        WarChunkSnapshot captured = WarChunkSnapshot.capture(level, new ChunkPos(pos), level.registryAccess());
+        WarChunkSnapshot restored = WarChunkSnapshot.load(captured.save());
+        try {
+            level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+            level.setBlockAndUpdate(sky, Blocks.OBSIDIAN.defaultBlockState());
+
+            restored.restore(level, new ChunkPos(pos), level.registryAccess());
+
+            helper.assertTrue(
+                    level.getBlockState(pos).is(Blocks.DIAMOND_BLOCK),
+                    "a solid section is restored after a save and load");
+            helper.assertTrue(
+                    level.getBlockState(sky).isAir(),
+                    "a block built in an air-only section is cleared on rollback");
+        } finally {
+            level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+            level.setBlockAndUpdate(sky, Blocks.AIR.defaultBlockState());
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "snapshot_safety")
     public static void rollbackBlocksDoNotDropForOwnersOrEnvironment(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos pos = helper.absolutePos(new BlockPos(1, 2, 1));
