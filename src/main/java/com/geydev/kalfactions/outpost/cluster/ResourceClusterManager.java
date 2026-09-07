@@ -638,7 +638,7 @@ public final class ResourceClusterManager extends SavedData {
 
     private static String displayClock(long millis) {
         long seconds = Math.max(0L, millis) / 1000L;
-        return String.format("%02d:%02d", seconds % 86400L / 3600L, seconds % 3600L / 60L);
+        return String.format(java.util.Locale.ROOT, "%02d:%02d", seconds % 86400L / 3600L, seconds % 3600L / 60L);
     }
 
     private void refreshTextDisplay(ServerLevel level, ResourceCluster cluster) {

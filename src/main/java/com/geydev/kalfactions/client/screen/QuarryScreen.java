@@ -340,7 +340,7 @@ public final class QuarryScreen extends AbstractContainerScreen<QuarryMenu> {
 
     private static String formatTicks(int ticks) {
         long seconds = Math.max(0L, ticks / 20L);
-        return String.format("%02d:%02d", seconds / 60L, seconds % 60L);
+        return String.format(java.util.Locale.ROOT, "%02d:%02d", seconds / 60L, seconds % 60L);
     }
 
     private void renderMachineryAnimation(GuiGraphics graphics, float partialTick) {

@@ -249,6 +249,7 @@ public final class ResearchBenchScreen extends AbstractContainerScreen<ResearchB
     private static String formatTicks(int ticks) {
         long totalSeconds = Math.max(0L, ticks / 20L);
         return String.format(
+                java.util.Locale.ROOT,
                 "%02d:%02d:%02d",
                 totalSeconds / 3600L,
                 totalSeconds % 3600L / 60L,

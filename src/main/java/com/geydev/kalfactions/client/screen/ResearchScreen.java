@@ -1540,9 +1540,9 @@ public final class ResearchScreen extends FactionScreen {
         long minutes = (totalSeconds % 3600L) / 60L;
         long seconds = totalSeconds % 60L;
         if (hours > 0L) {
-            return String.format("%d:%02d:%02d", hours, minutes, seconds);
+            return String.format(java.util.Locale.ROOT, "%d:%02d:%02d", hours, minutes, seconds);
         }
-        return String.format("%02d:%02d", minutes, seconds);
+        return String.format(java.util.Locale.ROOT, "%02d:%02d", minutes, seconds);
     }
 
     @Override

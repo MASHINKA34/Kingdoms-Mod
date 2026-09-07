@@ -294,7 +294,7 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
         return Component.translatable(
                 "screen.kingdoms.drill.cluster_restore_in",
                 seconds / 86400L,
-                String.format("%02d:%02d", seconds % 86400L / 3600L, seconds % 3600L / 60L)
+                String.format(java.util.Locale.ROOT, "%02d:%02d", seconds % 86400L / 3600L, seconds % 3600L / 60L)
         );
     }
 
@@ -303,7 +303,7 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
         return Component.translatable(
                 "screen.kingdoms.drill.cluster_depleted_short",
                 seconds / 86400L,
-                String.format("%02d:%02d", seconds % 86400L / 3600L, seconds % 3600L / 60L)
+                String.format(java.util.Locale.ROOT, "%02d:%02d", seconds % 86400L / 3600L, seconds % 3600L / 60L)
         );
     }
 
@@ -455,7 +455,7 @@ public final class DrillScreen extends AbstractContainerScreen<DrillMenu> {
         long hours = totalSeconds / 3600L;
         long minutes = (totalSeconds % 3600L) / 60L;
         long seconds = totalSeconds % 60L;
-        return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+        return String.format(java.util.Locale.ROOT, "%02d:%02d:%02d", hours, minutes, seconds);
     }
 
     public void acceptState(DrillPayloads.S2CTargets state) {

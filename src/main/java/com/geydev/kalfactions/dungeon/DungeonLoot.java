@@ -117,7 +117,7 @@ public final class DungeonLoot {
     public static String formatRemaining(long millis) {
         long total = Math.max(0L, millis);
         long minutes = (total + 59_999L) / 60_000L;
-        return String.format("%02d:%02d", minutes / 60L, minutes % 60L);
+        return String.format(java.util.Locale.ROOT, "%02d:%02d", minutes / 60L, minutes % 60L);
     }
 
     private static boolean isEmpty(RandomizableContainer container) {

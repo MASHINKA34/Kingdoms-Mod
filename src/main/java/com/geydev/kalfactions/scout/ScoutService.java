@@ -416,7 +416,7 @@ public final class ScoutService {
         long totalSeconds = Math.max(0L, millis) / 1000L;
         long minutes = totalSeconds / 60L;
         long seconds = totalSeconds % 60L;
-        return String.format("%02d:%02d", minutes, seconds);
+        return String.format(java.util.Locale.ROOT, "%02d:%02d", minutes, seconds);
     }
 
     public static MapScoutEntity nearbyScout(ServerPlayer player) {
