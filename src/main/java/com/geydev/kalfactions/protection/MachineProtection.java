@@ -10,6 +10,7 @@ import com.geydev.kalfactions.quarry.QuarryManager;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -33,14 +34,23 @@ public final class MachineProtection {
     private static final ThreadLocal<ProjectileContext> PROJECTILE_CONTEXT =
         ThreadLocal.withInitial(ProjectileContext::new);
 
+    /**
+     * Counts the contexts open across all threads. The guard sits on {@link Level#setBlock}, the
+     * hottest method in the game, so the overwhelmingly common "no projectile is ticking" case has to
+     * cost a single volatile read rather than a thread-local lookup. Without ScorchedGuns installed
+     * nothing ever opens a context and the guard never gets past this counter.
+     */
+    private static final AtomicInteger OPEN_CONTEXTS = new AtomicInteger();
+
     public static void beginProjectileContext(Entity shooter, long gameTime) {
         ProjectileContext context = PROJECTILE_CONTEXT.get();
         if (context.depth > 0 && context.gameTime != gameTime) {
-            context.clear();
+            release(context);
         }
         context.depth++;
         context.gameTime = gameTime;
         context.shooter = shooter;
+        OPEN_CONTEXTS.incrementAndGet();
     }
 
     public static void endProjectileContext() {
@@ -48,22 +58,37 @@ public final class MachineProtection {
         if (context.depth <= 0) {
             return;
         }
+        OPEN_CONTEXTS.decrementAndGet();
         if (--context.depth == 0) {
             context.clear();
         }
     }
 
     public static void clearProjectileContext() {
-        PROJECTILE_CONTEXT.get().clear();
+        release(PROJECTILE_CONTEXT.get());
+    }
+
+    private static void release(ProjectileContext context) {
+        if (context.depth > 0) {
+            OPEN_CONTEXTS.addAndGet(-context.depth);
+        }
+        context.clear();
+    }
+
+    static int openProjectileContexts() {
+        return OPEN_CONTEXTS.get();
     }
 
     public static boolean blocksProjectileGrief(Level level, BlockPos target) {
+        if (OPEN_CONTEXTS.get() <= 0) {
+            return false;
+        }
         ProjectileContext context = PROJECTILE_CONTEXT.get();
         if (context.depth <= 0) {
             return false;
         }
         if (context.gameTime != level.getGameTime()) {
-            context.clear();
+            release(context);
             return false;
         }
         return !canProjectileBreak(level, target, context.shooter);
