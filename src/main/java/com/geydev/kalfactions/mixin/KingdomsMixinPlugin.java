@@ -7,6 +7,14 @@ import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
 public final class KingdomsMixinPlugin implements IMixinConfigPlugin {
+    public static final List<String> OPTIONAL_MOD_PACKAGES = List.of(
+            "com.simibubi.create.",
+            "net.createmod.",
+            "top.ribs.scguns.",
+            "net.mcreator.protectionpixel.",
+            "xaero."
+    );
+
     @Override
     public void onLoad(String mixinPackage) {
     }
@@ -18,31 +26,16 @@ public final class KingdomsMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        if (mixinClassName.contains(".Create")) {
-            return classExists(targetClassName);
+        return !isOptionalTarget(targetClassName) || classExists(targetClassName);
+    }
+
+    public static boolean isOptionalTarget(String targetClassName) {
+        for (String prefix : OPTIONAL_MOD_PACKAGES) {
+            if (targetClassName.startsWith(prefix)) {
+                return true;
+            }
         }
-        if (targetClassName.startsWith("top.ribs.scguns.") || mixinClassName.contains(".ProtectionPixel")) {
-            return classExists(targetClassName);
-        }
-        if (mixinClassName.endsWith("ScorchedBlueprintScreenMixin")
-                || mixinClassName.endsWith("XaeroCommonMinimapRadarListMixin")
-                || mixinClassName.endsWith("XaeroCommonRadarRendererMixin")
-                || mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementReaderMixin")
-                || mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementCollectorMixin")
-                || mixinClassName.endsWith("XaeroMinimapPlayerTrackerElementRendererMixin")
-                || mixinClassName.endsWith("XaeroMinimapPlayerTrackerIconRendererMixin")
-                || mixinClassName.endsWith("XaeroMinimapSyncedTrackedPlayerManagerMixin")
-                || mixinClassName.endsWith("XaeroRadarListMixin")
-                || mixinClassName.endsWith("XaeroRadarElementReaderMixin")
-                || mixinClassName.endsWith("XaeroRadarRendererMixin")
-                || mixinClassName.endsWith("XaeroWorldMapPlayerTrackerElementReaderMixin")
-                || mixinClassName.endsWith("XaeroWorldMapPlayerTrackerElementCollectorMixin")
-                || mixinClassName.endsWith("XaeroWorldMapPlayerTrackerElementRendererMixin")
-                || mixinClassName.endsWith("XaeroWorldMapPlayerTrackerIconRendererMixin")
-                || mixinClassName.endsWith("XaeroWorldMapSyncedTrackedPlayerManagerMixin")) {
-            return classExists(targetClassName);
-        }
-        return true;
+        return false;
     }
 
     @Override
