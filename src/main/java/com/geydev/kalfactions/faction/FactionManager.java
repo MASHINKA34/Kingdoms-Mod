@@ -1265,6 +1265,10 @@ public final class FactionManager extends SavedData {
      */
     public synchronized boolean canAccessContainer(UUID playerId, Level level, BlockPos position) {
         Objects.requireNonNull(playerId, "playerId");
+        return ChestLinks.allMatch(level, position, part -> canAccessContainerPart(playerId, level, part));
+    }
+
+    private boolean canAccessContainerPart(UUID playerId, Level level, BlockPos position) {
         UUID claimFactionId = claimIndex.get(ClaimKey.of(level, position));
         if (claimFactionId == null) {
             return true;
@@ -1272,7 +1276,7 @@ public final class FactionManager extends SavedData {
         ChestAccess access = liveChestAccess(level, position);
         if (access == null) {
             BlockPos linked = ChestLinks.linkedPosition(level, position);
-            if (linked != null) {
+            if (linked != null && claimFactionId.equals(claimIndex.get(ClaimKey.of(level, linked)))) {
                 access = liveChestAccess(level, linked);
             }
         }

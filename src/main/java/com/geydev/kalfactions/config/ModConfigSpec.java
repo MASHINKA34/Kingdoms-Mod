@@ -38,6 +38,7 @@ public final class ModConfigSpec {
     public static final BooleanValue PROTECT_PISTONS;
     public static final BooleanValue PROTECT_MOB_GRIEFING;
     public static final BooleanValue PROTECT_FLUIDS;
+    public static final BooleanValue PROTECT_FIRE;
     public static final IntValue WAR_ROLLBACK_CHUNKS_PER_TICK;
     public static final IntValue WAR_MAX_SNAPSHOT_CHUNKS;
     public static final LongValue WAR_AUTO_END_TICKS;
@@ -316,6 +317,7 @@ public final class ModConfigSpec {
         PROTECT_MOB_GRIEFING = builder
             .comment("Stop mob griefing (enderman block theft, and the like) inside and next to claims.")
             .define("protectMobGriefing", true);
+        PROTECT_FIRE = builder.define("protectFire", true);
         PROTECT_FLUIDS = builder
             .comment("Stop water and lava from flowing across a claim boundary, and buckets from reaching in.")
             .define("protectFluids", true);

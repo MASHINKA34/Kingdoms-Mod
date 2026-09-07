@@ -10,10 +10,8 @@ import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.InfluenceType;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import com.mojang.logging.LogUtils;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -24,6 +22,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -60,7 +59,7 @@ public final class WarManager extends SavedData {
     public static final Factory<WarManager> FACTORY = new Factory<>(WarManager::new, WarManager::load);
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final SavedDataFormat FORMAT = new SavedDataFormat(2);
+    private static final SavedDataFormat FORMAT = new SavedDataFormat(3);
     private static final String TAG_WARS = "wars";
     private static final String TAG_PENDING_SPOILS = "pendingSpoils";
     private static final String TAG_COOLDOWNS = "declareCooldowns";
@@ -71,7 +70,7 @@ public final class WarManager extends SavedData {
     private final Map<UUID, UUID> factionToWar = new HashMap<>();
     private final Map<UUID, PendingSpoils> pendingSpoils = new LinkedHashMap<>();
     private final Map<UUID, Long> attackerCooldownUntil = new HashMap<>();
-    private final Deque<RollbackTask> rollbackQueue = new ArrayDeque<>();
+    private final WarRollbackQueue rollbackQueue = new WarRollbackQueue();
     private final transient Set<UUID> snapshotLimitLogged = new HashSet<>();
     private final transient Map<UUID, ServerBossEvent> bossBars = new HashMap<>();
     private final transient Map<UUID, long[]> blockPointWindows = new HashMap<>();
@@ -356,7 +355,6 @@ public final class WarManager extends SavedData {
         return JoinResult.SUCCESS;
     }
 
-    /** Drops a joined ally from the war and restores its captured claims immediately. */
     private void withdrawParticipant(MinecraftServer server, War war, UUID factionId) {
         FactionManager factions = FactionManager.get(server);
         for (ClaimKey key : war.snapshotKeys()) {
@@ -364,15 +362,8 @@ public final class WarManager extends SavedData {
             if (!factionId.equals(owner)) {
                 continue;
             }
-            WarChunkSnapshot snapshot = war.removeSnapshot(key);
-            WarSnapshotStore.delete(server, war.id(), key);
-            if (snapshot == null) {
-                continue;
-            }
-            ServerLevel level = server.getLevel(key.dimension());
-            if (level != null) {
-                snapshot.restore(level, key.chunk(), level.registryAccess());
-            }
+            war.queueRollback(key);
+            rollbackQueue.add(war.id(), key);
         }
         war.removeParticipant(factionId);
         factionToWar.remove(factionId, war.id());
@@ -979,7 +970,8 @@ public final class WarManager extends SavedData {
     private void beginRollback(MinecraftServer server, War war) {
         war.setState(War.State.ENDING);
         for (ClaimKey key : war.snapshotKeys()) {
-            rollbackQueue.add(new RollbackTask(war.id(), key));
+            war.queueRollback(key);
+            rollbackQueue.add(war.id(), key);
         }
         setDirty();
         LOGGER.info("War {} ending; {} chunk snapshot(s) queued for rollback", war.id(), war.snapshotCount());
@@ -1017,37 +1009,27 @@ public final class WarManager extends SavedData {
             refreshBossBars(server);
         }
 
-        if (rollbackQueue.isEmpty()) {
-            return;
-        }
-        int budget = chunksPerTick;
-        while (budget-- > 0 && !rollbackQueue.isEmpty()) {
-            RollbackTask task = rollbackQueue.poll();
-            War war = wars.get(task.warId());
-            if (war == null) {
-                continue;
-            }
-            WarChunkSnapshot snapshot = war.removeSnapshot(task.key());
-            WarSnapshotStore.delete(server, task.warId(), task.key());
-            if (snapshot != null) {
-                ServerLevel level = server.getLevel(task.key().dimension());
-                if (level != null) {
-                    snapshot.restore(level, task.key().chunk(), level.registryAccess());
-                } else {
-                    LOGGER.warn("Skipping war rollback for missing dimension {}", task.key().dimension().location());
-                }
-            }
-            setDirty();
-            if (war.snapshotsEmpty()) {
-                finalizeWar(server, war);
-            }
-        }
+        rollbackQueue.tick(server.overworld().getGameTime(), chunksPerTick,
+                (warId, key) -> {
+                    War war = wars.get(warId);
+                    return war == null ? CompletableFuture.completedFuture(null)
+                            : WarChunkPersistence.restore(server, key, war.snapshot(key));
+                },
+                (warId, key) -> {
+                    War war = wars.get(warId);
+                    if (war != null) {
+                        war.removeSnapshot(key);
+                        setDirty();
+                        if (war.state() == War.State.ENDING && war.snapshotsEmpty()) {
+                            finalizeWar(server, war);
+                        }
+                    }
+                });
     }
 
     private void finalizeWar(MinecraftServer server, War war) {
         war.setState(War.State.ENDED);
         wars.remove(war.id());
-        WarSnapshotStore.deleteWar(server, war.id());
         for (UUID participant : war.participants()) {
             factionToWar.remove(participant, war.id());
             blockPointWindows.remove(participant);
@@ -1246,10 +1228,8 @@ public final class WarManager extends SavedData {
             for (UUID participant : war.participants()) {
                 manager.factionToWar.put(participant, war.id());
             }
-            if (war.state() == War.State.ENDING) {
-                for (ClaimKey key : war.snapshotKeys()) {
-                    manager.rollbackQueue.add(new RollbackTask(war.id(), key));
-                }
+            for (ClaimKey key : war.pendingRollback()) {
+                manager.rollbackQueue.add(war.id(), key);
             }
         }
         ListTag pendingSpoilsTag = tag.getList(TAG_PENDING_SPOILS, Tag.TAG_COMPOUND);
@@ -1448,6 +1428,4 @@ public final class WarManager extends SavedData {
         }
     }
 
-    private record RollbackTask(UUID warId, ClaimKey key) {
-    }
 }

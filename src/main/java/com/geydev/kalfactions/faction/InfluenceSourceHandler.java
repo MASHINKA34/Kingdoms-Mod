@@ -3,10 +3,6 @@ package com.geydev.kalfactions.faction;
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.net.FactionPayloads;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -22,11 +18,6 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class InfluenceSourceHandler {
-    private static final long DAY_MILLIS = 24L * 3_600_000L;
-    private static final Map<String, Deque<Long>> KILL_AWARDS = new HashMap<>();
-    private static final Map<UUID, Integer> MOB_PROGRESS = new HashMap<>();
-    private static final Map<UUID, Deque<Long>> MOB_AWARDS = new HashMap<>();
-
     @SubscribeEvent
     public static void onDeath(LivingDeathEvent event) {
         if (!(event.getSource().getEntity() instanceof ServerPlayer killer)) {
@@ -72,19 +63,10 @@ public final class InfluenceSourceHandler {
         long window = ModConfigSpec.INFLUENCE_KILL_CAP_HOURS.getAsInt() * 3_600_000L;
         int cap = ModConfigSpec.INFLUENCE_KILL_CAP_PER_VICTIM.getAsInt();
         long now = System.currentTimeMillis();
-        Deque<Long> awards = KILL_AWARDS.computeIfAbsent(
-                killer.getUUID() + ":" + victim.getUUID(),
-                ignored -> new ArrayDeque<>()
-        );
-        prune(awards, now, window);
-        if (cap > 0 && awards.size() >= cap) {
-            return;
-        }
-        FactionManager.OperationResult result = manager.grantInfluence(killerFaction, InfluenceType.MILITARY, amount);
-        awards.addLast(now);
-        if (result.successful()) {
-            sendInfluenceToast(killer, InfluenceType.MILITARY, result.amount());
-        }
+        long granted = KillRewardLedger.get(killer.getServer()).awardPlayerKill(
+                killer.getUUID(), victim.getUUID(), now, window, cap,
+                () -> grantMilitary(manager, killerFaction, amount));
+        sendInfluenceToast(killer, InfluenceType.MILITARY, granted);
     }
 
     private static void onMobKill(FactionManager manager, ServerPlayer killer, UUID killerFaction) {
@@ -93,24 +75,13 @@ public final class InfluenceSourceHandler {
         if (perAward <= 0 || influence <= 0L) {
             return;
         }
-        UUID id = killer.getUUID();
-        int progress = MOB_PROGRESS.merge(id, 1, Integer::sum);
-        if (progress < perAward) {
-            return;
-        }
-        MOB_PROGRESS.put(id, 0);
         long now = System.currentTimeMillis();
-        Deque<Long> awards = MOB_AWARDS.computeIfAbsent(id, ignored -> new ArrayDeque<>());
-        prune(awards, now, DAY_MILLIS);
         long dailyCap = ModConfigSpec.INFLUENCE_MOB_DAILY_CAP.getAsLong();
-        if (dailyCap > 0L && (long) awards.size() * influence >= dailyCap) {
-            return;
-        }
-        FactionManager.OperationResult result = manager.grantInfluence(killerFaction, InfluenceType.MILITARY, influence);
-        awards.addLast(now);
-        if (result.successful()) {
-            sendInfluenceToast(killer, InfluenceType.MILITARY, result.amount());
-        }
+        KillRewardLedger ledger = KillRewardLedger.get(killer.getServer());
+        ledger.cleanup(now, ModConfigSpec.INFLUENCE_KILL_CAP_HOURS.getAsInt() * 3_600_000L);
+        long granted = ledger.awardMobKill(killer.getUUID(), now, perAward, influence, dailyCap,
+                amount -> grantMilitary(manager, killerFaction, amount));
+        sendInfluenceToast(killer, InfluenceType.MILITARY, granted);
     }
 
     @SubscribeEvent
@@ -139,10 +110,9 @@ public final class InfluenceSourceHandler {
                 && (!itemId.getNamespace().equals("minecraft") || ModConfigSpec.SCIENCE_DISCOVERY_ALLOW_VANILLA.get());
     }
 
-    private static void prune(Deque<Long> awards, long now, long window) {
-        while (!awards.isEmpty() && now - awards.peekFirst() >= window) {
-            awards.pollFirst();
-        }
+    private static long grantMilitary(FactionManager manager, UUID factionId, long amount) {
+        FactionManager.OperationResult result = manager.grantInfluence(factionId, InfluenceType.MILITARY, amount);
+        return result.successful() ? result.amount() : 0L;
     }
 
     private static void sendInfluenceToast(ServerPlayer player, InfluenceType type, long amount) {
@@ -153,12 +123,7 @@ public final class InfluenceSourceHandler {
 
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
-        UUID id = event.getEntity().getUUID();
-        String idText = id.toString();
-        KILL_AWARDS.keySet().removeIf(key -> key.startsWith(idText) || key.endsWith(idText));
-        MOB_PROGRESS.remove(id);
-        MOB_AWARDS.remove(id);
-        VillagerTradeRewards.clear(id);
+        VillagerTradeRewards.clear(event.getEntity().getUUID());
     }
 
     private InfluenceSourceHandler() {

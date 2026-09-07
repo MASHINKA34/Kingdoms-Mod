@@ -1,6 +1,6 @@
 package com.geydev.kalfactions.mixin;
 
-import com.geydev.kalfactions.sanctuary.SanctuaryFire;
+import com.geydev.kalfactions.protection.FireProtection;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -30,8 +30,7 @@ public abstract class FireBlockMixin {
             RandomSource random,
             CallbackInfo ci
     ) {
-        if (SanctuaryFire.blocksFire(level, pos)
-                || com.geydev.kalfactions.dungeon.DungeonProtection.blocksFire(level, pos)) {
+        if (FireProtection.blocksFire(level, pos)) {
             level.removeBlock(pos, false);
             ci.cancel();
         }
@@ -49,8 +48,7 @@ public abstract class FireBlockMixin {
             BlockPos pos,
             CallbackInfoReturnable<Boolean> cir
     ) {
-        if (SanctuaryFire.blocksFire(level, pos)
-                || com.geydev.kalfactions.dungeon.DungeonProtection.blocksFire(level, pos)) {
+        if (FireProtection.blocksFire(level, pos)) {
             cir.setReturnValue(false);
         }
     }
@@ -70,8 +68,7 @@ public abstract class FireBlockMixin {
             Direction face,
             CallbackInfo ci
     ) {
-        if (SanctuaryFire.blocksFire(level, pos)
-                || com.geydev.kalfactions.dungeon.DungeonProtection.blocksFire(level, pos)) {
+        if (FireProtection.blocksFire(level, pos)) {
             ci.cancel();
         }
     }
@@ -86,8 +83,7 @@ public abstract class FireBlockMixin {
             BlockPos pos,
             CallbackInfoReturnable<Integer> cir
     ) {
-        if (SanctuaryFire.blocksFire(level, pos)
-                || com.geydev.kalfactions.dungeon.DungeonProtection.blocksFire(level, pos)) {
+        if (FireProtection.blocksFire(level, pos)) {
             cir.setReturnValue(0);
         }
     }

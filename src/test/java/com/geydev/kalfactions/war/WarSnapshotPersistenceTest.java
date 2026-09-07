@@ -99,6 +99,33 @@ class WarSnapshotPersistenceTest {
     }
 
     @Test
+    void missingSnapshotFilesRemainPendingAfterHydrationAndReload() {
+        War war = war();
+        war.putSnapshot(key(1, 1), WarChunkSnapshot.load(emptySnapshotTag()));
+        war.putSnapshot(key(2, 2), WarChunkSnapshot.load(emptySnapshotTag()));
+        war.setState(War.State.ENDING);
+        War reloaded = War.load(war.save()).orElseThrow();
+        reloaded.hydrateSnapshots(Map.of(key(1, 1), WarChunkSnapshot.load(emptySnapshotTag())));
+        assertEquals(Set.of(key(2, 2)), reloaded.unloadedSnapshots());
+        assertEquals(2, reloaded.snapshotCount());
+        assertEquals(Set.of(key(1, 1), key(2, 2)), War.load(reloaded.save()).orElseThrow().pendingRollback());
+    }
+
+    @Test
+    void participantWithdrawalRemembersItsRollbackWhileTheWarContinues() {
+        War war = war();
+        war.putSnapshot(key(1, 1), WarChunkSnapshot.load(emptySnapshotTag()));
+        war.putSnapshot(key(2, 2), WarChunkSnapshot.load(emptySnapshotTag()));
+        war.queueRollback(key(1, 1));
+        War reloaded = War.load(war.save()).orElseThrow();
+        assertEquals(War.State.ACTIVE, reloaded.state());
+        assertEquals(Set.of(key(1, 1)), reloaded.pendingRollback());
+        reloaded.removeSnapshot(key(1, 1));
+        assertTrue(War.load(reloaded.save()).orElseThrow().pendingRollback().isEmpty());
+        assertTrue(reloaded.hasSnapshot(key(2, 2)));
+    }
+
+    @Test
     void legacyTagWithInlineDataStillLoads() {
         CompoundTag entry = new CompoundTag();
         entry.put("key", key(2, 2).save());

@@ -50,6 +50,7 @@ public final class War {
     private final long startEpochMillis;
     private final Map<ClaimKey, WarChunkSnapshot> snapshots;
     private final Set<ClaimKey> unloadedSnapshots = new LinkedHashSet<>();
+    private final Set<ClaimKey> pendingRollback = new LinkedHashSet<>();
     private State state;
     private long attackerPoints;
     private long defenderPoints;
@@ -291,8 +292,23 @@ public final class War {
     }
 
     public WarChunkSnapshot removeSnapshot(ClaimKey key) {
+        pendingRollback.remove(key);
         unloadedSnapshots.remove(key);
         return snapshots.remove(key);
+    }
+
+    WarChunkSnapshot snapshot(ClaimKey key) {
+        return snapshots.get(key);
+    }
+
+    void queueRollback(ClaimKey key) {
+        if (hasSnapshot(key)) {
+            pendingRollback.add(key);
+        }
+    }
+
+    Set<ClaimKey> pendingRollback() {
+        return state == State.ENDING ? snapshotKeys() : Set.copyOf(pendingRollback);
     }
 
     public boolean snapshotsEmpty() {
@@ -304,7 +320,7 @@ public final class War {
     }
 
     void hydrateSnapshots(Map<ClaimKey, WarChunkSnapshot> loaded) {
-        unloadedSnapshots.clear();
+        unloadedSnapshots.removeAll(loaded.keySet());
         snapshots.putAll(loaded);
     }
 
@@ -341,6 +357,9 @@ public final class War {
             snapshotsTag.add(entryTag);
         }
         tag.put(TAG_SNAPSHOTS, snapshotsTag);
+        ListTag rollbackTag = new ListTag();
+        pendingRollback.forEach(key -> rollbackTag.add(key.save()));
+        tag.put("pendingRollback", rollbackTag);
         return tag;
     }
 
@@ -406,6 +425,9 @@ public final class War {
         );
         war.setPointsRaw(tag.getLong(TAG_ATTACKER_POINTS), tag.getLong(TAG_DEFENDER_POINTS));
         war.unloadedSnapshots.addAll(unloaded);
+        for (Tag value : tag.getList("pendingRollback", Tag.TAG_COMPOUND)) {
+            ClaimKey.load((CompoundTag) value).filter(war::hasSnapshot).ifPresent(war::queueRollback);
+        }
         return Optional.of(war);
     }
 

@@ -153,8 +153,11 @@ public final class WarChunkSnapshot {
                         }
                         BlockPos pos = cursor.immutable();
                         BlockEntity previous = chunk.getBlockEntity(pos);
-                        if (level.setBlock(pos, snapshotState, RESTORE_FLAGS)
-                                && (previous == null || chunk.getBlockEntity(pos) != previous)) {
+                        level.setBlock(pos, snapshotState, RESTORE_FLAGS);
+                        if (chunk.getBlockState(pos) != snapshotState) {
+                            throw new IllegalStateException("Could not restore war block at " + pos);
+                        }
+                        if (previous == null || chunk.getBlockEntity(pos) != previous) {
                             replaced.add(pos);
                         }
                     }

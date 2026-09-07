@@ -86,7 +86,7 @@ public final class WarSnapshotStore {
         for (ClaimKey key : keys) {
             Path source = file(root, warId, key);
             if (!Files.isRegularFile(source)) {
-                KalFactions.LOGGER.warn("War {} snapshot for {} is missing; that chunk will not roll back", warId, key);
+                KalFactions.LOGGER.warn("War {} snapshot for {} is missing; recovery remains pending", warId, key);
                 continue;
             }
             try {

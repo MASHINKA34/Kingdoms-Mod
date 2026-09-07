@@ -8,6 +8,7 @@ import com.geydev.kalfactions.blackzone.BlackZoneData;
 import com.geydev.kalfactions.dungeon.ChestTemplateManager;
 import com.geydev.kalfactions.dungeon.DungeonManager;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.faction.KillRewardLedger;
 import com.geydev.kalfactions.faction.ScienceLedger;
 import com.geydev.kalfactions.faith.FaithManager;
 import com.geydev.kalfactions.market.MarketPlotManager;
@@ -53,6 +54,7 @@ final class SavedDataVersioningTest {
     private static final Map<String, SavedData.Factory<? extends SavedData>> VERSIONED = Map.ofEntries(
             Map.entry("BlackZoneData", BlackZoneData.FACTORY),
             Map.entry("FactionManager", FactionManager.FACTORY),
+            Map.entry("KillRewardLedger", KillRewardLedger.FACTORY),
             Map.entry("RaidManager", RaidManager.FACTORY),
             Map.entry("ResourceClusterManager", ResourceClusterManager.FACTORY),
             Map.entry("SafeZoneManager", SafeZoneManager.FACTORY),

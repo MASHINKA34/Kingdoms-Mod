@@ -2,6 +2,7 @@ package com.geydev.kalfactions.protection;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.chest.ChestAccessMode;
+import com.geydev.kalfactions.chest.ChestLinks;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.market.MarketPlot;
 import com.geydev.kalfactions.market.MarketPlotManager;
@@ -119,6 +120,11 @@ public final class AutomationBoundaryHandler {
         }
 
         BlockPos automationPos = targetPos.relative(targetSide);
+        return !ChestLinks.allMatch(serverLevel, targetPos,
+                part -> !crossesProtectedBoundary(serverLevel, part, automationPos));
+    }
+
+    private static boolean crossesProtectedBoundary(ServerLevel serverLevel, BlockPos targetPos, BlockPos automationPos) {
         if (crossesPlotBoundary(serverLevel, targetPos, automationPos)) {
             return true;
         }
@@ -134,9 +140,16 @@ public final class AutomationBoundaryHandler {
             return false;
         }
 
-        return FactionManager.get(serverLevel)
-                .getChestAccess(serverLevel, targetPos)
-                .map(access -> access.mode() != ChestAccessMode.PUBLIC)
+        FactionManager manager = FactionManager.get(serverLevel);
+        var access = manager.getChestAccess(serverLevel, targetPos);
+        BlockPos linked = ChestLinks.linkedPosition(serverLevel, targetPos);
+        if (access.isEmpty() && linked != null
+                && ClaimBoundary.ownerAt(serverLevel, targetPos) != null
+                && ClaimBoundary.ownerAt(serverLevel, targetPos).equals(ClaimBoundary.ownerAt(serverLevel, linked))) {
+            access = manager.getChestAccess(serverLevel, linked);
+        }
+        return access
+                .map(rule -> rule.mode() != ChestAccessMode.PUBLIC)
                 .orElse(true);
     }
 

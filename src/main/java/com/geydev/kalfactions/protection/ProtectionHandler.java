@@ -2,6 +2,7 @@ package com.geydev.kalfactions.protection;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.chest.AccessTool;
+import com.geydev.kalfactions.chest.ChestLinks;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.faction.FactionManager;
@@ -167,7 +168,7 @@ public final class ProtectionHandler {
 
         BlockPos pos = event.getPos();
         if (SanctuaryManager.get(level).isSanctuary(level, pos)) {
-            if (isPlotProtectedContainer(player, level, pos)) {
+            if (isContainer(level, pos) && !canAccessContainer(player, level, pos)) {
                 cancelInteraction(event);
                 deny(player, event.getHand(), "kingdoms.protection.no_container");
                 return;
@@ -175,6 +176,8 @@ public final class ProtectionHandler {
             if (isSanctuaryBlockedInteraction(player, level, pos)) {
                 cancelInteraction(event);
                 deny(player, event.getHand(), "kingdoms.protection.no_sanctuary_interact");
+            } else if (isContainer(level, pos)) {
+                OPEN_CONTAINERS.put(player.getUUID(), GlobalPos.of(level.dimension(), pos.immutable()));
             }
             return;
         }
@@ -507,11 +510,9 @@ public final class ProtectionHandler {
     }
 
     public static boolean canAccessContainer(ServerPlayer player, ServerLevel level, BlockPos pos) {
-        if (SanctuaryManager.get(level).isSanctuary(level, pos)) {
-            return !isPlotProtectedContainer(player, level, pos);
-        }
         return player.hasPermissions(2)
-                || FactionManager.get(level).canAccessContainer(player.getUUID(), level, pos);
+                || !isPlotProtectedContainer(player, level, pos)
+                && FactionManager.get(level).canAccessContainer(player.getUUID(), level, pos);
     }
 
     public static boolean canModifyAt(ServerPlayer player, ServerLevel level, BlockPos pos) {
@@ -543,6 +544,10 @@ public final class ProtectionHandler {
         if (player.hasPermissions(2) || !isContainer(level, pos)) {
             return false;
         }
+        return !ChestLinks.allMatch(level, pos, part -> !isProtectedPlotPart(player, level, part));
+    }
+
+    private static boolean isProtectedPlotPart(ServerPlayer player, ServerLevel level, BlockPos pos) {
         var plot = MarketPlotManager.get(level).plotAt(level.dimension(), pos);
         return plot.isPresent()
                 && !MarketPlotService.hasAccess(plot.get(), player)

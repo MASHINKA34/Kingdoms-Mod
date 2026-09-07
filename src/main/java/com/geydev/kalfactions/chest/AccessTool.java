@@ -219,8 +219,8 @@ public class AccessTool extends Item {
         if (!isContainer(level, pos)) {
             return Prepared.error("kingdoms.chest.not_container");
         }
-        UUID claimFactionId = manager.getFactionIdAt(ClaimKey.of(level, pos)).orElse(null);
-        if (!factionId.equals(claimFactionId)) {
+        if (!ChestLinks.allMatch(level, pos,
+                part -> factionId.equals(manager.getFactionIdAt(ClaimKey.of(level, part)).orElse(null)))) {
             return Prepared.error("kingdoms.access_tool.not_owned");
         }
         ChestAccess.Key key = ChestAccess.Key.of(level, pos);
