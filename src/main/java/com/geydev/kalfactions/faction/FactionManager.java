@@ -111,14 +111,6 @@ public final class FactionManager extends SavedData {
         return List.copyOf(factions.values());
     }
 
-    public synchronized Optional<Faction> getFaction(UUID factionId) {
-        Faction faction = factions.get(factionId);
-        if (faction != null) {
-            return Optional.of(faction);
-        }
-        return Optional.ofNullable(memberIndex.get(factionId)).map(factions::get);
-    }
-
     public synchronized Optional<Faction> getFactionById(UUID factionId) {
         return Optional.ofNullable(factions.get(factionId));
     }

@@ -135,7 +135,7 @@ public final class TraderLifecycle {
         if (data.wandering(factionId).filter(TraderWorldData.WanderingEvent::active).isPresent()) {
             return false;
         }
-        Faction faction = FactionManager.get(server).getFaction(factionId).orElse(null);
+        Faction faction = FactionManager.get(server).getFactionById(factionId).orElse(null);
         if (faction == null) {
             return false;
         }
@@ -219,7 +219,7 @@ public final class TraderLifecycle {
             if (!event.active()) {
                 continue;
             }
-            Faction faction = manager.getFaction(event.factionId()).orElse(null);
+            Faction faction = manager.getFactionById(event.factionId()).orElse(null);
             ServerLevel level = server.getLevel(event.claim().dimension());
             boolean invalid = faction == null
                     || !event.factionId().equals(manager.getFactionIdAt(event.claim()).orElse(null))
@@ -384,7 +384,7 @@ public final class TraderLifecycle {
             return;
         }
         data.finishWandering(factionId, now + minutes(ModConfigSpec.WANDERING_COOLDOWN_MINUTES.getAsInt()));
-        FactionManager.get(server).getFaction(factionId)
+        FactionManager.get(server).getFactionById(factionId)
                 .ifPresent(faction -> notifyFaction(server, faction, "kingdoms.trader.wandering.departed"));
     }
 

@@ -3,6 +3,7 @@ package com.geydev.kalfactions.command;
 import com.geydev.kalfactions.KalFactions;
 import java.util.List;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.server.permission.PermissionAPI;
@@ -46,9 +47,17 @@ public final class CommandPermissions {
         event.addNodes(ALL);
     }
 
+    /**
+     * The console and command blocks carry no permission node, so they are judged by their command
+     * level instead. Every executor still asks for a player, so a source without one gets Brigadier's
+     * "a player is required" error rather than the command disappearing from the tree.
+     */
     public static boolean has(CommandSourceStack source, PermissionNode<Boolean> node) {
         ServerPlayer player = source.getPlayer();
-        return player != null && PermissionAPI.getPermission(player, node);
+        if (player == null) {
+            return source.hasPermission(Commands.LEVEL_GAMEMASTERS);
+        }
+        return PermissionAPI.getPermission(player, node);
     }
 
     private static PermissionNode<Boolean> node(String path, String descriptionKey) {

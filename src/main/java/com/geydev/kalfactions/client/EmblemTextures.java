@@ -29,6 +29,7 @@ public final class EmblemTextures {
     private static final Map<UUID, PixelEntry> PIXEL_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, UrlEntry> URL_CACHE = new ConcurrentHashMap<>();
     private static final Map<Integer, Emblem> FALLBACK_CACHE = new ConcurrentHashMap<>();
+    private static volatile int generation;
 
     public record Emblem(ResourceLocation texture, int width, int height) {
     }
@@ -79,6 +80,7 @@ public final class EmblemTextures {
 
     public static void release() {
         var textures = Minecraft.getInstance().getTextureManager();
+        generation++;
         URL_CACHE.values().stream()
                 .map(entry -> entry.emblem)
                 .filter(java.util.Objects::nonNull)
@@ -87,8 +89,12 @@ public final class EmblemTextures {
                 .map(entry -> entry.emblem)
                 .filter(java.util.Objects::nonNull)
                 .forEach(emblem -> textures.release(emblem.texture()));
+        FALLBACK_CACHE.values().stream()
+                .map(Emblem::texture)
+                .forEach(textures::release);
         URL_CACHE.clear();
         PIXEL_CACHE.clear();
+        FALLBACK_CACHE.clear();
     }
 
     private static Emblem uploadPixels(UUID factionId, List<Integer> pixels) {
@@ -109,6 +115,7 @@ public final class EmblemTextures {
     }
 
     private static void download(String url) {
+        int requestedAt = generation;
         CompletableFuture.runAsync(() -> {
             byte[] data;
             try {
@@ -122,6 +129,10 @@ public final class EmblemTextures {
                     throw new IOException("Emblem image dimensions too large");
                 }
                 Minecraft.getInstance().execute(() -> {
+                    if (generation != requestedAt) {
+                        image.close();
+                        return;
+                    }
                     ResourceLocation location = ResourceLocation.fromNamespaceAndPath(
                             KalFactions.MOD_ID,
                             "emblem/url/" + textureKey(url)
@@ -135,7 +146,9 @@ public final class EmblemTextures {
                 });
             } catch (Exception exception) {
                 KalFactions.LOGGER.warn("Failed to load faction emblem from {}: {}", url, exception.toString());
-                URL_CACHE.put(url, new UrlEntry(UrlState.FAILED, null, System.currentTimeMillis()));
+                if (generation == requestedAt) {
+                    URL_CACHE.put(url, new UrlEntry(UrlState.FAILED, null, System.currentTimeMillis()));
+                }
             }
         }, Util.ioPool());
     }

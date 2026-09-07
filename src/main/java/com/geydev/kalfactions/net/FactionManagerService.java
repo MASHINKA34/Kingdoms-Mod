@@ -261,7 +261,7 @@ public final class FactionManagerService implements FactionServerHooks.Service {
     ) {
         FactionManager manager = FactionManager.get(player.serverLevel());
         UUID boundFactionId = boundFactionId(player, tablePos);
-        if (boundFactionId != null && manager.getFaction(boundFactionId).isPresent()) {
+        if (boundFactionId != null && manager.getFactionById(boundFactionId).isPresent()) {
             return FactionServerHooks.Result.denied(
                     Component.translatable("kingdoms.error.table_already_bound"),
                     view(player, tablePos)

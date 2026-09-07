@@ -72,7 +72,7 @@ public final class FactionServerHooks {
                 && table.getFactionId() != null) {
             FactionManager manager = FactionManager.get(player.serverLevel());
             UUID boundFaction = table.getFactionId();
-            if (manager.getFaction(boundFaction).isPresent()
+            if (manager.getFactionById(boundFaction).isPresent()
                     && !boundFaction.equals(manager.getFactionIdForMember(player.getUUID()).orElse(null))) {
                 if (!silent) {
                     sendNotice(player, Component.translatable("kingdoms.error.table_other_faction"), false);

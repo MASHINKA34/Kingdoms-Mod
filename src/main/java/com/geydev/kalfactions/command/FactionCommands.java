@@ -248,7 +248,7 @@ public final class FactionCommands {
             return failure(context, result);
         }
         PendingFactionInvites.remove(context.getSource().getServer(), invite.factionId(), player.getUUID());
-        Faction faction = manager.getFaction(invite.factionId()).orElseThrow();
+        Faction faction = manager.getFactionById(invite.factionId()).orElseThrow();
         success(context, "kingdoms.command.faction.join.success", faction.name());
         notifyOnline(
             context.getSource().getServer(),
