@@ -34,7 +34,7 @@ public final class ChunkProfiler {
     private static final Map<ResourceKey<Level>, Long2LongOpenHashMap> TICK_NANOS = new HashMap<>();
     private static final Map<ResourceKey<Level>, Long2DoubleOpenHashMap> EMA_MS = new HashMap<>();
 
-    private static boolean measuring;
+    private static int measuringDepth;
     private static Level measuringLevel;
     private static long measuringChunk;
     private static long measuringStart;
@@ -54,29 +54,32 @@ public final class ChunkProfiler {
         int interval = Math.max(1, ModConfigSpec.LAGTAX_SAMPLE_INTERVAL_TICKS.getAsInt());
         lastSampleInterval = interval;
         sampling = ++tickIndex % interval == 0L;
+        resetDepth();
         if (sampling) {
             TICK_NANOS.values().forEach(Long2LongOpenHashMap::clear);
         }
     }
 
+    /**
+     * A block entity may tick another one inside its own tick. Only the outermost tick is timed, so
+     * the nested work is billed to the chunk that caused it instead of erasing the outer measurement.
+     */
     public static void begin(BlockEntity blockEntity) {
-        Level level = blockEntity.getLevel();
-        if (level == null || level.isClientSide()) {
+        if (!measurable(blockEntity) || !enter()) {
             return;
         }
-        measuring = true;
-        measuringLevel = level;
+        measuringLevel = blockEntity.getLevel();
         measuringChunk = ChunkPos.asLong(blockEntity.getBlockPos());
         measuringStart = System.nanoTime();
     }
 
     public static void end(BlockEntity blockEntity) {
-        if (!measuring || blockEntity.getLevel() != measuringLevel) {
+        if (!measurable(blockEntity) || !exit() || measuringLevel == null) {
             return;
         }
-        measuring = false;
         long elapsed = System.nanoTime() - measuringStart;
         ResourceKey<Level> dimension = measuringLevel.dimension();
+        measuringLevel = null;
         TICK_NANOS.computeIfAbsent(dimension, ignored -> new Long2LongOpenHashMap())
             .addTo(measuringChunk, elapsed);
         if (captureSamplesLeft > 0 && measuringChunk == captureChunk && dimension.equals(captureDimension)) {
@@ -84,12 +87,34 @@ public final class ChunkProfiler {
         }
     }
 
+    private static boolean measurable(BlockEntity blockEntity) {
+        Level level = blockEntity.getLevel();
+        return level != null && !level.isClientSide();
+    }
+
+    static boolean enter() {
+        return measuringDepth++ == 0;
+    }
+
+    static boolean exit() {
+        return measuringDepth > 0 && --measuringDepth == 0;
+    }
+
+    static void resetDepth() {
+        measuringDepth = 0;
+        measuringLevel = null;
+    }
+
+    static int depth() {
+        return measuringDepth;
+    }
+
     public static SampleResult flush(MinecraftServer server) {
         if (!sampling) {
             return null;
         }
         sampling = false;
-        measuring = false;
+        resetDepth();
         double alpha = TaxMath.emaAlpha(lastSampleInterval, ModConfigSpec.LAGTAX_EMA_SECONDS.getAsInt());
         FactionManager manager = FactionManager.get(server);
         Map<UUID, Double> factionLoads = new HashMap<>();
