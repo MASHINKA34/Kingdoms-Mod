@@ -205,11 +205,11 @@ public enum ResearchNode {
     }
 
     public String translationKey() {
-        return "kingdoms.research." + id();
+        return legacy() ? "kingdoms.research.legacy.empty" : "kingdoms.research." + id();
     }
 
     public String descriptionKey() {
-        return "kingdoms.research." + id() + ".desc";
+        return legacy() ? "kingdoms.research.legacy.empty.desc" : "kingdoms.research." + id() + ".desc";
     }
 
     public static Optional<ResearchNode> nodeFor(InfluenceType type, int tier) {

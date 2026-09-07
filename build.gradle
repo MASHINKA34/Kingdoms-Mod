@@ -24,6 +24,7 @@ sourceSets.main.resources {
     // Exclude common development only resources from finalized outputs
     // The war-god project is runtime geometry for its large block-entity renderer.
     exclude("**/research_god_statue.bbmodel")
+    exclude("**/economy_god_statue.bbmodel")
     exclude("src/generated/**/.cache") // datagen cache files
 }
 
@@ -244,6 +245,14 @@ publishing {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+}
+
+// Game tests live in the main source set so the dev runs can see them, but they have no business
+// in a published jar.
+tasks.named('jar', Jar).configure {
+    exclude 'com/geydev/kalfactions/gametest/**'
+    exclude '**/*GameTests.class'
+    exclude '**/*GameTests$*.class'
 }
 
 tasks.named('test', Test).configure {

@@ -51,6 +51,8 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 @EventBusSubscriber(modid = KalFactions.MOD_ID)
 public final class ProtectionHandler {
+    private static final int CONTAINER_RECHECK_TICKS = 10;
+
     @SubscribeEvent
     public static void onBlockBreak(BlockEvent.BreakEvent event) {
         if (!(event.getPlayer() instanceof ServerPlayer player)
@@ -229,7 +231,9 @@ public final class ProtectionHandler {
 
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
-        if (event.getEntity() instanceof ServerPlayer player && player.containerMenu != player.inventoryMenu) {
+        if (event.getEntity() instanceof ServerPlayer player
+                && player.containerMenu != player.inventoryMenu
+                && player.tickCount % CONTAINER_RECHECK_TICKS == 0) {
             validateOpenContainer(player, player.containerMenu);
         }
     }
