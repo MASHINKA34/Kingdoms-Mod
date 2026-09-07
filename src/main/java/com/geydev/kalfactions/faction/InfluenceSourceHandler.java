@@ -158,6 +158,7 @@ public final class InfluenceSourceHandler {
         KILL_AWARDS.keySet().removeIf(key -> key.startsWith(idText) || key.endsWith(idText));
         MOB_PROGRESS.remove(id);
         MOB_AWARDS.remove(id);
+        VillagerTradeRewards.clear(id);
     }
 
     private InfluenceSourceHandler() {

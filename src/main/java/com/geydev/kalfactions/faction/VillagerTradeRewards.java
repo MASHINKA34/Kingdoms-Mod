@@ -34,7 +34,8 @@ public final class VillagerTradeRewards {
             double chance = Math.min(0.60D, 0.25D * extraLevels);
             if (player.serverLevel().getRandom().nextDouble() < chance) {
                 ItemStack bonus = bought.copy();
-                if (!player.getInventory().add(bonus)) {
+                player.getInventory().add(bonus);
+                if (!bonus.isEmpty()) {
                     player.drop(bonus, false);
                 }
             }
