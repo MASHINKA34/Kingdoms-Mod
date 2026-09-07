@@ -2,7 +2,9 @@
 
 All gameplay mutations are validated on the logical server. Client payload fields are requests and never authority for faction identity, archive ownership, prices, inventory contents, roles, claims, or dimension access.
 
-## Faction protocol 8
+Every payload registrar in the mod passes `KingdomsProtocol.VERSION`, so there is one protocol version for all of the groups below rather than a number per group; `ProtocolVersionTest` fails the build if a registrar hardcodes its own. Bump that constant whenever any payload changes shape.
+
+## Faction payloads
 
 ### `kingdoms:start_research` — C2S
 
@@ -12,7 +14,7 @@ Fields: `tablePos: BlockPos`, `nodeName: UTF-8 string (max 32 characters)`. Sent
 
 Existing bounded faction snapshot, extended by six non-negative crystal tier costs. It is sent after opening the table and after every accepted or rejected research mutation. Clients use the costs for display only.
 
-## Trader protocol 8
+## Trader payloads
 
 Every mutable request references a server-issued session UUID. The server checks the exact next sequence before a buy or sale and advances it once, so replay and concurrent duplicate requests cannot commit twice.
 
@@ -27,7 +29,7 @@ Every mutable request references a server-issued session UUID. The server checks
 
 Terminal trader errors are localized shop states: invalid/expired session, unavailable offer, access denied, insufficient funds/items, daily limit, inventory full, stale sequence, or unavailable trader.
 
-## Dimension protocol 2
+## Dimension payloads
 
 ### `kingdoms:dimension_action` — C2S
 
@@ -39,7 +41,7 @@ Fields: Nether closed/wipe flags, player count, Moscow schedule-open flag, secon
 
 Nether entry and return use no permissive C2S action. Server travel, portal, login, faction-membership, death, dimension-change, tick, and item-use hooks enforce the registered portal, Moscow window, two sessions, landing, death lock, and evacuation. The return sigil carries persistent player/session/nonce components and is consumed atomically after a server-side channel.
 
-## Xaero archive protocol 1
+## Xaero archive payloads
 
 The channel accepts only Xaero World Map `1.43.0` and Minimap `26.3.0` compatible archives. The server derives server identity, faction UUID, dimension/wipe scope, and all storage paths. SHA-256 strings are exactly 64 hexadecimal characters. Region names match `-?digits_-?digits.zip`, maximum 48 characters.
 
@@ -58,7 +60,7 @@ The channel accepts only Xaero World Map `1.43.0` and Minimap `26.3.0` compatibl
 
 Archive limits also include two concurrent sessions per player, sixteen globally, a 120-second inactivity timeout, and four outgoing parts per server tick. Access is rechecked on upload commit and every download tick. Compression, hashing, merging, cleanup, disk reads/writes, and Xaero reload preparation do not run on the server/client main thread.
 
-## Quarry protocol 1
+## Quarry payloads
 
 The quarry core opens a server-backed menu. Every request must match the player's currently open quarry menu, its container ID and exact core position. The server additionally requires the overworld, a live registered quarry core block, and distance no greater than eight blocks. Invalid or distant matching menus are closed.
 
