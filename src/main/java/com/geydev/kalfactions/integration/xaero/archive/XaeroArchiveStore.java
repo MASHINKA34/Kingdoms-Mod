@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 
 public final class XaeroArchiveStore {
     private static final Map<Path, Object> LOCKS = new ConcurrentHashMap<>();
@@ -50,6 +51,12 @@ public final class XaeroArchiveStore {
     }
 
     public static XaeroArchiveManifest merge(ArchiveLocation location, List<IncomingRegion> incoming) throws IOException {
+        return merge(location, incoming, () -> true);
+    }
+
+    public static XaeroArchiveManifest merge(
+            ArchiveLocation location, List<IncomingRegion> incoming, BooleanSupplier commitAllowed
+    ) throws IOException {
         Object lock = LOCKS.computeIfAbsent(location.root, ignored -> new Object());
         synchronized (lock) {
             Files.createDirectories(location.root);
@@ -105,6 +112,9 @@ public final class XaeroArchiveStore {
                         Instant.now().toEpochMilli(),
                         sorted
                 );
+                if (!commitAllowed.getAsBoolean()) {
+                    throw new java.util.concurrent.CancellationException("Xaero archive merge cancelled");
+                }
                 updated.writeAtomic(location.root.resolve("manifest.json"));
                 collectOrphanBlobs(location, updated);
                 return updated;

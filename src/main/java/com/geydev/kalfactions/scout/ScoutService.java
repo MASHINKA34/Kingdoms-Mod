@@ -1,6 +1,5 @@
 package com.geydev.kalfactions.scout;
 
-import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.command.NumismaticsEconomy;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.entity.MapScoutEntity;
@@ -8,22 +7,14 @@ import com.geydev.kalfactions.faction.Faction;
 import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.faction.FactionMember;
 import com.geydev.kalfactions.faction.FactionRole;
-import com.geydev.kalfactions.integration.xaero.archive.XaeroArchiveStore;
 import com.geydev.kalfactions.net.ActionCooldown;
 import com.geydev.kalfactions.net.FactionServerHooks;
 import com.geydev.kalfactions.tax.OfflineNoticeQueue;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
@@ -33,7 +24,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.storage.LevelResource;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class ScoutService {
@@ -43,9 +33,8 @@ public final class ScoutService {
     private static final int STATE_SYNC_INTERVAL_TICKS = 40;
     private static final ConcurrentHashMap<UUID, Long> LAST_ACTION_TICK = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<UUID, ScoutPayloads.S2CScoutState> LAST_STATE = new ConcurrentHashMap<>();
-    private static final Map<UUID, ScoutJob> JOBS = new HashMap<>();
+    private static ScoutRuntime runtime;
     private static int ticksUntilStateSync = STATE_SYNC_INTERVAL_TICKS;
-    private static final ExecutorService IO_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
     public static void openOrderScreen(ServerPlayer player, MapScoutEntity scout) {
         MinecraftServer server = player.getServer();
@@ -177,95 +166,17 @@ public final class ScoutService {
     }
 
     public static void tick(MinecraftServer server) {
+        if (runtime == null) {
+            return;
+        }
         if (--ticksUntilStateSync <= 0) {
             ticksUntilStateSync = STATE_SYNC_INTERVAL_TICKS;
             syncChangedStates(server);
         }
         ScoutManager manager = ScoutManager.get(server);
-        List<Map.Entry<UUID, ScoutOrder>> active = manager.activeOrders();
-        if (active.isEmpty()) {
-            JOBS.clear();
-            return;
+        for (ScoutRuntime.Result result : runtime.tick(manager, ModConfigSpec.SCOUT_CHUNKS_PER_TICK.getAsInt())) {
+            finishDelivery(server, manager, result.factionId(), result.order(), result.successful());
         }
-        JOBS.keySet().removeIf(factionId -> manager.activeOrder(factionId).isEmpty());
-        int budget = ModConfigSpec.SCOUT_CHUNKS_PER_TICK.getAsInt();
-        long now = System.currentTimeMillis();
-        for (Map.Entry<UUID, ScoutOrder> entry : active) {
-            UUID factionId = entry.getKey();
-            ScoutOrder order = entry.getValue();
-            if (!order.scanned() && budget > 0) {
-                budget -= advance(server, manager, factionId, order, budget);
-            }
-            if (order.scanned() && !order.delivered() && order.timeElapsed(now)) {
-                deliver(server, manager, factionId, order);
-            }
-        }
-    }
-
-    private static int advance(
-            MinecraftServer server,
-            ScoutManager manager,
-            UUID factionId,
-            ScoutOrder order,
-            int budget
-    ) {
-        ServerLevel level = server.getLevel(order.dimension());
-        if (level == null) {
-            return 0;
-        }
-        ScoutJob job = JOBS.get(factionId);
-        if (job == null || job.order() != order) {
-            job = new ScoutJob(order, level);
-            JOBS.put(factionId, job);
-        }
-        int processed = job.tick(budget);
-        if (!job.isDone()) {
-            return processed;
-        }
-        JOBS.remove(factionId);
-        try {
-            List<String> regions = job.writeStaging(stagingRoot(server, order.id()));
-            order.markScanned(regions);
-            manager.markDirty();
-        } catch (IOException | RuntimeException exception) {
-            KalFactions.LOGGER.warn("Scout order {} failed to stage its Xaero regions", order.id(), exception);
-            refundAndDrop(server, manager, factionId, order, "kingdoms.scout.failed");
-        }
-        return processed;
-    }
-
-    private static void deliver(MinecraftServer server, ScoutManager manager, UUID factionId, ScoutOrder order) {
-        if (order.deliveryInFlight()) {
-            return;
-        }
-        Path staging = stagingRoot(server, order.id());
-        List<String> names = order.stagedRegions();
-        List<XaeroArchiveStore.IncomingRegion> incoming = new ArrayList<>(names.size());
-        for (String name : names) {
-            incoming.add(new XaeroArchiveStore.IncomingRegion(name, staging.resolve(name)));
-        }
-        XaeroArchiveStore.ArchiveLocation location;
-        try {
-            location = XaeroArchiveStore.location(server, factionId, order.dimension().location());
-        } catch (IOException | RuntimeException exception) {
-            KalFactions.LOGGER.warn("Scout order {} has no valid faction archive path", order.id(), exception);
-            refundAndDrop(server, manager, factionId, order, "kingdoms.scout.failed");
-            return;
-        }
-        order.setDeliveryInFlight(true);
-        IO_EXECUTOR.execute(() -> {
-            boolean merged = false;
-            try {
-                if (!incoming.isEmpty()) {
-                    XaeroArchiveStore.merge(location, incoming);
-                }
-                merged = true;
-            } catch (IOException | RuntimeException exception) {
-                KalFactions.LOGGER.warn("Scout order {} could not be merged into the faction archive", order.id(), exception);
-            }
-            boolean successful = merged;
-            server.execute(() -> finishDelivery(server, manager, factionId, order, successful));
-        });
     }
 
     private static void finishDelivery(
@@ -275,6 +186,9 @@ public final class ScoutService {
             ScoutOrder order,
             boolean successful
     ) {
+        if (manager.activeOrder(factionId).orElse(null) != order) {
+            return;
+        }
         order.setDeliveryInFlight(false);
         if (!successful) {
             refundAndDrop(server, manager, factionId, order, "kingdoms.scout.failed");
@@ -282,7 +196,6 @@ public final class ScoutService {
         }
         order.markDelivered();
         manager.markDirty();
-        clearStaging(server, order.id());
         Faction faction = FactionManager.get(server).getFactionById(factionId).orElse(null);
         Component notice = Component.translatable("kingdoms.scout.returned");
         if (faction != null) {
@@ -298,8 +211,12 @@ public final class ScoutService {
             ScoutOrder order,
             String messageKey
     ) {
-        JOBS.remove(factionId);
-        clearStaging(server, order.id());
+        if (manager.activeOrder(factionId).orElse(null) != order) {
+            return;
+        }
+        if (runtime != null) {
+            runtime.cancel(factionId, order);
+        }
         manager.removeOrder(factionId);
         FactionManager factions = FactionManager.get(server);
         if (order.paid() > 0L) {
@@ -323,6 +240,9 @@ public final class ScoutService {
         if (order == null) {
             return false;
         }
+        if (runtime != null && !runtime.cancel(factionId, order)) {
+            return false;
+        }
         refundAndDrop(server, manager, factionId, order, "kingdoms.scout.cancelled");
         return true;
     }
@@ -333,27 +253,12 @@ public final class ScoutService {
         if (order == null) {
             return false;
         }
-        if (!order.scanned()) {
-            ServerLevel level = server.getLevel(order.dimension());
-            if (level == null) {
-                return false;
-            }
-            ScoutJob job = JOBS.get(factionId);
-            if (job == null || job.order() != order) {
-                job = new ScoutJob(order, level);
-            }
-            job.tick(order.chunkCount());
-            JOBS.remove(factionId);
-            try {
-                order.markScanned(job.writeStaging(stagingRoot(server, order.id())));
-                manager.markDirty();
-            } catch (IOException | RuntimeException exception) {
-                KalFactions.LOGGER.warn("Scout order {} failed to stage its Xaero regions", order.id(), exception);
-                refundAndDrop(server, manager, factionId, order, "kingdoms.scout.failed");
-                return false;
-            }
+        if (server.getLevel(order.dimension()) == null) {
+            return false;
         }
-        deliver(server, manager, factionId, order);
+        order.expedite();
+        manager.markDirty();
+        pushStateToFaction(server, factionId);
         return true;
     }
 
@@ -362,11 +267,15 @@ public final class ScoutService {
         if (server == null) {
             return;
         }
+        sendState(player, stateFor(player, server));
+    }
+
+    private static ScoutPayloads.S2CScoutState stateFor(ServerPlayer player, MinecraftServer server) {
         UUID factionId = FactionManager.get(server).getFactionIdForMember(player.getUUID()).orElse(null);
         ScoutOrder order = factionId == null
                 ? null
                 : ScoutManager.get(server).activeOrder(factionId).orElse(null);
-        ScoutPayloads.S2CScoutState state = order == null
+        return order == null
                 ? ScoutPayloads.S2CScoutState.idle()
                 : new ScoutPayloads.S2CScoutState(
                         true,
@@ -376,21 +285,23 @@ public final class ScoutService {
                         order.centerChunkX(),
                         order.centerChunkZ()
                 );
+    }
+
+    private static void sendState(ServerPlayer player, ScoutPayloads.S2CScoutState state) {
         LAST_STATE.put(player.getUUID(), state);
         PacketDistributor.sendToPlayer(player, state);
     }
 
     private static void syncChangedStates(MinecraftServer server) {
-        FactionManager factions = FactionManager.get(server);
-        ScoutManager manager = ScoutManager.get(server);
         for (ServerPlayer player : List.copyOf(server.getPlayerList().getPlayers())) {
-            UUID factionId = factions.getFactionIdForMember(player.getUUID()).orElse(null);
-            boolean busy = factionId != null && manager.hasActiveOrder(factionId);
-            ScoutPayloads.S2CScoutState previous = LAST_STATE.get(player.getUUID());
-            if (previous != null && previous.active() == busy) {
-                continue;
-            }
-            pushState(player);
+            syncStateIfChanged(player);
+        }
+    }
+
+    static void syncStateIfChanged(ServerPlayer player) {
+        ScoutPayloads.S2CScoutState state = stateFor(player, player.server);
+        if (!state.equals(LAST_STATE.get(player.getUUID()))) {
+            sendState(player, state);
         }
     }
 
@@ -452,28 +363,18 @@ public final class ScoutService {
     }
 
     public static void onServerStarted(MinecraftServer server) {
-        JOBS.clear();
-        ScoutManager manager = ScoutManager.get(server);
-        List<UUID> known = manager.activeOrders().stream().map(entry -> entry.getValue().id()).toList();
-        Path root = stagingBase(server);
-        if (!Files.isDirectory(root)) {
-            return;
+        onServerStopping();
+        runtime = new ScoutRuntime(server);
+        ticksUntilStateSync = STATE_SYNC_INTERVAL_TICKS;
+    }
+
+    public static void onServerStopping() {
+        if (runtime != null) {
+            runtime.close();
+            runtime = null;
         }
-        try (var paths = Files.list(root)) {
-            paths.filter(Files::isDirectory).forEach(path -> {
-                UUID id;
-                try {
-                    id = UUID.fromString(path.getFileName().toString());
-                } catch (IllegalArgumentException exception) {
-                    return;
-                }
-                if (!known.contains(id)) {
-                    deleteRecursively(path);
-                }
-            });
-        } catch (IOException exception) {
-            KalFactions.LOGGER.warn("Could not prune scout staging directories", exception);
-        }
+        LAST_ACTION_TICK.clear();
+        LAST_STATE.clear();
     }
 
     public static void onLogout(UUID playerId) {
@@ -499,6 +400,10 @@ public final class ScoutService {
     }
 
     private static boolean withinBorder(ServerLevel level, int centerChunkX, int centerChunkZ, int size) {
+        if (Math.abs((long) centerChunkX) > ScoutPayloads.MAX_CHUNK_COORDINATE
+                || Math.abs((long) centerChunkZ) > ScoutPayloads.MAX_CHUNK_COORDINATE || size < 1 || size > 64) {
+            return false;
+        }
         int half = (size - 1) / 2;
         int minChunkX = centerChunkX - half;
         int minChunkZ = centerChunkZ - half;
@@ -506,44 +411,6 @@ public final class ScoutService {
         int maxChunkZ = minChunkZ + size - 1;
         return level.getWorldBorder().isWithinBounds(new ChunkPos(minChunkX, minChunkZ))
                 && level.getWorldBorder().isWithinBounds(new ChunkPos(maxChunkX, maxChunkZ));
-    }
-
-    private static Path stagingBase(MinecraftServer server) {
-        return server.getWorldPath(LevelResource.ROOT)
-                .toAbsolutePath()
-                .normalize()
-                .resolve("kingdoms")
-                .resolve("scout_staging");
-    }
-
-    private static Path stagingRoot(MinecraftServer server, UUID orderId) {
-        Path base = stagingBase(server);
-        Path root = base.resolve(orderId.toString()).normalize();
-        if (!root.startsWith(base)) {
-            throw new IllegalStateException("Invalid scout staging path");
-        }
-        return root;
-    }
-
-    private static void clearStaging(MinecraftServer server, UUID orderId) {
-        deleteRecursively(stagingRoot(server, orderId));
-    }
-
-    private static void deleteRecursively(Path root) {
-        if (!Files.exists(root)) {
-            return;
-        }
-        try (var paths = Files.walk(root)) {
-            paths.sorted(Comparator.reverseOrder()).forEach(path -> {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (IOException exception) {
-                    KalFactions.LOGGER.warn("Could not delete scout staging file {}", path, exception);
-                }
-            });
-        } catch (IOException exception) {
-            KalFactions.LOGGER.warn("Could not delete scout staging directory {}", root, exception);
-        }
     }
 
     public static boolean spawn(ServerLevel level, double x, double y, double z, float yRot) {

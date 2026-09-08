@@ -2,6 +2,8 @@ package com.geydev.kalfactions.gametest;
 
 import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.claim.ClaimKey;
+import com.geydev.kalfactions.config.ModConfigSpec;
+import com.geydev.kalfactions.faction.FactionManager;
 import com.geydev.kalfactions.market.PlotSnapshots;
 import com.geydev.kalfactions.protection.ProtectionHandler;
 import com.geydev.kalfactions.war.War;
@@ -24,18 +26,92 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.event.level.BlockDropsEvent;
+import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 @GameTestHolder(KalFactions.MOD_ID)
 @PrefixGameTestTemplate(false)
 public final class SnapshotSafetyGameTests {
+    @GameTest(template = "empty", batch = "snapshot_safety")
+    public static void plotStateChangesDoNotDuplicateOriginalBlocks(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos pos = helper.absolutePos(new BlockPos(1, 2, 1));
+        level.setBlockAndUpdate(pos.below(), Blocks.STONE.defaultBlockState());
+        BlockState original = Blocks.LEVER.defaultBlockState()
+                .setValue(LeverBlock.FACE, net.minecraft.world.level.block.state.properties.AttachFace.FLOOR);
+        level.setBlockAndUpdate(pos, original);
+        BoundingBox box = BoundingBox.fromCorners(pos, pos.east());
+        level.setBlockAndUpdate(pos.east(), Blocks.AIR.defaultBlockState());
+        CompoundTag snapshot = PlotSnapshots.capture(level, box);
+        for (int attempt = 0; attempt < 3; attempt++) {
+            level.setBlockAndUpdate(pos, original.setValue(LeverBlock.POWERED, true));
+            level.setBlockAndUpdate(pos.east(), Blocks.DIRT.defaultBlockState());
+            helper.assertTrue(PlotSnapshots.restore(level, box, snapshot), "plot restored");
+            var drops = level.getEntitiesOfClass(ItemEntity.class, AABB.of(box).inflate(0.5));
+            helper.assertTrue(drops.stream().noneMatch(item -> item.getItem().is(Items.LEVER)),
+                    "toggling a baseline lever cannot mint a lever item");
+            helper.assertValueEqual(drops.stream().filter(item -> item.getItem().is(Items.DIRT))
+                    .mapToInt(item -> item.getItem().getCount()).sum(), 1, "added block is returned once");
+            helper.assertTrue(level.getBlockState(pos) == original, "baseline state restored");
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "snapshot_safety")
+    public static void winningBreakIsCapturedBeforeTheWarEnds(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos pos = helper.absolutePos(new BlockPos(1, 2, 1));
+        BlockState originalBlock = Blocks.DIAMOND_BLOCK.defaultBlockState();
+        level.setBlockAndUpdate(pos, originalBlock);
+        var player = RegressionPlayers.create(level, pos, 0).player();
+        FactionManager originalFactions = FactionManager.get(level);
+        WarManager originalWars = WarManager.get(level);
+        FactionManager factions = new FactionManager();
+        UUID defenderOwner = UUID.randomUUID();
+        helper.assertTrue(factions.createFaction(player.getUUID(), "Attackers", ClaimKey.of(level, pos.east(64)), 1)
+                .successful(), "attacker created");
+        helper.assertTrue(factions.createFaction(defenderOwner, "Defenders", ClaimKey.of(level, pos), 1)
+                .successful(), "defender created");
+        UUID attacker = factions.getFactionIdForMember(player.getUUID()).orElseThrow();
+        UUID defender = factions.getFactionIdForMember(defenderOwner).orElseThrow();
+        War war = new War(UUID.randomUUID(), attacker, defender, WarType.DEFAULT,
+                "regression", War.State.ACTIVE, level.getGameTime());
+        war.addPoints(attacker, ModConfigSpec.WAR_POINTS_GOAL.getAsLong() - 1);
+        CompoundTag saved = new WarManager().save(new CompoundTag(), level.registryAccess());
+        saved.getList("wars", Tag.TAG_COMPOUND).add(war.save());
+        WarManager wars = WarManager.FACTORY.deserializer().apply(saved, level.registryAccess());
+        var storage = level.getServer().overworld().getDataStorage();
+        storage.set(FactionManager.DATA_NAME, factions);
+        storage.set(WarManager.DATA_NAME, wars);
+        try {
+            BlockEvent.BreakEvent event = new BlockEvent.BreakEvent(level, pos, originalBlock, player);
+            ProtectionHandler.onBlockBreak(event);
+            helper.assertFalse(event.isCanceled(), "winning break is allowed");
+            War ending = wars.warForFaction(attacker).orElseThrow();
+            helper.assertValueEqual(ending.state(), War.State.ENDING, "the break wins the war");
+            helper.assertTrue(ending.hasSnapshot(ClaimKey.of(level, pos)), "last chunk has a rollback snapshot");
+            BlockDropsEvent drops = drops(level, pos, originalBlock, player);
+            ProtectionHandler.onBlockDrops(drops);
+            helper.assertTrue(drops.getDrops().isEmpty(), "winning break cannot duplicate restored blocks");
+            level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+            ending.removeSnapshot(ClaimKey.of(level, pos)).restore(level, new ChunkPos(pos), level.registryAccess());
+            helper.assertTrue(level.getBlockState(pos) == originalBlock, "the winning break is restored");
+        } finally {
+            storage.set(FactionManager.DATA_NAME, originalFactions);
+            storage.set(WarManager.DATA_NAME, originalWars);
+            WarSnapshotStore.deleteWar(level.getServer(), war.id());
+        }
+        helper.succeed();
+    }
+
     @GameTest(template = "empty", batch = "snapshot_safety")
     public static void plotRestoresOldAndNewChestTemplatesWithoutItems(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();

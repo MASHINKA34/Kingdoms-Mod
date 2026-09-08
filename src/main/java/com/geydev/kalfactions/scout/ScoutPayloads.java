@@ -138,7 +138,8 @@ public final class ScoutPayloads {
                     ResourceLocation dimension = buffer.readResourceLocation();
                     int centerChunkX = buffer.readInt();
                     int centerChunkZ = buffer.readInt();
-                    if (Math.abs(centerChunkX) > MAX_CHUNK_COORDINATE || Math.abs(centerChunkZ) > MAX_CHUNK_COORDINATE) {
+                    if (Math.abs((long) centerChunkX) > MAX_CHUNK_COORDINATE
+                            || Math.abs((long) centerChunkZ) > MAX_CHUNK_COORDINATE) {
                         throw new DecoderException("Scout centre chunk is out of bounds");
                     }
                     return new C2SScoutOrder(ordinal, dimension, centerChunkX, centerChunkZ);

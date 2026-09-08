@@ -118,7 +118,7 @@ public final class PlotSnapshots {
                 continue;
             }
             BlockState want = expected.get(pos);
-            if (want == null || current != want) {
+            if (want == null || !current.is(want.getBlock())) {
                 Block.dropResources(current, level, pos.immutable());
             }
         }

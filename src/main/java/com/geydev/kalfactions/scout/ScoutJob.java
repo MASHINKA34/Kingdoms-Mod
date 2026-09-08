@@ -8,17 +8,25 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import net.minecraft.server.level.ChunkResult;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
-public final class ScoutJob {
+public final class ScoutJob implements AutoCloseable {
+    private static final TicketType<UUID> SCOUT_TICKET = TicketType.create("kingdoms_scout", UUID::compareTo);
     private final ScoutOrder order;
     private final ServerLevel level;
     private final ScoutTerrainSampler sampler;
     private final Map<Long, XaeroRegionCodec.RegionBuilder> regions = new LinkedHashMap<>();
     private int cursor;
+    private ChunkPos pendingChunk;
+    private CompletableFuture<ChunkResult<ChunkAccess>> pending;
+    private boolean closed;
 
     public ScoutJob(ScoutOrder order, ServerLevel level) {
         this.order = order;
@@ -35,24 +43,39 @@ public final class ScoutJob {
     }
 
     public int tick(int budget) {
-        int total = order.chunkCount();
-        int processed = 0;
-        while (cursor < total && processed < budget) {
+        if (closed || isDone() || budget <= 0) {
+            return 0;
+        }
+        if (pending == null) {
             int chunkX = order.minChunkX() + cursor % order.sizeChunks();
             int chunkZ = order.minChunkZ() + cursor / order.sizeChunks();
-            capture(chunkX, chunkZ);
-            cursor++;
-            processed++;
+            pendingChunk = new ChunkPos(chunkX, chunkZ);
+            var chunkSource = level.getChunkSource();
+            chunkSource.addRegionTicket(SCOUT_TICKET, pendingChunk, 0, order.id());
+            pending = CompletableFuture.supplyAsync(() -> chunkSource.getChunkFuture(chunkX, chunkZ, ChunkStatus.FULL, true))
+                    .thenCompose(future -> future);
+            return 1;
         }
-        order.setCursor(cursor);
-        return processed;
+        if (!pending.isDone()) {
+            return 0;
+        }
+        try {
+            ChunkAccess chunk = pending.join().orElse(null);
+            if (chunk == null) {
+                throw new IllegalStateException("Scout chunk could not be loaded: " + pendingChunk);
+            }
+            capture(chunk);
+            cursor++;
+            order.setCursor(cursor);
+        } finally {
+            releaseTicket();
+        }
+        return 1;
     }
 
-    private void capture(int chunkX, int chunkZ) {
-        ChunkAccess chunk = level.getChunk(chunkX, chunkZ, ChunkStatus.FULL, true);
-        if (chunk == null) {
-            return;
-        }
+    private void capture(ChunkAccess chunk) {
+        int chunkX = chunk.getPos().x;
+        int chunkZ = chunk.getPos().z;
         List<XaeroRegionCodec.SurfacePixel> pixels = sampler.sample(chunk);
         int regionX = Math.floorDiv(chunkX, XaeroRegionCodec.CHUNKS_PER_REGION);
         int regionZ = Math.floorDiv(chunkZ, XaeroRegionCodec.CHUNKS_PER_REGION);
@@ -61,9 +84,15 @@ public final class ScoutJob {
     }
 
     public List<String> writeStaging(Path stagingRoot) throws IOException {
+        if (!isDone()) {
+            throw new IllegalStateException("Cannot stage an unfinished scout survey");
+        }
         Files.createDirectories(stagingRoot);
         List<String> written = new ArrayList<>(regions.size());
         for (Map.Entry<Long, XaeroRegionCodec.RegionBuilder> entry : regions.entrySet()) {
+            if (Thread.currentThread().isInterrupted()) {
+                throw new java.io.InterruptedIOException("Scout staging interrupted");
+            }
             XaeroRegionCodec.RegionBuilder builder = entry.getValue();
             if (builder.isEmpty()) {
                 continue;
@@ -74,5 +103,19 @@ public final class ScoutJob {
             written.add(name);
         }
         return written;
+    }
+
+    private void releaseTicket() {
+        if (pendingChunk != null) {
+            level.getChunkSource().removeRegionTicket(SCOUT_TICKET, pendingChunk, 0, order.id());
+            pendingChunk = null;
+            pending = null;
+        }
+    }
+
+    @Override
+    public void close() {
+        closed = true;
+        releaseTicket();
     }
 }

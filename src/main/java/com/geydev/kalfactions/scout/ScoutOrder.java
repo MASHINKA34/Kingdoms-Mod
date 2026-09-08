@@ -40,6 +40,7 @@ public final class ScoutOrder {
     private final List<String> stagedRegions = new ArrayList<>();
     private boolean scanned;
     private boolean delivered;
+    private boolean expedited;
     private transient int cursor;
     private transient boolean deliveryInFlight;
 
@@ -60,7 +61,7 @@ public final class ScoutOrder {
         this.dimension = dimension;
         this.centerChunkX = centerChunkX;
         this.centerChunkZ = centerChunkZ;
-        this.sizeChunks = Math.max(1, sizeChunks);
+        this.sizeChunks = Math.clamp(sizeChunks, 1, 64);
         this.startMillis = startMillis;
         this.durationMillis = Math.max(0L, durationMillis);
         this.paid = Math.max(0L, paid);
@@ -112,7 +113,11 @@ public final class ScoutOrder {
     }
 
     public long endsAtMillis() {
-        return startMillis + durationMillis;
+        return expedited ? startMillis : startMillis + durationMillis;
+    }
+
+    public void expedite() {
+        expedited = true;
     }
 
     public long remainingMillis(long nowMillis) {
@@ -193,6 +198,7 @@ public final class ScoutOrder {
         }
         tag.putBoolean(TAG_SCANNED, scanned);
         tag.putBoolean(TAG_DELIVERED, delivered);
+        tag.putBoolean("expedited", expedited);
         ListTag regionsTag = new ListTag();
         for (String region : stagedRegions) {
             regionsTag.add(net.minecraft.nbt.StringTag.valueOf(region));
@@ -224,6 +230,7 @@ public final class ScoutOrder {
         );
         order.scanned = tag.getBoolean(TAG_SCANNED);
         order.delivered = tag.getBoolean(TAG_DELIVERED);
+        order.expedited = tag.getBoolean("expedited");
         ListTag regionsTag = tag.getList(TAG_STAGED, Tag.TAG_STRING);
         for (int index = 0; index < regionsTag.size(); index++) {
             order.stagedRegions.add(regionsTag.getString(index));

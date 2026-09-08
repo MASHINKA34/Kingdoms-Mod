@@ -347,7 +347,10 @@ public final class KingdomsAdminCommands {
             return 0;
         }
         if (!ScoutService.cancel(source.getServer(), faction.id())) {
-            source.sendFailure(Component.translatable("commands.kingdoms.admin.scout.no_order"));
+            source.sendFailure(Component.translatable(
+                    ScoutManager.get(source.getServer()).hasActiveOrder(faction.id())
+                            ? "commands.kingdoms.admin.scout.delivery_in_progress"
+                            : "commands.kingdoms.admin.scout.no_order"));
             return 0;
         }
         source.sendSuccess(() -> Component.translatable("commands.kingdoms.admin.scout.cancelled"), true);

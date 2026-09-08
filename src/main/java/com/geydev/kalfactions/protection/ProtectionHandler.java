@@ -94,10 +94,12 @@ public final class ProtectionHandler {
                 deny(player, "kingdoms.war.container_protected");
                 return;
             }
-            wars.recordWarBreak(player, level, level.getBlockState(breakPos));
         }
         // Copy-on-write the chunk before the break is applied (no-op outside a war).
         wars.onChunkModified(level, new ChunkPos(breakPos));
+        if (warBreak) {
+            wars.recordWarBreak(player, level, level.getBlockState(breakPos));
+        }
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)

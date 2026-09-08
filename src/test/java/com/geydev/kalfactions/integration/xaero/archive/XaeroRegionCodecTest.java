@@ -204,6 +204,25 @@ class XaeroRegionCodecTest {
         assertFalse(Files.exists(oldBlob));
     }
 
+    @Test
+    void cancelledMergePreservesManifestAndRemovesUncommittedBlobs() throws IOException {
+        var location = new XaeroArchiveStore.ArchiveLocation(
+                temporary.resolve("cancelled-archive"), "server-id", UUID.randomUUID(), "minecraft:overworld");
+        Path first = region("before.zip", Set.of(0), 10);
+        Path second = region("cancelled.zip", Set.of(1), 20);
+        XaeroArchiveStore.merge(location, List.of(new XaeroArchiveStore.IncomingRegion("0_0.zip", first)));
+        String originalManifest = Files.readString(location.root().resolve("manifest.json"));
+        assertThrows(java.util.concurrent.CancellationException.class, () -> XaeroArchiveStore.merge(
+                location, List.of(new XaeroArchiveStore.IncomingRegion("0_0.zip", second)), () -> false));
+        assertEquals(originalManifest, Files.readString(location.root().resolve("manifest.json")));
+        try (var blobs = Files.list(location.root().resolve("blobs"));
+             var staging = Files.list(location.root().resolve("staging"))) {
+            assertEquals(1, blobs.count());
+            assertEquals(0, staging.count());
+        }
+        assertEquals(1, XaeroArchiveStore.load(location).regions().getFirst().tileCount());
+    }
+
     private Path region(String name, Set<Integer> tiles, int height) throws IOException {
         Path path = temporary.resolve(name);
         try (ZipOutputStream zip = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(path)))) {

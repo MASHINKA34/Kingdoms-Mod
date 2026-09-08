@@ -466,7 +466,7 @@ public final class FactionNetwork {
             FactionPayloads.C2SRequestFactionList payload,
             IPayloadContext context
     ) {
-        FactionServerHooks.sendFactionList(serverPlayer(context));
+        FactionDirectoryService.requestFactionList(serverPlayer(context));
     }
 
     private static void handleRespondInvite(FactionPayloads.C2SRespondInvite payload, IPayloadContext context) {

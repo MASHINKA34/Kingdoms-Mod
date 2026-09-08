@@ -88,6 +88,9 @@ public final class MarketPlotService {
     }
 
     public static void openScreen(ServerPlayer player, MarketPlot plot) {
+        if (!isNear(player, plot)) {
+            return;
+        }
         long buyback = buybackAmount(plot);
         PacketDistributor.sendToPlayer(player, new MarketPayloads.S2COpenPlotScreen(
                 plot.id(),
@@ -103,7 +106,7 @@ public final class MarketPlotService {
         ServerLevel level = player.serverLevel();
         MarketPlotManager manager = MarketPlotManager.get(level);
         MarketPlot plot = manager.byId(plotId).orElse(null);
-        if (plot == null || !plot.dimension().equals(level.dimension()) || !isNear(player, plot)) {
+        if (plot == null || !isNear(player, plot)) {
             return;
         }
         MarketPlot.State state = plot.state();
@@ -160,7 +163,7 @@ public final class MarketPlotService {
         }
         switch (action) {
             case MarketPayloads.C2SManagePlot.ACTION_LIST_RESALE -> {
-                if (price <= 0L || price > MAX_PRICE) {
+                if (price <= 0L || price > MAX_PRICE || plot.resalePrice() == price) {
                     return;
                 }
                 plot.setResalePrice(price);
@@ -170,6 +173,9 @@ public final class MarketPlotService {
                         "kingdoms.plot.resale.listed", plot.id(), NumismaticsEconomy.format(price)), false);
             }
             case MarketPayloads.C2SManagePlot.ACTION_CANCEL_RESALE -> {
+                if (plot.resalePrice() == 0L) {
+                    return;
+                }
                 plot.setResalePrice(0L);
                 manager.markChanged();
                 syncAll(level.getServer());
@@ -304,11 +310,17 @@ public final class MarketPlotService {
 
         List<MarketPayloads.TrustEntry> trustedPlayers = new ArrayList<>();
         for (Map.Entry<UUID, String> entry : plot.trustedPlayers().entrySet()) {
+            if (trustedPlayers.size() >= MarketPayloads.MAX_TRUST_ENTRIES) {
+                break;
+            }
             trustedPlayers.add(new MarketPayloads.TrustEntry(entry.getKey(), entry.getValue(), 0));
         }
 
         List<MarketPayloads.TrustEntry> trustedFactions = new ArrayList<>();
         for (UUID factionId : plot.trustedFactions()) {
+            if (trustedFactions.size() >= MarketPayloads.MAX_TRUST_ENTRIES) {
+                break;
+            }
             Faction resolved = factions.getFactionById(factionId).orElse(null);
             trustedFactions.add(new MarketPayloads.TrustEntry(
                     factionId,
@@ -319,6 +331,9 @@ public final class MarketPlotService {
 
         List<MarketPayloads.PlayerCandidate> playerCandidates = new ArrayList<>();
         for (ServerPlayer candidate : level.getServer().getPlayerList().getPlayers()) {
+            if (playerCandidates.size() >= MarketPayloads.MAX_TRUST_ENTRIES) {
+                break;
+            }
             UUID candidateId = candidate.getUUID();
             if (candidateId.equals(plot.owner()) || plot.isTrustedPlayer(candidateId)) {
                 continue;
@@ -336,6 +351,9 @@ public final class MarketPlotService {
 
         List<MarketPayloads.TrustEntry> factionCandidates = new ArrayList<>();
         for (Faction candidate : factions.factions()) {
+            if (factionCandidates.size() >= MarketPayloads.MAX_TRUST_ENTRIES) {
+                break;
+            }
             if (!plot.isTrustedFaction(candidate.id())) {
                 factionCandidates.add(new MarketPayloads.TrustEntry(
                         candidate.id(), candidate.name(), candidate.color()));
@@ -425,12 +443,14 @@ public final class MarketPlotService {
     }
 
     private static boolean isNear(ServerPlayer player, MarketPlot plot) {
+        if (!player.isAlive() || player.isSpectator() || !plot.dimension().equals(player.level().dimension())) {
+            return false;
+        }
         BoundingBox box = plot.box();
-        double centerX = (box.minX() + box.maxX() + 1) / 2.0D;
-        double centerY = (box.minY() + box.maxY() + 1) / 2.0D;
-        double centerZ = (box.minZ() + box.maxZ() + 1) / 2.0D;
-        double reach = Math.max(box.getXSpan(), Math.max(box.getYSpan(), box.getZSpan())) / 2.0D + 16.0D;
-        return player.distanceToSqr(centerX, centerY, centerZ) <= reach * reach;
+        double nearestX = Math.clamp(player.getX(), box.minX(), box.maxX() + 1.0D);
+        double nearestY = Math.clamp(player.getY(), box.minY(), box.maxY() + 1.0D);
+        double nearestZ = Math.clamp(player.getZ(), box.minZ(), box.maxZ() + 1.0D);
+        return player.distanceToSqr(nearestX, nearestY, nearestZ) <= 16.0D * 16.0D;
     }
 
     private MarketPlotService() {

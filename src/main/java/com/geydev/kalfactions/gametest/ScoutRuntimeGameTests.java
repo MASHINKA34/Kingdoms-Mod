@@ -53,13 +53,30 @@ public final class ScoutRuntimeGameTests {
                 null
         );
         ScoutJob job = new ScoutJob(order, level);
-        int guard = 0;
-        while (!job.isDone() && guard++ < SIZE * SIZE * 4) {
-            job.tick(1);
-        }
-        if (!job.isDone()) {
-            throw new GameTestAssertException("The scout job never finished its budgeted survey");
-        }
+        helper.assertTrue(level.getChunkSource().getChunkNow(order.minChunkX(), order.minChunkZ()) == null,
+                "first surveyed chunk starts unloaded");
+        job.tick(1);
+        helper.assertTrue(level.getChunkSource().getChunkNow(order.minChunkX(), order.minChunkZ()) == null,
+                "requesting a chunk must return before loading it on the server thread");
+        helper.assertValueEqual(order.cursor(), 0, "requesting an unloaded chunk does not synchronously survey it");
+        helper.startSequence()
+                .thenWaitUntil(() -> {
+                    job.tick(1);
+                    helper.assertTrue(job.isDone(), "survey is still awaiting chunks");
+                })
+                .thenExecute(() -> {
+                    try {
+                        verifySurvey(helper, job, centreChunkX, centreChunkZ);
+                    } finally {
+                        job.close();
+                    }
+                })
+                .thenSucceed();
+    }
+
+    private static void verifySurvey(GameTestHelper helper, ScoutJob job, int centreChunkX, int centreChunkZ) {
+        ServerLevel level = helper.getLevel();
+        ScoutOrder order = job.order();
 
         UUID factionId = UUID.randomUUID();
         Path staging = level.getServer().getWorldPath(LevelResource.ROOT)
@@ -111,7 +128,6 @@ public final class ScoutRuntimeGameTests {
                     "Only " + described + " of 256 scouted pixels carry a biome and terrain height"
             );
         }
-        helper.succeed();
     }
 
     private static void deleteRecursively(Path root) {
