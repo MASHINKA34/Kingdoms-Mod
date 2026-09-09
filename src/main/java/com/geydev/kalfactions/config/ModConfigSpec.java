@@ -268,6 +268,7 @@ public final class ModConfigSpec {
     public static final BooleanValue DUNGEON_ALLOW_SPAWNER_MOBS;
     public static final IntValue DUNGEON_MAX_CHEST_TEMPLATES;
     public static final IntValue DUNGEON_MAX_CHEST_TEMPLATE_KILOBYTES;
+    public static final BooleanValue DUNGEON_BANNED_MOBS_SWEEP;
     public static final IntValue MUSIC_DEFAULT_RADIUS;
     public static final IntValue MUSIC_MAX_RADIUS;
     public static final IntValue MUSIC_MAX_TRACK_BYTES;
@@ -929,6 +930,9 @@ public final class ModConfigSpec {
         DUNGEON_MAX_CHEST_TEMPLATE_KILOBYTES = builder
             .comment("Total kilobytes of stored dungeon chest templates; saves past it are refused.")
             .defineInRange("maxChestTemplateKilobytes", 256, 16, 768);
+        DUNGEON_BANNED_MOBS_SWEEP = builder
+            .comment("Remove mobs of the kingdoms:banned_mobs tag that reached dungeon chunks anyway.")
+            .define("bannedMobsSweep", true);
         builder.pop();
 
         builder.push("music");
