@@ -34,6 +34,10 @@ public final class SellerShopScreen extends Screen {
     private static final int SELL_ROWS = 3;
     private static final int SELL_CELL_WIDTH = 82;
     private static final int SELL_CELL_HEIGHT = 24;
+    private static final int BUY_TOP = 88;
+    private static final int BUY_STEP = 24;
+    private static final int VISIBLE_BUY_OFFERS = 3;
+    private static final int BUY_BUTTON_WIDTH = 68;
     private static final String SELLER_TITLE = "screen.kingdoms.seller.title";
     private static final String CONTRABAND_TITLE = "screen.kingdoms.contraband.title";
     private static final String WANDERING_TITLE = "screen.kingdoms.wandering.title";
@@ -42,6 +46,7 @@ public final class SellerShopScreen extends Screen {
     private UUID sessionId;
     private long nextSequence;
     private List<TraderPayloads.OfferInfo> sellOffers;
+    private List<TraderPayloads.OfferInfo> offers;
     private long nextRefreshEpochMillis;
     private long lastRefreshRequestEpochMillis;
     private String pendingOfferId = "";
@@ -54,16 +59,21 @@ public final class SellerShopScreen extends Screen {
     private KingdomsButton maxButton;
     private KingdomsButton sellButton;
     private boolean permanentTab;
+    private boolean buyTab;
     private int scrollRow;
+    private int buyScroll;
     private final boolean tabbed;
+    private final boolean contraband;
 
     public SellerShopScreen(TraderPayloads.S2CShopState state) {
         super(Component.translatable(state.titleKey()));
         tabbed = SELLER_TITLE.equals(state.titleKey());
+        contraband = CONTRABAND_TITLE.equals(state.titleKey());
         traderId = state.traderId();
         sessionId = state.sessionId();
         nextSequence = Math.max(1L, state.acknowledgedSequence() + 1L);
         sellOffers = state.sellOffers();
+        offers = state.offers();
         nextRefreshEpochMillis = state.nextSellRefreshEpochMillis();
         permanentTab = sellOffers.stream().anyMatch(TraderPayloads.OfferInfo::permanent);
     }
@@ -91,6 +101,7 @@ public final class SellerShopScreen extends Screen {
         sessionId = state.sessionId();
         nextSequence = Math.max(nextSequence, state.acknowledgedSequence() + 1L);
         sellOffers = state.sellOffers();
+        offers = state.offers();
         nextRefreshEpochMillis = state.nextSellRefreshEpochMillis();
         pendingOfferId = "";
         selectedOfferId = "";
@@ -104,19 +115,6 @@ public final class SellerShopScreen extends Screen {
         left = (width - PANEL_WIDTH) / 2;
         top = (height - PANEL_HEIGHT) / 2;
         sellCells.clear();
-        List<TraderPayloads.OfferInfo> visibleOffers = sellOffers.stream()
-                .filter(offer -> offer.permanent() == permanentTab)
-                .toList();
-        scrollRow = Math.clamp(scrollRow, 0, maxScrollRow(visibleOffers.size()));
-        int sellLeft = left + 35;
-        int first = scrollRow * SELL_COLUMNS;
-        int last = Math.min(visibleOffers.size(), first + SELL_COLUMNS * SELL_ROWS);
-        for (int i = first; i < last; i++) {
-            int position = i - first;
-            int cellX = sellLeft + position % SELL_COLUMNS * SELL_CELL_WIDTH;
-            int cellY = top + 88 + position / SELL_COLUMNS * SELL_CELL_HEIGHT;
-            sellCells.add(new SellCell(visibleOffers.get(i), cellX, cellY));
-        }
         if (tabbed) {
             addRenderableWidget(KingdomsButton.create(
                     Component.translatable("screen.kingdoms.seller.permanent_tab"),
@@ -134,6 +132,76 @@ public final class SellerShopScreen extends Screen {
                     112,
                     20
             ));
+        }
+        if (contraband) {
+            addRenderableWidget(KingdomsButton.create(
+                    Component.translatable("screen.kingdoms.contraband.buy_tab"),
+                    button -> switchBuyTab(true),
+                    left + 35,
+                    top + 56,
+                    112,
+                    20
+            ));
+            addRenderableWidget(KingdomsButton.create(
+                    Component.translatable("screen.kingdoms.contraband.sell_tab"),
+                    button -> switchBuyTab(false),
+                    left + 151,
+                    top + 56,
+                    112,
+                    20
+            ));
+        }
+        if (buyTab) {
+            initBuyRows();
+        } else {
+            initSellGrid();
+        }
+        addRenderableWidget(KingdomsButton.create(
+                Component.translatable("gui.done"),
+                button -> onClose(),
+                left + PANEL_WIDTH - 74,
+                top + PANEL_HEIGHT - 25,
+                66,
+                20
+        ));
+    }
+
+    private void initBuyRows() {
+        amountBox = null;
+        maxButton = null;
+        sellButton = null;
+        selectedCell = null;
+        buyScroll = Math.clamp(buyScroll, 0, maxBuyScroll());
+        int shown = Math.min(VISIBLE_BUY_OFFERS, Math.max(0, offers.size() - buyScroll));
+        for (int i = 0; i < shown; i++) {
+            TraderPayloads.OfferInfo offer = offers.get(buyScroll + i);
+            int rowTop = top + BUY_TOP + i * BUY_STEP;
+            KingdomsButton button = KingdomsButton.create(
+                    Component.translatable("screen.kingdoms.trader.buy"),
+                    pressed -> buy(offer.id()),
+                    left + PANEL_WIDTH - 35 - BUY_BUTTON_WIDTH,
+                    rowTop + 3,
+                    BUY_BUTTON_WIDTH,
+                    18
+            );
+            button.active = pendingOfferId.isBlank();
+            addRenderableWidget(button);
+        }
+    }
+
+    private void initSellGrid() {
+        List<TraderPayloads.OfferInfo> visibleOffers = sellOffers.stream()
+                .filter(offer -> offer.permanent() == permanentTab)
+                .toList();
+        scrollRow = Math.clamp(scrollRow, 0, maxScrollRow(visibleOffers.size()));
+        int sellLeft = left + 35;
+        int first = scrollRow * SELL_COLUMNS;
+        int last = Math.min(visibleOffers.size(), first + SELL_COLUMNS * SELL_ROWS);
+        for (int i = first; i < last; i++) {
+            int position = i - first;
+            int cellX = sellLeft + position % SELL_COLUMNS * SELL_CELL_WIDTH;
+            int cellY = top + 88 + position / SELL_COLUMNS * SELL_CELL_HEIGHT;
+            sellCells.add(new SellCell(visibleOffers.get(i), cellX, cellY));
         }
         selectedCell = findSelectedCell();
         amountBox = new EditBox(
@@ -170,14 +238,71 @@ public final class SellerShopScreen extends Screen {
                 20
         ));
         updateSellControls();
-        addRenderableWidget(KingdomsButton.create(
-                Component.translatable("gui.done"),
-                button -> onClose(),
-                left + PANEL_WIDTH - 74,
-                top + PANEL_HEIGHT - 25,
-                66,
-                20
-        ));
+    }
+
+    private void buy(String offerId) {
+        if (!pendingOfferId.isBlank()) {
+            return;
+        }
+        pendingOfferId = offerId;
+        rebuildWidgets();
+        PacketDistributor.sendToServer(new TraderPayloads.C2SBuy(traderId, sessionId, nextSequence++, offerId));
+    }
+
+    private void switchBuyTab(boolean buy) {
+        if (buyTab == buy) {
+            return;
+        }
+        buyTab = buy;
+        selectedOfferId = "";
+        selectedCell = null;
+        scrollRow = 0;
+        buyScroll = 0;
+        rebuildWidgets();
+    }
+
+    private int maxBuyScroll() {
+        return Math.max(0, offers.size() - VISIBLE_BUY_OFFERS);
+    }
+
+    private void renderBuyRows(GuiGraphics graphics, int mouseX, int mouseY) {
+        Component section = Component.translatable("screen.kingdoms.trader.buy_section");
+        graphics.drawString(font, section, left + 35, top + 78, TEXT_MUTED, false);
+        int shown = Math.min(VISIBLE_BUY_OFFERS, Math.max(0, offers.size() - buyScroll));
+        if (offers.size() > VISIBLE_BUY_OFFERS) {
+            String pager = (buyScroll + 1) + "-" + (buyScroll + shown) + " / " + offers.size();
+            graphics.drawString(font, pager, left + 41 + font.width(section), top + 78, TEXT_MUTED, false);
+        }
+        ItemStack hovered = null;
+        for (int i = 0; i < shown; i++) {
+            TraderPayloads.OfferInfo offer = offers.get(buyScroll + i);
+            int rowTop = top + BUY_TOP + i * BUY_STEP;
+            ResourceLocation itemId = ResourceLocation.tryParse(offer.itemId());
+            if (itemId == null) {
+                continue;
+            }
+            ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.get(itemId), offer.itemCount());
+            graphics.renderItem(stack, left + 35, rowTop + 4);
+            Component name = Component.literal(font.plainSubstrByWidth(
+                    stack.getHoverName().getString(),
+                    PANEL_WIDTH - 160
+            ));
+            graphics.drawString(font, name, left + 55, rowTop + 1, TEXT_DARK, false);
+            graphics.drawString(
+                    font,
+                    TraderShopScreen.formatPrice(offer.price()),
+                    left + 55,
+                    rowTop + 12,
+                    TEXT_MUTED,
+                    false
+            );
+            if (mouseX >= left + 35 && mouseX < left + 51 && mouseY >= rowTop + 4 && mouseY < rowTop + 20) {
+                hovered = stack;
+            }
+        }
+        if (hovered != null) {
+            graphics.renderTooltip(font, hovered, mouseX, mouseY);
+        }
     }
 
     private void sell(String offerId, int amount) {
@@ -233,6 +358,18 @@ public final class SellerShopScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double deltaX, double deltaY) {
+        if (buyTab) {
+            int maximumBuy = maxBuyScroll();
+            if (maximumBuy > 0 && deltaY != 0.0D) {
+                int updated = Math.clamp(buyScroll - (int) Math.signum(deltaY), 0, maximumBuy);
+                if (updated != buyScroll) {
+                    buyScroll = updated;
+                    rebuildWidgets();
+                }
+                return true;
+            }
+            return super.mouseScrolled(mouseX, mouseY, deltaX, deltaY);
+        }
         int maximum = maxScrollRow(visibleOfferCount());
         if (maximum > 0 && deltaY != 0.0D) {
             int updated = Math.clamp(scrollRow - (int) Math.signum(deltaY), 0, maximum);
@@ -247,7 +384,7 @@ public final class SellerShopScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && pendingOfferId.isBlank()) {
+        if (button == 0 && !buyTab && pendingOfferId.isBlank()) {
             for (SellCell cell : sellCells) {
                 if (cell.contains(mouseX, mouseY)) {
                     selectCell(cell);
@@ -277,10 +414,14 @@ public final class SellerShopScreen extends Screen {
                     font,
                     timer,
                     left + PANEL_WIDTH - 35 - font.width(timer),
-                    tabbed ? top + 78 : top + 62,
+                    tabbed || contraband ? top + 78 : top + 62,
                     TEXT_MUTED,
                     false
             );
+        }
+        if (buyTab) {
+            renderBuyRows(graphics, mouseX, mouseY);
+            return;
         }
         Component section = Component.translatable("screen.kingdoms.trader.sell_section");
         graphics.drawString(font, section, left + 35, top + 78, TEXT_MUTED, false);

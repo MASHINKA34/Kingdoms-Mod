@@ -84,6 +84,12 @@ public enum TraderOffer {
             () -> numismaticsItem("banking_guide"),
             () -> 150L,
             Shop.BANKER
+    ),
+    CHARON_TOKEN(
+            "charon_token",
+            ModItems.CHARON_TOKEN,
+            ModConfigSpec.CHARON_TOKEN_COST::get,
+            Shop.CONTRABAND
     );
 
     private final String id;
@@ -132,6 +138,7 @@ public enum TraderOffer {
 
     public enum Shop {
         KINGDOMS,
-        BANKER
+        BANKER,
+        CONTRABAND
     }
 }
