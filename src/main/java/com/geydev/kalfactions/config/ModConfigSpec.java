@@ -282,6 +282,11 @@ public final class ModConfigSpec {
     public static final IntValue RESEARCH_BENCH_SECONDS_PER_ITEM;
     public static final IntValue RESEARCH_BENCH_CHECK_INTERVAL_TICKS;
     public static final ConfigValue<java.util.List<? extends String>> EMBLEM_ALLOWED_HOSTS;
+    public static final LongValue CHARON_TOKEN_COST;
+    public static final IntValue CHARON_DEATH_DELAY_SECONDS;
+    public static final IntValue CHARON_GHOST_SECONDS;
+    public static final IntValue CHARON_GHOST_HEALTH;
+    public static final IntValue CHARON_COOLDOWN_MINUTES;
 
     static {
         Builder builder = new Builder();
@@ -985,6 +990,24 @@ public final class ModConfigSpec {
                 "Use \"*\" to accept any host.")
             .defineList("allowedHosts", com.geydev.kalfactions.faction.EmblemUrls.DEFAULT_HOSTS,
                 value -> value instanceof String text && !text.isBlank());
+        builder.pop();
+
+        builder.push("charon");
+        CHARON_TOKEN_COST = builder
+            .comment("Spurs the contraband buyer charges for a Charon token.")
+            .defineInRange("tokenCost", 800L, 0L, Long.MAX_VALUE);
+        CHARON_DEATH_DELAY_SECONDS = builder
+            .comment("Seconds after a death before the token can lead the ghost back to it.")
+            .defineInRange("deathDelaySeconds", 180, 0, 86400);
+        CHARON_GHOST_SECONDS = builder
+            .comment("Seconds the ghost form lasts before the spirit returns to where the token was used.")
+            .defineInRange("ghostSeconds", 25, 1, 3600);
+        CHARON_GHOST_HEALTH = builder
+            .comment("Maximum health of the ghost form.")
+            .defineInRange("ghostHealth", 5, 1, 1024);
+        CHARON_COOLDOWN_MINUTES = builder
+            .comment("Real-time minutes between uses of a Charon token by one player.")
+            .defineInRange("cooldownMinutes", 30, 0, 10080);
         builder.pop();
         SPEC = builder.build();
     }

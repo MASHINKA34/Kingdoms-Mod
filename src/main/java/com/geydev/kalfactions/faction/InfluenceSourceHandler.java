@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.faction;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.charon.CharonService;
 import com.geydev.kalfactions.config.ModConfigSpec;
 import com.geydev.kalfactions.net.FactionPayloads;
 import java.util.UUID;
@@ -25,6 +26,9 @@ public final class InfluenceSourceHandler {
         }
         LivingEntity victim = event.getEntity();
         if (victim == killer) {
+            return;
+        }
+        if (victim instanceof ServerPlayer ghost && CharonService.isGhostVictim(ghost)) {
             return;
         }
         FactionManager manager = FactionManager.get(killer.serverLevel());

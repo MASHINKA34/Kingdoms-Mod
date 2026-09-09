@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.pvp;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.charon.CharonService;
 import com.geydev.kalfactions.faith.FaithService;
 import com.geydev.kalfactions.protection.FactionAccess;
 import com.geydev.kalfactions.registry.ModItems;
@@ -19,7 +20,9 @@ import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
 public final class WarTrophyDrops {
     @SubscribeEvent
     public static void onPlayerDeath(LivingDeathEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer victim) || victim instanceof FakePlayer) {
+        if (!(event.getEntity() instanceof ServerPlayer victim)
+                || victim instanceof FakePlayer
+                || CharonService.isGhostVictim(victim)) {
             return;
         }
         ServerPlayer killer = killerOf(victim, event.getSource());
@@ -30,7 +33,9 @@ public final class WarTrophyDrops {
 
     @SubscribeEvent
     public static void onDrops(LivingDropsEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer victim) || victim instanceof FakePlayer) {
+        if (!(event.getEntity() instanceof ServerPlayer victim)
+                || victim instanceof FakePlayer
+                || CharonService.isGhostVictim(victim)) {
             return;
         }
         ServerPlayer killer = killerOf(victim, event.getSource());

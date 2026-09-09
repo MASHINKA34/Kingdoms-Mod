@@ -1,6 +1,8 @@
 package com.geydev.kalfactions.dimension;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.charon.CharonGhosts;
+import com.geydev.kalfactions.charon.CharonService;
 import com.geydev.kalfactions.dimension.DimensionControlManager.ActiveSession;
 import com.geydev.kalfactions.dimension.DimensionControlManager.EndedSession;
 import com.geydev.kalfactions.dimension.DimensionControlManager.EntryResult;
@@ -116,9 +118,12 @@ public final class DimensionControlEvents {
             return;
         }
         if (Level.END.equals(target)) {
-            if (!player.hasPermissions(2) && control.isClosed(target)) {
+            if (isClosedFor(server, player, target)) {
                 deny(event, player, Component.translatable("kingdoms.dimension.closed_notice"));
             }
+            return;
+        }
+        if (CharonService.isMechanicTeleport(player.getUUID())) {
             return;
         }
         event.setCanceled(true);
@@ -207,6 +212,17 @@ public final class DimensionControlEvents {
         PENDING_NETHER_ENTRIES.put(player.getUUID(), pending);
         player.displayClientMessage(Component.translatable("kingdoms.nether.session.preparing"), true);
         prepareNetherLanding(server, nether, pending);
+    }
+
+    public static boolean isClosedFor(MinecraftServer server, ServerPlayer player, ResourceKey<Level> dimension) {
+        if (!DimensionControlManager.isControlled(dimension) || player.hasPermissions(2)) {
+            return false;
+        }
+        DimensionControlManager control = DimensionControlManager.get(server);
+        if (Level.NETHER.equals(dimension)) {
+            return !control.isNetherOpenForPlayers(Instant.now());
+        }
+        return control.isClosed(dimension);
     }
 
     private static void prepareNetherLanding(
@@ -636,7 +652,8 @@ public final class DimensionControlEvents {
             return;
         }
         DimensionControlManager control = DimensionControlManager.get(player.serverLevel().getServer());
-        if (Level.NETHER.equals(event.getFrom())) {
+        boolean mechanicTeleport = CharonService.isMechanicTeleport(player.getUUID());
+        if (Level.NETHER.equals(event.getFrom()) && !mechanicTeleport) {
             control.leaveNether(player.getUUID());
             NetherReturnIntegration.removeForPlayer(player);
             removePlayerFromBossBars(player.getUUID());
@@ -646,7 +663,7 @@ public final class DimensionControlEvents {
             return;
         }
         persistedData(player).putLong(wipeGenKey(target), control.wipeGeneration(target));
-        if (!Level.NETHER.equals(target)) {
+        if (!Level.NETHER.equals(target) || mechanicTeleport) {
             return;
         }
         Instant now = Instant.now();
@@ -728,7 +745,7 @@ public final class DimensionControlEvents {
             ServerLevel nether = server.getLevel(Level.NETHER);
             if (nether != null) {
                 for (ServerPlayer player : List.copyOf(nether.players())) {
-                    if (!hasValidNetherSession(player, control, now)) {
+                    if (!hasValidNetherSession(player, control, now) && !CharonGhosts.isGhost(player.getUUID())) {
                         evacuatePlayer(player, "kingdoms.nether.session.expired");
                     }
                 }
@@ -962,7 +979,7 @@ public final class DimensionControlEvents {
             return;
         }
         for (ServerPlayer player : List.copyOf(nether.players())) {
-            if (!player.hasPermissions(2)) {
+            if (!player.hasPermissions(2) && !CharonGhosts.isGhost(player.getUUID())) {
                 evacuatePlayer(player, "kingdoms.nether.session.closed");
             }
         }

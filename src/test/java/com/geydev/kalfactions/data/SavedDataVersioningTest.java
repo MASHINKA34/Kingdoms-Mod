@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.geydev.kalfactions.blackzone.BlackZoneData;
+import com.geydev.kalfactions.charon.CharonManager;
 import com.geydev.kalfactions.dungeon.ChestTemplateManager;
 import com.geydev.kalfactions.dungeon.DungeonManager;
 import com.geydev.kalfactions.faction.FactionManager;
@@ -75,7 +76,8 @@ final class SavedDataVersioningTest {
             Map.entry("SanctuaryManager", SanctuaryManager.FACTORY),
             Map.entry("ScoutManager", ScoutManager.FACTORY),
             Map.entry("WarHistory", WarHistory.FACTORY),
-            Map.entry("WarManager", WarManager.FACTORY)
+            Map.entry("WarManager", WarManager.FACTORY),
+            Map.entry("CharonManager", CharonManager.FACTORY)
     );
 
     @BeforeAll

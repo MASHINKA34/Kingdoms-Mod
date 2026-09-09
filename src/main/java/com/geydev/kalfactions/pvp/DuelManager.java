@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.pvp;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.charon.CharonService;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -126,7 +127,9 @@ public final class DuelManager {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onPlayerDeath(LivingDeathEvent event) {
-        if (event.isCanceled() || !(event.getEntity() instanceof ServerPlayer loser)) {
+        if (event.isCanceled()
+                || !(event.getEntity() instanceof ServerPlayer loser)
+                || CharonService.isGhostVictim(loser)) {
             return;
         }
 

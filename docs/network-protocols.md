@@ -69,3 +69,9 @@ The quarry core opens a server-backed menu. Every request must match the player'
 | C2S | `kingdoms:quarry_request_state` | `containerId: int >=0`, `core: BlockPos` | Rate-limited state refresh for the exact open menu. It cannot mutate quarry data. |
 | C2S | `kingdoms:quarry_action` | `containerId: int >=0`, `core: BlockPos`, `stateVersion: long >=0`, `action: int 1..3` | Rechecks menu, block, distance, dimension, exact state version, faction membership, action/state match, territory, role, seal, level, configured cost and treasury. Activation consumes one seal only after ownership is committed. Upgrade withdraws and raises the level in one server-thread operation. Capture cannot be restarted or replaced by a different attacker. Requests are rate-limited and a successful state-version increment makes replay harmless. |
 | S2C | `kingdoms:quarry_state` | Container/core/version, bounded names <=48, colors, status/action/reason enums, level 0..5, non-negative cost/treasury, capture ticks 0..6000 and pause flag | Complete server-derived screen replacement state. It is sent on open/refresh, after mutations, and once per second while the menu remains valid. Client values are display-only. |
+
+## Charon payloads
+
+### `kingdoms:charon_ghost_state` — S2C
+
+Fields: `playerId: UUID`, `active: boolean`. Sent to the ghost itself and to every player tracking it when the ghost form of a Charon token starts or ends, and to a player that starts tracking an active ghost. Clients only use it to draw the ghost translucently and to skip interactions locally; the damage, aggro, interaction and dimension rules for ghosts are enforced by server-side events, and the ghost state itself lives in the `kingdoms_charon` saved data.

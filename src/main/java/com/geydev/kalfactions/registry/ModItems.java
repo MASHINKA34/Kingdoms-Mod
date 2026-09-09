@@ -21,6 +21,7 @@ import com.geydev.kalfactions.item.TraderPointToolItem;
 import com.geydev.kalfactions.item.BossKeyItem;
 import com.geydev.kalfactions.item.SafeZoneWandItem;
 import com.geydev.kalfactions.item.WarpScrollItem;
+import com.geydev.kalfactions.item.CharonTokenItem;
 import java.util.Optional;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -387,6 +388,13 @@ public final class ModItems {
 
     public static final DeferredItem<BlockItem> INVISIBILITY_CHALICE =
             ITEMS.registerSimpleBlockItem(ModBlocks.INVISIBILITY_CHALICE);
+
+    public static final DeferredItem<CharonTokenItem> CHARON_TOKEN = ITEMS.register(
+            "charon_token",
+            () -> new CharonTokenItem(
+                    new Item.Properties().stacksTo(1).rarity(net.minecraft.world.item.Rarity.RARE)
+            )
+    );
 
     public static Item crystalFor(InfluenceType type) {
         return switch (type) {
