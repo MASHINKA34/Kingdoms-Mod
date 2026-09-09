@@ -4,6 +4,7 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.DungeonChestBlockEntity;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.protection.BannedMobs;
 import com.geydev.kalfactions.protection.MachineProtection;
 import com.geydev.kalfactions.registry.ModBlocks;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
@@ -25,6 +26,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.RandomizableContainer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.monster.Husk;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -33,6 +35,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.VineBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
@@ -374,6 +377,59 @@ public final class DungeonGameTests {
                     "mobs still spawn outside the dungeon"
             );
         } finally {
+            manager.remove(dungeon.id());
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "dungeon_claims", timeoutTicks = 600)
+    public static void bannedMobsNeverReachDungeonsWhileSpawnerMobsStay(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        DungeonManager manager = DungeonManager.get(level);
+        BlockPos anchor = blackZoneAnchor(level, 9);
+        DungeonManager.DungeonView dungeon = createDungeon(helper, level, manager, anchor, "Тест зачистки");
+        BlockPos inside = anchor.above();
+        BlockPos outside = anchor.offset(64, 1, 0);
+        Zombie spawnerMob = EntityType.ZOMBIE.create(level);
+        Husk banned = EntityType.HUSK.create(level);
+        Husk sneaked = EntityType.HUSK.create(level);
+        Husk outsider = EntityType.HUSK.create(level);
+        try {
+            level.getChunk(new ChunkPos(outside).x, new ChunkPos(outside).z);
+            BannedMobs.override(type -> type == EntityType.HUSK);
+
+            helper.assertFalse(
+                    spawnCancelled(level, inside, MobSpawnType.SPAWNER),
+                    "operator spawners keep working inside a dungeon"
+            );
+            spawnerMob.moveTo(Vec3.atBottomCenterOf(inside));
+            helper.assertTrue(level.addFreshEntity(spawnerMob), "a spawner mob still joins a dungeon");
+            helper.assertTrue(DungeonMobSweep.sweep(level) == 0, "the sweep leaves ordinary dungeon mobs alone");
+            helper.assertFalse(spawnerMob.isRemoved(), "the spawner mob survived the sweep");
+
+            banned.moveTo(Vec3.atBottomCenterOf(inside));
+            helper.assertFalse(level.addFreshEntity(banned), "a banned mob never joins the level");
+            helper.assertTrue(
+                    level.getEntities(EntityTypeTest.forClass(Husk.class), husk -> husk == banned).isEmpty(),
+                    "the banned mob stayed out of the level"
+            );
+
+            BannedMobs.reset();
+            sneaked.moveTo(Vec3.atBottomCenterOf(inside));
+            outsider.moveTo(Vec3.atBottomCenterOf(outside));
+            helper.assertTrue(level.addFreshEntity(sneaked), "the test type joins while the ban is off");
+            helper.assertTrue(level.addFreshEntity(outsider), "the test type joins outside the dungeon too");
+            BannedMobs.override(type -> type == EntityType.HUSK);
+
+            DungeonMobSweep.sweep(level);
+            helper.assertTrue(sneaked.isRemoved(), "the sweep removes a banned mob from the dungeon");
+            helper.assertFalse(outsider.isRemoved(), "the sweep only touches dungeon chunks");
+        } finally {
+            BannedMobs.reset();
+            spawnerMob.discard();
+            banned.discard();
+            sneaked.discard();
+            outsider.discard();
             manager.remove(dungeon.id());
         }
         helper.succeed();
