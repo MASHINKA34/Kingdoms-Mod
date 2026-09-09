@@ -17,6 +17,7 @@ import net.minecraft.core.GlobalPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
@@ -52,6 +53,10 @@ public final class CharonService {
     private static final double AGGRO_RESET_RADIUS = 32.0D;
     private static final int PARTICLE_INTERVAL_TICKS = 5;
     private static final int AGGRO_RESET_INTERVAL_TICKS = 20;
+    private static final int WARNING_TICKS = 100;
+    private static final int MAX_OWNER_DEPTH = 3;
+    private static final String UUID_MOST_SUFFIX = "Most";
+    private static final String UUID_LEAST_SUFFIX = "Least";
     private static final Map<UUID, ServerBossEvent> BOSS_BARS = new HashMap<>();
     private static final Set<UUID> GHOST_DEATHS = new HashSet<>();
     private static final Set<UUID> MECHANIC_TELEPORTS = new HashSet<>();
@@ -96,13 +101,14 @@ public final class CharonService {
     public static void onRespawn(ServerPlayer player) {
         GHOST_DEATHS.remove(player.getUUID());
         applyVisualCooldown(player);
+        sendDeathHint(player);
     }
 
     public static void onLogin(ServerPlayer player) {
         GHOST_DEATHS.remove(player.getUUID());
         CharonManager.Ghost ghost = activeGhost(player).orElse(null);
         if (ghost != null) {
-            finish(player, ghost);
+            finish(player, ghost, Return.RELOGIN);
             return;
         }
         applyVisualCooldown(player);
@@ -117,7 +123,7 @@ public final class CharonService {
             return;
         }
         if (ghost.returnPos().dimension().equals(player.level().dimension())) {
-            finish(player, ghost);
+            finish(player, ghost, Return.LOGOUT);
         } else {
             detach(player);
         }
@@ -142,7 +148,7 @@ public final class CharonService {
         UUID playerId = player.getUUID();
         CharonManager.Entry entry = manager.entry(playerId).orElse(null);
         if (entry != null && entry.ghost() != null) {
-            finish(player, entry.ghost());
+            finish(player, entry.ghost(), Return.MANUAL);
             return InteractionResultHolder.sidedSuccess(stack, false);
         }
         long now = System.currentTimeMillis();
@@ -201,11 +207,18 @@ public final class CharonService {
         }
         long now = server.overworld().getGameTime();
         if (now >= ghost.endsAtGameTime()) {
-            finish(player, ghost);
+            finish(player, ghost, Return.TIMER);
             return;
         }
         if (!player.isInvisible()) {
             player.setInvisible(true);
+        }
+        long remainingTicks = ghost.endsAtGameTime() - now;
+        if (remainingTicks <= WARNING_TICKS && remainingTicks % 20L == 0L) {
+            player.displayClientMessage(Component.translatable(
+                    "message.kingdoms.charon.expiring", CharonText.duration((remainingTicks + 19L) / 20L)
+            ), true);
+            player.playNotifySound(SoundEvents.NOTE_BLOCK_BASEDRUM.value(), SoundSource.PLAYERS, 0.7F, 1.6F);
         }
         if (player.tickCount % PARTICLE_INTERVAL_TICKS == 0) {
             player.serverLevel().sendParticles(
@@ -250,17 +263,38 @@ public final class CharonService {
         BlockPos deathPos = death.pos().pos();
         ChunkPos chunk = new ChunkPos(deathPos);
         destination.getChunk(chunk.x, chunk.z);
-        teleport(player, destination, landingNearDeath(destination, deathPos, playerId));
+        Landing landing = landingNearDeath(destination, deathPos, player);
+        teleport(player, destination, landing.pos());
         CharonNetwork.broadcast(player, true);
         resetAggro(player);
         updateBossBar(player, ghostTicks(), ghostTicks());
         showTitle(player, seconds);
-        player.displayClientMessage(
-                Component.translatable("message.kingdoms.charon.started", CharonText.duration(seconds)), false
-        );
+        BlockPos returnPos = ghost.returnPos().pos();
+        player.sendSystemMessage(Component.translatable(
+                "message.kingdoms.charon.at_death",
+                CharonText.duration(Math.max(0L, now - death.atMillis()) / 1_000L),
+                deathPos.getX(),
+                deathPos.getY(),
+                deathPos.getZ()
+        ));
+        player.sendSystemMessage(Component.translatable(landing.corpseFound()
+                ? "message.kingdoms.charon.corpse_found"
+                : "message.kingdoms.charon.corpse_missing"));
+        player.sendSystemMessage(Component.translatable(
+                "message.kingdoms.charon.started",
+                CharonText.duration(seconds),
+                ModConfigSpec.CHARON_GHOST_HEALTH.getAsInt()
+        ));
+        player.sendSystemMessage(Component.translatable(
+                "message.kingdoms.charon.return_notice",
+                CharonText.duration(seconds),
+                returnPos.getX(),
+                returnPos.getY(),
+                returnPos.getZ()
+        ));
     }
 
-    private static void finish(ServerPlayer player, CharonManager.Ghost ghost) {
+    private static void finish(ServerPlayer player, CharonManager.Ghost ghost, Return reason) {
         MinecraftServer server = player.getServer();
         if (server == null) {
             return;
@@ -268,15 +302,52 @@ public final class CharonService {
         CharonManager.get(server).clearGhost(player.getUUID());
         detach(player);
         player.setHealth(Math.max(1.0F, Math.min(ghost.savedHealth(), player.getMaxHealth())));
+        BlockPos target = ghost.returnPos().pos();
         ServerLevel level = server.getLevel(ghost.returnPos().dimension());
         if (level != null) {
-            BlockPos target = ghost.returnPos().pos();
             ChunkPos chunk = new ChunkPos(target);
             level.getChunk(chunk.x, chunk.z);
             teleport(player, level, CharonLanding.find(level, target));
         }
-        player.displayClientMessage(Component.translatable("message.kingdoms.charon.returned"), true);
+        if (reason != Return.LOGOUT) {
+            if (reason == Return.TIMER) {
+                player.connection.send(new ClientboundSetTitlesAnimationPacket(5, 30, 10));
+                player.connection.send(new ClientboundSetSubtitleTextPacket(
+                        Component.translatable("kingdoms.charon.return_subtitle")
+                ));
+                player.connection.send(new ClientboundSetTitleTextPacket(
+                        Component.translatable("kingdoms.charon.return_title")
+                ));
+            }
+            player.sendSystemMessage(Component.translatable(
+                    reason.messageKey(), target.getX(), target.getY(), target.getZ()
+            ));
+        }
         applyVisualCooldown(player);
+    }
+
+    private static void sendDeathHint(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server == null || player.getInventory().countItem(ModItems.CHARON_TOKEN.get()) <= 0) {
+            return;
+        }
+        CharonManager.Entry entry = CharonManager.get(server).entry(player.getUUID()).orElse(null);
+        if (entry == null || entry.death() == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        long readyIn = Math.max(
+                entry.death().atMillis() + ModConfigSpec.CHARON_DEATH_DELAY_SECONDS.getAsInt() * 1_000L - now,
+                entry.cooldownUntilMillis() - now
+        );
+        BlockPos deathPos = entry.death().pos().pos();
+        player.sendSystemMessage(Component.translatable(
+                "message.kingdoms.charon.death_hint",
+                CharonText.duration(Math.max(0L, readyIn + 999L) / 1_000L),
+                deathPos.getX(),
+                deathPos.getY(),
+                deathPos.getZ()
+        ));
     }
 
     private static void detach(ServerPlayer player) {
@@ -352,12 +423,15 @@ public final class CharonService {
         );
     }
 
-    private static BlockPos landingNearDeath(ServerLevel level, BlockPos deathPos, UUID owner) {
+    private static Landing landingNearDeath(ServerLevel level, BlockPos deathPos, ServerPlayer owner) {
         Entity corpse = findCorpse(level, deathPos, owner).orElse(null);
-        return CharonLanding.find(level, corpse == null ? deathPos : corpse.blockPosition());
+        return new Landing(
+                CharonLanding.find(level, corpse == null ? deathPos : corpse.blockPosition()),
+                corpse != null
+        );
     }
 
-    private static Optional<Entity> findCorpse(ServerLevel level, BlockPos deathPos, UUID owner) {
+    private static Optional<Entity> findCorpse(ServerLevel level, BlockPos deathPos, ServerPlayer owner) {
         Vec3 center = Vec3.atCenterOf(deathPos);
         List<Entity> corpses = level.getEntities(
                 (Entity) null, new AABB(deathPos).inflate(CORPSE_SEARCH_RADIUS), CharonService::isCorpse
@@ -380,10 +454,33 @@ public final class CharonService {
         return Optional.ofNullable(nearestOwned == null ? nearest : nearestOwned);
     }
 
-    private static boolean ownsCorpse(Entity corpse, UUID owner) {
-        CompoundTag tag = corpse.saveWithoutId(new CompoundTag());
+    private static boolean ownsCorpse(Entity corpse, ServerPlayer owner) {
+        return matchesOwner(
+                corpse.saveWithoutId(new CompoundTag()),
+                owner.getUUID(),
+                owner.getGameProfile().getName(),
+                0
+        );
+    }
+
+    private static boolean matchesOwner(CompoundTag tag, UUID id, String name, int depth) {
         for (String key : tag.getAllKeys()) {
-            if (!"UUID".equals(key) && tag.hasUUID(key) && owner.equals(tag.getUUID(key))) {
+            if (!"UUID".equals(key) && tag.hasUUID(key) && id.equals(tag.getUUID(key))) {
+                return true;
+            }
+            if (key.endsWith(UUID_MOST_SUFFIX) && tag.contains(key, Tag.TAG_LONG)) {
+                String least = key.substring(0, key.length() - UUID_MOST_SUFFIX.length()) + UUID_LEAST_SUFFIX;
+                if (tag.contains(least, Tag.TAG_LONG)
+                        && id.equals(new UUID(tag.getLong(key), tag.getLong(least)))) {
+                    return true;
+                }
+            }
+            if (!name.isEmpty() && tag.contains(key, Tag.TAG_STRING) && name.equals(tag.getString(key))) {
+                return true;
+            }
+            if (depth < MAX_OWNER_DEPTH
+                    && tag.contains(key, Tag.TAG_COMPOUND)
+                    && matchesOwner(tag.getCompound(key), id, name, depth + 1)) {
                 return true;
             }
         }
@@ -439,6 +536,26 @@ public final class CharonService {
     private static InteractionResultHolder<ItemStack> refuse(ServerPlayer player, ItemStack stack, Component message) {
         player.displayClientMessage(message, true);
         return InteractionResultHolder.fail(stack);
+    }
+
+    private record Landing(BlockPos pos, boolean corpseFound) {
+    }
+
+    private enum Return {
+        TIMER("message.kingdoms.charon.returned.timer"),
+        MANUAL("message.kingdoms.charon.returned.early"),
+        RELOGIN("message.kingdoms.charon.returned.relogin"),
+        LOGOUT("");
+
+        private final String messageKey;
+
+        Return(String messageKey) {
+            this.messageKey = messageKey;
+        }
+
+        private String messageKey() {
+            return messageKey;
+        }
     }
 
     private CharonService() {
