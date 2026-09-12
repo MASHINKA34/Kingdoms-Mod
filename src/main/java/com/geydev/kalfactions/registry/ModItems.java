@@ -73,6 +73,9 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> ECONOMY_GOD_STATUE =
             ITEMS.registerSimpleBlockItem(ModBlocks.ECONOMY_GOD_STATUE);
 
+    public static final DeferredItem<BlockItem> CHARON_STATUE =
+            ITEMS.registerSimpleBlockItem(ModBlocks.CHARON_STATUE);
+
     public static final DeferredItem<BlockItem> RESEARCH_GOD_STONE_8BLOCKS =
             ITEMS.registerSimpleBlockItem(ModBlocks.RESEARCH_GOD_STONE_8BLOCKS);
 

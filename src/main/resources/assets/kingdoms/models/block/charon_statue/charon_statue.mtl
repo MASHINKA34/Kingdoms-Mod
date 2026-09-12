@@ -1,0 +1,9 @@
+newmtl stone
+Ka 0 0 0
+Kd 1 1 1
+map_Kd kingdoms:block/charon_statue_atlas
+
+newmtl token
+Ka 0 0 0
+Kd 1 1 1
+map_Kd kingdoms:item/charon_token

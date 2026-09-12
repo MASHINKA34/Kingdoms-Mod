@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.registry;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.block.CharonStatueBlock;
 import com.geydev.kalfactions.block.DrillBlock;
 import com.geydev.kalfactions.block.DungeonChestBlock;
 import com.geydev.kalfactions.block.DungeonCoreBlock;
@@ -160,6 +161,17 @@ public final class ModBlocks {
                     .sound(SoundType.STONE)
                     .noOcclusion()
                     .dynamicShape())
+    );
+
+    public static final DeferredBlock<CharonStatueBlock> CHARON_STATUE = BLOCKS.register(
+            "charon_statue",
+            () -> new CharonStatueBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .strength(4.0F, 6.0F)
+                    .sound(SoundType.STONE)
+                    .requiresCorrectToolForDrops()
+                    .pushReaction(PushReaction.BLOCK)
+                    .noOcclusion())
     );
 
     public static final DeferredBlock<StoneGodStatueBlock> RESEARCH_GOD_STONE_8BLOCKS = BLOCKS.register(

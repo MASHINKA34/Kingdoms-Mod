@@ -1,4 +1,5 @@
 {
+  "block.kingdoms.charon_statue": "Charon Statue",
   "kingdoms.command.quarry.created": "A test quarry was created in the current chunk.",
   "kingdoms.command.quarry.count": "Registered quarries: %s",
   "kingdoms.command.quarry.not_found": "There is no quarry core at that position.",

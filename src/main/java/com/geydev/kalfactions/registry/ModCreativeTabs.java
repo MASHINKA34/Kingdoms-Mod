@@ -42,6 +42,7 @@ public final class ModCreativeTabs {
                 ModItems.STATUE_SCIENCE.get(),
                 ModItems.WAR_GOD_STATUE.get(),
                 ModItems.ECONOMY_GOD_STATUE.get(),
+                ModItems.CHARON_STATUE.get(),
                 ModItems.RESEARCH_GOD_STONE_8BLOCKS.get(),
                 ModItems.WAR_GOD_STONE_8BLOCKS.get(),
                 ModItems.ECONOMY_GOD_STONE_8BLOCKS.get(),

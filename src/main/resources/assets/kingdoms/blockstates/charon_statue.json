@@ -1,0 +1,196 @@
+{
+  "variants": {
+    "facing=north,part_x=0,layer=0,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_0_0_0",
+      "y": 0
+    },
+    "facing=east,part_x=0,layer=0,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_0_0_0",
+      "y": 90
+    },
+    "facing=south,part_x=0,layer=0,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_0_0_0",
+      "y": 180
+    },
+    "facing=west,part_x=0,layer=0,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_0_0_0",
+      "y": 270
+    },
+    "facing=north,part_x=0,layer=0,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_0_0_1",
+      "y": 0
+    },
+    "facing=east,part_x=0,layer=0,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_0_0_1",
+      "y": 90
+    },
+    "facing=south,part_x=0,layer=0,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_0_0_1",
+      "y": 180
+    },
+    "facing=west,part_x=0,layer=0,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_0_0_1",
+      "y": 270
+    },
+    "facing=north,part_x=0,layer=1,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_0_1_0",
+      "y": 0
+    },
+    "facing=east,part_x=0,layer=1,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_0_1_0",
+      "y": 90
+    },
+    "facing=south,part_x=0,layer=1,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_0_1_0",
+      "y": 180
+    },
+    "facing=west,part_x=0,layer=1,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_0_1_0",
+      "y": 270
+    },
+    "facing=north,part_x=0,layer=1,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_0_1_1",
+      "y": 0
+    },
+    "facing=east,part_x=0,layer=1,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_0_1_1",
+      "y": 90
+    },
+    "facing=south,part_x=0,layer=1,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_0_1_1",
+      "y": 180
+    },
+    "facing=west,part_x=0,layer=1,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_0_1_1",
+      "y": 270
+    },
+    "facing=north,part_x=0,layer=2,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_0_2_0",
+      "y": 0
+    },
+    "facing=east,part_x=0,layer=2,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_0_2_0",
+      "y": 90
+    },
+    "facing=south,part_x=0,layer=2,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_0_2_0",
+      "y": 180
+    },
+    "facing=west,part_x=0,layer=2,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_0_2_0",
+      "y": 270
+    },
+    "facing=north,part_x=0,layer=2,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_0_2_1",
+      "y": 0
+    },
+    "facing=east,part_x=0,layer=2,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_0_2_1",
+      "y": 90
+    },
+    "facing=south,part_x=0,layer=2,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_0_2_1",
+      "y": 180
+    },
+    "facing=west,part_x=0,layer=2,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_0_2_1",
+      "y": 270
+    },
+    "facing=north,part_x=1,layer=0,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_1_0_0",
+      "y": 0
+    },
+    "facing=east,part_x=1,layer=0,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_1_0_0",
+      "y": 90
+    },
+    "facing=south,part_x=1,layer=0,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_1_0_0",
+      "y": 180
+    },
+    "facing=west,part_x=1,layer=0,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_1_0_0",
+      "y": 270
+    },
+    "facing=north,part_x=1,layer=0,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_1_0_1",
+      "y": 0
+    },
+    "facing=east,part_x=1,layer=0,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_1_0_1",
+      "y": 90
+    },
+    "facing=south,part_x=1,layer=0,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_1_0_1",
+      "y": 180
+    },
+    "facing=west,part_x=1,layer=0,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_1_0_1",
+      "y": 270
+    },
+    "facing=north,part_x=1,layer=1,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_1_1_0",
+      "y": 0
+    },
+    "facing=east,part_x=1,layer=1,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_1_1_0",
+      "y": 90
+    },
+    "facing=south,part_x=1,layer=1,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_1_1_0",
+      "y": 180
+    },
+    "facing=west,part_x=1,layer=1,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_1_1_0",
+      "y": 270
+    },
+    "facing=north,part_x=1,layer=1,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_1_1_1",
+      "y": 0
+    },
+    "facing=east,part_x=1,layer=1,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_1_1_1",
+      "y": 90
+    },
+    "facing=south,part_x=1,layer=1,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_1_1_1",
+      "y": 180
+    },
+    "facing=west,part_x=1,layer=1,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_1_1_1",
+      "y": 270
+    },
+    "facing=north,part_x=1,layer=2,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_1_2_0",
+      "y": 0
+    },
+    "facing=east,part_x=1,layer=2,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_1_2_0",
+      "y": 90
+    },
+    "facing=south,part_x=1,layer=2,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_1_2_0",
+      "y": 180
+    },
+    "facing=west,part_x=1,layer=2,part_z=0": {
+      "model": "kingdoms:block/charon_statue/part_1_2_0",
+      "y": 270
+    },
+    "facing=north,part_x=1,layer=2,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_1_2_1",
+      "y": 0
+    },
+    "facing=east,part_x=1,layer=2,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_1_2_1",
+      "y": 90
+    },
+    "facing=south,part_x=1,layer=2,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_1_2_1",
+      "y": 180
+    },
+    "facing=west,part_x=1,layer=2,part_z=1": {
+      "model": "kingdoms:block/charon_statue/part_1_2_1",
+      "y": 270
+    }
+  }
+}

@@ -1,4 +1,5 @@
 {
+  "block.kingdoms.charon_statue": "Статуя Харона",
   "kingdoms.command.quarry.created": "Тестовый карьер создан в текущем чанке.",
   "kingdoms.command.quarry.count": "Зарегистрировано карьеров: %s",
   "kingdoms.command.quarry.not_found": "По указанным координатам нет ядра карьера.",

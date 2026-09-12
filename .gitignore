@@ -56,6 +56,9 @@ repo/
 /art/blockbench/
 /blockbench/
 
+# Reproducible artist handoff; keep the editable Charon sources in Git.
+/art/charon_statue/charon_statue_B_package.zip
+
 __pycache__/
 *.pyc
 

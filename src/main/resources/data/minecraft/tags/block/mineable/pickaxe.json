@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+    "kingdoms:charon_statue",
     "kingdoms:drill",
     "kingdoms:ghost_key_forge",
     "kingdoms:infernal_key_forge",

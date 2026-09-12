@@ -1,0 +1,54 @@
+{
+  "model": "charon_statue_B.bbmodel",
+  "format": "free",
+  "cubes": 109,
+  "groups": 8,
+  "blockbench_version": "5.1.6",
+  "bounds_after_rotations": {
+    "min": [
+      -16.0,
+      0.0,
+      -16.0
+    ],
+    "max": [
+      16.0,
+      48.0,
+      16.0
+    ]
+  },
+  "size_blocks": {
+    "width": 2,
+    "depth": 2,
+    "height": 3
+  },
+  "reopened_in_blockbench": true,
+  "textures": [
+    {
+      "name": "charon_statue_atlas.png",
+      "size": [
+        512,
+        512
+      ],
+      "embedded_pixels_match_png": true
+    },
+    {
+      "name": "charon_token.png",
+      "size": [
+        16,
+        16
+      ],
+      "embedded_pixels_match_png": true
+    }
+  ],
+  "invalid_uv_faces": 0,
+  "missing_texture_faces": 0,
+  "original_token_unchanged": true,
+  "original_token_sha256": "68b8bf979a532d37688152388a6cba8327cbd89bb130dbd78c014485437010b4",
+  "gltf_self_contained": true,
+  "visual_review": [
+    "three-quarter",
+    "front",
+    "side",
+    "back"
+  ]
+}
