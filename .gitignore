@@ -70,3 +70,6 @@ libs/xaerominimap-*.jar
 libs/xaeroworldmap-*.jar
 libs/xaerolib-*.jar
 libs/hookahmod-*.jar
+
+### Local prompt drafts ###
+/prompts/
