@@ -78,6 +78,10 @@ final class WarpScrollRulesTest {
         WarpScrollRules.override(rules);
 
         assertSame(rules, WarpScrollRules.configured());
+
+        WarpScrollRules.reset();
+
+        assertEquals(WarpScrollRules.DEFAULT, WarpScrollRules.configured());
     }
 
     @Test

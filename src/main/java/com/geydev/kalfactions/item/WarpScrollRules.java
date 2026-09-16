@@ -54,14 +54,18 @@ public record WarpScrollRules(
         if (forced != null) {
             return forced;
         }
-        return of(
-                ModConfigSpec.WARP_SCROLL_CAST_SECONDS.getAsInt(),
-                ModConfigSpec.WARP_SCROLL_CANCEL_ON_MOVE.get(),
-                ModConfigSpec.WARP_SCROLL_MOVE_TOLERANCE_BLOCKS.getAsDouble(),
-                ModConfigSpec.WARP_SCROLL_CANCEL_ON_DAMAGE.get(),
-                ModConfigSpec.WARP_SCROLL_DAMAGE_COOLDOWN_SECONDS.getAsInt(),
-                ModConfigSpec.WARP_SCROLL_CANCEL_COOLDOWN_SECONDS.getAsInt()
-        );
+        try {
+            return of(
+                    ModConfigSpec.WARP_SCROLL_CAST_SECONDS.getAsInt(),
+                    ModConfigSpec.WARP_SCROLL_CANCEL_ON_MOVE.get(),
+                    ModConfigSpec.WARP_SCROLL_MOVE_TOLERANCE_BLOCKS.getAsDouble(),
+                    ModConfigSpec.WARP_SCROLL_CANCEL_ON_DAMAGE.get(),
+                    ModConfigSpec.WARP_SCROLL_DAMAGE_COOLDOWN_SECONDS.getAsInt(),
+                    ModConfigSpec.WARP_SCROLL_CANCEL_COOLDOWN_SECONDS.getAsInt()
+            );
+        } catch (IllegalStateException configNotLoaded) {
+            return DEFAULT;
+        }
     }
 
     public static void override(WarpScrollRules rules) {
