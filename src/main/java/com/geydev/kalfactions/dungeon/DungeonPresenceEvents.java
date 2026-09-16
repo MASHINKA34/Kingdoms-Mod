@@ -30,26 +30,26 @@ public final class DungeonPresenceEvents {
         }
         ticksUntilCheck = CHECK_INTERVAL_TICKS;
         DungeonManager manager = DungeonManager.get(event.getServer());
-        boolean empty = manager.isEmpty();
-        if (empty && !LAST_DUNGEON.isEmpty()) {
+        if (manager.isEmpty() && !LAST_DUNGEON.isEmpty()) {
             LAST_DUNGEON.clear();
         }
         for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
-            DungeonManager.DungeonView dungeon = empty ? null : manager
-                    .dungeonAt(ClaimKey.of(player.level(), player.blockPosition()))
-                    .orElse(null);
-            DungeonSight.refresh(player, dungeon);
-            if (empty) {
-                continue;
-            }
-            int id = dungeon == null ? 0 : dungeon.id();
-            Integer previous = LAST_DUNGEON.put(player.getUUID(), id);
-            if (id != 0 && (previous == null || previous != id)) {
-                player.displayClientMessage(
-                        Component.translatable("kingdoms.dungeon.entered", dungeon.name()),
-                        true
-                );
-            }
+            check(player, manager);
+        }
+    }
+
+    static void check(ServerPlayer player, DungeonManager manager) {
+        DungeonManager.DungeonView dungeon = manager
+                .dungeonAt(ClaimKey.of(player.level(), player.blockPosition()))
+                .orElse(null);
+        DungeonSight.refresh(player, dungeon);
+        int id = dungeon == null ? 0 : dungeon.id();
+        Integer previous = LAST_DUNGEON.put(player.getUUID(), id);
+        if (id != 0 && (previous == null || previous != id)) {
+            player.displayClientMessage(
+                    Component.translatable("kingdoms.dungeon.entered", dungeon.name()),
+                    true
+            );
         }
     }
 

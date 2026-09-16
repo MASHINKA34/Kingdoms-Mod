@@ -4,9 +4,11 @@ import com.geydev.kalfactions.KalFactions;
 import com.geydev.kalfactions.block.DungeonChestBlockEntity;
 import com.geydev.kalfactions.claim.ClaimKey;
 import com.geydev.kalfactions.faction.FactionManager;
+import com.geydev.kalfactions.gametest.RegressionPlayers;
 import com.geydev.kalfactions.protection.BannedMobs;
 import com.geydev.kalfactions.protection.MachineProtection;
 import com.geydev.kalfactions.registry.ModBlocks;
+import com.geydev.kalfactions.registry.ModEffects;
 import com.geydev.kalfactions.sanctuary.SanctuaryManager;
 import com.mojang.authlib.GameProfile;
 import java.util.List;
@@ -17,6 +19,8 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -24,6 +28,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.RandomizableContainer;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.monster.Husk;
@@ -492,6 +497,233 @@ public final class DungeonGameTests {
             manager.remove(dungeon.id());
         }
         helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "dungeon_sight", timeoutTicks = 600)
+    public static void dungeonSightFollowsTheLightingStepInsideTheDungeon(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        DungeonManager manager = DungeonManager.get(level);
+        BlockPos anchor = blackZoneAnchor(level, 13);
+        DungeonManager.DungeonView dungeon = createDungeon(helper, level, manager, anchor, "Тест света");
+        BlockPos outside = anchor.offset(48, 0, 0);
+        ServerPlayer player = RegressionPlayers.create(level, anchor, 0).player();
+        DungeonSightRules.override(DungeonSightRules.DEFAULT);
+        try {
+            helper.assertTrue(
+                    manager.setLighting(dungeon.id(), 2) == DungeonManager.Reason.OK,
+                    "the lighting step was stored"
+            );
+            helper.assertFalse(manager.isDungeon(level, outside), "the outside spot is not part of the dungeon");
+
+            DungeonPresenceEvents.check(player, manager);
+            MobEffectInstance sight = player.getEffect(ModEffects.DUNGEON_SIGHT);
+            helper.assertTrue(sight != null, "a player inside a lit dungeon carries dungeon sight");
+            helper.assertValueEqual(sight.getAmplifier(), DungeonSight.amplifierFor(70), "medium amplifier");
+            helper.assertValueEqual(sight.getDuration(), DungeonSightRules.DEFAULT.effectTicks(), "effect ticks");
+            helper.assertTrue(sight.isAmbient(), "the effect is ambient");
+            helper.assertFalse(sight.isVisible(), "the effect shows no particles");
+            helper.assertFalse(sight.showIcon(), "the effect shows no icon");
+
+            player.removeEffect(ModEffects.DUNGEON_SIGHT);
+            player.addEffect(new MobEffectInstance(
+                    ModEffects.DUNGEON_SIGHT, 100, DungeonSight.amplifierFor(70), true, false, false));
+            DungeonPresenceEvents.check(player, manager);
+            helper.assertValueEqual(
+                    player.getEffect(ModEffects.DUNGEON_SIGHT).getDuration(),
+                    100,
+                    "a long running effect of the right step is left alone"
+            );
+
+            player.removeEffect(ModEffects.DUNGEON_SIGHT);
+            player.addEffect(new MobEffectInstance(
+                    ModEffects.DUNGEON_SIGHT, 20, DungeonSight.amplifierFor(70), true, false, false));
+            DungeonPresenceEvents.check(player, manager);
+            helper.assertValueEqual(
+                    player.getEffect(ModEffects.DUNGEON_SIGHT).getDuration(),
+                    DungeonSightRules.DEFAULT.effectTicks(),
+                    "an expiring effect is renewed"
+            );
+
+            manager.setLighting(dungeon.id(), 1);
+            DungeonPresenceEvents.check(player, manager);
+            helper.assertValueEqual(
+                    player.getEffect(ModEffects.DUNGEON_SIGHT).getAmplifier(),
+                    DungeonSight.amplifierFor(35),
+                    "a lower step replaces the amplifier"
+            );
+
+            manager.setLighting(dungeon.id(), 3);
+            DungeonPresenceEvents.check(player, manager);
+            helper.assertValueEqual(
+                    player.getEffect(ModEffects.DUNGEON_SIGHT).getAmplifier(),
+                    DungeonSight.amplifierFor(100),
+                    "a higher step replaces the amplifier"
+            );
+            manager.setLighting(dungeon.id(), 1);
+            DungeonPresenceEvents.check(player, manager);
+
+            player.setPos(outside.getX() + 0.5D, outside.getY() + 0.5D, outside.getZ() + 0.5D);
+            DungeonPresenceEvents.check(player, manager);
+            helper.assertTrue(
+                    player.getEffect(ModEffects.DUNGEON_SIGHT) == null,
+                    "leaving the dungeon withdraws dungeon sight"
+            );
+
+            player.setPos(anchor.getX() + 0.5D, anchor.getY() + 0.5D, anchor.getZ() + 0.5D);
+            manager.setLighting(dungeon.id(), 0);
+            DungeonPresenceEvents.check(player, manager);
+            helper.assertTrue(
+                    player.getEffect(ModEffects.DUNGEON_SIGHT) == null,
+                    "a dungeon with lighting off hands out nothing"
+            );
+
+            manager.setLighting(dungeon.id(), 3);
+            DungeonPresenceEvents.check(player, manager);
+            helper.assertValueEqual(
+                    player.getEffect(ModEffects.DUNGEON_SIGHT).getAmplifier(),
+                    DungeonSight.amplifierFor(100),
+                    "the full step uses the night vision amplifier"
+            );
+
+            DungeonSightRules.override(new DungeonSightRules(false, new int[] {35, 70, 100}, 300));
+            DungeonPresenceEvents.check(player, manager);
+            helper.assertTrue(
+                    player.getEffect(ModEffects.DUNGEON_SIGHT) == null,
+                    "a disabled config withdraws dungeon sight"
+            );
+            DungeonPresenceEvents.check(player, manager);
+            helper.assertTrue(
+                    player.getEffect(ModEffects.DUNGEON_SIGHT) == null,
+                    "a disabled config never hands dungeon sight out"
+            );
+        } finally {
+            DungeonSightRules.reset();
+            player.removeEffect(ModEffects.DUNGEON_SIGHT);
+            manager.remove(dungeon.id());
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "dungeon_sight", timeoutTicks = 600)
+    public static void dungeonSightIsWithdrawnOnceTheDungeonIsGone(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        DungeonManager manager = DungeonManager.get(level);
+        BlockPos anchor = blackZoneAnchor(level, 14);
+        DungeonManager.DungeonView dungeon = createDungeon(helper, level, manager, anchor, "Тест снятия");
+        ServerPlayer player = RegressionPlayers.create(level, anchor, 0).player();
+        DungeonSightRules.override(DungeonSightRules.DEFAULT);
+        manager.setLighting(dungeon.id(), 2);
+        helper.runAfterDelay(DungeonPresenceEvents.CHECK_INTERVAL_TICKS, () -> {
+            try {
+                DungeonPresenceEvents.check(player, manager);
+                helper.assertTrue(
+                        player.getEffect(ModEffects.DUNGEON_SIGHT) != null,
+                        "the player inside the dungeon carries dungeon sight"
+                );
+            } finally {
+                manager.remove(dungeon.id());
+            }
+        });
+        helper.runAfterDelay(DungeonPresenceEvents.CHECK_INTERVAL_TICKS * 2, () -> {
+            try {
+                DungeonPresenceEvents.check(player, manager);
+                helper.assertTrue(
+                        player.getEffect(ModEffects.DUNGEON_SIGHT) == null,
+                        "a removed dungeon withdraws dungeon sight"
+                );
+            } finally {
+                DungeonSightRules.reset();
+            }
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = "empty", batch = "dungeon_sight", timeoutTicks = 600)
+    public static void lightingRequestsAreValidatedOnTheServer(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        DungeonManager manager = DungeonManager.get(level);
+        BlockPos anchor = blackZoneAnchor(level, 15);
+        DungeonManager.DungeonView dungeon = createDungeon(helper, level, manager, anchor, "Тест пакета");
+        RegressionPlayers.Fixture visitor = RegressionPlayers.create(level, anchor, 0);
+        RegressionPlayers.Fixture operator = RegressionPlayers.create(level, anchor, 4);
+        try {
+            DungeonService.setLighting(visitor.player(), dungeon.id(), 2);
+            helper.assertValueEqual(
+                    manager.byId(dungeon.id()).orElseThrow().lighting(),
+                    0,
+                    "a player without op cannot change the lighting"
+            );
+            helper.assertTrue(
+                    visitor.packets().stream().noneMatch(DungeonGameTests::isDungeonState),
+                    "a rejected visitor request opens no screen"
+            );
+
+            DungeonService.clearRateLimit(operator.player().getUUID());
+            DungeonService.setLighting(operator.player(), dungeon.id(), 7);
+            helper.assertValueEqual(
+                    manager.byId(dungeon.id()).orElseThrow().lighting(),
+                    0,
+                    "a level outside 0..3 is dropped"
+            );
+            helper.assertTrue(
+                    operator.packets().stream().noneMatch(DungeonGameTests::isDungeonState),
+                    "a dropped request sends no state"
+            );
+
+            DungeonService.clearRateLimit(operator.player().getUUID());
+            DungeonService.setLighting(operator.player(), dungeon.id(), -1);
+            helper.assertValueEqual(
+                    manager.byId(dungeon.id()).orElseThrow().lighting(),
+                    0,
+                    "a negative level is dropped"
+            );
+
+            DungeonService.clearRateLimit(operator.player().getUUID());
+            DungeonService.setLighting(operator.player(), dungeon.id() + 1000, 2);
+            helper.assertValueEqual(
+                    manager.byId(dungeon.id()).orElseThrow().lighting(),
+                    0,
+                    "an unknown dungeon id changes nothing"
+            );
+
+            long revision = manager.revision();
+            DungeonService.clearRateLimit(operator.player().getUUID());
+            DungeonService.setLighting(operator.player(), dungeon.id(), 2);
+            helper.assertValueEqual(
+                    manager.byId(dungeon.id()).orElseThrow().lighting(),
+                    2,
+                    "an operator next to the core sets the lighting"
+            );
+            helper.assertValueEqual(manager.revision(), revision + 1, "the change bumps the revision");
+            DungeonPayloads.S2COpenDungeon state = operator.packets().stream()
+                    .filter(DungeonGameTests::isDungeonState)
+                    .map(packet -> (DungeonPayloads.S2COpenDungeon) ((ClientboundCustomPayloadPacket) packet).payload())
+                    .reduce((first, second) -> second)
+                    .orElse(null);
+            helper.assertTrue(state != null, "the operator receives the fresh dungeon state");
+            helper.assertValueEqual(state.lighting(), 2, "the state carries the stored lighting");
+            helper.assertTrue(state.successful(), "the state reports success");
+
+            BlockPos far = anchor.offset(20, 0, 0);
+            operator.player().setPos(far.getX() + 0.5D, far.getY() + 0.5D, far.getZ() + 0.5D);
+            DungeonService.clearRateLimit(operator.player().getUUID());
+            DungeonService.setLighting(operator.player(), dungeon.id(), 3);
+            helper.assertValueEqual(
+                    manager.byId(dungeon.id()).orElseThrow().lighting(),
+                    2,
+                    "an operator away from the core cannot change the lighting"
+            );
+        } finally {
+            DungeonService.clearRateLimit(visitor.player().getUUID());
+            DungeonService.clearRateLimit(operator.player().getUUID());
+            manager.remove(dungeon.id());
+        }
+        helper.succeed();
+    }
+
+    private static boolean isDungeonState(Packet<?> packet) {
+        return packet instanceof ClientboundCustomPayloadPacket custom
+                && custom.payload() instanceof DungeonPayloads.S2COpenDungeon;
     }
 
     private static long countVines(ServerLevel level, BlockPos center) {
