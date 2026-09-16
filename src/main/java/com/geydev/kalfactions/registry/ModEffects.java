@@ -1,6 +1,7 @@
 package com.geydev.kalfactions.registry;
 
 import com.geydev.kalfactions.KalFactions;
+import com.geydev.kalfactions.dungeon.DungeonSightEffect;
 import com.geydev.kalfactions.faith.FaithGod;
 import com.geydev.kalfactions.invisibility.TrueInvisibilityEffect;
 import net.minecraft.core.Holder;
@@ -26,6 +27,9 @@ public final class ModEffects {
 
     public static final DeferredHolder<MobEffect, MobEffect> TRUE_INVISIBILITY =
             EFFECTS.register("true_invisibility", () -> new TrueInvisibilityEffect(0x8FA8C8));
+
+    public static final DeferredHolder<MobEffect, MobEffect> DUNGEON_SIGHT =
+            EFFECTS.register("dungeon_sight", () -> new DungeonSightEffect(0xB8D8FF));
 
     public static Holder<MobEffect> forGod(FaithGod god) {
         return switch (god) {

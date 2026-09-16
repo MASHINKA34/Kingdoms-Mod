@@ -1847,5 +1847,6 @@
   "message.kingdoms.charon_statue.payment_changed": "Средства изменились, попробуй ещё раз.",
   "message.kingdoms.charon_statue.inventory_full": "Освободи слот под жетон.",
   "message.kingdoms.charon_statue.ghost": "Призрак не торгуется с Хароном.",
-  "message.kingdoms.charon_statue.too_far": "Подойди ближе к статуе."
+  "message.kingdoms.charon_statue.too_far": "Подойди ближе к статуе.",
+  "effect.kingdoms.dungeon_sight": "Зрение данжа"
 }

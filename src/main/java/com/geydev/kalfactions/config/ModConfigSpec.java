@@ -269,6 +269,11 @@ public final class ModConfigSpec {
     public static final IntValue DUNGEON_MAX_CHEST_TEMPLATES;
     public static final IntValue DUNGEON_MAX_CHEST_TEMPLATE_KILOBYTES;
     public static final BooleanValue DUNGEON_BANNED_MOBS_SWEEP;
+    public static final BooleanValue DUNGEON_SIGHT_ENABLED;
+    public static final IntValue DUNGEON_SIGHT_LEVEL1_PERCENT;
+    public static final IntValue DUNGEON_SIGHT_LEVEL2_PERCENT;
+    public static final IntValue DUNGEON_SIGHT_LEVEL3_PERCENT;
+    public static final IntValue DUNGEON_SIGHT_EFFECT_TICKS;
     public static final IntValue MUSIC_DEFAULT_RADIUS;
     public static final IntValue MUSIC_MAX_RADIUS;
     public static final IntValue MUSIC_MAX_TRACK_BYTES;
@@ -943,6 +948,21 @@ public final class ModConfigSpec {
         DUNGEON_BANNED_MOBS_SWEEP = builder
             .comment("Remove mobs of the kingdoms:banned_mobs tag that reached dungeon chunks anyway.")
             .define("bannedMobsSweep", true);
+        DUNGEON_SIGHT_ENABLED = builder
+            .comment("Hand the dungeon sight effect to players standing in a dungeon with lighting above zero.")
+            .define("sightEnabled", true);
+        DUNGEON_SIGHT_LEVEL1_PERCENT = builder
+            .comment("Brightness of the dim dungeon lighting step, in percent of night vision.")
+            .defineInRange("sightLevel1Percent", 35, 10, 100);
+        DUNGEON_SIGHT_LEVEL2_PERCENT = builder
+            .comment("Brightness of the medium dungeon lighting step, in percent of night vision.")
+            .defineInRange("sightLevel2Percent", 70, 10, 100);
+        DUNGEON_SIGHT_LEVEL3_PERCENT = builder
+            .comment("Brightness of the full dungeon lighting step, in percent of night vision.")
+            .defineInRange("sightLevel3Percent", 100, 10, 100);
+        DUNGEON_SIGHT_EFFECT_TICKS = builder
+            .comment("Ticks a handed out dungeon sight effect lasts; it is refreshed while the player stays inside.")
+            .defineInRange("sightEffectTicks", 300, 40, 6000);
         builder.pop();
 
         builder.push("music");

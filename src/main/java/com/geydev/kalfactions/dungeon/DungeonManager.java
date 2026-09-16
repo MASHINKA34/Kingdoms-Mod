@@ -37,6 +37,7 @@ public final class DungeonManager extends SavedData {
     public static final int MAX_NAME_CHARS = MAX_NAME_LENGTH * 2;
     public static final int MAX_DUNGEONS = 512;
     public static final int MAX_CHUNKS_PER_DUNGEON = 4096;
+    public static final int MAX_LIGHTING = 3;
     public static final Factory<DungeonManager> FACTORY =
             new Factory<>(DungeonManager::new, DungeonManager::load);
 
@@ -54,6 +55,7 @@ public final class DungeonManager extends SavedData {
     private static final String TAG_LOOT_TABLE = "lootTable";
     private static final String TAG_LAST_FILLED = "lastFilled";
     private static final String TAG_CHESTS = "chests";
+    private static final String TAG_LIGHTING = "lighting";
 
     private final Map<Integer, Dungeon> dungeons = new LinkedHashMap<>();
     private final Map<ClaimKey, Integer> chunkIndex = new LinkedHashMap<>();
@@ -206,6 +208,21 @@ public final class DungeonManager extends SavedData {
             return Reason.OK;
         }
         dungeon.name = name;
+        revision++;
+        setDirty();
+        return Reason.OK;
+    }
+
+    public synchronized Reason setLighting(int id, int level) {
+        Dungeon dungeon = dungeons.get(id);
+        if (dungeon == null) {
+            return Reason.NOT_FOUND;
+        }
+        int lighting = Math.clamp(level, 0, MAX_LIGHTING);
+        if (dungeon.lighting == lighting) {
+            return Reason.OK;
+        }
+        dungeon.lighting = lighting;
         revision++;
         setDirty();
         return Reason.OK;
@@ -438,7 +455,8 @@ public final class DungeonManager extends SavedData {
             BlockPos corePos,
             Set<ClaimKey> chunks,
             long createdAt,
-            int containerCount
+            int containerCount,
+            int lighting
     ) {
     }
 
@@ -451,6 +469,7 @@ public final class DungeonManager extends SavedData {
         private final Set<Long> chests = new LinkedHashSet<>();
         private BlockPos corePos;
         private String name;
+        private int lighting;
 
         private Dungeon(int id, String name, ResourceKey<Level> dimension, BlockPos corePos, long createdAt) {
             this.id = id;
@@ -468,7 +487,8 @@ public final class DungeonManager extends SavedData {
                     corePos,
                     Set.copyOf(chunks),
                     createdAt,
-                    containers.size() + chests.size()
+                    containers.size() + chests.size(),
+                    lighting
             );
         }
 
@@ -492,6 +512,7 @@ public final class DungeonManager extends SavedData {
             }
             tag.put(TAG_CONTAINERS, containerList);
             tag.putLongArray(TAG_CHESTS, chests.stream().mapToLong(Long::longValue).toArray());
+            tag.putInt(TAG_LIGHTING, lighting);
             return tag;
         }
 
@@ -529,6 +550,7 @@ public final class DungeonManager extends SavedData {
             for (long packed : tag.getLongArray(TAG_CHESTS)) {
                 dungeon.chests.add(packed);
             }
+            dungeon.lighting = Math.clamp(tag.getInt(TAG_LIGHTING), 0, MAX_LIGHTING);
             return dungeon;
         }
     }
