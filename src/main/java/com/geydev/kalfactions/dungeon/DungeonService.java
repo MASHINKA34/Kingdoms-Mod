@@ -65,6 +65,40 @@ public final class DungeonService {
         );
     }
 
+    public static void setLighting(ServerPlayer player, int dungeonId, int level) {
+        if (!validatePlayer(player) || !rateLimit(player)) {
+            return;
+        }
+        if (level < 0 || level > DungeonManager.MAX_LIGHTING) {
+            return;
+        }
+        DungeonManager manager = DungeonManager.get(player.serverLevel());
+        DungeonManager.DungeonView dungeon = manager.byId(dungeonId).orElse(null);
+        if (dungeon == null) {
+            FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.dungeon.not_found"), false);
+            return;
+        }
+        if (!dungeon.dimension().equals(player.level().dimension()) || !nearCore(player, dungeon.corePos())) {
+            FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.error.table_too_far"), false);
+            return;
+        }
+        DungeonManager.Reason reason = manager.setLighting(dungeonId, level);
+        DungeonManager.DungeonView updated = manager.byId(dungeonId).orElse(dungeon);
+        if (reason != DungeonManager.Reason.OK) {
+            sendState(player, updated, reasonMessage(reason), false);
+            return;
+        }
+        sendState(
+                player,
+                updated,
+                Component.translatable(
+                        "kingdoms.dungeon.lighting_saved",
+                        Component.translatable(DungeonSight.lightingKey(updated.lighting()))
+                ),
+                true
+        );
+    }
+
     public static void remove(ServerPlayer player, int dungeonId) {
         if (!validatePlayer(player) || !rateLimit(player)) {
             return;
@@ -282,6 +316,7 @@ public final class DungeonService {
                 level.dimension().location(),
                 dungeon.chunks().size(),
                 dungeon.containerCount(),
+                dungeon.lighting(),
                 center.x,
                 center.z,
                 DungeonPayloads.MAP_RADIUS,
@@ -325,8 +360,7 @@ public final class DungeonService {
             FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.error.table_not_loaded"), false);
             return false;
         }
-        if (player.distanceToSqr(corePos.getX() + 0.5D, corePos.getY() + 0.5D, corePos.getZ() + 0.5D)
-                > MAX_CORE_DISTANCE_SQR) {
+        if (!nearCore(player, corePos)) {
             FactionServerHooks.sendNotice(player, Component.translatable("kingdoms.error.table_too_far"), false);
             return false;
         }
@@ -335,6 +369,11 @@ public final class DungeonService {
             return false;
         }
         return true;
+    }
+
+    private static boolean nearCore(ServerPlayer player, BlockPos corePos) {
+        return player.distanceToSqr(corePos.getX() + 0.5D, corePos.getY() + 0.5D, corePos.getZ() + 0.5D)
+                <= MAX_CORE_DISTANCE_SQR;
     }
 
     private static boolean rateLimit(ServerPlayer player) {

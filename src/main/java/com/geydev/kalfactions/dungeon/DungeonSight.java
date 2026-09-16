@@ -19,6 +19,15 @@ public final class DungeonSight {
         return (Math.clamp(amplifier, 0, MAX_AMPLIFIER) + 1) / 10.0F;
     }
 
+    public static String lightingKey(int lighting) {
+        return switch (Math.clamp(lighting, 0, DungeonManager.MAX_LIGHTING)) {
+            case 1 -> "screen.kingdoms.dungeon.lighting.dim";
+            case 2 -> "screen.kingdoms.dungeon.lighting.medium";
+            case 3 -> "screen.kingdoms.dungeon.lighting.full";
+            default -> "screen.kingdoms.dungeon.lighting.off";
+        };
+    }
+
     public static void refresh(ServerPlayer player, DungeonManager.DungeonView dungeon) {
         DungeonSightRules rules = DungeonSightRules.configured();
         int lighting = dungeon == null ? 0 : dungeon.lighting();

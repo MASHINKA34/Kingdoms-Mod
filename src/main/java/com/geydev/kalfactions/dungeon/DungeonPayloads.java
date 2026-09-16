@@ -125,6 +125,23 @@ public final class DungeonPayloads {
         }
     }
 
+    public record C2SDungeonSetLighting(int dungeonId, int level) implements CustomPacketPayload {
+        public static final Type<C2SDungeonSetLighting> TYPE = payloadType("dungeon_set_lighting");
+        public static final StreamCodec<RegistryFriendlyByteBuf, C2SDungeonSetLighting> STREAM_CODEC =
+                StreamCodec.of(
+                        (buffer, payload) -> {
+                            buffer.writeVarInt(payload.dungeonId);
+                            buffer.writeVarInt(payload.level);
+                        },
+                        buffer -> new C2SDungeonSetLighting(buffer.readVarInt(), buffer.readVarInt())
+                );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record S2COpenDungeon(
             int dungeonId,
             String name,
@@ -132,6 +149,7 @@ public final class DungeonPayloads {
             ResourceLocation dimension,
             int chunkCount,
             int containerCount,
+            int lighting,
             int centerChunkX,
             int centerChunkZ,
             int radius,
@@ -148,6 +166,7 @@ public final class DungeonPayloads {
                     buffer.writeResourceLocation(payload.dimension);
                     buffer.writeVarInt(payload.chunkCount);
                     buffer.writeVarInt(payload.containerCount);
+                    buffer.writeVarInt(payload.lighting);
                     buffer.writeInt(payload.centerChunkX);
                     buffer.writeInt(payload.centerChunkZ);
                     buffer.writeVarInt(payload.radius);
@@ -166,6 +185,7 @@ public final class DungeonPayloads {
                     ResourceLocation dimension = buffer.readResourceLocation();
                     int chunkCount = buffer.readVarInt();
                     int containerCount = buffer.readVarInt();
+                    int lighting = Math.clamp(buffer.readVarInt(), 0, DungeonManager.MAX_LIGHTING);
                     int centerChunkX = buffer.readInt();
                     int centerChunkZ = buffer.readInt();
                     int radius = Math.clamp(buffer.readVarInt(), 0, MAP_RADIUS);
@@ -184,6 +204,7 @@ public final class DungeonPayloads {
                             dimension,
                             chunkCount,
                             containerCount,
+                            lighting,
                             centerChunkX,
                             centerChunkZ,
                             radius,

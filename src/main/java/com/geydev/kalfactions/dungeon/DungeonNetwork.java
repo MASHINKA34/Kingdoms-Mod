@@ -39,6 +39,11 @@ public final class DungeonNetwork {
                 DungeonNetwork::handleMapSet
         );
         registrar.playToServer(
+                DungeonPayloads.C2SDungeonSetLighting.TYPE,
+                DungeonPayloads.C2SDungeonSetLighting.STREAM_CODEC,
+                DungeonNetwork::handleSetLighting
+        );
+        registrar.playToServer(
                 DungeonPayloads.C2SDungeonChestEntry.TYPE,
                 DungeonPayloads.C2SDungeonChestEntry.STREAM_CODEC,
                 DungeonNetwork::handleChestEntry
@@ -120,6 +125,12 @@ public final class DungeonNetwork {
     private static void handleMapSet(DungeonPayloads.C2SDungeonMapSet payload, IPayloadContext context) {
         if (context.player() instanceof ServerPlayer player) {
             DungeonService.mapSet(player, payload.dungeonId(), payload.marked(), payload.chunks());
+        }
+    }
+
+    private static void handleSetLighting(DungeonPayloads.C2SDungeonSetLighting payload, IPayloadContext context) {
+        if (context.player() instanceof ServerPlayer player) {
+            DungeonService.setLighting(player, payload.dungeonId(), payload.level());
         }
     }
 

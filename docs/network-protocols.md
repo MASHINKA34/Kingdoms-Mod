@@ -83,3 +83,12 @@ Fields: `anchor: BlockPos`, `price: long`. Sent only as the answer to a right cl
 ### `kingdoms:charon_statue_buy` — C2S
 
 Fields: `anchor: BlockPos`. Server rechecks every condition of the offer again — sale switch, live non-spectator non-ghost player, loaded anchor block of a Charon statue, distance — plus a five tick rate limit and a free inventory slot for the token. The price is read from `charon.statueTokenCost` on the server, never from the payload. Payment cascades over coins in the inventory, the Numismatics account (`charon.statuePayFromBank`) and the treasury of the player's faction (`charon.statuePayFromTreasury`, officers and leaders only); every step rolls the earlier ones back on failure, so a rejected purchase charges nothing and hands out no token.
+
+## Dungeon payloads
+
+The dungeon core screen is operator only. Every request below is rate-limited per player and answered with a fresh `kingdoms:dungeon_state`; the level the client shows is never authority for anything.
+
+| Direction | ID | Fields and bounds | Server conditions and result |
+| --- | --- | --- | --- |
+| C2S | `kingdoms:dungeon_set_lighting` | `dungeonId: VarInt`, `level: VarInt 0..3` | Rechecks a live non-spectator player with permission level 2, the rate limit, a level inside `0..3` (anything else is dropped silently), an existing dungeon in the player's dimension and a distance of no more than eight blocks to its core. The level is stored in the `kingdoms_dungeons` saved data; the `kingdoms:dungeon_sight` effect itself is handed out and withdrawn by the presence tick from the stored level and the `dungeon.sight*` config, never from the packet. |
+| S2C | `kingdoms:dungeon_state` | `dungeonId: VarInt`, `name: UTF-8 <=48`, `corePos: BlockPos`, `dimension: ResourceLocation`, `chunkCount: VarInt`, `containerCount: VarInt`, `lighting: VarInt 0..3`, `centerChunkX: int`, `centerChunkZ: int`, `radius: VarInt 0..8`, `chunks: <=1024 packed chunk longs`, trusted localized message, success flag | Full server-derived screen state; it is sent on open and after every accepted or rejected mutation. `lighting` is the stored step (`0` off, `1` dim, `2` medium, `3` night vision) and is display-only on the client; the brightness a player actually gets travels as the amplifier of the `kingdoms:dungeon_sight` effect. |

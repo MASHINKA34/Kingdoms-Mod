@@ -3,6 +3,7 @@ package com.geydev.kalfactions.client.screen;
 import com.geydev.kalfactions.client.ClientDungeonSelection;
 import com.geydev.kalfactions.dungeon.DungeonManager;
 import com.geydev.kalfactions.dungeon.DungeonPayloads;
+import com.geydev.kalfactions.dungeon.DungeonSight;
 import com.geydev.kalfactions.integration.xaero.XaeroMaps;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -13,7 +14,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class DungeonScreen extends Screen {
     private static final int PANEL_WIDTH = 260;
-    private static final int PANEL_HEIGHT = 214;
+    private static final int PANEL_HEIGHT = 238;
     private static final int STATUS_WIDTH = 160;
     private static final int GOLD = 0xFFF3D58B;
     private static final int TEXT = 0xFFE8DFCB;
@@ -24,6 +25,7 @@ public final class DungeonScreen extends Screen {
     private DungeonPayloads.S2COpenDungeon state;
     private EditBox nameBox;
     private KingdomsButton saveButton;
+    private KingdomsButton lightingButton;
     private String statusMessage = "";
     private boolean statusSuccessful;
     private long statusShownAt;
@@ -44,6 +46,9 @@ public final class DungeonScreen extends Screen {
         state = payload;
         if (nameBox != null && !nameBox.isFocused()) {
             nameBox.setValue(payload.name());
+        }
+        if (lightingButton != null) {
+            lightingButton.setMessage(lightingMessage());
         }
         String message = payload.message().getString();
         if (!message.isBlank()) {
@@ -92,6 +97,15 @@ public final class DungeonScreen extends Screen {
                 20
         ));
 
+        lightingButton = addRenderableWidget(KingdomsButton.create(
+                lightingMessage(),
+                button -> cycleLighting(),
+                panelLeft + 12,
+                panelTop + 156,
+                PANEL_WIDTH - 24,
+                20
+        ));
+
         addRenderableWidget(KingdomsButton.create(
                 Component.translatable("screen.kingdoms.dungeon.delete"),
                 button -> minecraft.setScreen(new KingdomsConfirmScreen(
@@ -106,7 +120,7 @@ public final class DungeonScreen extends Screen {
                         }
                 )),
                 panelLeft + 12,
-                panelTop + 156,
+                panelTop + 180,
                 PANEL_WIDTH - 24,
                 20
         ));
@@ -130,6 +144,18 @@ public final class DungeonScreen extends Screen {
             return;
         }
         PacketDistributor.sendToServer(new DungeonPayloads.C2SRenameDungeon(dungeonId, name));
+    }
+
+    private void cycleLighting() {
+        int next = (state.lighting() + 1) % (DungeonManager.MAX_LIGHTING + 1);
+        PacketDistributor.sendToServer(new DungeonPayloads.C2SDungeonSetLighting(dungeonId, next));
+    }
+
+    private Component lightingMessage() {
+        return Component.translatable(
+                "screen.kingdoms.dungeon.lighting",
+                Component.translatable(DungeonSight.lightingKey(state.lighting()))
+        );
     }
 
     private void openMap() {

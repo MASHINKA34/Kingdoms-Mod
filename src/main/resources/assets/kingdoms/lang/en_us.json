@@ -1848,5 +1848,11 @@
   "message.kingdoms.charon_statue.inventory_full": "Free a slot for the token first.",
   "message.kingdoms.charon_statue.ghost": "Ghosts cannot trade with Charon.",
   "message.kingdoms.charon_statue.too_far": "Come closer to the statue.",
-  "effect.kingdoms.dungeon_sight": "Dungeon Sight"
+  "effect.kingdoms.dungeon_sight": "Dungeon Sight",
+  "screen.kingdoms.dungeon.lighting": "Lighting: %s",
+  "screen.kingdoms.dungeon.lighting.off": "off",
+  "screen.kingdoms.dungeon.lighting.dim": "dim",
+  "screen.kingdoms.dungeon.lighting.medium": "medium",
+  "screen.kingdoms.dungeon.lighting.full": "night vision",
+  "kingdoms.dungeon.lighting_saved": "Dungeon lighting: %s."
 }

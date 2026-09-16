@@ -1848,5 +1848,11 @@
   "message.kingdoms.charon_statue.inventory_full": "Освободи слот под жетон.",
   "message.kingdoms.charon_statue.ghost": "Призрак не торгуется с Хароном.",
   "message.kingdoms.charon_statue.too_far": "Подойди ближе к статуе.",
-  "effect.kingdoms.dungeon_sight": "Зрение данжа"
+  "effect.kingdoms.dungeon_sight": "Зрение данжа",
+  "screen.kingdoms.dungeon.lighting": "Освещение: %s",
+  "screen.kingdoms.dungeon.lighting.off": "выкл",
+  "screen.kingdoms.dungeon.lighting.dim": "тусклое",
+  "screen.kingdoms.dungeon.lighting.medium": "среднее",
+  "screen.kingdoms.dungeon.lighting.full": "ночное зрение",
+  "kingdoms.dungeon.lighting_saved": "Освещение данжа: %s."
 }
