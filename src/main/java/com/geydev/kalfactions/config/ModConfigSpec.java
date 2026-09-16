@@ -292,6 +292,12 @@ public final class ModConfigSpec {
     public static final LongValue CHARON_STATUE_TOKEN_COST;
     public static final BooleanValue CHARON_STATUE_PAY_FROM_BANK;
     public static final BooleanValue CHARON_STATUE_PAY_FROM_TREASURY;
+    public static final IntValue WARP_SCROLL_CAST_SECONDS;
+    public static final BooleanValue WARP_SCROLL_CANCEL_ON_MOVE;
+    public static final DoubleValue WARP_SCROLL_MOVE_TOLERANCE_BLOCKS;
+    public static final BooleanValue WARP_SCROLL_CANCEL_ON_DAMAGE;
+    public static final IntValue WARP_SCROLL_DAMAGE_COOLDOWN_SECONDS;
+    public static final IntValue WARP_SCROLL_CANCEL_COOLDOWN_SECONDS;
 
     static {
         Builder builder = new Builder();
@@ -1028,6 +1034,27 @@ public final class ModConfigSpec {
         CHARON_STATUE_PAY_FROM_TREASURY = builder
             .comment("Whether a Charon statue may take the rest of the price from the treasury of the buyer's faction.")
             .define("statuePayFromTreasury", true);
+        builder.pop();
+
+        builder.push("warpScroll");
+        WARP_SCROLL_CAST_SECONDS = builder
+            .comment("Seconds the scroll of return is channelled before the warp; 0 teleports at once.")
+            .defineInRange("castSeconds", 4, 0, 120);
+        WARP_SCROLL_CANCEL_ON_MOVE = builder
+            .comment("Whether leaving the spot the channel started on interrupts the return.")
+            .define("cancelOnMove", true);
+        WARP_SCROLL_MOVE_TOLERANCE_BLOCKS = builder
+            .comment("Blocks the channelling player may drift from the starting spot before the return breaks.")
+            .defineInRange("moveToleranceBlocks", 0.2D, 0.0D, 4.0D);
+        WARP_SCROLL_CANCEL_ON_DAMAGE = builder
+            .comment("Whether taking damage interrupts the return.")
+            .define("cancelOnDamage", true);
+        WARP_SCROLL_DAMAGE_COOLDOWN_SECONDS = builder
+            .comment("Seconds the scroll stays on cooldown after damage interrupted the return.")
+            .defineInRange("damageCooldownSeconds", 3, 0, 600);
+        WARP_SCROLL_CANCEL_COOLDOWN_SECONDS = builder
+            .comment("Seconds the scroll stays on cooldown after movement interrupted the return; 0 keeps it ready.")
+            .defineInRange("cancelCooldownSeconds", 0, 0, 600);
         builder.pop();
         SPEC = builder.build();
     }
