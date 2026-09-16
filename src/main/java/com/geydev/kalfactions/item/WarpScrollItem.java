@@ -18,10 +18,12 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -70,40 +72,98 @@ public final class WarpScrollItem extends Item {
         if (!(level instanceof ServerLevel origin) || !(player instanceof ServerPlayer serverPlayer)) {
             return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
         }
-        if (!DungeonManager.get(origin).isDungeon(origin, serverPlayer.blockPosition())) {
-            return refuse(serverPlayer, stack, "message.kingdoms.warp_scroll.outside_dungeon");
+        if (WarpChannelEvents.isChanneling(serverPlayer)) {
+            return InteractionResultHolder.consume(stack);
+        }
+        String refusal = validate(origin, serverPlayer, stack);
+        if (refusal != null) {
+            return refuse(serverPlayer, stack, refusal);
+        }
+        if (WarpScrollRules.configured().castTicks() <= 0) {
+            return warp(origin, serverPlayer, stack);
+        }
+        WarpChannelEvents.begin(serverPlayer, hand);
+        serverPlayer.startUsingItem(hand);
+        return InteractionResultHolder.consume(stack);
+    }
+
+    @Override
+    public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity entity) {
+        if (level instanceof ServerLevel origin
+                && entity instanceof ServerPlayer player
+                && WarpChannelEvents.complete(player)) {
+            warp(origin, player, stack);
+        }
+        return stack;
+    }
+
+    @Override
+    public void releaseUsing(ItemStack stack, Level level, LivingEntity entity, int timeLeft) {
+        if (entity instanceof ServerPlayer player) {
+            WarpChannelEvents.cancel(player, WarpChannelEvents.Reason.RELEASED);
+        }
+    }
+
+    @Override
+    public int getUseDuration(ItemStack stack, LivingEntity entity) {
+        return WarpScrollRules.configured().castTicks();
+    }
+
+    @Override
+    public UseAnim getUseAnimation(ItemStack stack) {
+        return UseAnim.BOW;
+    }
+
+    public static InteractionResultHolder<ItemStack> warp(ServerLevel origin, ServerPlayer player, ItemStack stack) {
+        String refusal = validate(origin, player, stack);
+        if (refusal != null) {
+            return refuse(player, stack, refusal);
         }
         GlobalPos target = stack.get(ModDataComponents.WARP_TARGET.get());
-        if (target == null) {
-            return refuse(serverPlayer, stack, "message.kingdoms.warp_scroll.not_bound");
-        }
         ServerLevel destination = origin.getServer().getLevel(target.dimension());
-        if (destination == null) {
-            return refuse(serverPlayer, stack, "message.kingdoms.warp_scroll.anchor_missing");
-        }
-        BlockPos anchor = target.pos();
-        ChunkPos chunk = new ChunkPos(anchor);
-        destination.getChunk(chunk.x, chunk.z);
-        if (!destination.getBlockState(anchor).is(ModBlocks.WARP_ANCHOR.get())) {
-            return refuse(serverPlayer, stack, "message.kingdoms.warp_scroll.anchor_missing");
-        }
-        BlockPos landing = findLanding(destination, anchor);
-        playWarpEffects(origin, serverPlayer.position());
-        serverPlayer.teleportTo(
+        BlockPos landing = findLanding(destination, target.pos());
+        playWarpEffects(origin, player.position());
+        player.teleportTo(
                 destination,
                 landing.getX() + 0.5D,
                 landing.getY(),
                 landing.getZ() + 0.5D,
-                serverPlayer.getYRot(),
-                serverPlayer.getXRot()
+                player.getYRot(),
+                player.getXRot()
         );
         playWarpEffects(destination, Vec3.atBottomCenterOf(landing));
         stack.shrink(1);
         return InteractionResultHolder.consume(stack);
     }
 
+    private static String validate(ServerLevel origin, ServerPlayer player, ItemStack stack) {
+        if (!DungeonManager.get(origin).isDungeon(origin, player.blockPosition())) {
+            return "message.kingdoms.warp_scroll.outside_dungeon";
+        }
+        GlobalPos target = stack.get(ModDataComponents.WARP_TARGET.get());
+        if (target == null) {
+            return "message.kingdoms.warp_scroll.not_bound";
+        }
+        ServerLevel destination = origin.getServer().getLevel(target.dimension());
+        if (destination == null) {
+            return "message.kingdoms.warp_scroll.anchor_missing";
+        }
+        BlockPos anchor = target.pos();
+        ChunkPos chunk = new ChunkPos(anchor);
+        destination.getChunk(chunk.x, chunk.z);
+        if (!destination.getBlockState(anchor).is(ModBlocks.WARP_ANCHOR.get())) {
+            return "message.kingdoms.warp_scroll.anchor_missing";
+        }
+        return null;
+    }
+
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        int castSeconds = WarpScrollRules.configured().castSeconds();
+        if (castSeconds > 0) {
+            tooltip.add(Component.translatable("item.kingdoms.warp_scroll.tooltip.cast", castSeconds)
+                    .withStyle(ChatFormatting.GRAY));
+        }
         GlobalPos target = stack.get(ModDataComponents.WARP_TARGET.get());
         if (target == null) {
             tooltip.add(Component.translatable("item.kingdoms.warp_scroll.unbound")
