@@ -30,9 +30,6 @@ public final class DungeonPresenceEvents {
         }
         ticksUntilCheck = CHECK_INTERVAL_TICKS;
         DungeonManager manager = DungeonManager.get(event.getServer());
-        if (manager.isEmpty() && !LAST_DUNGEON.isEmpty()) {
-            LAST_DUNGEON.clear();
-        }
         for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
             check(player, manager);
         }
