@@ -39,10 +39,13 @@ public final class DungeonSight {
             return;
         }
         int amplifier = amplifierFor(rules.percentFor(lighting));
-        if (existing != null
-                && existing.getAmplifier() == amplifier
-                && existing.getDuration() >= REFRESH_BELOW_TICKS) {
-            return;
+        if (existing != null) {
+            if (existing.getAmplifier() == amplifier && existing.getDuration() >= REFRESH_BELOW_TICKS) {
+                return;
+            }
+            if (existing.getAmplifier() != amplifier) {
+                player.removeEffect(ModEffects.DUNGEON_SIGHT);
+            }
         }
         player.addEffect(new MobEffectInstance(
                 ModEffects.DUNGEON_SIGHT,
