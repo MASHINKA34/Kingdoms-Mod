@@ -63,7 +63,9 @@
     "XaeroWorldMapPlayerTrackerElementCollectorMixin",
     "XaeroWorldMapPlayerTrackerElementRendererMixin",
     "XaeroWorldMapPlayerTrackerIconRendererMixin",
-    "XaeroWorldMapSyncedTrackedPlayerManagerMixin"
+    "XaeroWorldMapSyncedTrackedPlayerManagerMixin",
+    "LightTextureMixin",
+    "GameRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
