@@ -1,12 +1,15 @@
 package com.geydev.kalfactions.client;
 
 import com.geydev.kalfactions.registry.ModBlockEntities;
+import com.geydev.kalfactions.registry.ModEffects;
 import com.geydev.kalfactions.registry.ModEntities;
 import com.geydev.kalfactions.registry.ModItems;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
+import net.neoforged.neoforge.client.extensions.common.IClientMobEffectExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 
 public final class KingdomsClientRenderers {
@@ -80,6 +83,17 @@ public final class KingdomsClientRenderers {
         event.registerItem(stoneStatueExtension, ModItems.RESEARCH_GOD_STONE_8BLOCKS.get());
         event.registerItem(stoneStatueExtension, ModItems.WAR_GOD_STONE_8BLOCKS.get());
         event.registerItem(stoneStatueExtension, ModItems.ECONOMY_GOD_STONE_8BLOCKS.get());
+        event.registerMobEffect(new IClientMobEffectExtensions() {
+            @Override
+            public boolean isVisibleInInventory(MobEffectInstance instance) {
+                return false;
+            }
+
+            @Override
+            public boolean isVisibleInGui(MobEffectInstance instance) {
+                return false;
+            }
+        }, ModEffects.DUNGEON_SIGHT.get());
     }
 
     private KingdomsClientRenderers() {
