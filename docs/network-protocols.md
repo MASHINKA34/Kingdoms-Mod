@@ -75,3 +75,11 @@ The quarry core opens a server-backed menu. Every request must match the player'
 ### `kingdoms:charon_ghost_state` — S2C
 
 Fields: `playerId: UUID`, `active: boolean`. Sent to the ghost itself and to every player tracking it when the ghost form of a Charon token starts or ends, and to a player that starts tracking an active ghost. Clients only use it to draw the ghost translucently and to skip interactions locally; the damage, aggro, interaction and dimension rules for ghosts are enforced by server-side events, and the ghost state itself lives in the `kingdoms_charon` saved data.
+
+### `kingdoms:charon_statue_offer` — S2C
+
+Fields: `anchor: BlockPos`, `price: long`. Sent only as the answer to a right click on a Charon statue, after the server has checked `charon.statueSaleEnabled`, the living non-spectator non-ghost player, the loaded anchor cell of a `kingdoms:charon_statue` and a distance of no more than eight blocks to the statue centre. The client only opens a confirmation window with the price it was given; the price it shows is never authority for the charge.
+
+### `kingdoms:charon_statue_buy` — C2S
+
+Fields: `anchor: BlockPos`. Server rechecks every condition of the offer again — sale switch, live non-spectator non-ghost player, loaded anchor block of a Charon statue, distance — plus a five tick rate limit and a free inventory slot for the token. The price is read from `charon.statueTokenCost` on the server, never from the payload. Payment cascades over coins in the inventory, the Numismatics account (`charon.statuePayFromBank`) and the treasury of the player's faction (`charon.statuePayFromTreasury`, officers and leaders only); every step rolls the earlier ones back on failure, so a rejected purchase charges nothing and hands out no token.

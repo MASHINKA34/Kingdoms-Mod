@@ -1,11 +1,17 @@
 package com.geydev.kalfactions.block;
 
+import com.geydev.kalfactions.charon.CharonStatueShop;
 import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
@@ -21,6 +27,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.pathfinder.PathComputationType;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
@@ -88,6 +95,40 @@ public final class CharonStatueBlock extends Block {
     }
 
     @Override
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
+            BlockHitResult hitResult) {
+        if (player.isSecondaryUseActive()) {
+            return InteractionResult.PASS;
+        }
+        return sell(state, level, pos, player);
+    }
+
+    @Override
+    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+            Player player, InteractionHand hand, BlockHitResult hitResult) {
+        if (player.isSecondaryUseActive()) {
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
+        InteractionResult result = sell(state, level, pos, player);
+        if (result == InteractionResult.PASS) {
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
+        return result == InteractionResult.FAIL
+                ? ItemInteractionResult.FAIL
+                : ItemInteractionResult.sidedSuccess(level.isClientSide());
+    }
+
+    private static InteractionResult sell(BlockState state, Level level, BlockPos pos, Player player) {
+        if (level.isClientSide()) {
+            return InteractionResult.sidedSuccess(true);
+        }
+        if (player instanceof ServerPlayer serverPlayer) {
+            return CharonStatueShop.offer(serverPlayer, anchorPos(pos, state));
+        }
+        return InteractionResult.PASS;
+    }
+
+    @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return CharonStatueShapes.get(state.getValue(FACING), state.getValue(PART_X),
                 state.getValue(LAYER), state.getValue(PART_Z));
@@ -151,7 +192,7 @@ public final class CharonStatueBlock extends Block {
                 .relative(facing, state.getValue(PART_Z)).below(state.getValue(LAYER));
     }
 
-    private static boolean isAnchor(BlockState state) {
+    public static boolean isAnchor(BlockState state) {
         return state.getValue(PART_X) == 0 && state.getValue(PART_Z) == 0 && state.getValue(LAYER) == 0;
     }
 

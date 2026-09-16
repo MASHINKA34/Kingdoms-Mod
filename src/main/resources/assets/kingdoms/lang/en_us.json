@@ -1833,5 +1833,14 @@
   "kingdoms.charon.duration.minutes": "%s min",
   "kingdoms.charon.duration.mixed": "%1$s min %2$s s",
   "screen.kingdoms.contraband.buy_tab": "Buy",
-  "screen.kingdoms.contraband.sell_tab": "Sell"
+  "screen.kingdoms.contraband.sell_tab": "Sell",
+  "screen.kingdoms.charon_statue.offer_title": "Charon's Statue",
+  "screen.kingdoms.charon_statue.offer_message": "Buy Charon's Token for %s?",
+  "message.kingdoms.charon_statue.purchased": "Charon's Token bought for %s.",
+  "message.kingdoms.charon_statue.purchased_split": "Charon's Token bought for %1$s: %2$s in coins, %3$s from the bank, %4$s from the treasury.",
+  "message.kingdoms.charon_statue.insufficient": "Not enough spurs: %1$s needed, %2$s available.",
+  "message.kingdoms.charon_statue.payment_changed": "Your funds changed, try again.",
+  "message.kingdoms.charon_statue.inventory_full": "Free a slot for the token first.",
+  "message.kingdoms.charon_statue.ghost": "Ghosts cannot trade with Charon.",
+  "message.kingdoms.charon_statue.too_far": "Come closer to the statue."
 }

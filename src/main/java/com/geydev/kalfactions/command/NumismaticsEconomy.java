@@ -62,6 +62,23 @@ public final class NumismaticsEconomy {
         return take;
     }
 
+    public static long depositBank(ServerPlayer player, long amount) {
+        if (amount <= 0L) {
+            return 0L;
+        }
+        BankAccount account = Numismatics.BANK.getOrCreateAccount(player.getUUID(), BankAccount.Type.PLAYER);
+        if (account == null) {
+            return 0L;
+        }
+        long room = Integer.MAX_VALUE - Math.max(0L, account.getBalance());
+        long give = Math.min(amount, room);
+        if (give <= 0L) {
+            return 0L;
+        }
+        account.deposit((int) give);
+        return give;
+    }
+
     public static Payment preparePayment(ServerPlayer player, long amount) {
         if (amount <= 0L) {
             return Payment.invalid(amount);

@@ -288,6 +288,10 @@ public final class ModConfigSpec {
     public static final IntValue CHARON_GHOST_SECONDS;
     public static final IntValue CHARON_GHOST_HEALTH;
     public static final IntValue CHARON_COOLDOWN_MINUTES;
+    public static final BooleanValue CHARON_STATUE_SALE_ENABLED;
+    public static final LongValue CHARON_STATUE_TOKEN_COST;
+    public static final BooleanValue CHARON_STATUE_PAY_FROM_BANK;
+    public static final BooleanValue CHARON_STATUE_PAY_FROM_TREASURY;
 
     static {
         Builder builder = new Builder();
@@ -1012,6 +1016,18 @@ public final class ModConfigSpec {
         CHARON_COOLDOWN_MINUTES = builder
             .comment("Real-time minutes between uses of a Charon token by one player.")
             .defineInRange("cooldownMinutes", 30, 0, 10080);
+        CHARON_STATUE_SALE_ENABLED = builder
+            .comment("Whether a Charon statue sells Charon tokens at all.")
+            .define("statueSaleEnabled", true);
+        CHARON_STATUE_TOKEN_COST = builder
+            .comment("Spurs a Charon statue charges for a Charon token.")
+            .defineInRange("statueTokenCost", 800L, 0L, Long.MAX_VALUE);
+        CHARON_STATUE_PAY_FROM_BANK = builder
+            .comment("Whether a Charon statue may take the rest of the price from the buyer's Numismatics account.")
+            .define("statuePayFromBank", true);
+        CHARON_STATUE_PAY_FROM_TREASURY = builder
+            .comment("Whether a Charon statue may take the rest of the price from the treasury of the buyer's faction.")
+            .define("statuePayFromTreasury", true);
         builder.pop();
         SPEC = builder.build();
     }

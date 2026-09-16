@@ -1833,5 +1833,14 @@
   "kingdoms.charon.duration.minutes": "%s мин",
   "kingdoms.charon.duration.mixed": "%1$s мин %2$s с",
   "screen.kingdoms.contraband.buy_tab": "Купить",
-  "screen.kingdoms.contraband.sell_tab": "Продать"
+  "screen.kingdoms.contraband.sell_tab": "Продать",
+  "screen.kingdoms.charon_statue.offer_title": "Статуя Харона",
+  "screen.kingdoms.charon_statue.offer_message": "Купить Жетон Харона за %s?",
+  "message.kingdoms.charon_statue.purchased": "Жетон Харона куплен за %s.",
+  "message.kingdoms.charon_statue.purchased_split": "Жетон Харона куплен за %1$s: %2$s монетами, %3$s со счёта, %4$s из казны.",
+  "message.kingdoms.charon_statue.insufficient": "Не хватает шпор: нужно %1$s, доступно %2$s.",
+  "message.kingdoms.charon_statue.payment_changed": "Средства изменились, попробуй ещё раз.",
+  "message.kingdoms.charon_statue.inventory_full": "Освободи слот под жетон.",
+  "message.kingdoms.charon_statue.ghost": "Призрак не торгуется с Хароном.",
+  "message.kingdoms.charon_statue.too_far": "Подойди ближе к статуе."
 }
