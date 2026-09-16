@@ -29,9 +29,12 @@ public final class DungeonSight {
     }
 
     public static void refresh(ServerPlayer player, DungeonManager.DungeonView dungeon) {
-        DungeonSightRules rules = DungeonSightRules.configured();
         int lighting = dungeon == null ? 0 : dungeon.lighting();
         MobEffectInstance existing = player.getEffect(ModEffects.DUNGEON_SIGHT);
+        if (lighting <= 0 && existing == null) {
+            return;
+        }
+        DungeonSightRules rules = DungeonSightRules.configured();
         if (!rules.enabled() || lighting <= 0) {
             if (existing != null) {
                 player.removeEffect(ModEffects.DUNGEON_SIGHT);
